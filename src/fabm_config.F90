@@ -6,7 +6,7 @@ module fabm_config
    use fabm_properties, only: type_property_dictionary, type_property, type_set
    use fabm_driver
    use fabm_schedule
-   use fabm, only: type_fabm_model, fabm_initialize_library, fabm_log, type_model
+   use fabm, only: type_fabm_model, fabm_initialize_library, fabm_log
 
    use yaml_types
    use yaml, yaml_parse=>parse, yaml_error_length=>error_length
@@ -16,9 +16,7 @@ module fabm_config
    private
 
    public fabm_create_model
-
-   ! For backward compatibility (20191115):
-   public fabm_create_model_from_yaml_file
+   public fabm_configure_model
 
 contains
 
@@ -34,22 +32,11 @@ contains
       initialize_ = .true.
       if (present(initialize)) initialize_ = initialize
       allocate(model)
-      call configure(model, path, do_not_initialize=.not. initialize_, parameters=parameters, unit=unit)
+      call fabm_configure_model(model, path, do_not_initialize=.not. initialize_, parameters=parameters, unit=unit)
    end function
 
-   ! For backward compatibility (20191115):
-   subroutine fabm_create_model_from_yaml_file(model, path, do_not_initialize, parameters, unit)
-      type (type_model),                         intent(out) :: model
-      character(len=*),                optional, intent(in)  :: path
-      logical,                         optional, intent(in)  :: do_not_initialize
-      type (type_property_dictionary), optional, intent(in)  :: parameters
-      integer,                         optional, intent(in)  :: unit
-
-      call configure(model, path, do_not_initialize, parameters, unit)
-   end subroutine
-
-   subroutine configure(model, path, do_not_initialize, parameters, unit)
-      class (type_model),                        intent(inout) :: model
+   subroutine fabm_configure_model(model, path, do_not_initialize, parameters, unit)
+      class (type_fabm_model),                   intent(inout) :: model
       character(len=*),                optional, intent(in)    :: path
       logical,                         optional, intent(in)    :: do_not_initialize
       type (type_property_dictionary), optional, intent(in)    :: parameters
@@ -94,10 +81,10 @@ contains
                &at the root (non-indented) level, not a single value. Are you missing a trailing colon?')
       end select
 
-   end subroutine configure
+   end subroutine fabm_configure_model
 
    subroutine create_model_tree_from_dictionary(model, mapping, do_not_initialize, parameters)
-      class (type_model),                        intent(inout) :: model
+      class (type_fabm_model),                   intent(inout) :: model
       class (type_dictionary),                   intent(in)    :: mapping
       logical,                         optional, intent(in)    :: do_not_initialize
       type (type_property_dictionary), optional, intent(in)    :: parameters

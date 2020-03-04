@@ -33,7 +33,7 @@ end module host_hooks
    
 program test_host
 
-   use fabm, only: type_fabm_model, standard_variables, type_bulk_variable_id, type_horizontal_variable_id, type_scalar_variable_id, fabm_initialize_library
+   use fabm, only: type_fabm_model, standard_variables, type_fabm_interior_variable_id, type_fabm_horizontal_variable_id, type_fabm_scalar_variable_id, fabm_initialize_library
    use fabm_config
    use fabm_driver
    use fabm_parameters, only: rke
@@ -460,9 +460,9 @@ contains
       real(rke) :: value
       logical :: success
       type type_input
-         type (type_bulk_variable_id)                         :: interior_id
-         type (type_horizontal_variable_id)                   :: horizontal_id
-         type (type_scalar_variable_id)                       :: scalar_id
+         type (type_fabm_interior_variable_id)                :: interior_id
+         type (type_fabm_horizontal_variable_id)              :: horizontal_id
+         type (type_fabm_scalar_variable_id)                  :: scalar_id
          real(rke), allocatable _DIMENSION_GLOBAL_            :: interior_data
          real(rke), allocatable _DIMENSION_GLOBAL_HORIZONTAL_ :: horizontal_data
          real(rke)                                            :: scalar_data
@@ -487,7 +487,7 @@ contains
                      stop 2
                   end if
                   allocate(input)
-                  input%interior_id = model%get_bulk_variable_id(trim(yaml_pair%key))
+                  input%interior_id = model%get_interior_variable_id(trim(yaml_pair%key))
                   if (model%is_variable_used(input%interior_id)) then
                       allocate(input%interior_data _INDEX_LOCATION_)
                       input%interior_data = value

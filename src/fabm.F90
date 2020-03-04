@@ -17,8 +17,8 @@
 
 module fabm
 
-   use fabm_standard_variables,only: type_bulk_standard_variable, type_horizontal_standard_variable, &
-                                     type_global_standard_variable, initialize_standard_variables, type_standard_variable_node
+   use fabm_standard_variables, only: type_interior_standard_variable, type_horizontal_standard_variable, &
+                                      type_global_standard_variable, initialize_standard_variables, type_standard_variable_node
    use fabm_parameters
    use fabm_types, rki => rk
    use fabm_expressions
@@ -28,57 +28,38 @@ module fabm
    use fabm_coupling
    use fabm_job
    use fabm_schedule
+   use fabm_debug
+   use fabm_cache
 
    implicit none
 
-   ! default: all is private.
    private
 
-   public fabm_initialize_library, fabm_get_version, type_fabm_model
+   ! --------------------------------------------------------------------------
+   ! Public members
+   ! --------------------------------------------------------------------------
+
+   public fabm_initialize_library
+   public fabm_get_version
+   public type_fabm_model
 
    ! Variable identifier types by external physical drivers.
-   public type_bulk_variable_id
-   public type_horizontal_variable_id
-   public type_scalar_variable_id
-   public type_external_variable, type_horizontal_state_variable_info
+   public type_fabm_variable_id
+   public type_fabm_interior_variable_id
+   public type_fabm_horizontal_variable_id
+   public type_fabm_scalar_variable_id
+   public type_fabm_variable, type_fabm_horizontal_state_variable
 
    ! Object with all supported standard variables as its members.
    ! Imported from fabm_types, and made available so hosts only need to "use fabm"
    public standard_variables
-
-   ! All public entitites below For backward compatibility (20191115):
-   public type_model
-   public fabm_initialize, fabm_finalize, fabm_set_domain, fabm_check_ready, fabm_update_time
-   public fabm_initialize_state, fabm_initialize_surface_state, fabm_initialize_bottom_state
-
-   ! Process rates and diagnostics for pelagic, surface, bottom.
-   public fabm_do, fabm_do_surface, fabm_do_bottom
-
-   ! Vertical movement, light attenuation, feedbacks to drag and albedo
-   public fabm_get_vertical_movement, fabm_get_light_extinction, fabm_get_albedo, fabm_get_drag, fabm_get_light
-
-   ! Bookkeeping
-   public fabm_check_state, fabm_check_surface_state, fabm_check_bottom_state
-   public fabm_get_conserved_quantities, fabm_get_horizontal_conserved_quantities
-
-   ! Management of model variables: retrieve identifiers, get and set data.
-   public fabm_get_bulk_variable_id, fabm_get_horizontal_variable_id, fabm_get_scalar_variable_id
-   public fabm_get_variable_name, fabm_is_variable_used, fabm_variable_needs_values
-   public fabm_link_interior_state_data, fabm_link_bottom_state_data, fabm_link_surface_state_data
-   public fabm_link_interior_data, fabm_link_horizontal_data, fabm_link_scalar_data
-   public fabm_get_interior_diagnostic_data, fabm_get_horizontal_diagnostic_data
-
-#ifdef _HAS_MASK_
-   ! Set spatial mask
-   public fabm_set_mask
-#endif
 
    logical, save, public :: fabm_log = .false.
 
    integer, parameter :: status_none             = 0
    integer, parameter :: status_initialize_done  = 1
    integer, parameter :: status_set_domain_done  = 2
-   integer, parameter, public :: status_check_ready_done = 3
+   integer, parameter, public :: status_start_done = 3
 
    integer, parameter, public :: data_source_none = 0
    integer, parameter, public :: data_source_host = 1
@@ -86,24 +67,21 @@ module fabm
    integer, parameter, public :: data_source_user = 3
    integer, parameter, public :: data_source_default = data_source_host
 
-   real(rki), parameter :: not_written = huge(1.0_rki)
-   integer, parameter :: array_block_size = 8
-
    ! --------------------------------------------------------------------------
    ! Derived typed for variable identifiers
    ! --------------------------------------------------------------------------
 
-   type type_external_variable_id
+   type type_fabm_variable_id
       type (type_internal_variable), pointer :: variable => null()
    end type
 
-   type, extends(type_external_variable_id) :: type_bulk_variable_id
+   type, extends(type_fabm_variable_id) :: type_fabm_interior_variable_id
    end type
 
-   type, extends(type_external_variable_id) :: type_horizontal_variable_id
+   type, extends(type_fabm_variable_id) :: type_fabm_horizontal_variable_id
    end type
 
-   type, extends(type_external_variable_id) :: type_scalar_variable_id
+   type, extends(type_fabm_variable_id) :: type_fabm_scalar_variable_id
    end type
 
    ! --------------------------------------------------------------------------
@@ -111,7 +89,7 @@ module fabm
    ! --------------------------------------------------------------------------
 
    ! Derived type for metadata of a generic variable (base type)
-   type, abstract :: type_external_variable
+   type, abstract :: type_fabm_variable
       character(len=attribute_length) :: name          = ''
       character(len=attribute_length) :: long_name     = ''
       character(len=attribute_length) :: local_long_name = ''
@@ -123,12 +101,12 @@ module fabm
       integer                         :: output        = output_instantaneous ! See output_* parameters above
       type (type_property_dictionary) :: properties
       integer                         :: externalid    = 0                    ! Identifier to be used freely by host
-      type (type_internal_variable),pointer :: target => null()
+      type (type_internal_variable), pointer :: target => null()
    end type
 
    ! Derived type for interior state variable metadata
-   type, extends(type_external_variable) :: type_state_variable_info
-      type (type_bulk_standard_variable) :: standard_variable
+   type, extends(type_fabm_variable) :: type_fabm_state_variable
+      type (type_interior_standard_variable) :: standard_variable
       real(rke)                          :: initial_value             = 0.0_rke
       logical                            :: no_precipitation_dilution = .false.
       logical                            :: no_river_dilution         = .false.
@@ -136,88 +114,49 @@ module fabm
       integer                            :: surface_flux_index = -1
       integer                            :: bottom_flux_index  = -1
       integer                            :: movement_index     = -1
-   end type type_state_variable_info
+   end type
 
    ! Derived type for horizontal (bottom/surface) state variable metadata
-   type, extends(type_external_variable) :: type_horizontal_state_variable_info
+   type, extends(type_fabm_variable) :: type_fabm_horizontal_state_variable
       type (type_horizontal_standard_variable) :: standard_variable
       real(rke)                                :: initial_value = 0.0_rke
       integer                                  :: sms_index = -1
-   end type type_horizontal_state_variable_info
+   end type
 
    ! Derived type for interior diagnostic variable metadata
-   type, extends(type_external_variable) :: type_diagnostic_variable_info
-      type (type_bulk_standard_variable) :: standard_variable
-      logical                            :: save           = .false.
-      integer                            :: source
-   end type type_diagnostic_variable_info
+   type, extends(type_fabm_variable) :: type_fabm_diagnostic_variable
+      type (type_interior_standard_variable) :: standard_variable
+      logical                                :: save = .false.
+      integer                                :: source
+   end type
 
    ! Derived type for horizontal diagnostic variable metadata
-   type, extends(type_external_variable) :: type_horizontal_diagnostic_variable_info
+   type, extends(type_fabm_variable) :: type_fabm_horizontal_diagnostic_variable
       type (type_horizontal_standard_variable) :: standard_variable
-      logical                                  :: save           = .false.
+      logical                                  :: save = .false.
       integer                                  :: source
-   end type type_horizontal_diagnostic_variable_info
+   end type
 
    ! Derived type for conserved quantity metadata
-   type, extends(type_external_variable) :: type_conserved_quantity_info
-      type (type_bulk_standard_variable)    :: standard_variable
-      integer                               :: index              = -1
-      integer                               :: horizontal_index   = -1
-      type (type_internal_variable),pointer :: target_hz => null()
-   end type type_conserved_quantity_info
-
-   ! --------------------------------------------------------------------------
-   ! Derived types for catalog with pointers to all available fields
-   ! --------------------------------------------------------------------------
-
-   type type_interior_data_pointer
-      real(rke), pointer _DIMENSION_GLOBAL_ :: p => null()
-   end type
-
-   type type_horizontal_data_pointer
-      real(rke), pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: p => null()
-   end type
-
-   type type_scalar_data_pointer
-      real(rke), pointer :: p => null()
-   end type
-
-   type type_catalog
-      type (type_interior_data_pointer),   allocatable :: interior(:)
-      type (type_horizontal_data_pointer), allocatable :: horizontal(:)
-      type (type_scalar_data_pointer),     allocatable :: scalar(:)
-      integer, allocatable :: interior_sources(:)
-      integer, allocatable :: horizontal_sources(:)
-      integer, allocatable :: scalar_sources(:)
-   end type
-
-   ! --------------------------------------------------------------------------
-   ! Derived types for variable store
-   ! (spatially explicit model outputs needed by other BGC modules or host)
-   ! --------------------------------------------------------------------------
-
-   type type_store
-      real(rke), allocatable _DIMENSION_GLOBAL_PLUS_1_            :: interior
-      real(rke), allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: horizontal
-      real(rke), allocatable                                      :: interior_fill_value(:)
-      real(rke), allocatable                                      :: horizontal_fill_value(:)
-      real(rke), allocatable                                      :: interior_missing_value(:)
-      real(rke), allocatable                                      :: horizontal_missing_value(:)
+   type, extends(type_fabm_variable) :: type_fabm_conserved_quantity
+      type (type_interior_standard_variable) :: standard_variable
+      integer                                :: index              = -1
+      integer                                :: horizontal_index   = -1
+      type (type_internal_variable), pointer :: target_hz => null()
    end type
 
    ! --------------------------------------------------------------------------
    ! Derived type for a biogeochemical model as seen by the host
    ! --------------------------------------------------------------------------
 
-   type type_model
+   type type_fabm_model
       ! Variable metadata
-      type (type_state_variable_info),                 allocatable, dimension(:) :: state_variables
-      type (type_horizontal_state_variable_info),      allocatable, dimension(:) :: surface_state_variables
-      type (type_horizontal_state_variable_info),      allocatable, dimension(:) :: bottom_state_variables
-      type (type_diagnostic_variable_info),            allocatable, dimension(:) :: diagnostic_variables
-      type (type_horizontal_diagnostic_variable_info), allocatable, dimension(:) :: horizontal_diagnostic_variables
-      type (type_conserved_quantity_info),             allocatable, dimension(:) :: conserved_quantities
+      type (type_fabm_state_variable),                 allocatable, dimension(:) :: state_variables
+      type (type_fabm_horizontal_state_variable),      allocatable, dimension(:) :: surface_state_variables
+      type (type_fabm_horizontal_state_variable),      allocatable, dimension(:) :: bottom_state_variables
+      type (type_fabm_diagnostic_variable),            allocatable, dimension(:) :: diagnostic_variables
+      type (type_fabm_horizontal_diagnostic_variable), allocatable, dimension(:) :: horizontal_diagnostic_variables
+      type (type_fabm_conserved_quantity),             allocatable, dimension(:) :: conserved_quantities
 
       ! Names of variables taken as input by one or more biogeochemical models.
       ! These may be accessed by the host to enumerate potential forcing variables.
@@ -232,9 +171,6 @@ module fabm
       type (type_job) :: get_vertical_movement_job
       type (type_job) :: get_conserved_quantities_job
       type (type_job) :: get_horizontal_conserved_quantities_job
-      type (type_job) :: get_light_extinction_job
-      type (type_job) :: get_drag_job
-      type (type_job) :: get_albedo_job
       type (type_job) :: get_diagnostics_job
       type (type_job) :: prepare_job
       type (type_job) :: check_state_job
@@ -249,8 +185,6 @@ module fabm
 
       integer :: status = status_none
 
-      type (type_bulk_variable_id) :: extinction_id
-
       type (type_link_list) :: links_postcoupling
 
       type (type_global_variable_register) :: variable_register
@@ -259,25 +193,7 @@ module fabm
       type (type_store)                    :: store
       type (type_schedules)                :: schedules
 
-      ! Information about the model domain
-      integer :: domain_size(_FABM_DIMENSION_COUNT_)
-      integer :: horizontal_domain_size(_HORIZONTAL_DIMENSION_COUNT_)
-
-#ifdef _HAS_MASK_
-#  ifndef _FABM_HORIZONTAL_MASK_
-      _FABM_MASK_TYPE_, pointer _DIMENSION_GLOBAL_ :: mask => null()
-#  endif
-      _FABM_MASK_TYPE_, pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: mask_hz => null()
-#endif
-
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-#  if _FABM_BOTTOM_INDEX_==0
-      integer :: bottom_index = -1
-#  elif _FABM_BOTTOM_INDEX_==-1
-      integer, pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: bottom_indices => null()
-#  endif
-      integer :: surface_index = -1
-#endif
+      type (type_domain) :: domain
 
       ! Memory caches for exchanging information with individual biogeochemical modules
       type (type_interior_cache)   :: cache_int
@@ -285,11 +201,7 @@ module fabm
       type (type_vertical_cache)   :: cache_vert
 
       ! Cache fill values
-      real(rki), allocatable :: read_cache_fill_value(:)
-      real(rki), allocatable :: read_cache_hz_fill_value(:)
-      real(rki), allocatable :: read_cache_scalar_fill_value(:)
-      real(rki), allocatable :: write_cache_fill_value(:)
-      real(rki), allocatable :: write_cache_hz_fill_value(:)
+      type (type_cache_fill_values) :: cache_fill_values
    contains
       procedure :: initialize
       procedure :: finalize
@@ -364,9 +276,9 @@ module fabm
       procedure :: get_interior_diagnostic_data
       procedure :: get_horizontal_diagnostic_data
 
-      procedure :: get_bulk_variable_id_by_name
-      procedure :: get_bulk_variable_id_sn
-      generic :: get_bulk_variable_id => get_bulk_variable_id_by_name, get_bulk_variable_id_sn
+      procedure :: get_interior_variable_id_by_name
+      procedure :: get_interior_variable_id_sn
+      generic :: get_interior_variable_id => get_interior_variable_id_by_name, get_interior_variable_id_sn
 
       procedure :: get_horizontal_variable_id_by_name
       procedure :: get_horizontal_variable_id_sn
@@ -377,6 +289,7 @@ module fabm
       generic :: get_scalar_variable_id => get_scalar_variable_id_by_name, get_scalar_variable_id_sn
 
       procedure, nopass :: is_variable_used
+      procedure :: get_variable_name
 
       procedure :: interior_variable_needs_values
       procedure :: interior_variable_needs_values_sn
@@ -395,187 +308,7 @@ module fabm
       generic :: process => process_job_everywhere
 #endif
 
-   end type type_model
-
-   type, extends(type_model) :: type_fabm_model
-   end type
-
-   interface allocate_and_fill
-      module procedure allocate_and_fill_0d
-      module procedure allocate_and_fill_1d
-   end interface
-
-   ! All interfaces below for backward compatibility (20191115):
-
-   interface fabm_initialize
-      module procedure initialize
-   end interface
-
-   interface fabm_finalize
-      module procedure finalize
-   end interface
-
-   interface fabm_set_domain
-      module procedure set_domain
-   end interface
-
-#ifdef _HAS_MASK_
-   interface fabm_set_mask
-      module procedure set_mask
-   end interface
-#endif
-
-   interface fabm_check_ready
-      module procedure start
-   end interface
-
-   interface fabm_initialize_state
-      module procedure initialize_interior_state
-   end interface
-
-   interface fabm_initialize_bottom_state
-      module procedure initialize_bottom_state
-   end interface
-
-   interface fabm_initialize_surface_state
-      module procedure initialize_surface_state
-   end interface
-
-   interface fabm_check_state
-      module procedure check_interior_state
-   end interface
-
-   interface fabm_check_bottom_state
-      module procedure check_bottom_state
-   end interface
-
-   interface fabm_check_surface_state
-      module procedure check_surface_state
-   end interface
-
-   interface fabm_get_vertical_movement
-      module procedure get_vertical_movement
-   end interface
-
-   interface fabm_get_conserved_quantities
-      module procedure get_interior_conserved_quantities
-   end interface
-
-   interface fabm_get_horizontal_conserved_quantities
-      module procedure get_horizontal_conserved_quantities
-   end interface
-
-   ! Subroutine calculating local temporal derivatives either as a right-hand side vector,
-   ! or production/destruction matrices.
-   interface fabm_do
-      module procedure get_interior_sources_rhs
-      module procedure get_interior_sources_ppdd
-   end interface
-
-   ! Subroutine calculating local temporal derivatives of bottom layer (benthos & pelagic)
-   ! either as a right-hand side vector, or production/destruction matrices.
-   interface fabm_do_bottom
-      module procedure get_bottom_sources_rhs
-      module procedure get_bottom_sources_ppdd
-   end interface
-
-   interface fabm_do_surface
-      module procedure get_surface_sources
-   end interface
-
-   ! Subroutine for providing FABM with variable data on the full spatial domain.
-   interface fabm_link_interior_data
-      module procedure link_interior_data_by_variable
-      module procedure link_interior_data_by_id
-      module procedure link_interior_data_by_sn
-      module procedure link_interior_data_by_name
-   end interface
-
-   ! Subroutine for providing FABM with variable data on horizontal slices of the domain.
-   interface fabm_link_horizontal_data
-      module procedure link_horizontal_data_by_variable
-      module procedure link_horizontal_data_by_id
-      module procedure link_horizontal_data_by_sn
-      module procedure link_horizontal_data_by_name
-   end interface
-
-   ! Subroutine for providing FABM with scalar variable data.
-   interface fabm_link_scalar_data
-      module procedure link_scalar_by_id
-      module procedure link_scalar_by_sn
-      module procedure link_scalar_by_name
-   end interface
-
-   interface fabm_link_interior_state_data
-      module procedure link_interior_state_data
-   end interface
-
-   interface fabm_link_bottom_state_data
-      module procedure link_bottom_state_data
-   end interface
-
-   interface fabm_link_surface_state_data
-      module procedure link_surface_state_data
-   end interface
-
-   interface fabm_get_interior_data
-      module procedure get_interior_data
-   end interface
-
-   interface fabm_get_horizontal_data
-      module procedure get_horizontal_data
-   end interface
-
-   interface fabm_get_scalar_data
-      module procedure get_scalar_data
-   end interface
-
-   interface fabm_get_interior_diagnostic_data
-      module procedure get_interior_diagnostic_data
-   end interface
-
-   interface fabm_get_horizontal_diagnostic_data
-      module procedure get_horizontal_diagnostic_data
-   end interface
-
-   interface fabm_get_variable_id
-      module procedure get_bulk_variable_id_sn
-      module procedure get_horizontal_variable_id_sn
-      module procedure get_scalar_variable_id_sn
-   end interface
-
-   interface fabm_get_bulk_variable_id
-      module procedure get_bulk_variable_id_by_name
-      module procedure get_bulk_variable_id_sn
-   end interface
-
-   interface fabm_get_horizontal_variable_id
-      module procedure get_horizontal_variable_id_by_name
-      module procedure get_horizontal_variable_id_sn
-   end interface
-
-   interface fabm_get_scalar_variable_id
-      module procedure get_scalar_variable_id_by_name
-      module procedure get_scalar_variable_id_sn
-   end interface
-
-   interface fabm_is_variable_used
-      module procedure is_variable_used
-   end interface
-
-   interface fabm_get_variable_name
-      module procedure get_variable_name
-   end interface
-
-   interface fabm_variable_needs_values
-      module procedure interior_variable_needs_values
-      module procedure horizontal_variable_needs_values
-   end interface
-
-   interface fabm_update_time
-      module procedure prepare_inputs1
-      module procedure prepare_inputs2
-   end interface
+   end type type_fabm_model
 
 contains
 
@@ -628,7 +361,7 @@ contains
    ! a model configuration from fabm.yaml, unless explicitly deactivated.
    ! --------------------------------------------------------------------------
    subroutine initialize(self)
-      class (type_model), target, intent(inout) :: self
+      class (type_fabm_model), target, intent(inout) :: self
 
       class (type_property), pointer :: property => null()
       integer                        :: islash
@@ -680,15 +413,12 @@ contains
       !call self%get_conserved_quantities_job%connect(self%get_diagnostics_job)
       !call self%get_horizontal_conserved_quantities_job%connect(self%get_diagnostics_job)
       call self%job_manager%create(self%get_vertical_movement_job, 'get_vertical_movement', source=source_get_vertical_movement, previous=self%get_diagnostics_job)
-      call self%job_manager%create(self%get_light_extinction_job, 'get_light_extinction', source=source_get_light_extinction, previous=self%get_diagnostics_job)
       call self%job_manager%create(self%initialize_state_job,'initialize_state', source=source_initialize_state, previous=self%get_diagnostics_job)
       call self%job_manager%create(self%initialize_bottom_state_job,'initialize_bottom_state', source=source_initialize_bottom_state, previous=self%get_diagnostics_job)
       call self%job_manager%create(self%initialize_surface_state_job,'initialize_surface_state', source=source_initialize_surface_state, previous=self%get_diagnostics_job)
       call self%job_manager%create(self%check_state_job,'check_state', source=source_check_state, previous=self%get_diagnostics_job)
       call self%job_manager%create(self%check_bottom_state_job,'check_bottom_state', source=source_check_bottom_state, previous=self%get_diagnostics_job)
       call self%job_manager%create(self%check_surface_state_job,'check_surface_state', source=source_check_surface_state, previous=self%get_diagnostics_job)
-      call self%job_manager%create(self%get_albedo_job,'get_albedo', source=source_get_albedo, previous=self%get_diagnostics_job)
-      call self%job_manager%create(self%get_drag_job,'get_drag', source=source_get_drag, previous=self%get_diagnostics_job)
 
       call require_flux_computation(self%do_bottom_job, self%links_postcoupling, domain_bottom)
       call require_flux_computation(self%do_surface_job, self%links_postcoupling, domain_surface)
@@ -703,8 +433,6 @@ contains
       call require_call_all_with_state(self%check_bottom_state_job, self%root%links, domain_interior, source_check_bottom_state)
       call require_call_all_with_state(self%check_surface_state_job, self%root%links, domain_surface, source_check_surface_state)
       call require_call_all_with_state(self%check_surface_state_job, self%root%links, domain_interior, source_check_surface_state)
-      call require_call_all(self%get_albedo_job,self%root, source_get_albedo)
-      call require_call_all(self%get_drag_job,self%root, source_get_drag)
 
       do ivar = 1, size(self%state_variables)
          call self%check_state_job%read_cache_loads%add(self%state_variables(ivar)%target)
@@ -723,10 +451,6 @@ contains
          call self%conserved_quantities(ivar)%target_hz%write_indices%append(self%conserved_quantities(ivar)%horizontal_index)
       end do
 
-      self%extinction_id = self%get_bulk_variable_id(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
-      _ASSERT_(associated(self%extinction_id%variable), 'initialize', 'BUG: variable attenuation_coefficient_of_photosynthetic_radiative_flux not found')
-      call self%get_light_extinction_job%request_variable(self%extinction_id%variable)
-
       self%status = status_initialize_done
    end subroutine initialize
 
@@ -734,7 +458,7 @@ contains
    ! finalize: deallocate model object
    ! --------------------------------------------------------------------------
    subroutine finalize(self)
-      class (type_model),target,intent(inout) :: self
+      class (type_fabm_model),target,intent(inout) :: self
       self%status = status_none
 
       ! TODO: this should deallocate the memory of all biogeochemical models
@@ -744,9 +468,9 @@ contains
    ! set_domain: set extents of spatial domain and optionally time step length
    ! --------------------------------------------------------------------------
    subroutine set_domain(self _POSTARG_LOCATION_, seconds_per_time_unit)
-      class (type_model), target, intent(inout) :: self
+      class (type_fabm_model), target, intent(inout) :: self
       _DECLARE_ARGUMENTS_LOCATION_
-      real(rke), optional,        intent(in)    :: seconds_per_time_unit
+      real(rke), optional, intent(in)    :: seconds_per_time_unit
 
       class (type_expression), pointer :: expression
 
@@ -755,10 +479,10 @@ contains
       self%status = status_set_domain_done
 
 #if _FABM_DIMENSION_COUNT_>0
-      self%domain_size = (/_LOCATION_/)
+      self%domain%size = (/_LOCATION_/)
 #endif
 #if _HORIZONTAL_DIMENSION_COUNT_>0
-      self%horizontal_domain_size = (/_HORIZONTAL_LOCATION_/)
+      self%domain%horizontal_size = (/_HORIZONTAL_LOCATION_/)
 #endif
 
       if (present(seconds_per_time_unit)) then
@@ -797,7 +521,7 @@ contains
 #  else
    subroutine set_mask(self, mask, mask_hz)
 #  endif
-      class (type_model),target,intent(inout)                            :: self
+      class (type_fabm_model), target, intent(inout)                     :: self
 #  ifndef _FABM_HORIZONTAL_MASK_
       _FABM_MASK_TYPE_, target, intent(in) _DIMENSION_GLOBAL_            :: mask
 #  endif
@@ -810,42 +534,43 @@ contains
 
 #  ifndef _FABM_HORIZONTAL_MASK_
 #    if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
-      do i = 1, size(self%domain_size)
-         if (size(mask, i) /= self%domain_size(i)) &
+      do i = 1, size(self%domain%size)
+         if (size(mask, i) /= self%domain%size(i)) &
             call fatal_error('set_mask', 'shape of provided mask does not match domain extents provided to set_domain.')
       end do
 #    endif
-      self%mask => mask
+      self%domain%mask => mask
 #  endif
 
 #  if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
-      do i = 1, size(self%horizontal_domain_size)
-         if (size(mask_hz, i) /= self%horizontal_domain_size(i)) &
+      do i = 1, size(self%domain%horizontal_size)
+         if (size(mask_hz, i) /= self%domain%horizontal_size(i)) &
             call fatal_error('set_mask', 'shape of provided horizontal mask does not match domain extents provided to set_domain.')
       end do
 #  endif
-      self%mask_hz => mask_hz
+      self%domain%mask_hz => mask_hz
 
    end subroutine set_mask
 #endif
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  if _FABM_BOTTOM_INDEX_==0
+
    ! --------------------------------------------------------------------------
    ! set_bottom_index: set vertical index of bottom layer
    ! --------------------------------------------------------------------------
    subroutine set_bottom_index(self, index)
-      class (type_model), intent(inout) :: self
-      integer,            intent(in)    :: index
+      class (type_fabm_model), intent(inout) :: self
+      integer,                 intent(in)    :: index
 
       if (self%status < status_set_domain_done) &
          call fatal_error('set_bottom_index', 'set_bottom_index has not yet been called on this model object.')
       if (index < 1) &
          call fatal_error('set_bottom_index', 'provided index must equal or exceed 1.')
-      if (index > self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)) &
+      if (index > self%domain%size(_FABM_DEPTH_DIMENSION_INDEX_)) &
          call fatal_error('set_bottom_index', 'provided index exceeds size of the depth dimension.')
 
-      self%bottom_index = index
+      self%domain%bottom_index = index
    end subroutine set_bottom_index
 
 #  elif _FABM_BOTTOM_INDEX_==-1
@@ -857,21 +582,21 @@ contains
    ! valid for the lifetime of the model object.
    ! --------------------------------------------------------------------------
    subroutine set_bottom_index(self, indices)
-      class (type_model), intent(inout)                            :: self
-      integer, target,    intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: indices
+      class (type_fabm_model), intent(inout)                            :: self
+      integer, target,         intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: indices
 
       integer :: i
 
       if (self%status < status_set_domain_done) &
          call fatal_error('set_bottom_index', 'set_domain has not yet been called on this model object.')
 #    if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
-      do i = 1, size(self%horizontal_domain_size)
-         if (size(indices, i) /= self%horizontal_domain_size(i)) &
+      do i = 1, size(self%domain%horizontal_size)
+         if (size(indices, i) /= self%domain%horizontal_size(i)) &
             call fatal_error('set_bottom_index', 'shape of provided index array does not match domain extents provided to set_domain.')
       end do
 #    endif
 
-      self%bottom_indices => indices
+      self%domain%bottom_indices => indices
    end subroutine set_bottom_index
 
 #  endif
@@ -880,17 +605,17 @@ contains
    ! set_surface_index: set vertical index of surface layer
    ! --------------------------------------------------------------------------
    subroutine set_surface_index(self, index)
-      class (type_model), intent(inout) :: self
-      integer,            intent(in)    :: index
+      class (type_fabm_model), intent(inout) :: self
+      integer,                 intent(in)    :: index
 
       if (self%status < status_set_domain_done) &
          call fatal_error('set_surface_index', 'set_domain has not yet been called on this model object.')
       if (index < 1) &
          call fatal_error('set_surface_index', 'provided index must equal or exceed 1.')
-      if (index > self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)) &
+      if (index > self%domain%size(_FABM_DEPTH_DIMENSION_INDEX_)) &
          call fatal_error('set_surface_index', 'provided index exceeds size of the depth dimension.')
 
-      self%surface_index = index
+      self%domain%surface_index = index
    end subroutine set_surface_index
 
 #endif
@@ -900,10 +625,10 @@ contains
    ! --------------------------------------------------------------------------
    ! This tells FABM that the user/host have finish providing (or overriding)
    ! data (link_data procedures) and have finished flagging diagnostics for
-   ! output (by setting the "save" flag that is aprt of the variable metadata)
+   ! output (by setting the "save" flag that is part of the variable metadata)
    ! --------------------------------------------------------------------------
    subroutine start(self)
-      class (type_model), intent(inout), target :: self
+      class (type_fabm_model), intent(inout), target :: self
 
       integer                           :: ivar
       logical                           :: ready
@@ -916,7 +641,7 @@ contains
       if (self%status < status_set_domain_done) then
          call fatal_error('start', 'set_domain has not yet been called on this model object.')
          return
-      elseif (self%status >= status_check_ready_done) then
+      elseif (self%status >= status_start_done) then
          ! start has been called on this model before and it must have succeeded to have this status. We are done.
          return
       end if
@@ -925,12 +650,12 @@ contains
 
 #ifdef _HAS_MASK_
 #  ifndef _FABM_HORIZONTAL_MASK_
-      if (.not. associated(self%mask)) then
+      if (.not. associated(self%domain%mask)) then
          call log_message('spatial mask has not been set. Make sure to call set_mask.')
          ready = .false.
       end if
 #  endif
-      if (.not.associated(self%mask_hz)) then
+      if (.not. associated(self%domain%mask_hz)) then
          call log_message('horizontal spatial mask has not been set. Make sure to call set_mask.')
          ready = .false.
       end if
@@ -938,30 +663,30 @@ contains
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  if _FABM_BOTTOM_INDEX_==0
-      if (self%bottom_index == -1) then
+      if (self%domain%bottom_index == -1) then
          call log_message('bottom index has not been set. Make sure to call set_bottom_index.')
          ready = .false.
       end if
 #  elif _FABM_BOTTOM_INDEX_==-1
-      if (.not. associated(self%bottom_indices)) then
+      if (.not. associated(self%domain%bottom_indices)) then
          call log_message('bottom indices have not been set. Make sure to call set_bottom_index.')
          ready = .false.
       end if
 #  endif
-      if (self%surface_index == -1) then
+      if (self%domain%surface_index == -1) then
          call log_message('surface index has not been set. Make sure to call set_surface_index.')
          ready = .false.
       end if
 #endif
 
       ! Flag variables that have had data asssigned (by user, host or FABM).
-      ! This is done only now because the user has had till this moment to provide (or override) model fields.
+      ! This is done only now because the user/host had till this moment to provide (or override) model fields.
       call flag_variables_with_data(self%variable_register%catalog%interior, self%catalog%interior_sources)
       call flag_variables_with_data(self%variable_register%catalog%horizontal, self%catalog%horizontal_sources)
       call flag_variables_with_data(self%variable_register%catalog%scalar, self%catalog%scalar_sources)
 
       ! Create job that ensures all diagnostics required by the user are computed.
-      ! This is done only now because the user has had till this moment to change the "save" flag of each diagnostic.
+      ! This is done only now because the user/host had till this moment to change the "save" flag of each diagnostic.
       do ivar = 1, size(self%diagnostic_variables)
          if (self%diagnostic_variables(ivar)%save) then
             select case (self%diagnostic_variables(ivar)%target%source)
@@ -1005,17 +730,17 @@ contains
       ! Create persistent store. This provides memory for all variables to be stored there.
       call create_store(self)
 
-      call collect_internal_fill_values(self%variable_register%read_cache%interior, self%read_cache_fill_value, use_missing=.false.)
-      call collect_internal_fill_values(self%variable_register%read_cache%horizontal, self%read_cache_hz_fill_value, use_missing=.false.)
-      call collect_internal_fill_values(self%variable_register%read_cache%scalar, self%read_cache_scalar_fill_value, use_missing=.false.)
-      call collect_internal_fill_values(self%variable_register%write_cache%interior, self%write_cache_fill_value, use_missing=.false.)
-      call collect_internal_fill_values(self%variable_register%write_cache%horizontal, self%write_cache_hz_fill_value, use_missing=.false.)
+      call collect_internal_fill_values(self%variable_register%read_cache%interior, self%cache_fill_values%read, use_missing=.false.)
+      call collect_internal_fill_values(self%variable_register%read_cache%horizontal, self%cache_fill_values%read_hz, use_missing=.false.)
+      call collect_internal_fill_values(self%variable_register%read_cache%scalar, self%cache_fill_values%read_scalar, use_missing=.false.)
+      call collect_internal_fill_values(self%variable_register%write_cache%interior, self%cache_fill_values%write, use_missing=.false.)
+      call collect_internal_fill_values(self%variable_register%write_cache%horizontal, self%cache_fill_values%write_hz, use_missing=.false.)
 
       ! Create global caches for exchanging information with BGC models.
       ! This can only be done after collect_fill_values calls complete, because they specify what values to prefill te cache with.
-      call create_interior_cache(self, self%cache_int)
-      call create_horizontal_cache(self, self%cache_hz)
-      call create_vertical_cache(self, self%cache_vert)
+      call cache_create(self%domain, self%cache_fill_values, self%cache_int)
+      call cache_create(self%domain, self%cache_fill_values, self%cache_hz)
+      call cache_create(self%domain, self%cache_fill_values, self%cache_vert)
 
       ! For diagnostics that are not needed, set their write index to 0 (rubbish bin)
       link => self%links_postcoupling%first
@@ -1064,7 +789,7 @@ contains
       if (associated(unfulfilled_dependencies%first) .or. .not. ready) &
          call fatal_error('start', 'FABM is lacking required data.')
 
-      self%status = status_check_ready_done
+      self%status = status_start_done
 
    contains
 
@@ -1087,7 +812,7 @@ contains
       end subroutine
 
       subroutine report_unfulfilled_dependency(variable)
-         type (type_internal_variable),target :: variable
+         type (type_internal_variable), target :: variable
 
          type type_model_reference
             class (type_base_model),     pointer :: p    => null()
@@ -1098,7 +823,7 @@ contains
          type (type_link),            pointer :: link
          character(len=attribute_length)      :: path
 
-         call log_message('UNFULFILLED DEPENDENCY: '//trim(variable%name))
+         call log_message('UNFULFILLED DEPENDENCY: ' // trim(variable%name))
          select case (variable%domain)
          case (domain_interior)
             call log_message('  This is an interior field.')
@@ -1107,7 +832,7 @@ contains
          case (domain_scalar)
             call log_message('  This is a scalar field (single value valid across the entire domain).')
          end select
-         if (variable%units/='') call log_message('  It has units '//trim(variable%units))
+         if (variable%units/='') call log_message('  It has units ' // trim(variable%units))
          call log_message('  It is needed by the following model instances:')
 
          first => null()
@@ -1145,25 +870,25 @@ contains
    end subroutine start
 
    ! --------------------------------------------------------------------------
-   ! get_bulk_variable_id_by_name: get interior variable identifier for given 
+   ! get_interior_variable_id_by_name: get interior variable identifier for given 
    ! variable name
    ! --------------------------------------------------------------------------
-   function get_bulk_variable_id_by_name(self, name) result(id)
-      class (type_model), intent(in) :: self
-      character(len=*),   intent(in) :: name
-      type (type_bulk_variable_id)   :: id
+   function get_interior_variable_id_by_name(self, name) result(id)
+      class (type_fabm_model), intent(in)   :: self
+      character(len=*),        intent(in)   :: name
+      type (type_fabm_interior_variable_id) :: id
 
       id%variable => get_variable_by_name(self, name, domain_interior)
-   end function get_bulk_variable_id_by_name
+   end function get_interior_variable_id_by_name
    
    ! --------------------------------------------------------------------------
-   ! get_bulk_variable_id_by_name: get interior variable identifier for given 
+   ! get_interior_variable_id_sn: get interior variable identifier for given 
    ! standard variable
    ! --------------------------------------------------------------------------
-   function get_bulk_variable_id_sn(self, standard_variable) result(id)
-      class (type_model),                 intent(in) :: self
-      type (type_bulk_standard_variable), intent(in) :: standard_variable
-      type (type_bulk_variable_id)                   :: id
+   function get_interior_variable_id_sn(self, standard_variable) result(id)
+      class (type_fabm_model),                intent(in) :: self
+      type (type_interior_standard_variable), intent(in) :: standard_variable
+      type (type_fabm_interior_variable_id)              :: id
 
       type (type_link), pointer :: link
 
@@ -1176,16 +901,16 @@ contains
          link => link%next
       end do
       if (standard_variable%aggregate_variable) id%variable => self%root%find_object('zero')
-   end function get_bulk_variable_id_sn
+   end function get_interior_variable_id_sn
 
    ! --------------------------------------------------------------------------
    ! get_horizontal_variable_id_by_name: get horizontal variable identifier for
    ! given variable name
    ! --------------------------------------------------------------------------
    function get_horizontal_variable_id_by_name(self, name) result(id)
-      class (type_model), intent(in)     :: self
-      character(len=*),   intent(in)     :: name
-      type (type_horizontal_variable_id) :: id
+      class (type_fabm_model), intent(in)     :: self
+      character(len=*),        intent(in)     :: name
+      type (type_fabm_horizontal_variable_id) :: id
 
       id%variable => get_variable_by_name(self, name, domain_horizontal)
    end function get_horizontal_variable_id_by_name
@@ -1195,9 +920,9 @@ contains
    ! given standard variable
    ! --------------------------------------------------------------------------
    function get_horizontal_variable_id_sn(self, standard_variable) result(id)
-      class (type_model),                       intent(in) :: self
+      class (type_fabm_model),                  intent(in) :: self
       type (type_horizontal_standard_variable), intent(in) :: standard_variable
-      type (type_horizontal_variable_id)                   :: id
+      type (type_fabm_horizontal_variable_id)              :: id
 
       type (type_link), pointer :: link
 
@@ -1217,9 +942,9 @@ contains
    ! variable name
    ! --------------------------------------------------------------------------
    function get_scalar_variable_id_by_name(self, name) result(id)
-      class (type_model), intent(in)  :: self
-      character(len=*),   intent(in)  :: name
-      type (type_scalar_variable_id)  :: id
+      class (type_fabm_model), intent(in) :: self
+      character(len=*),        intent(in) :: name
+      type (type_fabm_scalar_variable_id) :: id
 
       id%variable => get_variable_by_name(self, name, domain_scalar)
    end function get_scalar_variable_id_by_name
@@ -1229,9 +954,9 @@ contains
    ! standard variable
    ! --------------------------------------------------------------------------
    function get_scalar_variable_id_sn(self, standard_variable) result(id)
-      class (type_model),                   intent(in) :: self
+      class (type_fabm_model),              intent(in) :: self
       type (type_global_standard_variable), intent(in) :: standard_variable
-      type (type_scalar_variable_id)                   :: id
+      type (type_fabm_scalar_variable_id)              :: id
 
       type (type_link), pointer :: link
 
@@ -1248,10 +973,10 @@ contains
    ! --------------------------------------------------------------------------
    ! get_variable_name: get output name associated with given variable id
    ! --------------------------------------------------------------------------
-   function get_variable_name(model, id) result(name)
-      class (type_model),               intent(in) :: model
-      class(type_external_variable_id), intent(in) :: id
-      character(len=attribute_length)              :: name
+   function get_variable_name(self, id) result(name)
+      class (type_fabm_model),       intent(in) :: self
+      class (type_fabm_variable_id), intent(in) :: id
+      character(len=attribute_length)           :: name
 
       name = ''
       if (associated(id%variable)) name = get_safe_name(id%variable%name)
@@ -1262,17 +987,17 @@ contains
    ! biogeochemical module
    ! --------------------------------------------------------------------------
    function is_variable_used(id) result(used)
-      class(type_external_variable_id), intent(in) :: id
-      logical                                      :: used
+      class (type_fabm_variable_id), intent(in) :: id
+      logical                                   :: used
 
       used = associated(id%variable)
       if (used) used = .not. id%variable%read_indices%is_empty()
    end function is_variable_used
 
    function interior_variable_needs_values(self, id) result(required)
-      class (type_model),          intent(in) :: self
-      type(type_bulk_variable_id), intent(in) :: id
-      logical                                 :: required
+      class (type_fabm_model),               intent(in) :: self
+      type (type_fabm_interior_variable_id), intent(in) :: id
+      logical                                           :: required
 
       required = associated(id%variable)
       if (required) required = .not. id%variable%read_indices%is_empty()
@@ -1280,17 +1005,17 @@ contains
    end function interior_variable_needs_values
 
    function interior_variable_needs_values_sn(self, standard_variable) result(required)
-      class (type_model),                 intent(in) :: self
-      type (type_bulk_standard_variable), intent(in) :: standard_variable
-      logical                                        :: required
+      class (type_fabm_model),                intent(in) :: self
+      type (type_interior_standard_variable), intent(in) :: standard_variable
+      logical                                            :: required
 
-      required = interior_variable_needs_values(self, get_bulk_variable_id_sn(self, standard_variable))
+      required = interior_variable_needs_values(self, get_interior_variable_id_sn(self, standard_variable))
    end function interior_variable_needs_values_sn
 
    function horizontal_variable_needs_values(self, id) result(required)
-      class (type_model),                intent(in) :: self
-      type(type_horizontal_variable_id), intent(in) :: id
-      logical                                       :: required
+      class (type_fabm_model),                intent(in) :: self
+      type(type_fabm_horizontal_variable_id), intent(in) :: id
+      logical                                            :: required
 
       required = associated(id%variable)
       if (required) required = .not. id%variable%read_indices%is_empty()
@@ -1298,7 +1023,7 @@ contains
    end function horizontal_variable_needs_values
 
    function horizontal_variable_needs_values_sn(self, standard_variable) result(required)
-      class (type_model),                       intent(in) :: self
+      class (type_fabm_model),                  intent(in) :: self
       type (type_horizontal_standard_variable), intent(in) :: standard_variable
       logical                                              :: required
 
@@ -1306,9 +1031,9 @@ contains
    end function horizontal_variable_needs_values_sn
 
    function scalar_variable_needs_values(self, id) result(required)
-      class (type_model),            intent(in) :: self
-      type(type_scalar_variable_id), intent(in) :: id
-      logical                                   :: required
+      class (type_fabm_model),            intent(in) :: self
+      type(type_fabm_scalar_variable_id), intent(in) :: id
+      logical                                        :: required
 
       required = associated(id%variable)
       if (required) required = .not. id%variable%read_indices%is_empty()
@@ -1316,7 +1041,7 @@ contains
    end function scalar_variable_needs_values
 
    function scalar_variable_needs_values_sn(self, standard_variable) result(required)
-      class (type_model),                   intent(in) :: self
+      class (type_fabm_model),              intent(in) :: self
       type (type_global_standard_variable), intent(in) :: standard_variable
       logical                                          :: required
 
@@ -1324,33 +1049,33 @@ contains
    end function scalar_variable_needs_values_sn
 
    subroutine require_interior_data(self, standard_variable, domain)
-      class (type_model),                intent(inout) :: self
-      type(type_bulk_standard_variable), intent(in)    :: standard_variable
-      integer,optional,                  intent(in)    :: domain
+      class (type_fabm_model),                intent(inout) :: self
+      type (type_interior_standard_variable), intent(in)    :: standard_variable
+      integer, optional,                      intent(in)    :: domain
 
-      type (type_bulk_variable_id) :: id
+      type (type_fabm_interior_variable_id) :: id
 
       if (self%status < status_initialize_done) &
          call fatal_error('require_interior_data', 'This procedure can only be called after model initialization.')
-      if (self%status >= status_check_ready_done) &
+      if (self%status >= status_start_done) &
          call fatal_error('require_interior_data', 'This procedure cannot be called after start is called.')
 
-      id = self%get_bulk_variable_id(standard_variable)
+      id = self%get_interior_variable_id(standard_variable)
       if (.not. associated(id%variable)) &
          call fatal_error('require_interior_data', 'Model does not contain requested variable ' // trim(standard_variable%name))
       call self%get_diagnostics_job%request_variable(id%variable, store=.true.)
    end subroutine require_interior_data
 
    subroutine require_horizontal_data(self, standard_variable, domain)
-      class (type_model),                      intent(inout) :: self
+      class (type_fabm_model),                 intent(inout) :: self
       type(type_horizontal_standard_variable), intent(in)    :: standard_variable
-      integer,optional,                        intent(in)    :: domain
+      integer, optional,                       intent(in)    :: domain
 
-      type (type_horizontal_variable_id) :: id
+      type (type_fabm_horizontal_variable_id) :: id
 
       if (self%status < status_initialize_done) &
          call fatal_error('require_horizontal_data', 'This procedure can only be called after model initialization.')
-      if (self%status >= status_check_ready_done) &
+      if (self%status >= status_start_done) &
          call fatal_error('require_horizontal_data', 'This procedure cannot be called after check_ready is called.')
 
       id = self%get_horizontal_variable_id(standard_variable)
@@ -1360,7 +1085,7 @@ contains
    end subroutine require_horizontal_data
 
    subroutine link_interior_data_by_variable(self, variable, dat, source)
-      class (type_model),                   intent(inout) :: self
+      class (type_fabm_model),              intent(inout) :: self
       type(type_internal_variable),         intent(in)    :: variable
       real(rke) _DIMENSION_GLOBAL_, target, intent(in)    :: dat
       integer, optional,                    intent(in)    :: source
@@ -1369,8 +1094,8 @@ contains
       integer :: source_
 
 #if !defined(NDEBUG)&&_FABM_DIMENSION_COUNT_>0
-      do i = 1, size(self%domain_size)
-         if (size(dat, i) /= self%domain_size(i)) then
+      do i = 1, size(self%domain%size)
+         if (size(dat, i) /= self%domain%size(i)) then
             call fatal_error('link_interior_data_by_variable', trim(variable%name) // &
                ': extents of provided array do not match domain extents.')
          end if
@@ -1389,32 +1114,32 @@ contains
    end subroutine link_interior_data_by_variable
 
    subroutine link_interior_data_by_id(self, id, dat, source)
-      class (type_model),                   intent(inout) :: self
-      type(type_bulk_variable_id),          intent(in)    :: id
-      real(rke) _DIMENSION_GLOBAL_, target, intent(in)    :: dat
-      integer,optional,                     intent(in)    :: source
+      class (type_fabm_model),               intent(inout) :: self
+      type(type_fabm_interior_variable_id),  intent(in)    :: id
+      real(rke) _DIMENSION_GLOBAL_, target,  intent(in)    :: dat
+      integer,optional,                      intent(in)    :: source
 
       if (associated(id%variable)) call link_interior_data_by_variable(self, id%variable, dat, source)
    end subroutine link_interior_data_by_id
 
    subroutine link_interior_data_by_sn(model, standard_variable, dat)
-      class (type_model),                   intent(inout) :: model
-      type(type_bulk_standard_variable),    intent(in)    :: standard_variable
-      real(rke) _DIMENSION_GLOBAL_, target, intent(in)    :: dat
+      class (type_fabm_model),               intent(inout) :: model
+      type(type_interior_standard_variable), intent(in)    :: standard_variable
+      real(rke) _DIMENSION_GLOBAL_, target,  intent(in)    :: dat
 
-      call link_interior_data_by_id(model, get_bulk_variable_id_sn(model, standard_variable), dat)
+      call link_interior_data_by_id(model, get_interior_variable_id_sn(model, standard_variable), dat)
    end subroutine link_interior_data_by_sn
 
    subroutine link_interior_data_by_name(model, name, dat)
-      class (type_model), target,           intent(inout) :: model
+      class (type_fabm_model), target,      intent(inout) :: model
       character(len=*),                     intent(in)    :: name
       real(rke) _DIMENSION_GLOBAL_, target, intent(in)    :: dat
 
-      call link_interior_data_by_id(model, get_bulk_variable_id_by_name(model, name), dat)
+      call link_interior_data_by_id(model, get_interior_variable_id_by_name(model, name), dat)
    end subroutine link_interior_data_by_name
 
    subroutine link_horizontal_data_by_variable(self, variable, dat, source)
-      class (type_model),                              intent(inout) :: self
+      class (type_fabm_model),                         intent(inout) :: self
       type (type_internal_variable),                   intent(in)    :: variable
       real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
       integer, optional,                               intent(in)    :: source
@@ -1423,8 +1148,8 @@ contains
       integer :: source_
 
 #if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
-      do i = 1, size(self%horizontal_domain_size)
-         if (size(dat, i) /= self%horizontal_domain_size(i)) then
+      do i = 1, size(self%domain%horizontal_size)
+         if (size(dat, i) /= self%domain%horizontal_size(i)) then
             call fatal_error('link_horizontal_data_by_variable', trim(variable%name) // &
                ': extents of provided array do not match domain extents.')
          end if
@@ -1443,8 +1168,8 @@ contains
    end subroutine link_horizontal_data_by_variable
 
    subroutine link_horizontal_data_by_id(self, id, dat, source)
-      class (type_model),                              intent(inout) :: self
-      type (type_horizontal_variable_id),              intent(in)    :: id
+      class (type_fabm_model),                         intent(inout) :: self
+      type (type_fabm_horizontal_variable_id),         intent(in)    :: id
       real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
       integer, optional,                               intent(in)    :: source
 
@@ -1452,7 +1177,7 @@ contains
    end subroutine link_horizontal_data_by_id
 
    subroutine link_horizontal_data_by_sn(model, standard_variable, dat)
-      class (type_model),                              intent(inout) :: model
+      class (type_fabm_model),                         intent(inout) :: model
       type(type_horizontal_standard_variable),         intent(in)    :: standard_variable
       real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
 
@@ -1460,7 +1185,7 @@ contains
    end subroutine link_horizontal_data_by_sn
 
    subroutine link_horizontal_data_by_name(model, name, dat)
-      class (type_model),                              intent(inout) :: model
+      class (type_fabm_model),                         intent(inout) :: model
       character(len=*),                                intent(in)    :: name
       real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
 
@@ -1468,10 +1193,10 @@ contains
    end subroutine link_horizontal_data_by_name
 
    subroutine link_scalar_by_id(self, id, dat, source)
-      class (type_model),             intent(inout) :: self
-      type (type_scalar_variable_id), intent(in)    :: id
-      real(rke), target,              intent(in)    :: dat
-      integer, optional,              intent(in)    :: source
+      class (type_fabm_model),             intent(inout) :: self
+      type (type_fabm_scalar_variable_id), intent(in)    :: id
+      real(rke), target,                   intent(in)    :: dat
+      integer, optional,                   intent(in)    :: source
 
       integer :: i
       integer :: source_
@@ -1489,7 +1214,7 @@ contains
    end subroutine link_scalar_by_id
 
    subroutine link_scalar_by_sn(model, standard_variable, dat)
-      class (type_model),                  intent(inout) :: model
+      class (type_fabm_model),             intent(inout) :: model
       type(type_global_standard_variable), intent(in)    :: standard_variable
       real(rke), target,                   intent(in)    :: dat
 
@@ -1497,15 +1222,15 @@ contains
    end subroutine link_scalar_by_sn
 
    subroutine link_scalar_by_name(model, name, dat)
-      class (type_model), intent(inout) :: model
-      character(len=*),   intent(in)    :: name
-      real(rke), target,  intent(in)    :: dat
+      class (type_fabm_model), intent(inout) :: model
+      character(len=*),        intent(in)    :: name
+      real(rke), target,       intent(in)    :: dat
 
       call link_scalar_by_id(model, get_scalar_variable_id_by_name(model, name), dat)
    end subroutine link_scalar_by_name
 
    subroutine link_interior_state_data(self, index, dat)
-      class (type_model),                   intent(inout) :: self
+      class (type_fabm_model),              intent(inout) :: self
       integer,                              intent(in)    :: index
       real(rke) _DIMENSION_GLOBAL_, target, intent(in)    :: dat
 
@@ -1513,7 +1238,7 @@ contains
    end subroutine link_interior_state_data
 
    subroutine link_bottom_state_data(self, index, dat)
-      class (type_model),                              intent(inout) :: self
+      class (type_fabm_model),                         intent(inout) :: self
       integer,                                         intent(in)    :: index
       real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
 
@@ -1521,7 +1246,7 @@ contains
    end subroutine link_bottom_state_data
 
    subroutine link_surface_state_data(self, index, dat)
-      class (type_model),                              intent(inout) :: self
+      class (type_fabm_model),                         intent(inout) :: self
       integer,                                         intent(in)    :: index
       real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
 
@@ -1529,7 +1254,7 @@ contains
    end subroutine link_surface_state_data
 
    subroutine link_all_interior_state_data(self, dat)
-      class (type_model),                          intent(inout) :: self
+      class (type_fabm_model),                     intent(inout) :: self
       real(rke) _DIMENSION_GLOBAL_PLUS_1_, target, intent(in)    :: dat
 
       integer :: i
@@ -1544,7 +1269,7 @@ contains
    end subroutine link_all_interior_state_data
 
    subroutine link_all_bottom_state_data(self, dat)
-      class (type_model),                                     intent(inout) :: self
+      class (type_fabm_model),                                intent(inout) :: self
       real(rke) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_, target, intent(in)    :: dat
 
       integer :: i
@@ -1559,7 +1284,7 @@ contains
    end subroutine link_all_bottom_state_data
 
    subroutine link_all_surface_state_data(self, dat)
-      class (type_model),                                     intent(inout) :: self
+      class (type_fabm_model),                                intent(inout) :: self
       real(rke) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_, target, intent(in)    :: dat
 
       integer :: i
@@ -1574,686 +1299,60 @@ contains
    end subroutine link_all_surface_state_data
 
    function get_interior_diagnostic_data(self, index) result(dat)
-      class (type_model), intent(in)        :: self
-      integer,            intent(in)        :: index
+      class (type_fabm_model), intent(in)   :: self
+      integer,                 intent(in)   :: index
       real(rke) _DIMENSION_GLOBAL_, pointer :: dat
 
-      _ASSERT_(self%status >= status_check_ready_done, 'get_interior_diagnostic_data', 'This routine can only be called after model start.')   
+      _ASSERT_(self%status >= status_start_done, 'get_interior_diagnostic_data', 'This routine can only be called after model start.')   
       dat => null()
       if (self%diagnostic_variables(index)%target%catalog_index /= -1) dat => self%catalog%interior(self%diagnostic_variables(index)%target%catalog_index)%p
    end function get_interior_diagnostic_data
 
    function get_horizontal_diagnostic_data(self, index) result(dat)
-      class (type_model), intent(in) :: self
-      integer,            intent(in) :: index
+      class (type_fabm_model), intent(in)              :: self
+      integer,                 intent(in)              :: index
       real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, pointer :: dat
 
-      _ASSERT_(self%status >= status_check_ready_done, 'get_horizontal_diagnostic_data', 'This routine can only be called after model start.')
+      _ASSERT_(self%status >= status_start_done, 'get_horizontal_diagnostic_data', 'This routine can only be called after model start.')
       dat => null()
       if (self%horizontal_diagnostic_variables(index)%target%catalog_index /= -1) dat => self%catalog%horizontal(self%horizontal_diagnostic_variables(index)%target%catalog_index)%p
    end function get_horizontal_diagnostic_data
 
    function get_interior_data(self, id) result(dat)
-      class (type_model), target,   intent(in) :: self
-      type(type_bulk_variable_id),  intent(in) :: id
-      real(rke) _DIMENSION_GLOBAL_, pointer    :: dat
+      class (type_fabm_model), target,       intent(in) :: self
+      type (type_fabm_interior_variable_id), intent(in) :: id
+      real(rke) _DIMENSION_GLOBAL_, pointer             :: dat
 
-      _ASSERT_(self%status >= status_check_ready_done, 'get_interior_data', 'This routine can only be called after model start.')
+      _ASSERT_(self%status >= status_start_done, 'get_interior_data', 'This routine can only be called after model start.')
       dat => null()
       if (.not. associated(id%variable)) return
       if (id%variable%catalog_index /= -1) dat => self%catalog%interior(id%variable%catalog_index)%p
    end function get_interior_data
 
    function get_horizontal_data(self, id) result(dat)
-      class (type_model), target,              intent(in)    :: self
-      type(type_horizontal_variable_id),       intent(in)    :: id
-      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, pointer :: dat
+      class (type_fabm_model), target,         intent(in) :: self
+      type(type_fabm_horizontal_variable_id),  intent(in) :: id
+      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, pointer    :: dat
 
-      _ASSERT_(self%status >= status_check_ready_done, 'get_horizontal_data', 'This routine can only be called after model start.')
+      _ASSERT_(self%status >= status_start_done, 'get_horizontal_data', 'This routine can only be called after model start.')
       dat => null()
       if (.not. associated(id%variable)) return
       if (id%variable%catalog_index /= -1) dat => self%catalog%horizontal(id%variable%catalog_index)%p
    end function get_horizontal_data
 
    function get_scalar_data(self, id) result(dat)
-      class (type_model), target,    intent(in) :: self
-      type(type_scalar_variable_id), intent(in) :: id
-      real(rke),                     pointer    :: dat
+      class (type_fabm_model), target,     intent(in) :: self
+      type (type_fabm_scalar_variable_id), intent(in) :: id
+      real(rke), pointer                              :: dat
 
-      _ASSERT_(self%status >= status_check_ready_done, 'get_scalar_data', 'This routine can only be called after model start.')
+      _ASSERT_(self%status >= status_start_done, 'get_scalar_data', 'This routine can only be called after model start.')
       dat => null()
       if (.not. associated(id%variable)) return
       if (id%variable%catalog_index /= -1) dat => self%catalog%scalar(id%variable%catalog_index)%p
    end function get_scalar_data
 
-   subroutine allocate_and_fill_0d(target, fill, lb, n)
-      real(rki), allocatable, intent(out) :: target(:)
-      real(rki),              intent(in)  :: fill(:)
-      integer,                intent(in)  :: lb, n
-
-      allocate(target(lb:size(fill)))
-      target(1:) = fill
-   end subroutine
-
-   subroutine allocate_and_fill_1d(target, fill, lb, n)
-      real(rki), allocatable, intent(out) :: target(:, :)
-      real(rki),              intent(in)  :: fill(:)
-      integer,                intent(in)  :: lb, n
-
-      integer :: i
-
-      allocate(target(1:n, lb:size(fill)))
-      do i = 1, size(fill)
-         target(:, i) = fill(i)
-      end do
-   end subroutine
-
-   subroutine create_interior_cache(self, cache)
-      class (type_model),         intent(in)  :: self
-      type (type_interior_cache), intent(out) :: cache
-
-      integer :: n, n_mod, i
-
-#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      n = self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)
-      n_mod = mod(n, array_block_size)
-      if (n_mod /= 0) n = n - n_mod + array_block_size
-#  ifdef _HAS_MASK_
-      allocate(cache%ipack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
-#  endif
-#else
-      n = 1
-#endif
-
-      call allocate_and_fill(cache%read, self%read_cache_fill_value, 1, n)
-      call allocate_and_fill(cache%read_hz, self%read_cache_hz_fill_value, 1, n)
-      call allocate_and_fill(cache%read_scalar, self%read_cache_scalar_fill_value, 1, 1)
-      call allocate_and_fill(cache%write, self%write_cache_fill_value, 0, n)
-   end subroutine
-
-   subroutine create_horizontal_cache(self, cache)
-      class (type_model),           intent(in)  :: self
-      type (type_horizontal_cache), intent(out) :: cache
-
-      integer :: n, n_mod, i
-
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-      n = self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)
-      n_mod = mod(n, array_block_size)
-      if (n_mod /= 0) n = n - n_mod + array_block_size
-#  ifdef _HAS_MASK_
-      allocate(cache%ipack(self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_)))
-#  endif
-#else
-      n = 1
-#endif
-
-      call allocate_and_fill(cache%read, self%read_cache_fill_value, 1, n)
-      call allocate_and_fill(cache%read_hz, self%read_cache_hz_fill_value, 1, n)
-      call allocate_and_fill(cache%read_scalar, self%read_cache_scalar_fill_value, 1, 1)
-      call allocate_and_fill(cache%write_hz, self%write_cache_hz_fill_value, 0, n)
-   end subroutine
-
-   subroutine create_vertical_cache(self, cache)
-      class (type_model),         intent(in)  :: self
-      type (type_vertical_cache), intent(out) :: cache
-
-      integer :: n, n_mod, i
-
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-      n = self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)
-      n_mod = mod(n, array_block_size)
-      if (n_mod /= 0) n = n - n_mod + array_block_size
-#  ifdef _HAS_MASK_
-      allocate(cache%ipack(self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)))
-#  endif
-#else
-      n = 1
-#endif
-
-      call allocate_and_fill(cache%read, self%read_cache_fill_value, 1, n)
-      call allocate_and_fill(cache%read_hz, self%read_cache_hz_fill_value, 1, 1)
-      call allocate_and_fill(cache%read_scalar, self%read_cache_scalar_fill_value, 1, 1)
-      call allocate_and_fill(cache%write, self%write_cache_fill_value, 0, n)
-      call allocate_and_fill(cache%write_hz, self%write_cache_hz_fill_value, 0, 1)
-   end subroutine
-
-subroutine begin_interior_task(self, task, cache _POSTARG_INTERIOR_IN_)
-   class (type_model),         intent(in)    :: self
-   type (type_task),           intent(in)    :: task
-   type (type_interior_cache), intent(inout) :: cache
-   _DECLARE_ARGUMENTS_INTERIOR_IN_
-   _DECLARE_INTERIOR_INDICES_
-
-   integer :: i, j
-
-#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-#  ifdef _HAS_MASK_
-   i = 0
-   do _I_ = _START_, _STOP_
-#    ifdef _FABM_HORIZONTAL_MASK_
-      if (_IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_I_))) then
-#    else
-      if (_IS_UNMASKED_(self%mask _INDEX_GLOBAL_INTERIOR_(_I_))) then
-#    endif
-          i = i + 1
-          cache%ipack(i) = _I_
-      end if
-   end do
-   _N_ = i
-#  else
-   _N_ = _STOP_ - _START_ + 1
-#  endif
-#endif
-   
-   do i = 1, size(task%load)
-      j = task%load(i)
-      if (j /= 0) then
-         _PACK_GLOBAL_(self%catalog%interior(j)%p, cache%read, i, cache)
-      end if
-   end do
-   do i = 1, size(task%load_hz)
-      j = task%load_hz(i)
-      if (j /= 0) then
-         _HORIZONTAL_PACK_GLOBAL_(self%catalog%horizontal(j)%p, cache%read_hz, i, cache)
-      end if
-   end do
-   do i = 1, size(task%load_scalar)
-      j = task%load_scalar(i)
-      if (j /= 0) then
-         cache%read_scalar(i) = self%catalog%scalar(j)%p
-      end if
-   end do
-
-   do i = 1, size(task%prefill)
-      j = task%prefill(i)
-      if (j == prefill_constant) then
-         _CONCURRENT_LOOP_BEGIN_
-            cache%write _INDEX_SLICE_PLUS_1_(i) = self%write_cache_fill_value(i)
-         _LOOP_END_
-      elseif (j /= prefill_none) then
-         _PACK_GLOBAL_(self%catalog%interior(j)%p, cache%write, i, cache)
-      end if
-   end do
-end subroutine begin_interior_task
-
-subroutine begin_horizontal_task(self,task,cache _POSTARG_HORIZONTAL_IN_)
-   class (type_model),           intent(in)    :: self
-   type (type_task),             intent(in)    :: task
-   type (type_horizontal_cache), intent(inout) :: cache
-   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-   _DECLARE_HORIZONTAL_INDICES_
-
-   integer :: i, j
-
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-#  ifdef _HAS_MASK_
-   i = 0
-   do _J_ = _START_, _STOP_
-      if (_IS_UNMASKED_(self%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_J_))) then
-          i = i + 1
-          cache%ipack(i) = _J_
-      end if
-   end do
-   _N_ = i
-#  else
-   _N_ = _STOP_ - _START_ + 1
-#  endif
-#endif
-
-   do i = 1, size(task%load_hz)
-      j = task%load_hz(i)
-      if (j /= 0) then
-         _HORIZONTAL_PACK_GLOBAL_(self%catalog%horizontal(j)%p, cache%read_hz, i, cache)
-      end if
-   end do
-   do i = 1, size(task%load_scalar)
-      j = task%load_scalar(i)
-      if (j /= 0) cache%read_scalar(i) = self%catalog%scalar(j)%p
-   end do
-
-   do i = 1, size(task%prefill_hz)
-      if (task%prefill_hz(i) == prefill_constant) then
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-            cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = self%write_cache_hz_fill_value(i)
-         _HORIZONTAL_LOOP_END_
-      elseif (task%prefill_hz(i) /= prefill_none) then
-         _HORIZONTAL_PACK_GLOBAL_(self%catalog%horizontal(task%prefill_hz(i))%p, cache%write_hz, i, cache)
-      end if
-   end do
-
-   ! Also load boundary values for interior fields if performing surface or bottom-specific operations.
-   if (task%operation==source_do_surface) then
-      call load_surface_data(self,task,cache _POSTARG_HORIZONTAL_IN_)
-   elseif (task%operation==source_do_bottom) then
-      call load_bottom_data (self,task,cache _POSTARG_HORIZONTAL_IN_)
-   end if
-end subroutine begin_horizontal_task
-
-subroutine load_surface_data(self,task,cache _POSTARG_HORIZONTAL_IN_)
-   class (type_model),           intent(in)    :: self
-   type (type_task),             intent(in)    :: task
-   type (type_horizontal_cache), intent(inout) :: cache
-   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-   _DECLARE_HORIZONTAL_INDICES_
-
-   integer :: i, j
-
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-   integer :: _VERTICAL_ITERATOR_
-   _VERTICAL_ITERATOR_ = self%surface_index
-#endif
-
-   do i = 1, size(task%load)
-      j = task%load(i)
-      if (j /= 0) then
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-#  ifdef _HAS_MASK_
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%catalog%interior(j)%p _INDEX_GLOBAL_INTERIOR_(cache%ipack(_J_))
-#  else
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%catalog%interior(j)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1)
-#  endif
-         _HORIZONTAL_LOOP_END_
-#elif defined(_INTERIOR_IS_VECTORIZED_)
-         cache%read(1,i) = self%catalog%interior(j)%p _INDEX_LOCATION_
-#else
-         cache%read(i) = self%catalog%interior(j)%p _INDEX_LOCATION_
-#endif
-      end if
-   end do
-end subroutine load_surface_data
-
-subroutine load_bottom_data(self,task,cache _POSTARG_HORIZONTAL_IN_)
-   class (type_model),           intent(in)    :: self
-   type (type_task),             intent(in)    :: task
-   type (type_horizontal_cache), intent(inout) :: cache
-   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-   _DECLARE_HORIZONTAL_INDICES_
-
-   integer :: i, k
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-   integer :: _VERTICAL_ITERATOR_
-#endif
-
-#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&_FABM_BOTTOM_INDEX_==0
-   _VERTICAL_ITERATOR_ = self%bottom_index
-#endif
-
-   do i = 1, size(task%load)
-      k = task%load(i)
-      if (k /= 0) then
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-#  if _FABM_BOTTOM_INDEX_==-1
-#    ifdef _HAS_MASK_
-            _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(cache%ipack(_J_))
-#    else
-            _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
-#    endif
-#  endif
-#  ifdef _HAS_MASK_
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%catalog%interior(k)%p _INDEX_GLOBAL_INTERIOR_(cache%ipack(_J_))
-#  else
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%catalog%interior(k)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1)
-#  endif
-         _HORIZONTAL_LOOP_END_
-#elif defined(_INTERIOR_IS_VECTORIZED_)
-#  if _FABM_BOTTOM_INDEX_==-1
-         _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
-#  endif
-         cache%read(1,i) = self%catalog%interior(k)%p _INDEX_LOCATION_
-#else
-#  if _FABM_BOTTOM_INDEX_==-1
-         _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
-#  endif
-         cache%read(i) = self%catalog%interior(k)%p _INDEX_LOCATION_
-#endif
-      end if
-   end do
-end subroutine load_bottom_data
-
-subroutine begin_vertical_task(self,task,cache _POSTARG_VERTICAL_IN_)
-   class (type_model),         intent(in)    :: self
-   type (type_task),           intent(in)    :: task
-   type (type_vertical_cache), intent(inout) :: cache
-   _DECLARE_ARGUMENTS_VERTICAL_IN_
-   _DECLARE_VERTICAL_INDICES_
-
-   integer :: i, j
-
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-#  ifdef _HAS_MASK_
-   i = 0
-   do _I_ = _VERTICAL_START_, _VERTICAL_STOP_
-#    ifdef _FABM_HORIZONTAL_MASK_
-      if (_IS_UNMASKED_(self%mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
-#    else
-      if ( _IS_UNMASKED_(self%mask _INDEX_GLOBAL_VERTICAL_(_I_))) then
-#    endif
-          i = i + 1
-          cache%ipack(i) = _I_
-      end if
-    end do
-    _N_ = i
-#  else
-   _N_ = _VERTICAL_STOP_ - _VERTICAL_START_ + 1
-#  endif
-#endif
-
-   do i = 1, size(task%load)
-      j = task%load(i)
-      if (j /= 0) then
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-         _CONCURRENT_VERTICAL_LOOP_BEGIN_
-#  ifdef _HAS_MASK_
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%catalog%interior(j)%p _INDEX_GLOBAL_VERTICAL_(cache%ipack(_I_))
-#  else
-            cache%read _INDEX_SLICE_PLUS_1_(i) = self%catalog%interior(j)%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1)
-#  endif
-         _VERTICAL_LOOP_END_
-#elif defined(_INTERIOR_IS_VECTORIZED_)
-         cache%read(1,i) = self%catalog%interior(j)%p _INDEX_LOCATION_
-#else
-         cache%read(i) = self%catalog%interior(j)%p _INDEX_LOCATION_
-#endif
-      end if
-   end do
-
-   do i = 1, size(task%load_hz)
-      j = task%load_hz(i)
-      if (j /= 0) then
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-         cache%read_hz(1, i) = self%catalog%horizontal(j)%p _INDEX_HORIZONTAL_LOCATION_
-#else
-         cache%read_hz(i) = self%catalog%horizontal(j)%p _INDEX_HORIZONTAL_LOCATION_
-#endif
-      end if
-   end do
-
-   do i = 1, size(task%load_scalar)
-      j = task%load_scalar(i)
-      if (j /= 0) cache%read_scalar(i) = self%catalog%scalar(j)%p
-   end do
-
-   do i = 1, size(task%prefill)
-      if (task%prefill(i) == prefill_constant) then
-#if defined(_INTERIOR_IS_VECTORIZED_)
-         cache%write(:, i) = self%write_cache_fill_value(i)
-#else
-         cache%write(i) = self%write_cache_fill_value(i)
-#endif
-      elseif (task%prefill(i) /= prefill_none) then
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-         _CONCURRENT_VERTICAL_LOOP_BEGIN_
-#  ifdef _HAS_MASK_
-            cache%write _INDEX_SLICE_PLUS_1_(i) = self%catalog%interior(task%prefill(i))%p _INDEX_GLOBAL_VERTICAL_(cache%ipack(_I_))
-#  else
-            cache%write _INDEX_SLICE_PLUS_1_(i) = self%catalog%interior(task%prefill(i))%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1)
-#  endif
-         _VERTICAL_LOOP_END_
-#elif defined(_INTERIOR_IS_VECTORIZED_)
-         cache%write(1, i) = self%catalog%interior(task%prefill(i))%p _INDEX_LOCATION_
-#else
-         cache%write(i) = self%catalog%interior(task%prefill(i))%p _INDEX_LOCATION_
-#endif
-      end if
-   end do
-
-   do i = 1, size(task%prefill_hz)
-      if (task%prefill_hz(i) == prefill_constant) then
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-         cache%write_hz(1, i) = self%write_cache_hz_fill_value(i)
-#else
-         cache%write_hz(i) = self%write_cache_hz_fill_value(i)
-#endif
-      elseif (task%prefill_hz(i) /= prefill_none) then
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-         cache%write_hz(1, i) = self%catalog%horizontal(task%prefill_hz(i))%p _INDEX_HORIZONTAL_LOCATION_
-#else
-         cache%write_hz(i) = self%catalog%horizontal(task%prefill_hz(i))%p _INDEX_HORIZONTAL_LOCATION_
-#endif
-      end if
-   end do
-end subroutine begin_vertical_task
-
-subroutine invalidate_interior_call_output(call_node, cache)
-   use fabm_graph, only: type_output_variable_set_node
-
-   type (type_call),           intent(in)    :: call_node
-   type (type_interior_cache), intent(inout) :: cache
-   _DECLARE_INTERIOR_INDICES_
-
-   type (type_output_variable_set_node), pointer :: output_variable
-   integer                                       :: i
-
-   output_variable => call_node%graph_node%outputs%first
-   do while (associated(output_variable))
-      if (output_variable%p%target%prefill == prefill_none) then
-         i = output_variable%p%target%write_indices%value
-#if defined(_INTERIOR_IS_VECTORIZED_)
-         cache%write(:, i) = not_written
-#else
-         cache%write(i) = not_written
-#endif
-      end if
-      output_variable => output_variable%next
-   end do
-end subroutine
-
-subroutine invalidate_horizontal_call_output(call_node, cache)
-   use fabm_graph, only: type_output_variable_set_node
-
-   type (type_call),             intent(in)    :: call_node
-   type (type_horizontal_cache), intent(inout) :: cache
-   _DECLARE_INTERIOR_INDICES_
-
-   type (type_output_variable_set_node), pointer :: output_variable
-   integer                                       :: i
-
-   output_variable => call_node%graph_node%outputs%first
-   do while (associated(output_variable))
-      if (output_variable%p%target%prefill == prefill_none) then
-         i = output_variable%p%target%write_indices%value
-#if defined(_HORIZONTAL_IS_VECTORIZED_)
-         cache%write_hz(:, i) = not_written
-#else
-         cache%write_hz(i) = not_written
-#endif
-      end if
-      output_variable => output_variable%next
-   end do
-end subroutine
-
-subroutine invalidate_vertical_call_output(call_node, cache)
-   use fabm_graph, only: type_output_variable_set_node
-
-   type (type_call),           intent(in)    :: call_node
-   type (type_vertical_cache), intent(inout) :: cache
-   _DECLARE_INTERIOR_INDICES_
-
-   type (type_output_variable_set_node), pointer :: output_variable
-   integer                                       :: i
-
-   output_variable => call_node%graph_node%outputs%first
-   do while (associated(output_variable))
-      if (output_variable%p%target%prefill == prefill_none) then
-         i = output_variable%p%target%write_indices%value
-         select case (output_variable%p%target%domain)
-         case (domain_interior)
-#if defined(_INTERIOR_IS_VECTORIZED_)
-            cache%write(:, i) = not_written
-#else
-            cache%write(i) = not_written
-#endif
-         case (domain_surface, domain_bottom, domain_horizontal)
-#if defined(_HORIZONTAL_IS_VECTORIZED_)
-            cache%write_hz(:, i) = not_written
-#else
-            cache%write_hz(i) = not_written
-#endif
-         end select
-      end if
-      output_variable => output_variable%next
-   end do
-end subroutine
-
-subroutine check_interior_call_output(call_node, cache)
-   use fabm_graph, only: type_output_variable_set_node
-   use, intrinsic :: ieee_arithmetic
-
-   type (type_call),           intent(in) :: call_node
-   type (type_interior_cache), intent(in) :: cache
-   _DECLARE_INTERIOR_INDICES_
-
-   type (type_output_variable_set_node), pointer :: output_variable
-
-   output_variable => call_node%graph_node%outputs%first
-   do while (associated(output_variable))
-      _ASSERT_(output_variable%p%target%domain == domain_interior, 'check_interior_call_output', 'output not for interior domain')
-      _LOOP_BEGIN_
-         if (.not. ieee_is_finite(cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
-            call driver%fatal_error('check_interior_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' wrote non-finite data for ' // trim(output_variable%p%target%name))
-      _LOOP_END_
-      if (output_variable%p%target%prefill==prefill_none) then
-         _LOOP_BEGIN_
-            if (cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
-               call driver%fatal_error('check_interior_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' failed to write data for ' // trim(output_variable%p%target%name))
-         _LOOP_END_
-      end if
-      output_variable => output_variable%next
-   end do
-end subroutine check_interior_call_output
-
-subroutine check_horizontal_call_output(call_node, cache)
-   use fabm_graph, only: type_output_variable_set_node
-   use, intrinsic :: ieee_arithmetic
-
-   type (type_call),             intent(in) :: call_node
-   type (type_horizontal_cache), intent(in) :: cache
-   _DECLARE_HORIZONTAL_INDICES_
-
-   type (type_output_variable_set_node), pointer :: output_variable
-
-   output_variable => call_node%graph_node%outputs%first
-   do while (associated(output_variable))
-      _ASSERT_(iand(output_variable%p%target%domain, domain_horizontal) /= 0, 'check_horizontal_call_output', 'output not for horizontal domain')
-      _HORIZONTAL_LOOP_BEGIN_
-         if (.not. ieee_is_finite(cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
-            call driver%fatal_error('check_horizontal_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' wrote non-finite data for ' // trim(output_variable%p%target%name))
-      _HORIZONTAL_LOOP_END_
-      if (output_variable%p%target%prefill==prefill_none) then
-         _HORIZONTAL_LOOP_BEGIN_
-            if (cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
-               call driver%fatal_error('check_horizontal_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' failed to write data for ' // trim(output_variable%p%target%name))
-         _HORIZONTAL_LOOP_END_
-      end if
-      output_variable => output_variable%next
-   end do
-end subroutine check_horizontal_call_output
-
-subroutine check_vertical_call_output(call_node, cache)
-   use fabm_graph, only: type_output_variable_set_node
-   use, intrinsic :: ieee_arithmetic
-
-   type (type_call),           intent(in) :: call_node
-   type (type_vertical_cache), intent(in) :: cache
-   _DECLARE_VERTICAL_INDICES_
-
-   type (type_output_variable_set_node), pointer :: output_variable
-
-   output_variable => call_node%graph_node%outputs%first
-   do while (associated(output_variable))
-      select case (output_variable%p%target%domain)
-      case (domain_interior)
-         _VERTICAL_LOOP_BEGIN_
-            if (.not. ieee_is_finite(cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
-               call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' wrote non-finite data for ' // trim(output_variable%p%target%name))
-         _VERTICAL_LOOP_END_
-         if (output_variable%p%target%prefill==prefill_none) then
-            _VERTICAL_LOOP_BEGIN_
-               if (cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
-                  call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' failed to write data for ' // trim(output_variable%p%target%name))
-            _VERTICAL_LOOP_END_
-         end if
-      case (domain_surface, domain_bottom, domain_horizontal)
-         if (.not. ieee_is_finite(cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
-            call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' wrote non-finite data for ' // trim(output_variable%p%target%name))
-         if (output_variable%p%target%prefill==prefill_none) then
-            if (cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
-               call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' failed to write data for ' // trim(output_variable%p%target%name))
-         end if
-      end select
-      output_variable => output_variable%next
-   end do
-end subroutine check_vertical_call_output
-
-subroutine end_interior_task(task, cache, store _POSTARG_INTERIOR_IN_)
-   type (type_task),           intent(in)    :: task
-   type (type_interior_cache), intent(in)    :: cache
-   type (type_store),          intent(inout) :: store
-   _DECLARE_ARGUMENTS_INTERIOR_IN_
-   _DECLARE_INTERIOR_INDICES_
-
-   integer :: i
-
-   ! Copy newly written diagnostics that need to be saved to global store.
-   do i = 1, size(task%save_sources)
-      if (task%save_sources(i) /= 0) then
-         _UNPACK_TO_GLOBAL_PLUS_1_(cache%write, task%save_sources(i), store%interior, i, cache, store%interior_missing_value(i))
-      end if
-   end do
-end subroutine end_interior_task
-
-subroutine end_horizontal_task(task, cache, store _POSTARG_HORIZONTAL_IN_)
-   type (type_task),             intent(in)    :: task
-   type (type_horizontal_cache), intent(in)    :: cache
-   type (type_store),            intent(inout) :: store
-   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-   _DECLARE_HORIZONTAL_INDICES_
-
-   integer :: i
-
-   ! Copy newly written horizontal diagnostics that need to be saved to global store.
-   do i = 1, size(task%save_sources_hz)
-      if (task%save_sources_hz(i) /= 0) then
-         _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write_hz, task%save_sources_hz(i), store%horizontal, i, cache, store%horizontal_missing_value(i))
-      end if
-   end do
-end subroutine end_horizontal_task
-
-subroutine end_vertical_task(task, cache, store _POSTARG_VERTICAL_IN_)
-   type (type_task),           intent(in)    :: task
-   type (type_vertical_cache), intent(in)    :: cache
-   type (type_store),          intent(inout) :: store
-   _DECLARE_ARGUMENTS_VERTICAL_IN_
-   _DECLARE_VERTICAL_INDICES_
-
-   integer :: i
-
-   ! Copy diagnostics that need to be saved to global store.
-   do i = 1, size(task%save_sources)
-      if (task%save_sources(i) /= 0) then
-         _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write, task%save_sources(i), store%interior, i, cache, store%interior_missing_value(i))
-      end if
-   end do
-   do i = 1, size(task%save_sources_hz)
-      if (task%save_sources_hz(i) /= 0) then
-         if (_N_ > 0) then
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-            store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(1, task%save_sources_hz(i))
-#else
-            store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(task%save_sources_hz(i))
-#endif
-         else
-            store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = store%horizontal_missing_value(i)
-         end if
-      end if
-   end do
-end subroutine end_vertical_task
-
    subroutine initialize_interior_state(self _POSTARG_INTERIOR_IN_)
-      class (type_model), intent(inout) :: self
+      class (type_fabm_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 
       integer                   :: ivar, read_index
@@ -2262,10 +1361,10 @@ end subroutine end_vertical_task
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self _POSTARG_INTERIOR_IN_, 'initialize_interior_state')
+      call check_interior_location(self%domain%size _POSTARG_INTERIOR_IN_, 'initialize_interior_state')
 #endif
 
-      call begin_interior_task(self, self%initialize_state_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
+      call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%initialize_state_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
 
       ! Default initialization for interior state variables
       do ivar = 1, size(self%state_variables)
@@ -2291,11 +1390,11 @@ end subroutine end_vertical_task
          end if
       end do
 
-      call end_interior_task(self%initialize_state_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
+      call cache_unpack(self%initialize_state_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
    end subroutine initialize_interior_state
 
    subroutine initialize_bottom_state(self _POSTARG_HORIZONTAL_IN_)
-      class (type_model), intent(inout) :: self
+      class (type_fabm_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
       integer                   :: ivar, read_index
@@ -2304,10 +1403,10 @@ end subroutine end_vertical_task
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'initialize_bottom_state')
+      call check_horizontal_location(self%domain%size _POSTARG_HORIZONTAL_IN_, 'initialize_bottom_state')
 #endif
 
-      call begin_horizontal_task(self, self%initialize_bottom_state_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
+      call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%initialize_bottom_state_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
       ! Default initialization for bottom state variables
       do ivar = 1, size(self%bottom_state_variables)
@@ -2333,11 +1432,11 @@ end subroutine end_vertical_task
          end if
       end do
 
-      call end_horizontal_task(self%initialize_bottom_state_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
+      call cache_unpack(self%initialize_bottom_state_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
    end subroutine initialize_bottom_state
 
    subroutine initialize_surface_state(self _POSTARG_HORIZONTAL_IN_)
-      class (type_model), intent(inout) :: self
+      class (type_fabm_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
       integer                   :: ivar, read_index
@@ -2346,10 +1445,10 @@ end subroutine end_vertical_task
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'initialize_surface_state')
+      call check_horizontal_location(self%domain%size _POSTARG_HORIZONTAL_IN_, 'initialize_surface_state')
 #endif
 
-      call begin_horizontal_task(self, self%initialize_surface_state_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
+      call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%initialize_surface_state_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
       ! Default initialization for surface state variables
       do ivar = 1, size(self%surface_state_variables)
@@ -2375,11 +1474,11 @@ end subroutine end_vertical_task
          end if
       end do
 
-      call end_horizontal_task(self%initialize_surface_state_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
+      call cache_unpack(self%initialize_surface_state_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
    end subroutine initialize_surface_state
 
    subroutine get_interior_sources_rhs(self _POSTARG_INTERIOR_IN_, dy)
-      class (type_model),                     intent(inout) :: self
+      class (type_fabm_model),                intent(inout) :: self
       _DECLARE_ARGUMENTS_INTERIOR_IN_
       real(rke) _DIMENSION_EXT_SLICE_PLUS_1_, intent(inout) :: dy
 
@@ -2387,7 +1486,7 @@ end subroutine end_vertical_task
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self _POSTARG_INTERIOR_IN_, 'get_interior_sources_rhs')
+      call check_interior_location(self%domain%size _POSTARG_INTERIOR_IN_, 'get_interior_sources_rhs')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
       call check_extents_2d(dy, _STOP_ - _START_ + 1, size(self%state_variables), 'get_interior_sources_rhs', 'dy', 'stop-start+1, # interior state variables')
 #  else
@@ -2395,7 +1494,7 @@ end subroutine end_vertical_task
 #  endif
 #endif
 
-      call process_interior_slice(self, self%do_interior_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
+      call process_interior_slice(self%do_interior_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
 
       ! Compose total sources-sinks for each state variable, combining model-specific contributions.
       do i = 1, size(self%state_variables)
@@ -2405,16 +1504,16 @@ end subroutine end_vertical_task
    end subroutine get_interior_sources_rhs
 
    subroutine get_interior_sources_ppdd(self _POSTARG_INTERIOR_IN_, pp, dd)
-      class (type_model),                    intent(inout) :: self
+      class (type_fabm_model),                intent(inout) :: self
      _DECLARE_ARGUMENTS_INTERIOR_IN_
-      real(rke) _DIMENSION_EXT_SLICE_PLUS_2_,intent(inout) :: pp, dd
+      real(rke) _DIMENSION_EXT_SLICE_PLUS_2_, intent(inout) :: pp, dd
 
       type (type_call), pointer :: call_node
       integer                   :: i, j, k
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self _POSTARG_INTERIOR_IN_, 'get_interior_sources_ppdd')
+      call check_interior_location(self%domain%size _POSTARG_INTERIOR_IN_, 'get_interior_sources_ppdd')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
       call check_extents_3d(pp, _STOP_ - _START_ + 1, size(self%state_variables), size(self%state_variables), 'get_interior_sources_ppdd', 'pp', 'stop-start+1, # interior state variables, # interior state variables')
       call check_extents_3d(dd, _STOP_ - _START_ + 1, size(self%state_variables), size(self%state_variables), 'get_interior_sources_ppdd', 'dd', 'stop-start+1, # interior state variables, # interior state variables')
@@ -2424,11 +1523,11 @@ end subroutine end_vertical_task
 #  endif
 #endif
 
-      call begin_interior_task(self, self%do_interior_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
+      call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%do_interior_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
 
       call_node => self%do_interior_job%first_task%first_call
       do while (associated(call_node))
-         call call_node%model%do_ppdd(self%cache_int,pp,dd)
+         call call_node%model%do_ppdd(self%cache_int, pp, dd)
 
          ! Copy outputs of interest to read cache so consecutive models can use it.
          _DO_CONCURRENT_(i,1,size(call_node%copy_commands_int))
@@ -2442,14 +1541,14 @@ end subroutine end_vertical_task
          call_node => call_node%next
       end do
 
-      call end_interior_task(self%do_interior_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
+      call cache_unpack(self%do_interior_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
    end subroutine get_interior_sources_ppdd
 
    subroutine check_interior_state(self _POSTARG_INTERIOR_IN_, repair, valid)
-      class (type_model),     intent(inout) :: self
+      class (type_fabm_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_INTERIOR_IN_
-      logical,                intent(in)    :: repair
-      logical,                intent(out)   :: valid
+      logical,                 intent(in)    :: repair
+      logical,                 intent(out)   :: valid
 
       integer                   :: ivar, read_index
       type (type_call), pointer :: call_node
@@ -2459,13 +1558,13 @@ end subroutine end_vertical_task
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self _POSTARG_INTERIOR_IN_, 'check_interior_state')
+      call check_interior_location(self%domain%size _POSTARG_INTERIOR_IN_, 'check_interior_state')
 #endif
 
       valid = .true.
       set_interior = .false.
 
-      call begin_interior_task(self, self%check_state_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
+      call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%check_state_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
 
       ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
       call_node => self%check_state_job%first_task%first_call
@@ -2533,43 +1632,43 @@ end subroutine end_vertical_task
          end do
       end if
 
-      call end_interior_task(self%check_state_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
+      call cache_unpack(self%check_state_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
    end subroutine check_interior_state
 
    subroutine check_bottom_state(self _POSTARG_HORIZONTAL_IN_, repair, valid)
-      class (type_model),     intent(inout) :: self
+      class (type_fabm_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      logical,                intent(in)    :: repair
-      logical,                intent(out)   :: valid
+      logical,                 intent(in)    :: repair
+      logical,                 intent(out)   :: valid
 
 #ifndef NDEBUG
-      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'check_bottom_state')
+      call check_horizontal_location(self%domain%size _POSTARG_HORIZONTAL_IN_, 'check_bottom_state')
 #endif
 
       call internal_check_horizontal_state(self, self%check_bottom_state_job _POSTARG_HORIZONTAL_IN_, 2, self%bottom_state_variables, repair, valid)
    end subroutine check_bottom_state
 
    subroutine check_surface_state(self _POSTARG_HORIZONTAL_IN_, repair, valid)
-      class (type_model),     intent(inout) :: self
+      class (type_fabm_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      logical,                intent(in)    :: repair
-      logical,                intent(out)   :: valid
+      logical,                 intent(in)    :: repair
+      logical,                 intent(out)   :: valid
 
 #ifndef NDEBUG
-      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'check_surface_state')
+      call check_horizontal_location(self%domain%size _POSTARG_HORIZONTAL_IN_, 'check_surface_state')
 #endif
 
       call internal_check_horizontal_state(self, self%check_surface_state_job _POSTARG_HORIZONTAL_IN_, 1, self%surface_state_variables, repair, valid)
    end subroutine check_surface_state
 
    subroutine internal_check_horizontal_state(self,job _POSTARG_HORIZONTAL_IN_, flag, state_variables, repair, valid)
-      class (type_model),                        intent(inout) :: self
-      type (type_job),                           intent(in)    :: job
+      class (type_fabm_model),                    intent(inout) :: self
+      type (type_job),                            intent(in)    :: job
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      integer,                                   intent(in)    :: flag
-      type (type_horizontal_state_variable_info),intent(inout) :: state_variables(:)
-      logical,                                   intent(in)    :: repair
-      logical,                                   intent(out)   :: valid
+      integer,                                    intent(in)    :: flag
+      type (type_fabm_horizontal_state_variable), intent(inout) :: state_variables(:)
+      logical,                                    intent(in)    :: repair
+      logical,                                    intent(out)   :: valid
 
       type (type_call), pointer :: call_node
       integer                   :: ivar, read_index
@@ -2584,7 +1683,7 @@ end subroutine end_vertical_task
       integer :: j
 #endif
 
-      call begin_horizontal_task(self,job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
+      call cache_pack(self%domain, self%catalog, self%cache_fill_values, job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
       valid = .true.
       set_horizontal = .false.
@@ -2652,12 +1751,12 @@ end subroutine end_vertical_task
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
          if (flag == 1) then
-            _VERTICAL_ITERATOR_ = self%surface_index
+            _VERTICAL_ITERATOR_ = self%domain%surface_index
          else
 #  if _FABM_BOTTOM_INDEX_==0
-            _VERTICAL_ITERATOR_ = self%bottom_index
+            _VERTICAL_ITERATOR_ = self%domain%bottom_index
 #  elif !defined(_HORIZONTAL_IS_VECTORIZED_)
-            _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+            _VERTICAL_ITERATOR_ = self%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #  endif
          end if
 #endif
@@ -2688,10 +1787,10 @@ end subroutine end_vertical_task
                   ! Special case for bottom if vertical index of bottom point is variable.
                   _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
 #  ifdef _HAS_MASK_
-                     _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(self%cache_hz%ipack(_J_))
+                     _VERTICAL_ITERATOR_ = self%domain%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(self%cache_hz%ipack(_J_))
                      self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(self%cache_hz%ipack(_J_)) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
 #  else
-                     _VERTICAL_ITERATOR_ = self%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
+                     _VERTICAL_ITERATOR_ = self%domain%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
                      self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
 #  endif
                   _HORIZONTAL_LOOP_END_
@@ -2701,11 +1800,11 @@ end subroutine end_vertical_task
          end do
       end if
 
-      call end_horizontal_task(job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
+      call cache_unpack(job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
    end subroutine internal_check_horizontal_state
 
    subroutine get_surface_sources(self _POSTARG_HORIZONTAL_IN_, flux_pel, flux_sf)
-      class (type_model),                            intent(inout)         :: self
+      class (type_fabm_model),                       intent(inout)         :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
       real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(out)           :: flux_pel
       real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(out), optional :: flux_sf
@@ -2714,7 +1813,7 @@ end subroutine end_vertical_task
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'get_surface_sources')
+      call check_horizontal_location(self%domain%size _POSTARG_HORIZONTAL_IN_, 'get_surface_sources')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
       call check_extents_2d(flux_pel, _STOP_ - _START_ + 1, size(self%state_variables), 'get_surface_sources', 'flux_pel', 'stop-start+1, # interior state variables')
       if (present(flux_sf)) call check_extents_2d(flux_sf, _STOP_ - _START_ + 1, size(self%surface_state_variables), 'get_surface_sources', 'flux_sf', 'stop-start+1, # surface state variables')
@@ -2724,7 +1823,7 @@ end subroutine end_vertical_task
 #  endif
 #endif
 
-      call process_horizontal_slice(self, self%do_surface_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_) 
+      call process_horizontal_slice(self%do_surface_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_) 
 
       ! Compose surface fluxes for each interior state variable, combining model-specific contributions.
       flux_pel = 0.0_rke
@@ -2744,7 +1843,7 @@ end subroutine end_vertical_task
    end subroutine get_surface_sources
 
    subroutine get_bottom_sources_rhs(self _POSTARG_HORIZONTAL_IN_, flux_pel, flux_ben)
-      class (type_model),                            intent(inout) :: self
+      class (type_fabm_model),                       intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
       real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(inout) :: flux_pel, flux_ben
 
@@ -2752,7 +1851,7 @@ end subroutine end_vertical_task
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'get_bottom_sources_rhs')
+      call check_horizontal_location(self%domain%size _POSTARG_HORIZONTAL_IN_, 'get_bottom_sources_rhs')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
       call check_extents_2d(flux_pel, _STOP_ - _START_ + 1, size(self%state_variables), 'get_bottom_sources_rhs', 'flux_pel', 'stop-start+1, # interior state variables')
       call check_extents_2d(flux_ben, _STOP_ - _START_ + 1, size(self%bottom_state_variables), 'get_bottom_sources_rhs', 'flux_ben', 'stop-start+1, # bottom state variables')
@@ -2762,7 +1861,7 @@ end subroutine end_vertical_task
 #  endif
 #endif
 
-      call process_horizontal_slice(self, self%do_bottom_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_) 
+      call process_horizontal_slice(self%do_bottom_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_) 
 
       ! Compose bottom fluxes for each interior state variable, combining model-specific contributions.
       do i = 1, size(self%state_variables)
@@ -2778,7 +1877,7 @@ end subroutine end_vertical_task
    end subroutine get_bottom_sources_rhs
 
    subroutine get_bottom_sources_ppdd(self _POSTARG_HORIZONTAL_IN_, pp, dd, benthos_offset)
-      class (type_model),                            intent(inout) :: self
+      class (type_fabm_model),                       intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
       integer,                                       intent(in)    :: benthos_offset
       real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_, intent(inout) :: pp, dd
@@ -2788,10 +1887,10 @@ end subroutine end_vertical_task
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'get_bottom_sources_ppdd')
+      call check_horizontal_location(self%domain%size _POSTARG_HORIZONTAL_IN_, 'get_bottom_sources_ppdd')
 #endif
 
-      call begin_horizontal_task(self, self%do_bottom_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
+      call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%do_bottom_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
       call_node => self%do_bottom_job%first_task%first_call
       do while (associated(call_node))
@@ -2809,11 +1908,11 @@ end subroutine end_vertical_task
          call_node => call_node%next
       end do
 
-      call end_horizontal_task(self%do_bottom_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
+      call cache_unpack(self%do_bottom_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
    end subroutine get_bottom_sources_ppdd
 
    subroutine get_vertical_movement(self _POSTARG_INTERIOR_IN_, velocity)
-      class (type_model),                     intent(inout) :: self
+      class (type_fabm_model),                intent(inout) :: self
       _DECLARE_ARGUMENTS_INTERIOR_IN_
       real(rke) _DIMENSION_EXT_SLICE_PLUS_1_, intent(out)   :: velocity
 
@@ -2821,7 +1920,7 @@ end subroutine end_vertical_task
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self _POSTARG_INTERIOR_IN_, 'get_vertical_movement')
+      call check_interior_location(self%domain%size _POSTARG_INTERIOR_IN_, 'get_vertical_movement')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
       call check_extents_2d(velocity, _STOP_ - _START_ + 1, size(self%state_variables), 'get_vertical_movement', 'velocity', 'stop-start+1, # interior state variables')
 #  else
@@ -2829,7 +1928,7 @@ end subroutine end_vertical_task
 #  endif
 #endif
 
-      call process_interior_slice(self, self%get_vertical_movement_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
+      call process_interior_slice(self%get_vertical_movement_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
 
       ! Copy vertical velocities from write cache to output array provided by host
       do i = 1, size(self%state_variables)
@@ -2838,89 +1937,8 @@ end subroutine end_vertical_task
       end do
    end subroutine get_vertical_movement
 
-   subroutine fabm_get_light_extinction(self _POSTARG_INTERIOR_IN_, extinction)
-      class (type_model),              intent(inout) :: self
-      _DECLARE_ARGUMENTS_INTERIOR_IN_
-      real(rke) _DIMENSION_EXT_SLICE_, intent(out)   :: extinction
-
-      _DECLARE_INTERIOR_INDICES_
-
-#ifndef NDEBUG
-      call check_interior_location(self _POSTARG_INTERIOR_IN_, 'fabm_get_light_extinction')
-#  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      call check_extents_1d(extinction, _STOP_ - _START_ + 1, 'fabm_get_light_extinction', 'extinction', 'stop-start+1')
-#  endif
-#endif
-
-      call process_interior_slice(self, self%get_light_extinction_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
-
-      ! Copy light extinction from write cache to output array provided by host
-      _UNPACK_(self%cache_int%write, self%extinction_id%variable%write_indices%value, extinction, self%cache_int, 0.0_rke)
-   end subroutine fabm_get_light_extinction
-
-   subroutine fabm_get_light(self _POSTARG_VERTICAL_IN_)
-      class (type_model), intent(inout) :: self
-      _DECLARE_ARGUMENTS_VERTICAL_IN_
-   end subroutine fabm_get_light
-
-   subroutine fabm_get_drag(self _POSTARG_HORIZONTAL_IN_, drag)
-      class (type_model),                     intent(inout) :: self
-      _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      real(rke) _DIMENSION_HORIZONTAL_SLICE_, intent(out)   :: drag
-
-      type (type_call), pointer :: call_node
-      _DECLARE_HORIZONTAL_INDICES_
-
-#ifndef NDEBUG
-       call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'fabm_get_drag')
-#  ifdef _HORIZONTAL_IS_VECTORIZED_
-       call check_extents_1d(drag, _STOP_ - _START_ + 1, 'fabm_get_drag', 'drag', 'stop-start+1')
-#  endif
-#endif
-
-      drag = 1.0_rke
-
-      call begin_horizontal_task(self,self%get_drag_job%first_task,self%cache_hz _POSTARG_HORIZONTAL_IN_)
-
-      call_node => self%get_drag_job%first_task%first_call
-      do while (associated(call_node))
-         if (call_node%source == source_get_drag) call call_node%model%get_drag(self%cache_hz, drag)
-         call_node => call_node%next
-      end do
-
-      call end_horizontal_task(self%get_drag_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
-   end subroutine fabm_get_drag
-
-   subroutine fabm_get_albedo(self _POSTARG_HORIZONTAL_IN_, albedo)
-      class (type_model),                     intent(inout) :: self
-      _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      real(rke) _DIMENSION_HORIZONTAL_SLICE_, intent(out)   :: albedo
-
-      type (type_call), pointer :: call_node
-      _DECLARE_HORIZONTAL_INDICES_
-
-#ifndef NDEBUG
-      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'fabm_get_albedo')
-#  ifdef _HORIZONTAL_IS_VECTORIZED_
-      call check_extents_1d(albedo, _STOP_ - _START_ + 1, 'fabm_get_albedo', 'albedo', 'stop-start+1')
-#  endif
-#endif
-
-      albedo = 0.0_rke
-
-      call begin_horizontal_task(self,self%get_albedo_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
-
-      call_node => self%get_albedo_job%first_task%first_call
-      do while (associated(call_node))
-         if (call_node%source == source_get_albedo) call call_node%model%get_albedo(self%cache_hz, albedo)
-         call_node => call_node%next
-      end do
-
-      call end_horizontal_task(self%get_albedo_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
-   end subroutine fabm_get_albedo
-
    subroutine get_interior_conserved_quantities(self _POSTARG_INTERIOR_IN_, sums)
-      class (type_model),                     intent(inout) :: self
+      class (type_fabm_model),                intent(inout) :: self
       _DECLARE_ARGUMENTS_INTERIOR_IN_
       real(rke) _DIMENSION_EXT_SLICE_PLUS_1_, intent(out)   :: sums
 
@@ -2928,7 +1946,7 @@ end subroutine end_vertical_task
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self _POSTARG_INTERIOR_IN_, 'get_interior_conserved_quantities')
+      call check_interior_location(self%domain%size _POSTARG_INTERIOR_IN_, 'get_interior_conserved_quantities')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
       call check_extents_2d(sums, _STOP_ - _START_ + 1, size(self%conserved_quantities), 'get_interior_conserved_quantities', 'sums', 'stop-start+1, # conserved quantities')
 #  else
@@ -2936,7 +1954,7 @@ end subroutine end_vertical_task
 #  endif
 #endif
 
-      call process_interior_slice(self, self%get_conserved_quantities_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
+      call process_interior_slice(self%get_conserved_quantities_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
 
       do i = 1, size(self%conserved_quantities)
          _UNPACK_TO_PLUS_1_(self%cache_int%write, self%conserved_quantities(i)%index, sums, i, self%cache_int, 0.0_rke)
@@ -2944,7 +1962,7 @@ end subroutine end_vertical_task
    end subroutine get_interior_conserved_quantities
 
    subroutine get_horizontal_conserved_quantities(self _POSTARG_HORIZONTAL_IN_, sums)
-      class (type_model),                            intent(inout) :: self
+      class (type_fabm_model),                       intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
       real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(out)   :: sums
 
@@ -2952,7 +1970,7 @@ end subroutine end_vertical_task
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, 'get_horizontal_conserved_quantities')
+      call check_horizontal_location(self%domain%size _POSTARG_HORIZONTAL_IN_, 'get_horizontal_conserved_quantities')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
       call check_extents_2d(sums, _STOP_ - _START_ + 1, size(self%conserved_quantities), 'get_horizontal_conserved_quantities', 'sums', 'stop-start+1, # conserved quantities')
 #  else
@@ -2960,19 +1978,19 @@ end subroutine end_vertical_task
 #  endif
 #endif
 
-      call process_horizontal_slice(self, self%get_horizontal_conserved_quantities_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
+      call process_horizontal_slice(self%get_horizontal_conserved_quantities_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
       do i = 1, size(self%conserved_quantities)
          _HORIZONTAL_UNPACK_TO_PLUS_1_(self%cache_hz%write_hz, self%conserved_quantities(i)%horizontal_index, sums, i, self%cache_hz, 0.0_rke)
       end do
    end subroutine get_horizontal_conserved_quantities
 
-   subroutine process_job(self,job _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
-      class (type_model), intent(inout), target :: self
-      type (type_job),    intent(in)            :: job
+   subroutine process_job(self, job _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
+      class (type_fabm_model), intent(inout), target :: self
+      type (type_job),         intent(in)            :: job
       _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_RANGE_
 
-      integer :: i
+      integer                   :: i
       type (type_task), pointer :: task
       _DECLARE_LOCATION_
 
@@ -2981,7 +1999,7 @@ end subroutine end_vertical_task
       ! so we set vertical start and stop indices here.
       integer :: _VERTICAL_START_, _VERTICAL_STOP_
       _VERTICAL_START_ = 1
-      _VERTICAL_STOP_ = self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)
+      _VERTICAL_STOP_ = self%domain%size(_FABM_DEPTH_DIMENSION_INDEX_)
 #endif
 
       do i = 1, size(job%interior_store_prefill)
@@ -3004,28 +2022,29 @@ end subroutine end_vertical_task
          select case (task%operation)
          case (source_do)
             _BEGIN_OUTER_INTERIOR_LOOP_
-               call process_interior_slice(self, task, self%cache_int _POSTARG_INTERIOR_IN_)
+               call process_interior_slice(task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
             _END_OUTER_INTERIOR_LOOP_
          case (source_do_surface, source_do_bottom, source_do_horizontal)
             _BEGIN_OUTER_HORIZONTAL_LOOP_
-               call process_horizontal_slice(self, task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
+               call process_horizontal_slice(task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_)
             _END_OUTER_HORIZONTAL_LOOP_
          case (source_do_column)
             _BEGIN_OUTER_VERTICAL_LOOP_
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  if _FABM_BOTTOM_INDEX_==-1
 #    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-               _VERTICAL_START_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+               _VERTICAL_START_ = self%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #    else
-               _VERTICAL_STOP_ = self%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+               _VERTICAL_STOP_ = self%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #    endif
 #  endif
 #endif
-               if (_IS_UNMASKED_(self%mask_hz _INDEX_HORIZONTAL_LOCATION_)) call process_vertical_slice(self, task, self%cache_vert _POSTARG_VERTICAL_IN_)
+               if (_IS_UNMASKED_(self%domain%mask_hz _INDEX_HORIZONTAL_LOCATION_)) call process_vertical_slice(task, self%domain, &
+                  self%catalog, self%cache_fill_values, self%store, self%cache_vert _POSTARG_VERTICAL_IN_)
             _END_OUTER_VERTICAL_LOOP_
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
             _VERTICAL_START_ = 1
-            _VERTICAL_STOP_ = self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_)
+            _VERTICAL_STOP_ = self%domain%size(_FABM_DEPTH_DIMENSION_INDEX_)
 #endif
          end select
          task => task%next
@@ -3034,171 +2053,26 @@ end subroutine end_vertical_task
 
 #if _FABM_DIMENSION_COUNT_>1 || (_FABM_DIMENSION_COUNT_==1 && !defined(_FABM_DEPTH_DIMENSION_INDEX_))
    subroutine process_job_everywhere(self, job)
-      class (type_model), intent(inout), target :: self
-      type (type_job),    intent(in)            :: job
+      class (type_fabm_model), intent(inout), target :: self
+      type (type_job),         intent(in)            :: job
       integer :: _LOCATION_RANGE_
       istart__ = 1
-      istop__ = self%domain_size(1)
+      istop__ = self%domain%size(1)
 #  if _FABM_DIMENSION_COUNT_ > 1
       jstart__ = 1
-      jstop__ = self%domain_size(2)
+      jstop__ = self%domain%size(2)
 #  endif
 #  if _FABM_DIMENSION_COUNT_ > 2
       kstart__ = 1
-      kstop__ = self%domain_size(3)
+      kstop__ = self%domain%size(3)
 #  endif
       call process_job(self, job _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
    end subroutine process_job_everywhere
 #endif
 
-   subroutine process_interior_slice(self, task, cache _POSTARG_INTERIOR_IN_)
-      class (type_model),         intent(inout)  :: self
-      type (type_task),           intent(in)     :: task
-      type (type_interior_cache), intent(inout)  :: cache
-      _DECLARE_ARGUMENTS_INTERIOR_IN_
-
-      type (type_call), pointer :: call_node
-      integer                   :: i, j, k
-      _DECLARE_INTERIOR_INDICES_
-
-      call begin_interior_task(self, task, cache _POSTARG_INTERIOR_IN_)
-
-      call_node => task%first_call
-      do while (associated(call_node))
-         if (call_node%active) then
-#ifndef NDEBUG
-            call invalidate_interior_call_output(call_node, cache)
-#endif
-
-            select case (call_node%source)
-            case (source_do);                    call call_node%model%do(cache)
-            case (source_get_light_extinction);  call call_node%model%get_light_extinction(cache)
-            case (source_get_vertical_movement); call call_node%model%get_vertical_movement(cache)
-            end select
-
-#ifndef NDEBUG
-            call check_interior_call_output(call_node, cache)
-#endif
-         end if
-
-         ! Copy outputs of interest to read cache so consecutive models can use it.
-         _DO_CONCURRENT_(i,1,size(call_node%copy_commands_int))
-            j = call_node%copy_commands_int(i)%read_index
-            k = call_node%copy_commands_int(i)%write_index
-            _CONCURRENT_LOOP_BEGIN_EX_(cache)
-               cache%read _INDEX_SLICE_PLUS_1_(j) = cache%write _INDEX_SLICE_PLUS_1_(k)
-            _LOOP_END_
-         end do
-
-         ! Move to next model
-         call_node => call_node%next
-      end do
-
-      call end_interior_task(task, cache, self%store _POSTARG_INTERIOR_IN_)
-
-   end subroutine process_interior_slice
-
-   subroutine process_horizontal_slice(self, task, cache _POSTARG_HORIZONTAL_IN_)
-      class (type_model),           intent(inout) :: self
-      type (type_task),             intent(in)    :: task
-      type (type_horizontal_cache), intent(inout) :: cache
-      _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-
-      type (type_call), pointer :: call_node
-      integer                   :: i, j, k
-      _DECLARE_HORIZONTAL_INDICES_
-
-      call begin_horizontal_task(self, task, cache _POSTARG_HORIZONTAL_IN_)
-
-      call_node => task%first_call
-      do while (associated(call_node))
-         if (call_node%active) then
-#ifndef NDEBUG
-            call invalidate_horizontal_call_output(call_node, cache)
-#endif
-
-            select case (call_node%source)
-            case (source_do_surface);    call call_node%model%do_surface   (cache)
-            case (source_do_bottom);     call call_node%model%do_bottom    (cache)
-            case (source_do_horizontal); call call_node%model%do_horizontal(cache)
-            end select
-
-#ifndef NDEBUG
-            call check_horizontal_call_output(call_node, cache)
-#endif
-         end if
-
-         ! Copy outputs of interest to read cache so consecutive models can use it.
-         _DO_CONCURRENT_(i,1,size(call_node%copy_commands_hz))
-            j = call_node%copy_commands_hz(i)%read_index
-            k = call_node%copy_commands_hz(i)%write_index
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(cache)
-               cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-            _HORIZONTAL_LOOP_END_
-         end do
-
-         call_node => call_node%next
-      end do
-
-      call end_horizontal_task(task, cache, self%store _POSTARG_HORIZONTAL_IN_)
-
-   end subroutine process_horizontal_slice
-
-   subroutine process_vertical_slice(self, task, cache _POSTARG_VERTICAL_IN_)
-      class (type_model),         intent(inout) :: self
-      type (type_task),           intent(in)    :: task
-      type (type_vertical_cache), intent(inout) :: cache
-      _DECLARE_ARGUMENTS_VERTICAL_IN_
-
-      type (type_call), pointer :: call_node
-      integer                   :: i, j, k
-      _DECLARE_VERTICAL_INDICES_
-
-      call begin_vertical_task(self, task, cache _POSTARG_VERTICAL_IN_)
-
-      call_node => task%first_call
-      do while (associated(call_node))
-
-         if (call_node%active) then
-#ifndef NDEBUG
-            call invalidate_vertical_call_output(call_node, cache)
-#endif
-
-            call call_node%model%get_light(cache)
-
-#ifndef NDEBUG
-            call check_vertical_call_output(call_node, cache)
-#endif
-         end if
-
-         ! Copy outputs of interest to read cache so consecutive models can use it.
-         _DO_CONCURRENT_(i,1,size(call_node%copy_commands_int))
-            j = call_node%copy_commands_int(i)%read_index
-            k = call_node%copy_commands_int(i)%write_index
-            _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(cache)
-               cache%read _INDEX_SLICE_PLUS_1_(j) = cache%write _INDEX_SLICE_PLUS_1_(k)
-            _VERTICAL_LOOP_END_
-         end do
-         _DO_CONCURRENT_(i,1,size(call_node%copy_commands_hz))
-            j = call_node%copy_commands_hz(i)%read_index
-            k = call_node%copy_commands_hz(i)%write_index
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-            cache%read_hz(1,j) = cache%write_hz(1,k)
-#else
-            cache%read_hz(j) = cache%write_hz(k)
-#endif
-         end do
-
-         call_node => call_node%next
-      end do
-
-      call end_vertical_task(task, cache, self%store _POSTARG_VERTICAL_IN_)
-
-   end subroutine process_vertical_slice
-
    subroutine prepare_inputs1(self, t)
-      class (type_model),  intent(inout) :: self
-      real(rke), optional, intent(in)    :: t
+      class (type_fabm_model),  intent(inout) :: self
+      real(rke), optional,      intent(in)    :: t
 
       class (type_expression), pointer :: expression
 
@@ -3335,38 +2209,39 @@ end subroutine end_vertical_task
    end subroutine prepare_inputs1
 
    subroutine prepare_inputs2(self, t, year, month, day, seconds)
-      class (type_model), intent(inout) :: self
-      real(rke),          intent(in)    :: t
-      integer,            intent(in)    :: year, month, day
-      real(rke),          intent(in)    :: seconds
+      class (type_fabm_model), intent(inout) :: self
+      real(rke),               intent(in)    :: t
+      integer,                 intent(in)    :: year, month, day
+      real(rke),               intent(in)    :: seconds
 
       call self%schedules%update(year, month, day, seconds)
       call prepare_inputs1(self, t)
    end subroutine prepare_inputs2
 
    subroutine finalize_outputs(self)
-      class (type_model),  intent(inout) :: self
+      class (type_fabm_model),  intent(inout) :: self
 
       call self%process(self%get_diagnostics_job)
    end subroutine finalize_outputs
 
    subroutine classify_variables(self)
-      class (type_model), intent(inout), target :: self
+      class (type_fabm_model), intent(inout), target :: self
 
-      type (type_link),                               pointer :: link,newlink
-      type (type_state_variable_info),                pointer :: statevar
-      type (type_horizontal_state_variable_info),     pointer :: hz_statevar
-      type (type_diagnostic_variable_info),           pointer :: diagvar
-      type (type_horizontal_diagnostic_variable_info),pointer :: hz_diagvar
-      type (type_conserved_quantity_info),            pointer :: consvar
-      type (type_internal_variable),                  pointer :: object
-      integer                                                 :: nstate,nstate_bot,nstate_surf,ndiag,ndiag_hz,ncons
+      type (type_link),                                pointer :: link, newlink
+      type (type_fabm_state_variable),                 pointer :: statevar
+      type (type_fabm_horizontal_state_variable),      pointer :: hz_statevar
+      type (type_fabm_diagnostic_variable),            pointer :: diagvar
+      type (type_fabm_horizontal_diagnostic_variable), pointer :: hz_diagvar
+      type (type_fabm_conserved_quantity),             pointer :: consvar
+      type (type_internal_variable),                   pointer :: object
+      integer                                                  :: nstate, nstate_bot, nstate_surf, ndiag, ndiag_hz, ncons
 
       type (type_aggregate_variable_list)         :: aggregate_variable_list
       type (type_aggregate_variable),     pointer :: aggregate_variable
-      type (type_set)                             :: dependencies,dependencies_hz,dependencies_scalar
+      type (type_set)                             :: dependencies, dependencies_hz, dependencies_scalar
       type (type_standard_variable_node), pointer :: standard_variables_node
 
+      ! Build a list of all master variables (those that not have been coupled)
       link => self%root%links%first
       do while (associated(link))
          if (associated(link%target, link%original)) &
@@ -3490,7 +2365,7 @@ end subroutine end_vertical_task
                   call copy_variable_metadata(object,diagvar)
                   if (associated(object%standard_variables%first)) then
                      select type (standard_variable=>object%standard_variables%first%p)
-                        type is (type_bulk_standard_variable)
+                        type is (type_interior_standard_variable)
                            diagvar%standard_variable = standard_variable
                      end select
                   end if
@@ -3503,7 +2378,7 @@ end subroutine end_vertical_task
                   call copy_variable_metadata(object, statevar)
                   if (associated(object%standard_variables%first)) then
                      select type (standard_variable=>object%standard_variables%first%p)
-                        type is (type_bulk_standard_variable)
+                        type is (type_interior_standard_variable)
                            statevar%standard_variable = standard_variable
                      end select
                   end if
@@ -3588,8 +2463,8 @@ end subroutine end_vertical_task
       call dependencies_scalar%to_array(self%dependencies_scalar)
    contains
       subroutine copy_variable_metadata(internal_variable, external_variable)
-         class (type_external_variable), intent(inout)      :: external_variable
-         type (type_internal_variable),  intent(in), target :: internal_variable
+         class (type_fabm_variable),    intent(inout)      :: external_variable
+         type (type_internal_variable), intent(in), target :: internal_variable
 
          class (type_base_model), pointer :: owner
          external_variable%name            = get_safe_name(internal_variable%name)
@@ -3650,26 +2525,6 @@ end subroutine end_vertical_task
       end do
    end subroutine require_flux_computation
 
-   recursive subroutine require_call_all(self, model, source)
-      type (type_job),         intent(inout) :: self
-      class (type_base_model), intent(in)    :: model
-      integer,                 intent(in)    :: source
-
-      type (type_model_list_node), pointer :: node
-
-      node => model%children%first
-      do while (associated(node))
-         call require_call_all(self,node%model, source)
-         select type (model => node%model)
-         class is (type_weighted_sum)
-         class is (type_horizontal_weighted_sum)
-         class default
-            call self%request_call(node%model, source)
-         end select
-         node => node%next
-      end do
-   end subroutine require_call_all
-
    subroutine require_call_all_with_state(self, link_list, domain, source)
       type (type_job),       intent(inout) :: self
       type (type_link_list), intent(in)    :: link_list
@@ -3686,146 +2541,8 @@ end subroutine end_vertical_task
       end do
    end subroutine require_call_all_with_state
 
-   subroutine check_interior_location(self _POSTARG_INTERIOR_IN_, routine)
-      class (type_model), intent(in) :: self
-      _DECLARE_ARGUMENTS_INTERIOR_IN_
-      character(len=*),   intent(in) :: routine
-
-#ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      call check_loop(_START_, _STOP_, self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_), routine)
-#endif
-#if _FABM_DIMENSION_COUNT_>0&&_FABM_VECTORIZED_DIMENSION_INDEX_!=1
-      call check_index(i__, self%domain_size(1), routine, 'i')
-#endif
-#if _FABM_DIMENSION_COUNT_>1&&_FABM_VECTORIZED_DIMENSION_INDEX_!=2
-      call check_index(j__, self%domain_size(2), routine, 'j')
-#endif
-#if _FABM_DIMENSION_COUNT_>2&&_FABM_VECTORIZED_DIMENSION_INDEX_!=3
-      call check_index(k__, self%domain_size(3), routine, 'k')
-#endif
-   end subroutine check_interior_location
-
-   subroutine check_horizontal_location(self _POSTARG_HORIZONTAL_IN_, routine)
-      class (type_model), intent(in) :: self
-      _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      character(len=*),   intent(in) :: routine
-
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-      call check_loop(_START_, _STOP_, self%domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_), routine)
-#endif
-#if _FABM_DIMENSION_COUNT_>0&&_FABM_VECTORIZED_DIMENSION_INDEX_!=1&&_FABM_DEPTH_DIMENSION_INDEX_!=1
-      call check_index(i__, self%domain_size(1), routine, 'i')
-#endif
-#if _FABM_DIMENSION_COUNT_>1&&_FABM_VECTORIZED_DIMENSION_INDEX_!=2&&_FABM_DEPTH_DIMENSION_INDEX_!=2
-      call check_index(j__, self%domain_size(2), routine, 'j')
-#endif
-#if _FABM_DIMENSION_COUNT_>2&&_FABM_VECTORIZED_DIMENSION_INDEX_!=3&&_FABM_DEPTH_DIMENSION_INDEX_!=3
-      call check_index(k__, self%domain_size(3), routine, 'k')
-#endif
-   end subroutine check_horizontal_location
-
-   subroutine check_vertical_location(self _POSTARG_VERTICAL_IN_, routine)
-      class (type_model), intent(in) :: self
-      _DECLARE_ARGUMENTS_VERTICAL_IN_
-      character(len=*),   intent(in) :: routine
-
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-      call check_loop(_VERTICAL_START_, _VERTICAL_STOP_, self%domain_size(_FABM_DEPTH_DIMENSION_INDEX_), routine)
-#endif
-#if _FABM_DIMENSION_COUNT_>0&&_FABM_DEPTH_DIMENSION_INDEX_!=1
-      call check_index(i__, self%domain_size(1), routine, 'i')
-#endif
-#if _FABM_DIMENSION_COUNT_>1&&_FABM_DEPTH_DIMENSION_INDEX_!=2
-      call check_index(j__, self%domain_size(2), routine, 'j')
-#endif
-#if _FABM_DIMENSION_COUNT_>2&&_FABM_DEPTH_DIMENSION_INDEX_!=3
-      call check_index(k__, self%domain_size(3), routine, 'k')
-#endif
-   end subroutine check_vertical_location
-
-   subroutine check_extents_1d(array, required_size1, routine, array_name, shape_description)
-      real(rke),        intent(in) :: array(:)
-      integer,          intent(in) :: required_size1
-      character(len=*), intent(in) :: routine, array_name, shape_description
-
-      character(len=8) :: actual, required
-
-      if (size(array,1) /= required_size1) then
-         write (actual,  '(i0)') size(array, 1)
-         write (required,'(i0)') required_size1
-         call fatal_error(routine,'shape of argument ' // trim(array_name) // ' is (' // trim(actual) // ') but should be (' // trim(required) // ') = ' // trim(shape_description))
-      end if
-   end subroutine check_extents_1d
-
-   subroutine check_extents_2d(array, required_size1, required_size2, routine, array_name, shape_description)
-      real(rke),        intent(in) :: array(:,:)
-      integer,          intent(in) :: required_size1, required_size2
-      character(len=*), intent(in) :: routine, array_name, shape_description
-
-      character(len=17) :: actual, required
-
-      if (size(array,1) /= required_size1 .or. size(array,2) /= required_size2) then
-         write (actual,  '(i0,a,i0)') size(array,1), ',', size(array,2)
-         write (required,'(i0,a,i0)') required_size1, ',', required_size2
-         call fatal_error(routine,'shape of argument ' // trim(array_name) // ' is (' // trim(actual) // ') but should be (' // trim(required) // ') = ' // trim(shape_description))
-      end if
-   end subroutine check_extents_2d
-
-   subroutine check_extents_3d(array, required_size1, required_size2, required_size3, routine, array_name, shape_description)
-      real(rke),       intent(in) :: array(:,:,:)
-      integer,         intent(in) :: required_size1, required_size2, required_size3
-      character(len=*),intent(in) :: routine, array_name, shape_description
-
-      character(len=26) :: actual, required
-
-      if (size(array,1) /= required_size1 .or. size(array,2) /= required_size2 .or. size(array,3) /= required_size3) then
-         write (actual,  '(i0,a,i0,a,i0)') size(array,1), ',', size(array,2), ',', size(array,3)
-         write (required,'(i0,a,i0,a,i0)') required_size1, ',', required_size2, ',', required_size3
-         call fatal_error(routine,'shape of argument ' // trim(array_name) // ' is (' // trim(actual) // ') but should be (' // trim(required) // ') = ' // trim(shape_description))
-      end if
-   end subroutine check_extents_3d
-
-   subroutine check_loop(istart, istop, imax, routine)
-      integer,          intent(in) :: istart, istop, imax
-      character(len=*), intent(in) :: routine
-
-      character(len=8) :: str1, str2
-
-      if (istart < 1) then
-         write (str1,'(i0)') istart
-         call fatal_error(routine,'Loop start index ' // trim(str1) // ' is non-positive.')
-      end if
-      if (istop > imax) then
-         write (str1,'(i0)') istop
-         write (str2,'(i0)') imax
-         call fatal_error(routine,'Loop stop index ' // trim(str1) // ' exceeds size of vectorized dimension (' // trim(str2) // ').')
-      end if
-      if (istart > istop) then
-         write (str1,'(i0)') istart
-         write (str2,'(i0)') istop
-         call fatal_error(routine,'Loop start index ' // trim(str1) // ' exceeds stop index ' // trim(str2) // '.')
-      end if
-   end subroutine check_loop
-
-   subroutine check_index(i, i_max, routine, name)
-      integer,          intent(in) :: i, i_max
-      character(len=*), intent(in) :: routine, name
-
-      character(len=8) :: str1, str2
-
-      if (i < 1) then
-         write (str1,'(i0)') i
-         call fatal_error(routine, 'Index ' // name // ' = ' // trim(str1) // ' is non-positive.')
-      end if
-      if (i > i_max) then
-         write (str1,'(i0)') i
-         write (str2,'(i0)') i_max
-         call fatal_error(routine, 'Index ' // name // ' = ' // trim(str1) // ' exceeds size of associated dimension (' // trim(str2) // ').')
-      end if
-   end subroutine check_index
-
    subroutine create_catalog(self)
-      class (type_model), intent(inout) :: self
+      class (type_fabm_model), intent(inout) :: self
 
       integer                   :: i
       type (type_link), pointer :: link
@@ -3844,6 +2561,8 @@ end subroutine end_vertical_task
          call self%variable_register%add_to_catalog(self%surface_state_variables(i)%target)
          call self%variable_register%add_to_read_cache(self%surface_state_variables(i)%target)
       end do
+
+      ! Add all remaining variables to the catalog
       link => self%links_postcoupling%first
       do while (associated(link))
          call self%variable_register%add_to_catalog(link%target)
@@ -3908,7 +2627,7 @@ end subroutine end_vertical_task
    end subroutine
 
    subroutine create_store(self)
-      class (type_model), intent(inout) :: self
+      class (type_fabm_model), intent(inout) :: self
 
       integer                            :: i
       type (type_variable_node), pointer :: variable_node
@@ -3917,11 +2636,11 @@ end subroutine end_vertical_task
 #if _FABM_DIMENSION_COUNT_==0
       call allocate_store()
 #elif _FABM_DIMENSION_COUNT_==1
-      call allocate_store(self%domain_size(1))
+      call allocate_store(self%domain%size(1))
 #elif _FABM_DIMENSION_COUNT_==2
-      call allocate_store(self%domain_size(1), self%domain_size(2))
+      call allocate_store(self%domain%size(1), self%domain%size(2))
 #else
-      call allocate_store(self%domain_size(1), self%domain_size(2), self%domain_size(3))
+      call allocate_store(self%domain%size(1), self%domain%size(2), self%domain%size(3))
 #endif
 
       ! Collect missing values in array for faster access. These will be used to fill masked parts of outputs.
@@ -3983,7 +2702,7 @@ end subroutine end_vertical_task
    end subroutine merge_indices
 
    subroutine filter_expressions(self)
-      class (type_model),intent(inout) :: self
+      class (type_fabm_model),intent(inout) :: self
 
       class (type_expression),             pointer :: current, previous, next
       class (type_depth_integral),         pointer :: integral
@@ -4028,10 +2747,10 @@ end subroutine end_vertical_task
    end subroutine
 
    function get_variable_by_name(self, name, domain) result(variable)
-      class (type_model), intent(in)         :: self
-      character(len=*),   intent(in)         :: name
-      integer,            intent(in)         :: domain
-      type (type_internal_variable), pointer :: variable
+      class (type_fabm_model), intent(in)         :: self
+      character(len=*),        intent(in)         :: name
+      integer,                 intent(in)         :: domain
+      type (type_internal_variable), pointer      :: variable
 
       type (type_link), pointer :: link
 

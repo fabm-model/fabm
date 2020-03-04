@@ -463,13 +463,13 @@ module fabm_builtin_models
    end subroutine weighted_sum_reindex
 
    logical function merge_component(component_link, weight, target_variable, offset, log_unit)
-      type (type_link),              intent(in)            :: component_link
+      type (type_link),              intent(inout)         :: component_link
       type (type_internal_variable), intent(inout), target :: target_variable
       real(rk),                      intent(in)            :: weight
       real(rk),                      intent(inout)         :: offset
       integer, optional,             intent(in)            :: log_unit
 
-      type (type_internal_variable),pointer :: component_variable
+      type (type_internal_variable), pointer :: component_variable
 
       component_variable => component_link%target
 

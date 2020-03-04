@@ -20,14 +20,14 @@ output_F90 = '../../include/standard_variables.h'
 output_F90_assignments = '../../include/standard_variable_assignments.h'
 output_wiki = 'standard_variables.wiki'
 
-domain2type = {'interior':'type_bulk_standard_variable',
+domain2type = {'interior':'type_interior_standard_variable',
                'horizontal':'type_horizontal_standard_variable',
                'global':'type_global_standard_variable',
-               'conserved':'type_bulk_standard_variable'}
+               'conserved':'type_interior_standard_variable'}
 
 print('Parsing %s...' % variablespath)
-with io.open(variablespath, 'rU', encoding='utf-8') as stream:
-    selection = yaml.load(stream)
+with io.open(variablespath, 'r', encoding='utf-8') as stream:
+    selection = yaml.safe_load(stream)
 
 name2data = {}
 for cls,items in selection.items():

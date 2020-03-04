@@ -15,9 +15,9 @@
 !
 ! !USES:
    use fabm_parameters, rk=>rki
-   use fabm_standard_variables
+   use fabm_standard_variables, type_bulk_standard_variable => type_interior_standard_variable, type_interior_standard_variable => type_interior_standard_variable
    use fabm_properties
-   use fabm_driver
+   use fabm_driver, only: driver
 !
    implicit none
 !
@@ -31,7 +31,7 @@
 
    ! Collection with standard variables (e.g., temperature, practical_salinity)
    public standard_variables
-   public type_base_standard_variable, type_bulk_standard_variable
+   public type_base_standard_variable, type_interior_standard_variable
 
    ! Variable identifier types used by biogeochemical models
    public type_variable_id
@@ -61,6 +61,9 @@
    public get_aggregate_variable_access, type_aggregate_variable_access, type_contribution
 
    public type_coupling_task
+
+   ! For backward compatibility (20200302, pre 1.0)
+   public type_bulk_standard_variable
 
 ! !PUBLIC DATA MEMBERS:
 !
@@ -3289,7 +3292,7 @@ end subroutine abstract_model_factory_register_version
       end do
       discard_ = .false.
       if (present(discard)) discard_ = discard
-      if (.not.discard_) call fatal_error('variable_set_remove','Variable "'//trim(variable%name)//'" not found in set.')
+      if (.not. discard_) call driver%fatal_error('variable_set_remove','Variable "'//trim(variable%name)//'" not found in set.')
    end subroutine variable_set_remove
 
    logical function variable_set_contains(self,variable)

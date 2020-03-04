@@ -229,6 +229,9 @@ add_library(fabm
             ${CMAKE_CURRENT_LIST_DIR}/fabm_schedule.F90
             ${CMAKE_CURRENT_LIST_DIR}/fabm.F90
             ${CMAKE_CURRENT_LIST_DIR}/fabm_config.F90
+            ${CMAKE_CURRENT_LIST_DIR}/fabm_debug.F90
+            ${CMAKE_CURRENT_LIST_DIR}/fabm_cache.F90
+            ${CMAKE_CURRENT_LIST_DIR}/fabm_v0_compatibility.F90
            )
 add_dependencies(fabm yaml)
 

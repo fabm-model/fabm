@@ -6,7 +6,7 @@
 ! variable (derived type) that has all standard identities as its members. This can then be used as
 ! standard_variables%temperature, standard_variables%wind_speed, etc.
 ! For a list of all supported variables, please see:
-! http://sourceforge.net/p/fabm/wiki/List_of_standard_variables
+! https://github.com/fabm-model/fabm/wiki/List-of-standard-variables
 !
 ! Biogeochemical models can use these "identity" objects in two ways. First, they can access the value
 ! of the corresponding variable by registering them as dependency. To do so, call register_dependency
@@ -32,7 +32,7 @@ module fabm_standard_variables
 
    private
 
-   public type_base_standard_variable, type_bulk_standard_variable, type_horizontal_standard_variable, type_global_standard_variable
+   public type_base_standard_variable, type_interior_standard_variable, type_horizontal_standard_variable, type_global_standard_variable
    public type_standard_variable_node, type_standard_variable_set
    public standard_variables, initialize_standard_variables
 
@@ -44,7 +44,7 @@ module fabm_standard_variables
       character(len=256) :: name  = ''    ! Name
       character(len=64)  :: units = ''    ! Units
       character(len=512) :: cf_names = '' ! Comma-separated list of standard names defined in the NetCDF CF convention
-                                          ! (http://cf-pcmdi.llnl.gov/documents/cf-standard-names/)
+                                          ! (http://cfconventions.org/standard-names.html)
       logical            :: aggregate_variable = .false. ! Whether biogeochemical models can contribute (add to) this variable.
                                                          ! If .true., this variable is always available with a default value of 0.
       logical            :: conserved = .false.          ! Whether this variable shoudl be included in lists of conserved quantities.
@@ -53,7 +53,7 @@ module fabm_standard_variables
       procedure :: compare => standard_variable_compare
    end type
 
-   type,extends(type_base_standard_variable) :: type_bulk_standard_variable
+   type,extends(type_base_standard_variable) :: type_interior_standard_variable
    end type
 
    type,extends(type_base_standard_variable) :: type_horizontal_standard_variable
@@ -63,8 +63,8 @@ module fabm_standard_variables
    end type
 
    type type_standard_variable_node
-      class (type_base_standard_variable),pointer :: p    => null()
-      type (type_standard_variable_node), pointer :: next => null()
+      class (type_base_standard_variable), pointer :: p    => null()
+      type (type_standard_variable_node),  pointer :: next => null()
    end type
 
    type type_standard_variable_set
@@ -72,7 +72,7 @@ module fabm_standard_variables
    contains
       procedure :: contains_variable => standard_variable_set_contains_variable
       procedure :: contains_name     => standard_variable_set_contains_name
-      generic   :: contains => contains_variable,contains_name
+      generic   :: contains => contains_variable, contains_name
       procedure :: add      => standard_variable_set_add
       procedure :: update   => standard_variable_set_update
       procedure :: finalize => standard_variable_set_finalize
@@ -92,44 +92,44 @@ contains
    end subroutine
 
    logical function standard_variable_is_null(variable)
-      class (type_base_standard_variable),intent(in) :: variable
-      standard_variable_is_null = (variable%name==''.and. variable%units=='')
+      class (type_base_standard_variable), intent(in) :: variable
+      standard_variable_is_null = (variable%name == '' .and. variable%units == '')
    end function
 
-   logical function standard_variable_compare(variable1,variable2)
-      class (type_base_standard_variable),intent(in) :: variable1,variable2
+   logical function standard_variable_compare(variable1, variable2)
+      class (type_base_standard_variable), intent(in) :: variable1, variable2
       standard_variable_compare = .false.
 
       ! First test whether the types match.
       select type (variable1)
-         class is (type_bulk_standard_variable)
-            select type (variable2)
-               class is (type_bulk_standard_variable)
-                  standard_variable_compare = .true.
-            end select
-         class is (type_horizontal_standard_variable)
-            select type (variable2)
-               class is (type_horizontal_standard_variable)
-                  standard_variable_compare = .true.
-            end select
-         class is (type_global_standard_variable)
-            select type (variable2)
-               class is (type_global_standard_variable)
-                  standard_variable_compare = .true.
-            end select
+      class is (type_interior_standard_variable)
+         select type (variable2)
+            class is (type_interior_standard_variable)
+               standard_variable_compare = .true.
+         end select
+      class is (type_horizontal_standard_variable)
+         select type (variable2)
+            class is (type_horizontal_standard_variable)
+               standard_variable_compare = .true.
+         end select
+      class is (type_global_standard_variable)
+         select type (variable2)
+            class is (type_global_standard_variable)
+               standard_variable_compare = .true.
+         end select
       end select
 
       ! If types do not match, the standard variables are not equal - we're done.
-      if (.not.standard_variable_compare) return
+      if (.not. standard_variable_compare) return
 
       ! Compare the metadata of the standard variables.
-      standard_variable_compare = (variable1%name ==''.or.variable2%name ==''.or.variable1%name ==variable2%name ) &
-                            .and. (variable1%units==''.or.variable2%units==''.or.variable1%units==variable2%units)
+      standard_variable_compare = (variable1%name  == '' .or. variable2%name  == '' .or. variable1%name  == variable2%name ) &
+                            .and. (variable1%units == '' .or. variable2%units == '' .or. variable1%units == variable2%units)
    end function standard_variable_compare
 
-   logical function standard_variable_set_contains_variable(self,standard_variable)
-      class (type_standard_variable_set), intent(in) :: self
-      class (type_base_standard_variable),intent(in) :: standard_variable
+   logical function standard_variable_set_contains_variable(self, standard_variable)
+      class (type_standard_variable_set),  intent(in) :: self
+      class (type_base_standard_variable), intent(in) :: standard_variable
 
       type (type_standard_variable_node), pointer :: node
 
@@ -142,30 +142,30 @@ contains
       standard_variable_set_contains_variable = .false.
    end function standard_variable_set_contains_variable
 
-   logical function standard_variable_set_contains_name(self,name)
-      class (type_standard_variable_set),intent(in) :: self
-      character(len=*),                  intent(in) :: name
+   logical function standard_variable_set_contains_name(self, name)
+      class (type_standard_variable_set), intent(in) :: self
+      character(len=*),                   intent(in) :: name
 
       type (type_standard_variable_node), pointer :: node
 
       standard_variable_set_contains_name = .true.
       node => self%first
       do while (associated(node))
-         if (node%p%name==name) return
+         if (node%p%name == name) return
          node => node%next
       end do
       standard_variable_set_contains_name = .false.
    end function standard_variable_set_contains_name
 
-   subroutine standard_variable_set_add(self,standard_variable)
-      class (type_standard_variable_set), intent(inout) :: self
-      class (type_base_standard_variable),intent(in)    :: standard_variable
+   subroutine standard_variable_set_add(self, standard_variable)
+      class (type_standard_variable_set),  intent(inout) :: self
+      class (type_base_standard_variable), intent(in)    :: standard_variable
 
       type (type_standard_variable_node), pointer :: node
 
       if (self%contains(standard_variable)) return
 
-      if (.not.associated(self%first)) then
+      if (.not. associated(self%first)) then
          allocate(self%first)
          node => self%first
       else
@@ -176,12 +176,12 @@ contains
          allocate(node%next)
          node => node%next
       end if
-      allocate(node%p,source=standard_variable)
+      allocate(node%p, source=standard_variable)
    end subroutine standard_variable_set_add
 
-   subroutine standard_variable_set_update(self,other)
-      class (type_standard_variable_set),intent(inout) :: self
-      class (type_standard_variable_set),intent(in)    :: other
+   subroutine standard_variable_set_update(self, other)
+      class (type_standard_variable_set), intent(inout) :: self
+      class (type_standard_variable_set), intent(in)    :: other
 
       type (type_standard_variable_node), pointer :: node
 
@@ -193,9 +193,9 @@ contains
    end subroutine standard_variable_set_update
 
    subroutine standard_variable_set_finalize(self)
-      class (type_standard_variable_set),intent(inout) :: self
+      class (type_standard_variable_set), intent(inout) :: self
 
-      type (type_standard_variable_node), pointer :: node,next_node
+      type (type_standard_variable_node), pointer :: node, next_node
 
       node => self%first
       do while (associated(node))

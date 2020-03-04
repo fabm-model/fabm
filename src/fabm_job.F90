@@ -1694,11 +1694,11 @@ logical function is_source_compatible(operation, new_source)
    end select
 end function is_source_compatible
 
-function variable_register_add(self, variable, share_constants) result(index)
+function variable_register_add(self, variable, share_constants) result(i)
    type (type_variable_register), intent(inout) :: self
    type (type_internal_variable), target        :: variable
    logical,                       intent(in)    :: share_constants
-   integer :: index
+   integer :: i
 
    _ASSERT_(.not. self%frozen, 'variable_register_add', 'Cannot add '//trim(variable%name)//'; register has been frozen.')
    select case (variable%domain)
@@ -1720,15 +1720,15 @@ contains
       if (share_constants .and. variable%source == source_constant) then
          ! This is a constant. See if there is already another constant with the same value in the register.
          ! If there is, reuse that entry instead of creating a new one.
-         index = 0
+         i = 0
          node => list%first
          do while (associated(node))
-            index = index + 1
+            i = i + 1
             if (node%target%source == source_constant .and. node%target%prefill_value == variable%prefill_value) return
             node => node%next
          end do
       end if
-      call list%append(variable, index=index)
+      call list%append(variable, index=i)
    end subroutine
 
 end function variable_register_add

@@ -6,7 +6,7 @@ module fabm_python
 
    !DIR$ ATTRIBUTES DLLEXPORT :: STATE_VARIABLE,DIAGNOSTIC_VARIABLE,CONSERVED_QUANTITY
 
-   use fabm, only: type_fabm_model, type_external_variable, fabm_get_version, status_check_ready_done
+   use fabm, only: type_fabm_model, type_fabm_variable, fabm_get_version, status_start_done
    use fabm_config
    use fabm_types, only:rk => rke,attribute_length,type_model_list_node,type_base_model, &
                         factory,type_link,type_link_list,type_internal_variable
@@ -222,8 +222,8 @@ contains
       integer(c_int),         intent(in), value              :: category, index, length
       character(kind=c_char), intent(out), dimension(length) :: name, units, long_name, path
 
-      type (type_model_wrapper),      pointer :: model
-      class (type_external_variable), pointer :: variable
+      type (type_model_wrapper),  pointer :: model
+      class (type_fabm_variable), pointer :: variable
 
       call c_f_pointer(pmodel, model)
 
@@ -439,7 +439,7 @@ contains
       real(c_double), pointer :: dy_(:)
 
       call c_f_pointer(pmodel, model)
-      if (model%p%status < status_check_ready_done) then
+      if (model%p%status < status_start_done) then
          call fatal_error('get_rates', 'start has not been called yet.')
          return
       end if
@@ -484,7 +484,7 @@ contains
       logical :: repair, interior_valid, surface_valid, bottom_valid
 
       call c_f_pointer(pmodel, model)
-      if (model%p%status < status_check_ready_done) then
+      if (model%p%status < status_start_done) then
          call fatal_error('check_state', 'start has not been called yet.')
          return
       end if
@@ -513,7 +513,7 @@ contains
       logical                :: surface, bottom
 
       call c_f_pointer(pmodel, model)
-      if (model%p%status < status_check_ready_done) then
+      if (model%p%status < status_start_done) then
          call fatal_error('integrate', 'start has not been called yet.')
          return
       end if
