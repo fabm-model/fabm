@@ -1,6 +1,3 @@
-! This pre-processor macro shall be removed when v1.0 has been released
-#define _FABM_BGC_BACKWARD_COMPATIBILITY_
-
 ! ========================================================
 ! Validate input symbols
 ! ========================================================

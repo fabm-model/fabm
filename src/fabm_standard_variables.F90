@@ -32,7 +32,8 @@ module fabm_standard_variables
 
    private
 
-   public type_base_standard_variable, type_interior_standard_variable, type_horizontal_standard_variable, type_global_standard_variable
+   public type_base_standard_variable
+   public type_interior_standard_variable, type_horizontal_standard_variable, type_global_standard_variable
    public type_standard_variable_node, type_standard_variable_set
    public standard_variables, initialize_standard_variables
 

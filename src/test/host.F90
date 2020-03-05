@@ -33,7 +33,8 @@ end module host_hooks
    
 program test_host
 
-   use fabm, only: type_fabm_model, standard_variables, type_fabm_interior_variable_id, type_fabm_horizontal_variable_id, type_fabm_scalar_variable_id, fabm_initialize_library
+   use fabm, only: type_fabm_model, standard_variables, type_fabm_interior_variable_id, type_fabm_horizontal_variable_id, &
+      type_fabm_scalar_variable_id, fabm_initialize_library
    use fabm_config
    use fabm_driver
    use fabm_parameters, only: rke
@@ -702,7 +703,8 @@ contains
          call model%initialize_interior_state(_ARG_INTERIOR_IN_)
       _END_OUTER_INTERIOR_LOOP_
       do ivar = 1, size(model%state_variables)
-         call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value, ivar+interior_state_offset+1._rke)
+         call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), &
+            model%state_variables(ivar)%missing_value, ivar+interior_state_offset+1._rke)
       end do
       call report_test_result()
 
@@ -711,7 +713,8 @@ contains
          call model%initialize_bottom_state(_ARG_HORIZONTAL_IN_)
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar = 1, size(model%bottom_state_variables)
-         call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%bottom_state_variables(ivar)%missing_value, ivar+bottom_state_offset+1._rke)
+         call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), &
+            model%bottom_state_variables(ivar)%missing_value, ivar+bottom_state_offset+1._rke)
       end do
       call report_test_result()
 
@@ -720,7 +723,8 @@ contains
          call model%initialize_surface_state(_ARG_HORIZONTAL_IN_)
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar = 1, size(model%surface_state_variables)
-         call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value, ivar+surface_state_offset+1._rke)
+         call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), &
+            model%surface_state_variables(ivar)%missing_value, ivar+surface_state_offset+1._rke)
       end do
       call report_test_result()
 
@@ -807,12 +811,14 @@ contains
             call check_interior_slice_plus_1(dy, ivar, 0.0_rke, -real(ivar + interior_state_offset, rke) _POSTARG_INTERIOR_IN_)
          end do
       _END_OUTER_INTERIOR_LOOP_
-      call assert(interior_loop_count == interior_count, 'get_interior_sources', 'call count does not match number of (unmasked) interior points')
+      call assert(interior_loop_count == interior_count, 'get_interior_sources', &
+         'call count does not match number of (unmasked) interior points')
 
       do ivar = 1, size(model%diagnostic_variables)
          if (model%diagnostic_variables(ivar)%save .and. model%diagnostic_variables(ivar)%target%source == source_do) then
             pdata => model%get_interior_diagnostic_data(ivar)
-            call check_interior(pdata, model%diagnostic_variables(ivar)%missing_value, -model%diagnostic_variables(ivar)%missing_value)
+            call check_interior(pdata, model%diagnostic_variables(ivar)%missing_value, &
+               -model%diagnostic_variables(ivar)%missing_value)
          end if
       end do
 
@@ -851,12 +857,15 @@ contains
          endif
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
-      call assert(surface_loop_count == horizontal_count, 'get_surface_sources', 'call count does not match number of (unmasked) horizontal points')
+      call assert(surface_loop_count == horizontal_count, 'get_surface_sources', &
+         'call count does not match number of (unmasked) horizontal points')
 
       do ivar = 1, size(model%horizontal_diagnostic_variables)
-         if (model%horizontal_diagnostic_variables(ivar)%save .and. model%horizontal_diagnostic_variables(ivar)%target%source == source_do_surface) then
+         if (model%horizontal_diagnostic_variables(ivar)%save .and. &
+               model%horizontal_diagnostic_variables(ivar)%target%source == source_do_surface) then
             pdata_hz => model%get_horizontal_diagnostic_data(ivar)
-            call check_horizontal(pdata_hz, model%horizontal_diagnostic_variables(ivar)%missing_value, -model%horizontal_diagnostic_variables(ivar)%missing_value)
+            call check_horizontal(pdata_hz, model%horizontal_diagnostic_variables(ivar)%missing_value, &
+               -model%horizontal_diagnostic_variables(ivar)%missing_value)
          end if
       end do
 
@@ -895,12 +904,15 @@ contains
          endif
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
-      call assert(bottom_loop_count == horizontal_count, 'get_bottom_sources', 'call count does not match number of (unmasked) horizontal points')
+      call assert(bottom_loop_count == horizontal_count, 'get_bottom_sources', &
+         'call count does not match number of (unmasked) horizontal points')
 
       do ivar = 1, size(model%horizontal_diagnostic_variables)
-         if (model%horizontal_diagnostic_variables(ivar)%save .and. model%horizontal_diagnostic_variables(ivar)%target%source == source_do_bottom) then
+         if (model%horizontal_diagnostic_variables(ivar)%save .and. &
+               model%horizontal_diagnostic_variables(ivar)%target%source == source_do_bottom) then
             pdata_hz => model%get_horizontal_diagnostic_data(ivar)
-            call check_horizontal(pdata_hz, model%horizontal_diagnostic_variables(ivar)%missing_value, -model%horizontal_diagnostic_variables(ivar)%missing_value)
+            call check_horizontal(pdata_hz, model%horizontal_diagnostic_variables(ivar)%missing_value, &
+               -model%horizontal_diagnostic_variables(ivar)%missing_value)
          end if
       end do
 
@@ -913,19 +925,23 @@ contains
       call start_test('finalize_outputs')
       call model%finalize_outputs()
 
-      call assert(column_loop_count == interior_count, 'finalize_outputs', 'call count does not match number of (unmasked) interior points')
+      call assert(column_loop_count == interior_count, 'finalize_outputs', &
+         'call count does not match number of (unmasked) interior points')
 
       do ivar = 1, size(model%diagnostic_variables)
          if (model%diagnostic_variables(ivar)%save .and. model%diagnostic_variables(ivar)%target%source == source_do_column) then
             pdata => model%get_interior_diagnostic_data(ivar)
-            call check_interior(pdata, model%diagnostic_variables(ivar)%missing_value, -model%diagnostic_variables(ivar)%missing_value)
+            call check_interior(pdata, model%diagnostic_variables(ivar)%missing_value, &
+               -model%diagnostic_variables(ivar)%missing_value)
          end if
       end do
 
       do ivar = 1, size(model%horizontal_diagnostic_variables)
-         if (model%horizontal_diagnostic_variables(ivar)%save .and. model%horizontal_diagnostic_variables(ivar)%target%source == source_do_column) then
+         if (model%horizontal_diagnostic_variables(ivar)%save .and. &
+               model%horizontal_diagnostic_variables(ivar)%target%source == source_do_column) then
             pdata_hz => model%get_horizontal_diagnostic_data(ivar)
-            call check_horizontal(pdata_hz, model%horizontal_diagnostic_variables(ivar)%missing_value, -model%horizontal_diagnostic_variables(ivar)%missing_value)
+            call check_horizontal(pdata_hz, model%horizontal_diagnostic_variables(ivar)%missing_value, &
+               -model%horizontal_diagnostic_variables(ivar)%missing_value)
          end if
       end do
 
@@ -947,13 +963,16 @@ contains
 #endif
          do ivar = 1, size(model%state_variables)
             if (mod(ivar, 2) == 0) then
-               call check_interior_slice_plus_1(w, ivar, 0.0_rke, real(ivar + interior_state_offset, rke) _POSTARG_INTERIOR_IN_)
+               call check_interior_slice_plus_1(w, ivar, 0.0_rke, real(ivar + interior_state_offset, rke) &
+                  _POSTARG_INTERIOR_IN_)
             else
-               call check_interior_slice_plus_1(w, ivar, 0.0_rke, -real(ivar + interior_state_offset, rke) _POSTARG_INTERIOR_IN_)
+               call check_interior_slice_plus_1(w, ivar, 0.0_rke, -real(ivar + interior_state_offset, rke) &
+                  _POSTARG_INTERIOR_IN_)
             end if
          end do
       _END_OUTER_INTERIOR_LOOP_
-      call assert(vertical_movement_loop_count == interior_count, 'get_vertical_movement', 'call count does not match number of (unmasked) interior points')
+      call assert(vertical_movement_loop_count == interior_count, 'get_vertical_movement', &
+         'call count does not match number of (unmasked) interior points')
       call report_test_result()
 
       ! ======================================================================
@@ -1013,7 +1032,8 @@ contains
 #endif
       _END_OUTER_INTERIOR_LOOP_
       do ivar = 1, size(model%state_variables)
-         call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value, model%state_variables(ivar)%minimum)
+         call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), &
+            model%state_variables(ivar)%missing_value, model%state_variables(ivar)%minimum)
       end do
       call report_test_result()
 
@@ -1027,7 +1047,8 @@ contains
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar = 1, size(model%surface_state_variables)
-         call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value, model%surface_state_variables(ivar)%minimum)
+         call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), &
+            model%surface_state_variables(ivar)%missing_value, model%surface_state_variables(ivar)%minimum)
       end do
       call report_test_result()
 
@@ -1041,7 +1062,8 @@ contains
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar = 1, size(model%bottom_state_variables)
-         call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%bottom_state_variables(ivar)%missing_value, model%bottom_state_variables(ivar)%minimum)
+         call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), &
+            model%bottom_state_variables(ivar)%missing_value, model%bottom_state_variables(ivar)%minimum)
       end do
       call report_test_result()
 
@@ -1077,7 +1099,8 @@ contains
 #endif
       _END_OUTER_INTERIOR_LOOP_
       do ivar = 1, size(model%state_variables)
-         call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value, model%state_variables(ivar)%maximum)
+         call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), &
+            model%state_variables(ivar)%missing_value, model%state_variables(ivar)%maximum)
       end do
       call report_test_result()
 
@@ -1091,7 +1114,8 @@ contains
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar = 1, size(model%surface_state_variables)
-         call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%surface_state_variables(ivar)%missing_value, model%surface_state_variables(ivar)%maximum)
+         call check_horizontal(surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), &
+            model%surface_state_variables(ivar)%missing_value, model%surface_state_variables(ivar)%maximum)
       end do
       call report_test_result()
 
@@ -1105,7 +1129,8 @@ contains
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
       do ivar = 1, size(model%bottom_state_variables)
-         call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), model%bottom_state_variables(ivar)%missing_value, model%bottom_state_variables(ivar)%maximum)
+         call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), &
+            model%bottom_state_variables(ivar)%missing_value, model%bottom_state_variables(ivar)%maximum)
       end do
       call report_test_result()
 
@@ -1117,7 +1142,7 @@ contains
    end subroutine
 
    subroutine report_test_result()
-      write (*,'(X,A)') 'SUCCESS'
+      write (*,'(1X,A)') 'SUCCESS'
    end subroutine
 
    subroutine assert(condition, source, message)
@@ -1151,10 +1176,10 @@ contains
    end subroutine
 
    subroutine check_interior_slice_plus_1(dat, index, required_masked_value, required_value _POSTARG_INTERIOR_IN_)
-      real(rke) _DIMENSION_EXT_SLICE_PLUS_1_,intent(in) :: dat
-      integer,                              intent(in) :: index
-      real(rke),                             intent(in) :: required_masked_value, required_value
       _DECLARE_ARGUMENTS_INTERIOR_IN_
+      real(rke) _DIMENSION_EXT_SLICE_PLUS_1_,intent(in) :: dat
+      integer,                               intent(in) :: index
+      real(rke),                             intent(in) :: required_masked_value, required_value
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
       call check_interior_slice(dat(:,index), required_masked_value, required_value _POSTARG_INTERIOR_IN_)
 #else
@@ -1163,9 +1188,9 @@ contains
    end subroutine
 
    subroutine check_interior_slice(slice_data, required_masked_value, required_value _POSTARG_INTERIOR_IN_)
+      _DECLARE_ARGUMENTS_INTERIOR_IN_
       real(rke) _DIMENSION_EXT_SLICE_,intent(in) :: slice_data
       real(rke),                      intent(in) :: required_masked_value, required_value
-      _DECLARE_ARGUMENTS_INTERIOR_IN_
 
 #ifdef _HAS_MASK_
 #  ifdef _FABM_HORIZONTAL_MASK_
@@ -1205,8 +1230,10 @@ contains
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
-      call assert(all(slice_data == required_masked_value .or.       _IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))), 'check_horizontal_slice', 'one or more masked cells do not have the value required.')
-      call assert(all(slice_data == required_value        .or. .not. _IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))), 'check_horizontal_slice', 'one or more non-masked cells do not have the value required.')
+      call assert(all(slice_data == required_masked_value .or. _IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))), &
+         'check_horizontal_slice', 'one or more masked cells do not have the value required.')
+      call assert(all(slice_data == required_value .or. .not. _IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))), &
+         'check_horizontal_slice', 'one or more non-masked cells do not have the value required.')
 #  else
       call assert(all(slice_data == required_value), 'check_horizontal_slice', 'one or more cells do not have the value required.')
 #  endif
@@ -1229,8 +1256,10 @@ contains
          end if
       _END_GLOBAL_HORIZONTAL_LOOP_
 #  else
-      call assert(all(dat == required_masked_value .or.       _IS_UNMASKED_(mask)), 'check_interior', 'one or more masked cells do not have the value required.')
-      call assert(all(dat == required_value        .or. .not. _IS_UNMASKED_(mask)), 'check_interior', 'one or more non-masked cells do not have the value required.')
+      call assert(all(dat == required_masked_value .or. _IS_UNMASKED_(mask)), &
+         'check_interior', 'one or more masked cells do not have the value required.')
+      call assert(all(dat == required_value .or. .not. _IS_UNMASKED_(mask)), &
+         'check_interior', 'one or more non-masked cells do not have the value required.')
 #  endif
 #elif _FABM_DIMENSION_COUNT_>0
 #  if _FABM_BOTTOM_INDEX_==-1
@@ -1251,11 +1280,13 @@ contains
    end subroutine
 
    subroutine check_horizontal(dat, required_masked_value, required_value)
-      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_,intent(in) :: dat
-      real(rke),                              intent(in) :: required_masked_value, required_value
+      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, intent(in) :: dat
+      real(rke),                               intent(in) :: required_masked_value, required_value
 #ifdef _HAS_MASK_
-      call assert(all(dat == required_masked_value .or.       _IS_UNMASKED_(mask_hz)), 'check_horizontal', 'one or more masked cells do not have the value required.')
-      call assert(all(dat == required_value        .or. .not. _IS_UNMASKED_(mask_hz)), 'check_horizontal', 'one or more non-masked cells do not have the value required.')
+      call assert(all(dat == required_masked_value .or. _IS_UNMASKED_(mask_hz)), &
+         'check_horizontal', 'one or more masked cells do not have the value required.')
+      call assert(all(dat == required_value .or. .not. _IS_UNMASKED_(mask_hz)), &
+         'check_horizontal', 'one or more non-masked cells do not have the value required.')
 #elif _HORIZONTAL_DIMENSION_COUNT_>0
 #  if _FABM_BOTTOM_INDEX_==-1
       ! Skip land points (with bottom index of 0 or max+1)

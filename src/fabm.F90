@@ -994,6 +994,11 @@ contains
       if (used) used = .not. id%variable%read_indices%is_empty()
    end function is_variable_used
 
+   ! --------------------------------------------------------------------------
+   ! interior_variable_needs_values: returns whether values still need to
+   ! provided for this interior variable, identified by id.
+   ! Unless these values are provided, a call to "start" will fail.
+   ! --------------------------------------------------------------------------
    function interior_variable_needs_values(self, id) result(required)
       class (type_fabm_model),               intent(in) :: self
       type (type_fabm_interior_variable_id), intent(in) :: id
@@ -1004,6 +1009,11 @@ contains
       if (required) required = .not. associated(self%catalog%interior(id%variable%catalog_index)%p)
    end function interior_variable_needs_values
 
+   ! --------------------------------------------------------------------------
+   ! interior_variable_needs_values_sn: returns whether values still need to
+   ! provided for this interior variable, identified by standard variable.
+   ! Unless these values are provided, a call to "start" will fail.
+   ! --------------------------------------------------------------------------
    function interior_variable_needs_values_sn(self, standard_variable) result(required)
       class (type_fabm_model),                intent(in) :: self
       type (type_interior_standard_variable), intent(in) :: standard_variable
@@ -1012,6 +1022,11 @@ contains
       required = interior_variable_needs_values(self, get_interior_variable_id_sn(self, standard_variable))
    end function interior_variable_needs_values_sn
 
+   ! --------------------------------------------------------------------------
+   ! horizontal_variable_needs_values: returns whether values still need to
+   ! provided for this horizontal variable, identified by id.
+   ! Unless these values are provided, a call to "start" will fail.
+   ! --------------------------------------------------------------------------
    function horizontal_variable_needs_values(self, id) result(required)
       class (type_fabm_model),                intent(in) :: self
       type(type_fabm_horizontal_variable_id), intent(in) :: id
@@ -1022,6 +1037,11 @@ contains
       if (required) required = .not. associated(self%catalog%horizontal(id%variable%catalog_index)%p)
    end function horizontal_variable_needs_values
 
+   ! --------------------------------------------------------------------------
+   ! horizontal_variable_needs_values_sn: returns whether values still need to
+   ! provided for this horizontal variable, identified by standard variable.
+   ! Unless these values are provided, a call to "start" will fail.
+   ! --------------------------------------------------------------------------
    function horizontal_variable_needs_values_sn(self, standard_variable) result(required)
       class (type_fabm_model),                  intent(in) :: self
       type (type_horizontal_standard_variable), intent(in) :: standard_variable
@@ -1030,6 +1050,11 @@ contains
       required = horizontal_variable_needs_values(self, get_horizontal_variable_id_sn(self, standard_variable))
    end function horizontal_variable_needs_values_sn
 
+   ! --------------------------------------------------------------------------
+   ! scalar_variable_needs_values: returns whether a value still need to
+   ! provided for this scalar variable, identified by id.
+   ! Unless this value is provided, a call to "start" will fail.
+   ! --------------------------------------------------------------------------
    function scalar_variable_needs_values(self, id) result(required)
       class (type_fabm_model),            intent(in) :: self
       type(type_fabm_scalar_variable_id), intent(in) :: id
@@ -1040,6 +1065,11 @@ contains
       if (required) required = .not. associated(self%catalog%scalar(id%variable%catalog_index)%p)
    end function scalar_variable_needs_values
 
+   ! --------------------------------------------------------------------------
+   ! scalar_variable_needs_values: returns whether a value still need to
+   ! provided for this scalar variable, identified by standard variable.
+   ! Unless this value is provided, a call to "start" will fail.
+   ! --------------------------------------------------------------------------
    function scalar_variable_needs_values_sn(self, standard_variable) result(required)
       class (type_fabm_model),              intent(in) :: self
       type (type_global_standard_variable), intent(in) :: standard_variable
@@ -1894,7 +1924,7 @@ contains
 
       call_node => self%do_bottom_job%first_task%first_call
       do while (associated(call_node))
-         if (call_node%source == source_do_bottom) call call_node%model%do_bottom_ppdd(self%cache_hz,pp,dd,benthos_offset)
+         if (call_node%source == source_do_bottom) call call_node%model%do_bottom_ppdd(self%cache_hz, pp, dd, benthos_offset)
 
          ! Copy outputs of interest to read cache so consecutive models can use it.
          _DO_CONCURRENT_(i,1,size(call_node%copy_commands_hz))

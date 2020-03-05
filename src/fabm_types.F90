@@ -1,31 +1,31 @@
 #include "fabm_driver.h"
-!-----------------------------------------------------------------------
-!BOP
-!
-! !MODULE: fabm_types --- Derived types and procedures for use by biogeochemical modules
-!
-! !INTERFACE:
-   module fabm_types
-!
-! !DESCRIPTION:
-! This module contains the derived types and procedures that are used for communication between
-! biogeochemical models and FABM. This module provides types for storing model data (e.g.,
-! metadata for variables and parameters), and logic for registration of model objects
-! (state and diagnostic variables), retrieval of model settings (parameter values) and coupling.
-!
-! !USES:
+
+! =============================================================================
+! fabm_types --- Derived types and procedures for use by biogeochemical models
+! -----------------------------------------------------------------------------
+! This module contains the derived types and procedures that are used for
+! communication between biogeochemical models and FABM. This module provides
+! types for storing model data (e.g., metadata for variables and parameters),
+! and logic for registration of model objects (state and diagnostic variables),
+! retrieval of model settings (parameter values) and coupling.
+! =============================================================================
+
+module fabm_types
+
    use fabm_parameters, rk=>rki
-   use fabm_standard_variables, type_bulk_standard_variable => type_interior_standard_variable, type_interior_standard_variable => type_interior_standard_variable
+   use fabm_standard_variables, type_bulk_standard_variable => type_interior_standard_variable, &
+      type_interior_standard_variable => type_interior_standard_variable
    use fabm_properties
    use fabm_driver, only: driver
-!
+
    implicit none
-!
-!  default: all is private.
+
    private
-!
-! !PUBLIC MEMBER FUNCTIONS:
-!
+
+   ! --------------------------------------------------------------------------
+   ! Public members
+   ! --------------------------------------------------------------------------
+
    ! Base data type for biogeochemical models.
    public type_base_model
 
@@ -65,8 +65,6 @@
    ! For backward compatibility (20200302, pre 1.0)
    public type_bulk_standard_variable
 
-! !PUBLIC DATA MEMBERS:
-!
    integer, parameter, public :: attribute_length = 256
 
    public rk, rke
@@ -116,29 +114,27 @@
    integer, parameter, public :: operator_assign = 0, &
                                  operator_add    = 1, &
                                  operator_merge_forbidden = 256
-!
-! !PUBLIC TYPES:
-!
+
    integer, parameter, public :: output_none                 = 0, &
                                  output_instantaneous        = 1, &
                                  output_time_integrated      = 2, &
                                  output_time_step_averaged   = 4, &
                                  output_time_step_integrated = 8
 
-   ! ====================================================================================================
+   ! --------------------------------------------------------------------------
    ! Data types for pointers to variable values.
-   ! ====================================================================================================
+   ! --------------------------------------------------------------------------
 
    type type_integer_pointer
-      integer,pointer :: p => null()
+      integer, pointer :: p => null()
    end type
 
    type type_real_pointer
-      real(rk),pointer :: p => null()
+      real(rk), pointer :: p => null()
    end type
 
    type type_real_pointer_set
-      type (type_real_pointer),allocatable :: pointers(:)
+      type (type_real_pointer), allocatable :: pointers(:)
    contains
       procedure :: append    => real_pointer_set_append
       procedure :: extend    => real_pointer_set_extend
@@ -146,8 +142,8 @@
    end type
 
    type type_integer_pointer_set
-      type (type_integer_pointer),allocatable :: pointers(:)
-      integer                                 :: value = -1
+      type (type_integer_pointer), allocatable :: pointers(:)
+      integer                                  :: value = -1
    contains
       procedure :: append      => integer_pointer_set_append
       procedure :: extend      => integer_pointer_set_extend
@@ -158,41 +154,41 @@
    end type
 
    type type_coupling_task
-      type (type_link), pointer                   :: slave       => null()
-      character(len=attribute_length)             :: master_name = ''
-      class (type_base_standard_variable),pointer :: master_standard_variable => null()
-      logical                                     :: user_specified = .false.
-      integer                                     :: domain = domain_interior
-      class (type_coupling_task), pointer         :: previous    => null()
-      class (type_coupling_task), pointer         :: next        => null()
+      type (type_link), pointer                    :: slave       => null()
+      character(len=attribute_length)              :: master_name = ''
+      class (type_base_standard_variable), pointer :: master_standard_variable => null()
+      logical                                      :: user_specified = .false.
+      integer                                      :: domain = domain_interior
+      class (type_coupling_task), pointer          :: previous    => null()
+      class (type_coupling_task), pointer          :: next        => null()
    end type
 
    type type_coupling_task_list
-      class (type_coupling_task),pointer :: first => null()
-      logical                            :: includes_custom = .false.
+      class (type_coupling_task), pointer :: first => null()
+      logical                             :: includes_custom = .false.
    contains
       procedure :: remove => coupling_task_list_remove
       procedure :: add => coupling_task_list_add
       procedure :: add_object => coupling_task_list_add_object
    end type
 
-   ! ====================================================================================================
+   ! --------------------------------------------------------------------------
    ! Variable identifiers used by biogeochemical models.
-   ! ====================================================================================================
+   ! --------------------------------------------------------------------------
 
-   type,abstract :: type_variable_id
+   type, abstract :: type_variable_id
       type (type_link), pointer :: link => null()
    end type
 
-   type,extends(type_variable_id) :: type_aggregate_variable_id
+   type, extends(type_variable_id) :: type_aggregate_variable_id
       integer  :: sum_index = -1
    end type
 
-   type,extends(type_variable_id) :: type_horizontal_aggregate_variable_id
+   type, extends(type_variable_id) :: type_horizontal_aggregate_variable_id
       integer  :: horizontal_sum_index = -1
    end type
 
-   type,extends(type_variable_id) :: type_state_variable_id
+   type, extends(type_variable_id) :: type_state_variable_id
       integer  :: index              = -1
       integer  :: state_index        = -1
       real(rk) :: background         = 0.0_rk
@@ -202,62 +198,57 @@
       type (type_horizontal_aggregate_variable_id) :: bottom_flux
    end type
 
-   type,extends(type_variable_id) :: type_bottom_state_variable_id
+   type, extends(type_variable_id) :: type_bottom_state_variable_id
       integer  :: horizontal_index   = -1
       integer  :: bottom_state_index = -1
       real(rk) :: background         = 0.0_rk
       type (type_horizontal_aggregate_variable_id) :: bottom_sms
    end type
 
-   type,extends(type_variable_id) :: type_surface_state_variable_id
+   type, extends(type_variable_id) :: type_surface_state_variable_id
       integer  :: horizontal_index    = -1
       integer  :: surface_state_index = -1
       real(rk) :: background          = 0.0_rk
       type (type_horizontal_aggregate_variable_id) :: surface_sms
    end type
 
-   type,extends(type_variable_id) :: type_diagnostic_variable_id
+   type, extends(type_variable_id) :: type_diagnostic_variable_id
       integer :: diag_index = -1
    end type
 
-   type,extends(type_variable_id) :: type_horizontal_diagnostic_variable_id
+   type, extends(type_variable_id) :: type_horizontal_diagnostic_variable_id
       integer :: horizontal_diag_index = -1
    end type
 
-   type,extends(type_variable_id) :: type_dependency_id
+   type, extends(type_variable_id) :: type_dependency_id
       integer  :: index      = -1
       real(rk) :: background = 0.0_rk
    end type
 
-   type,extends(type_variable_id) :: type_horizontal_dependency_id
+   type, extends(type_variable_id) :: type_horizontal_dependency_id
       integer  :: horizontal_index = -1
       real(rk) :: background       = 0.0_rk
    end type
 
-   type,extends(type_variable_id) :: type_global_dependency_id
+   type, extends(type_variable_id) :: type_global_dependency_id
       integer  :: global_index = -1
       real(rk) :: background   = 0.0_rk
    end type
 
-#ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
-   type,extends(type_variable_id),public :: type_conserved_quantity_id
-      integer :: cons_index = -1
-   end type
-#endif
-
-   ! ====================================================================================================
-   ! Derived types used internally to register contributions of variables to aggregate variables.
-   ! ====================================================================================================
+   ! --------------------------------------------------------------------------
+   ! Derived types used internally to register contributions of variables to
+   ! aggregate variables.
+   ! --------------------------------------------------------------------------
 
    type type_contribution
-      type (type_bulk_standard_variable)  :: target
-      real(rk)                            :: scale_factor = 1.0_rk
-      logical                             :: include_background = .false.
-      type (type_contribution),pointer    :: next => null()
+      type (type_bulk_standard_variable)   :: target
+      real(rk)                             :: scale_factor = 1.0_rk
+      logical                              :: include_background = .false.
+      type (type_contribution), pointer    :: next => null()
    end type
 
    type type_contribution_list
-      type (type_contribution),pointer :: first => null()
+      type (type_contribution), pointer :: first => null()
    contains
       procedure :: add => contribution_list_add
    end type
@@ -272,8 +263,8 @@
    end type
 
    type type_link_list
-      type (type_link),pointer :: first => null()
-      type (type_link),pointer :: last  => null()
+      type (type_link), pointer :: first => null()
+      type (type_link), pointer :: last  => null()
    contains
       procedure :: append   => link_list_append
       procedure :: find     => link_list_find
@@ -283,8 +274,8 @@
    end type
 
    type type_link_pointer
-      type (type_link),        pointer :: p    => null()
-      type (type_link_pointer),pointer :: next => null()
+      type (type_link),         pointer :: p    => null()
+      type (type_link_pointer), pointer :: next => null()
    end type
 
    type type_variable_node
@@ -309,9 +300,10 @@
       procedure :: append => variable_list_append
    end type
 
-   ! ====================================================================================================
-   ! Derived types used internally to store information on model variables and model references.
-   ! ====================================================================================================
+   ! --------------------------------------------------------------------------
+   ! Derived types used internally to store information on model variables and
+   ! model references.
+   ! --------------------------------------------------------------------------
 
    type type_internal_variable
       character(len=attribute_length) :: name      = ''
@@ -338,30 +330,30 @@
       logical :: can_be_slave = .false.
 
       ! Only used for interior state variables:
-      logical  :: no_precipitation_dilution = .false.
-      logical  :: no_river_dilution         = .false.
+      logical :: no_precipitation_dilution = .false.
+      logical :: no_river_dilution         = .false.
 
-      integer,pointer :: read_index  => null()
-      integer,pointer :: write_index => null()
-      integer         :: store_index = store_index_none
-      integer         :: catalog_index = -1
-      logical         :: has_data = .false.
+      integer, pointer :: read_index  => null()
+      integer, pointer :: write_index => null()
+      integer          :: store_index = store_index_none
+      integer          :: catalog_index = -1
+      logical          :: has_data = .false.
 
       ! Collections to collect information from all coupled variables.
-      type (type_integer_pointer_set) :: read_indices,state_indices,write_indices
-      type (type_real_pointer_set)    :: background_values
-      type (type_link_list)           :: sms_list,surface_flux_list,bottom_flux_list,movement_list
-      type (type_link),pointer        :: sms_sum             => null()
-      type (type_link),pointer        :: surface_flux_sum    => null()
-      type (type_link),pointer        :: bottom_flux_sum     => null()
-      type (type_link),pointer        :: movement_sum        => null()
-      type (type_link),pointer        :: sms                 => null()
-      type (type_link),pointer        :: surface_flux        => null()
-      type (type_link),pointer        :: bottom_flux         => null()
+      type (type_integer_pointer_set)  :: read_indices,state_indices,write_indices
+      type (type_real_pointer_set)     :: background_values
+      type (type_link_list)            :: sms_list,surface_flux_list,bottom_flux_list,movement_list
+      type (type_link), pointer        :: sms_sum             => null()
+      type (type_link), pointer        :: surface_flux_sum    => null()
+      type (type_link), pointer        :: bottom_flux_sum     => null()
+      type (type_link), pointer        :: movement_sum        => null()
+      type (type_link), pointer        :: sms                 => null()
+      type (type_link), pointer        :: surface_flux        => null()
+      type (type_link), pointer        :: bottom_flux         => null()
 
-      type (type_internal_variable),pointer :: write_owner => null()
-      type (type_variable_set)        :: cowriters
-      type (type_link_pointer), pointer :: first_link => null()
+      type (type_internal_variable), pointer :: write_owner => null()
+      type (type_variable_set)               :: cowriters
+      type (type_link_pointer),      pointer :: first_link  => null()
    end type
 
    type type_link
@@ -371,36 +363,37 @@
       type (type_link), pointer              :: next     => null()
    end type
 
-   ! ====================================================================================================
-   ! Types that describe custom expressions (arbitrary functions of one or more variables).
-   ! ====================================================================================================
+   ! --------------------------------------------------------------------------
+   ! Types that describe custom expressions (arbitrary functions of one or more
+   ! variables).
+   ! --------------------------------------------------------------------------
 
-   type,abstract :: type_expression
+   type, abstract :: type_expression
       class (type_expression), pointer :: next        => null()
       character(len=attribute_length)  :: output_name = ''
-      integer,pointer :: out => null()
+      integer, pointer :: out => null()
    end type
 
-   type,abstract,extends(type_expression) :: type_bulk_expression
-      !type (type_interior_data_pointer),pointer :: out => null()
+   type, abstract, extends(type_expression) :: type_bulk_expression
+      !type (type_interior_data_pointer), pointer :: out => null()
    end type
 
-   type,abstract,extends(type_expression) :: type_horizontal_expression
-      !type (type_horizontal_data_pointer),pointer :: out => null()
+   type, abstract, extends(type_expression) :: type_horizontal_expression
+      !type (type_horizontal_data_pointer), pointer :: out => null()
    end type
 
-   ! ====================================================================================================
-   ! Base model type, used by biogeochemical models to inherit from, and by external host to
-   ! get variable lists and metadata.
-   ! ====================================================================================================
+   ! --------------------------------------------------------------------------
+   ! Base model type, used by biogeochemical models to inherit from, and by
+   ! external host to get variable lists and metadata.
+   ! --------------------------------------------------------------------------
 
    type type_model_list_node
-      class (type_base_model),    pointer :: model => null()
-      type (type_model_list_node),pointer :: next  => null()
+      class (type_base_model),     pointer :: model => null()
+      type (type_model_list_node), pointer :: next  => null()
    end type
 
    type type_model_list
-      type (type_model_list_node),pointer :: first => null()
+      type (type_model_list_node), pointer :: first => null()
    contains
       procedure :: append     => model_list_append
       procedure :: extend     => model_list_extend
@@ -412,12 +405,6 @@
       generic   :: find       => find_name, find_model
    end type
 
-   type type_reused_diagnostic
-      integer :: read_index
-      integer :: write_index
-      integer :: source
-   end type
-
    type type_base_model
       ! Flag determining whether the contents of the type are "frozen", i.e., they will not change anymore.
       logical :: frozen = .false.
@@ -426,8 +413,8 @@
       logical :: user_created = .false.
 
       ! Pointers to linked models in the model tree.
-      class (type_base_model),pointer :: parent => null()
-      type (type_model_list)          :: children
+      class (type_base_model), pointer :: parent => null()
+      type (type_model_list)           :: children
 
       ! Model name and variable prefixes.
       character(len=attribute_length) :: name      = ''
@@ -436,7 +423,7 @@
 
       ! Models constituents: links to variables, coupling requests, parameters, expressions
       type (type_link_list) :: links
-      type (type_aggregate_variable_access),pointer :: first_aggregate_variable_access => null()
+      type (type_aggregate_variable_access), pointer :: first_aggregate_variable_access => null()
 
       type (type_hierarchical_dictionary) :: couplings
       type (type_hierarchical_dictionary) :: parameters
@@ -565,7 +552,8 @@
       generic :: register_state_dependency    => register_interior_state_dependency_ex,register_bottom_state_dependency_ex, &
                                                  register_surface_state_dependency_ex,register_interior_state_dependency_old, &
                                                  register_bottom_state_dependency_old,register_surface_state_dependency_old, &
-                                                 register_standard_interior_state_dependency,register_standard_bottom_state_dependency, &
+                                                 register_standard_interior_state_dependency, &
+                                                 register_standard_bottom_state_dependency, &
                                                  register_standard_surface_state_dependency
 
       ! ----------------------------------------------------------------------------------------------------
@@ -607,30 +595,6 @@
 
       procedure :: implements
       procedure :: register_implemented_routines
-
-#ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
-      ! Pre 11 Dec 2015:
-      procedure :: register_bulk_state_variable => register_interior_state_variable
-      procedure :: register_bulk_diagnostic_variable => register_interior_diagnostic_variable
-      procedure :: register_standard_bulk_state_dependency => register_standard_interior_state_dependency
-      procedure :: register_bulk_state_dependency_old => register_interior_state_dependency_old
-      procedure :: add_bulk_variable => add_interior_variable
-      procedure :: register_named_bulk_dependency_old => register_named_interior_dependency_old
-      generic :: register_bulk_dependency => register_named_interior_dependency, register_standard_interior_dependency, &
-                                             register_named_interior_dependency_old
-
-      procedure :: register_standard_conserved_quantity
-      procedure :: register_custom_conserved_quantity
-      generic :: register_conserved_quantity  => register_standard_conserved_quantity, register_custom_conserved_quantity
-
-      procedure :: get_conserved_quantities => base_get_conserved_quantities
-      procedure :: get_horizontal_conserved_quantities => base_get_horizontal_conserved_quantities
-
-      ! For backward compatibility only - do not use these in new models!
-      procedure :: do_benthos               => base_do_benthos           ! superseded by do_bottom
-      procedure :: do_benthos_ppdd          => base_do_benthos_ppdd      ! superseded by do_bottom_ppdd
-      procedure :: get_surface_exchange     => base_get_surface_exchange ! superseded by do_surface
-#endif
    end type type_base_model
 
    ! ====================================================================================================
@@ -654,18 +618,18 @@
 
    type, extends(type_cache) :: type_interior_cache
       ! Write cache (separate interior, horizontal fields).
-      real(rk),allocatable _DIMENSION_SLICE_PLUS_1_  :: write
+      real(rk), allocatable _DIMENSION_SLICE_PLUS_1_  :: write
    end type
 
    type, extends(type_cache) :: type_horizontal_cache
       ! Write cache (separate interior, horizontal fields).
-      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: write_hz
+      real(rk), allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: write_hz
    end type
 
    type, extends(type_cache) :: type_vertical_cache
       ! Write cache (separate interior, horizontal fields).
-      real(rk),allocatable _DIMENSION_SLICE_PLUS_1_            :: write
-      real(rk),allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: write_hz
+      real(rk), allocatable _DIMENSION_SLICE_PLUS_1_            :: write
+      real(rk), allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: write_hz
    end type
 
    ! ====================================================================================================
@@ -677,22 +641,22 @@
    ! in the FABM core.
    ! ====================================================================================================
 
-   type,public :: type_version
+   type, public :: type_version
       character(len=attribute_length) :: module_name    = ''
       character(len=attribute_length) :: version_string = ''
       type (type_version), pointer    :: next           => null()
    end type
-   type (type_version),pointer,save,public :: first_module_version => null()
+   type (type_version), pointer, save, public :: first_module_version => null()
 
    type type_base_model_factory_node
-      character(len=attribute_length)             :: prefix  = ''
-      class (type_base_model_factory),    pointer :: factory => null()
-      type (type_base_model_factory_node),pointer :: next    => null()
+      character(len=attribute_length)              :: prefix  = ''
+      class (type_base_model_factory),     pointer :: factory => null()
+      type (type_base_model_factory_node), pointer :: next    => null()
    end type
 
-   type,public :: type_base_model_factory
-      type (type_base_model_factory_node),pointer :: first_child => null()
-      logical                                     :: initialized = .false.
+   type, public :: type_base_model_factory
+      type (type_base_model_factory_node), pointer :: first_child => null()
+      logical                                      :: initialized = .false.
    contains
       procedure :: initialize       => abstract_model_factory_initialize
       procedure :: add              => abstract_model_factory_add
@@ -700,105 +664,94 @@
       procedure :: register_version => abstract_model_factory_register_version
    end type
 
-   class (type_base_model_factory),pointer,save,public :: factory => null()
+   class (type_base_model_factory), pointer, save, public :: factory => null()
 
-!-----------------------------------------------------------------------
+contains
 
-   contains
-
-   subroutine base_initialize(self,configunit)
-      class (type_base_model),intent(inout),target :: self
-      integer,                intent(in)           :: configunit
+   subroutine base_initialize(self, configunit)
+      class (type_base_model), intent(inout), target :: self
+      integer,                 intent(in)            :: configunit
    end subroutine
 
-   subroutine base_initialize_state(self,_ARGUMENTS_INITIALIZE_STATE_)
+   subroutine base_initialize_state(self, _ARGUMENTS_INITIALIZE_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_INITIALIZE_STATE_
    end subroutine
 
-   subroutine base_initialize_horizontal_state(self,_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_)
+   subroutine base_initialize_horizontal_state(self, _ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_
    end subroutine
 
    ! Providing process rates and diagnostics
-   subroutine base_do(self,_ARGUMENTS_DO_)
-      class (type_base_model),intent(in) :: self
+   subroutine base_do(self, _ARGUMENTS_DO_)
+      class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
    end subroutine
 
-   subroutine base_do_ppdd(self,_ARGUMENTS_DO_PPDD_)
-      class (type_base_model),intent(in) :: self
+   subroutine base_do_ppdd(self, _ARGUMENTS_DO_PPDD_)
+      class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_PPDD_
       call self%do(_ARGUMENTS_DO_)
    end subroutine
 
-   subroutine base_do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
-      class (type_base_model),intent(in) :: self
+   subroutine base_do_bottom(self, _ARGUMENTS_DO_BOTTOM_)
+      class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_
-#ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
-      call self%do_benthos(_ARGUMENTS_DO_BOTTOM_)
-#endif
    end subroutine
 
-   subroutine base_do_bottom_ppdd(self,_ARGUMENTS_DO_BOTTOM_PPDD_)
-      class (type_base_model),intent(in) :: self
+   subroutine base_do_bottom_ppdd(self, _ARGUMENTS_DO_BOTTOM_PPDD_)
+      class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_
-#ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
-      call self%do_benthos_ppdd(_ARGUMENTS_DO_BOTTOM_PPDD_)
-#endif
    end subroutine
 
-   subroutine base_do_surface(self,_ARGUMENTS_DO_SURFACE_)
+   subroutine base_do_surface(self, _ARGUMENTS_DO_SURFACE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_SURFACE_
-#ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
-      call self%get_surface_exchange(_ARGUMENTS_DO_SURFACE_)
-#endif
    end subroutine
 
-   subroutine base_do_horizontal(self,_ARGUMENTS_HORIZONTAL_)
-      class (type_base_model),intent(in) :: self
+   subroutine base_do_horizontal(self, _ARGUMENTS_HORIZONTAL_)
+      class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_
    end subroutine
 
    ! Vertical movement, light attenuation, feedbacks to drag and albedo
-   subroutine base_get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
+   subroutine base_get_vertical_movement(self, _ARGUMENTS_GET_VERTICAL_MOVEMENT_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
    end subroutine
 
-   subroutine base_get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
+   subroutine base_get_light_extinction(self, _ARGUMENTS_GET_EXTINCTION_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_GET_EXTINCTION_
    end subroutine
 
-   subroutine base_get_drag(self,_ARGUMENTS_GET_DRAG_)
+   subroutine base_get_drag(self, _ARGUMENTS_GET_DRAG_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_GET_DRAG_
    end subroutine
 
-   subroutine base_get_albedo(self,_ARGUMENTS_GET_ALBEDO_)
+   subroutine base_get_albedo(self, _ARGUMENTS_GET_ALBEDO_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_GET_ALBEDO_
    end subroutine
 
-   subroutine base_get_light(self,_ARGUMENTS_VERTICAL_)
-      class (type_base_model),intent(in) :: self
+   subroutine base_get_light(self, _ARGUMENTS_VERTICAL_)
+      class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_VERTICAL_
    end subroutine
 
-   subroutine base_check_state(self,_ARGUMENTS_CHECK_STATE_)
+   subroutine base_check_state(self, _ARGUMENTS_CHECK_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_CHECK_STATE_
    end subroutine
 
-   subroutine base_check_surface_state(self,_ARGUMENTS_CHECK_SURFACE_STATE_)
+   subroutine base_check_surface_state(self, _ARGUMENTS_CHECK_SURFACE_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_
    end subroutine
 
-   subroutine base_check_bottom_state(self,_ARGUMENTS_CHECK_BOTTOM_STATE_)
+   subroutine base_check_bottom_state(self, _ARGUMENTS_CHECK_BOTTOM_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_
    end subroutine
@@ -807,12 +760,12 @@
       class (type_base_model), intent(in), target :: self
       character(len=attribute_length) :: path
 
-      class (type_base_model),pointer :: current
+      class (type_base_model), pointer :: current
 
       path = ''
       current => self
       do while (associated(current%parent))
-         path = '/'//trim(current%name)//trim(path)
+         path = '/' // trim(current%name) // trim(path)
          current => current%parent
       end do
    end function
@@ -820,7 +773,7 @@
    subroutine base_fatal_error(self,location,message)
       class (type_base_model), intent(in) :: self
       character(len=*),        intent(in) :: location,message
-      if (self%name/='') then
+      if (self%name /= '') then
          call driver%fatal_error('model '//trim(self%get_path())//', '//trim(location),message)
       else
          call driver%fatal_error(location,message)
@@ -869,58 +822,17 @@
       self%implemented(:) = sources
    end subroutine
 
-#ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
-   subroutine base_do_benthos(self,_ARGUMENTS_DO_BOTTOM_)
-      class (type_base_model),intent(in) :: self
-      _DECLARE_ARGUMENTS_DO_BOTTOM_
-   end subroutine
+   recursive subroutine add_child(self, model, name, long_name, configunit)
+      class (type_base_model),target, intent(inout) :: self, model
+      character(len=*),               intent(in)    :: name
+      character(len=*),optional,      intent(in)    :: long_name
+      integer,                        intent(in)    :: configunit
 
-   subroutine base_do_benthos_ppdd(self,_ARGUMENTS_DO_BOTTOM_PPDD_)
-      class (type_base_model),intent(in) :: self
-      _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_
-   end subroutine
+      integer                              :: islash
+      class (type_base_model),     pointer :: parent
+      type (type_model_list_node), pointer :: child
+      integer                              :: ind
 
-   subroutine base_get_surface_exchange(self,_ARGUMENTS_DO_SURFACE_)
-      class (type_base_model), intent(in) :: self
-      _DECLARE_ARGUMENTS_DO_SURFACE_
-   end subroutine
-
-   subroutine base_get_conserved_quantities(self,_ARGUMENTS_GET_CONSERVED_QUANTITIES_)
-      class (type_base_model), intent(in) :: self
-      _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_
-   end subroutine
-
-   subroutine base_get_horizontal_conserved_quantities(self,_ARGUMENTS_GET_HORIZONTAL_CONSERVED_QUANTITIES_)
-      class (type_base_model), intent(in) :: self
-      _DECLARE_ARGUMENTS_GET_HORIZONTAL_CONSERVED_QUANTITIES_
-   end subroutine
-#endif
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Initializes model information.
-!
-! !INTERFACE:
-   recursive subroutine add_child(self,model,name,long_name,configunit)
-!
-! !DESCRIPTION:
-!  This function initializes the members of a model information derived type,
-!  by setting them to a reasonable default value.
-!
-! !INPUT/OUTPUT PARAMETER:
-      class (type_base_model),target,intent(inout) :: self,model
-      character(len=*),              intent(in)    :: name
-      character(len=*),optional,     intent(in)    :: long_name
-      integer,                       intent(in)    :: configunit
-!
-      integer                             :: islash
-      class (type_base_model),    pointer :: parent
-      type (type_model_list_node),pointer :: child
-      integer                             :: ind
-!EOP
-!-----------------------------------------------------------------------
-!BOC
       ! If a path with / is given, redirect to tentative parent model.
       islash = index(name,'/',.true.)
       if (islash/=0) then
@@ -961,7 +873,8 @@
          ! Make sure a child with this name does not exist yet.
          child => self%children%first
          do while (associated(child))
-            if (child%model%name==name) call self%fatal_error('add_child','A child model with name "'//trim(name)//'" already exists.')
+            if (child%model%name == name) call self%fatal_error('add_child', &
+               'A child model with name "' // trim(name) // '" already exists.')
             child => child%next
          end do
          model%name = name
@@ -979,14 +892,15 @@
       call model%initialize(configunit)
 
       if (model%implements(source_get_light_extinction)) then
-         call model%add_interior_variable('light_extinction', 'm-1', 'light extinction contribution computed by get_light_extinction', &
-                                          0.0_rk, output=output_none, write_index=model%extinction_id%sum_index, link=model%extinction_id%link, source=source_get_light_extinction)
+         call model%add_interior_variable('light_extinction', 'm-1', &
+            'light extinction contribution computed by get_light_extinction', 0.0_rk, output=output_none, &
+            write_index=model%extinction_id%sum_index, link=model%extinction_id%link, source=source_get_light_extinction)
          model%extinction_id%link%target%prefill = prefill_constant
          model%extinction_id%link%target%write_operator = operator_add
-         call model%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, model%extinction_id)
+         call model%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, &
+            model%extinction_id)
       end if
    end subroutine add_child
-!EOC
 
    subroutine set_variable_property_real(self,variable,name,value)
       class (type_base_model), intent(inout) :: self
@@ -997,92 +911,92 @@
       call variable%link%target%properties%set_real(name,value)
    end subroutine
 
-   subroutine set_variable_property_integer(self,variable,name,value)
+   subroutine set_variable_property_integer(self, variable, name, value)
       class (type_base_model), intent(inout) :: self
       class (type_variable_id),intent(inout) :: variable
       character(len=*),        intent(in)    :: name
       integer,                 intent(in)    :: value
-      if (.not.associated(variable%link)) call self%fatal_error('set_variable_property_integer','variable has not been registered')
+      if (.not.associated(variable%link)) call self%fatal_error('set_variable_property_integer', 'variable has not been registered')
       call variable%link%target%properties%set_integer(name,value)
    end subroutine
 
-   subroutine set_variable_property_logical(self,variable,name,value)
+   subroutine set_variable_property_logical(self, variable, name, value)
       class (type_base_model), intent(inout) :: self
       class (type_variable_id),intent(inout) :: variable
       character(len=*),        intent(in)    :: name
       logical,                 intent(in)    :: value
-      if (.not.associated(variable%link)) call self%fatal_error('set_variable_property_logical','variable has not been registered')
+      if (.not.associated(variable%link)) call self%fatal_error('set_variable_property_logical', 'variable has not been registered')
       call variable%link%target%properties%set_logical(name,value)
    end subroutine
 
-   subroutine add_interior_state_variable_to_aggregate_variable(self,target,variable_id,scale_factor,include_background)
+   subroutine add_interior_state_variable_to_aggregate_variable(self, target, variable_id, scale_factor, include_background)
       class (type_base_model),           intent(inout) :: self
       type (type_bulk_standard_variable),intent(in)    :: target
       class (type_state_variable_id),    intent(inout) :: variable_id
       real(rk),optional,                 intent(in)    :: scale_factor
       logical,optional,                  intent(in)    :: include_background
 
-      if (.not.associated(variable_id%link)) &
-         call self%fatal_error('add_to_aggregate_variable','interior state variable added to '//trim(target%name)//' has not been registered')
+      if (.not. associated(variable_id%link)) call self%fatal_error('add_to_aggregate_variable', &
+         'interior state variable added to ' // trim(target%name) // ' has not been registered')
       call variable_id%link%target%contributions%add(target,scale_factor,include_background)
    end subroutine add_interior_state_variable_to_aggregate_variable
 
-   subroutine add_interior_source_to_aggregate_variable(self,target,variable_id,scale_factor,include_background)
+   subroutine add_interior_source_to_aggregate_variable(self, target, variable_id, scale_factor, include_background)
       class (type_base_model),           intent(inout) :: self
       type (type_bulk_standard_variable),intent(in)    :: target
       class (type_aggregate_variable_id),intent(inout) :: variable_id
       real(rk),optional,                 intent(in)    :: scale_factor
       logical,optional,                  intent(in)    :: include_background
 
-      if (.not.associated(variable_id%link)) &
-         call self%fatal_error('add_to_aggregate_variable','interior aggregate variable added to '//trim(target%name)//' has not been registered')
+      if (.not.associated(variable_id%link)) call self%fatal_error('add_to_aggregate_variable', &
+         'interior aggregate variable added to ' // trim(target%name) // ' has not been registered')
       call variable_id%link%target%contributions%add(target,scale_factor,include_background)
    end subroutine add_interior_source_to_aggregate_variable
 
-   subroutine add_bottom_state_variable_to_aggregate_variable(self,target,variable_id,scale_factor,include_background)
+   subroutine add_bottom_state_variable_to_aggregate_variable(self, target, variable_id, scale_factor, include_background)
       class (type_base_model),              intent(inout) :: self
       type (type_bulk_standard_variable),   intent(in)    :: target
       class (type_bottom_state_variable_id),intent(inout) :: variable_id
       real(rk),optional,                    intent(in)    :: scale_factor
       logical,optional,                     intent(in)    :: include_background
 
-      if (.not.associated(variable_id%link)) &
-         call self%fatal_error('add_to_aggregate_variable','bottom state variable added to '//trim(target%name)//' has not been registered')
+      if (.not.associated(variable_id%link)) call self%fatal_error('add_to_aggregate_variable', &
+         'bottom state variable added to ' // trim(target%name) // ' has not been registered')
       call variable_id%link%target%contributions%add(target,scale_factor,include_background)
    end subroutine add_bottom_state_variable_to_aggregate_variable
 
-   subroutine add_surface_state_variable_to_aggregate_variable(self,target,variable_id,scale_factor,include_background)
+   subroutine add_surface_state_variable_to_aggregate_variable(self, target, variable_id, scale_factor, include_background)
       class (type_base_model),               intent(inout) :: self
       type (type_bulk_standard_variable),    intent(in)    :: target
       class (type_surface_state_variable_id),intent(inout) :: variable_id
       real(rk),optional,                     intent(in)    :: scale_factor
       logical,optional,                      intent(in)    :: include_background
 
-      if (.not.associated(variable_id%link)) &
-         call self%fatal_error('add_to_aggregate_variable','bottom state variable added to '//trim(target%name)//' has not been registered')
-      call variable_id%link%target%contributions%add(target,scale_factor,include_background)
+      if (.not.associated(variable_id%link)) call self%fatal_error('add_to_aggregate_variable', &
+         'bottom state variable added to ' // trim(target%name) // ' has not been registered')
+      call variable_id%link%target%contributions%add(target, scale_factor, include_background)
    end subroutine add_surface_state_variable_to_aggregate_variable
 
-   subroutine add_interior_diagnostic_variable_to_aggregate_variable(self,target,variable_id,scale_factor)
+   subroutine add_interior_diagnostic_variable_to_aggregate_variable(self, target, variable_id, scale_factor)
       class (type_base_model),            intent(inout) :: self
       type (type_bulk_standard_variable), intent(in)    :: target
       class (type_diagnostic_variable_id),intent(inout) :: variable_id
       real(rk),optional,                  intent(in)    :: scale_factor
 
-      if (.not.associated(variable_id%link)) &
-         call self%fatal_error('add_to_aggregate_variable','interior diagnostic variable added to '//trim(target%name)//' has not been registered')
-      call variable_id%link%target%contributions%add(target,scale_factor)
+      if (.not. associated(variable_id%link)) call self%fatal_error('add_to_aggregate_variable', &
+         'interior diagnostic variable added to ' // trim(target%name) // ' has not been registered')
+      call variable_id%link%target%contributions%add(target, scale_factor)
    end subroutine add_interior_diagnostic_variable_to_aggregate_variable
 
-   subroutine add_horizontal_diagnostic_variable_to_aggregate_variable(self,target,variable_id,scale_factor)
+   subroutine add_horizontal_diagnostic_variable_to_aggregate_variable(self, target, variable_id, scale_factor)
       class (type_base_model),                       intent(inout) :: self
       type (type_bulk_standard_variable),            intent(in)    :: target
       class (type_horizontal_diagnostic_variable_id),intent(inout) :: variable_id
       real(rk),optional,                             intent(in)    :: scale_factor
 
-      if (.not.associated(variable_id%link)) &
-         call self%fatal_error('add_to_aggregate_variable','horizontal diagnostic variable added to '//trim(target%name)//' has not been registered')
-      call variable_id%link%target%contributions%add(target,scale_factor)
+      if (.not. associated(variable_id%link)) call self%fatal_error('add_to_aggregate_variable', &
+         'horizontal diagnostic variable added to ' // trim(target%name) // ' has not been registered')
+      call variable_id%link%target%contributions%add(target, scale_factor)
    end subroutine add_horizontal_diagnostic_variable_to_aggregate_variable
 
    subroutine contribution_list_add(self,target,scale_factor,include_background)
@@ -1363,7 +1277,8 @@ subroutine request_coupling_for_id(self,id,master)
    class (type_variable_id),intent(inout) :: id
    character(len=*),        intent(in)    :: master
 
-   if (.not.associated(id%link)) call self%fatal_error('request_coupling_for_id','The provided variable identifier has not been registered yet.')
+   if (.not. associated(id%link)) call self%fatal_error('request_coupling_for_id', &
+      'The provided variable identifier has not been registered yet.')
    call self%request_coupling(id%link,master)
 end subroutine request_coupling_for_id
 
@@ -1387,7 +1302,8 @@ subroutine request_standard_coupling_for_id(self,id,master,domain)
    class (type_base_standard_variable),intent(in)    :: master
    integer,optional,                   intent(in)    :: domain
 
-   if (.not.associated(id%link)) call self%fatal_error('request_standard_coupling_for_id','The provided variable identifier has not been registered yet.')
+   if (.not. associated(id%link)) call self%fatal_error('request_standard_coupling_for_id', &
+      'The provided variable identifier has not been registered yet.')
    call self%request_standard_coupling_for_link(id%link,master,domain)
 end subroutine request_standard_coupling_for_id
 
@@ -1516,37 +1432,20 @@ subroutine real_pointer_set_set_value(self,value)
    end if
 end subroutine real_pointer_set_set_value
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Registers a new state variable
-!
-! !INTERFACE:
    subroutine register_interior_state_variable(self, id, name, units, long_name, &
                                                initial_value, vertical_movement, specific_light_extinction, &
                                                minimum, maximum, missing_value, &
                                                no_precipitation_dilution, no_river_dilution, &
                                                standard_variable, presence, background_value)
-!
-! !DESCRIPTION:
-!  This function registers a new biogeochemical state variable in the global model database.
-!  It returns an identifier that may be used later to retrieve the value of the state variable.
-!
-! !INPUT/OUTPUT PARAMETERS:
-      class (type_base_model),       intent(inout)        :: self
-      type (type_state_variable_id), intent(inout),target :: id
-!
-! !INPUT PARAMETERS:
+      class (type_base_model),            intent(inout)        :: self
+      type (type_state_variable_id),      intent(inout),target :: id
       character(len=*),                   intent(in)          :: name, long_name, units
       real(rk),                           intent(in),optional :: initial_value,vertical_movement,specific_light_extinction
       real(rk),                           intent(in),optional :: minimum, maximum,missing_value,background_value
       logical,                            intent(in),optional :: no_precipitation_dilution,no_river_dilution
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
       integer,                            intent(in),optional :: presence
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
+
       if (associated(id%link)) call self%fatal_error('register_interior_state_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
@@ -1564,7 +1463,6 @@ end subroutine real_pointer_set_set_value
       call register_movement(self, id%link, id%movement, vertical_movement)
 
    end subroutine register_interior_state_variable
-!EOC
 
    subroutine register_source(self, link, sms_id)
       class (type_base_model),           intent(inout)        :: self
@@ -1573,9 +1471,9 @@ end subroutine real_pointer_set_set_value
 
       type (type_link),pointer :: link2
 
-      if (.not.associated(sms_id%link)) &
-         call self%add_interior_variable(trim(link%name)//'_sms', trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
-                                         0.0_rk, output=output_none, write_index=sms_id%sum_index, link=sms_id%link)
+      if (.not. associated(sms_id%link)) call self%add_interior_variable(trim(link%name)//'_sms', &
+         trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
+         0.0_rk, output=output_none, write_index=sms_id%sum_index, link=sms_id%link)
       sms_id%link%target%prefill = prefill_constant
       sms_id%link%target%write_operator = operator_add
       link2 => link%target%sms_list%append(sms_id%link%target,sms_id%link%target%name)
@@ -1593,10 +1491,10 @@ end subroutine real_pointer_set_set_value
 
       source_ = source_do_surface
       if (present(source)) source_ = source
-      if (.not.associated(surface_flux_id%link)) &
-         call self%add_horizontal_variable(trim(link%name)//'_sfl', trim(link%target%units)//'*m/s', trim(link%target%long_name)//' surface flux', &
-                                           0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
-                                           domain=domain_surface, source=source_, link=surface_flux_id%link)
+      if (.not. associated(surface_flux_id%link)) call self%add_horizontal_variable(trim(link%name)//'_sfl', &
+         trim(link%target%units)//'*m/s', trim(link%target%long_name)//' surface flux', &
+         0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
+         domain=domain_surface, source=source_, link=surface_flux_id%link)
       surface_flux_id%link%target%prefill = prefill_constant
       surface_flux_id%link%target%write_operator = operator_add
       link2 => link%target%surface_flux_list%append(surface_flux_id%link%target,surface_flux_id%link%target%name)
@@ -1614,10 +1512,10 @@ end subroutine real_pointer_set_set_value
 
       source_ = source_do_bottom
       if (present(source)) source_ = source
-      if (.not.associated(bottom_flux_id%link)) &
-         call self%add_horizontal_variable(trim(link%name)//'_bfl', trim(link%target%units)//'*m/s', trim(link%target%long_name)//' bottom flux', &
-                                           0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
-                                           domain=domain_bottom, source=source_, link=bottom_flux_id%link)
+      if (.not. associated(bottom_flux_id%link)) call self%add_horizontal_variable(trim(link%name)//'_bfl', &
+         trim(link%target%units)//'*m/s', trim(link%target%long_name)//' bottom flux', &
+         0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
+         domain=domain_bottom, source=source_, link=bottom_flux_id%link)
       bottom_flux_id%link%target%prefill = prefill_constant
       bottom_flux_id%link%target%write_operator = operator_add
       link2 => link%target%bottom_flux_list%append(bottom_flux_id%link%target,bottom_flux_id%link%target%name)
@@ -1635,9 +1533,9 @@ end subroutine real_pointer_set_set_value
 
       vertical_movement_ = 0
       if (present(vertical_movement)) vertical_movement_ = vertical_movement
-      if (.not.associated(movement_id%link)) &
-         call self%add_interior_variable(trim(link%name)//'_w', 'm/s', trim(link%target%long_name)//' vertical velocity', &
-            vertical_movement_, output=output_none, write_index=movement_id%sum_index, link=movement_id%link, source=source_constant)
+      if (.not.associated(movement_id%link)) call self%add_interior_variable(trim(link%name)//'_w', &
+         'm/s', trim(link%target%long_name)//' vertical velocity', &
+         vertical_movement_, output=output_none, write_index=movement_id%sum_index, link=movement_id%link, source=source_constant)
       if (self%implements(source_get_vertical_movement)) then
          movement_id%link%target%source = source_get_vertical_movement
          movement_id%link%target%prefill = prefill_constant
@@ -1657,9 +1555,10 @@ end subroutine real_pointer_set_set_value
 
       source_ = source_do_surface
       if (present(source)) source_ = source
-      if (.not.associated(sms_id%link)) &
-         call self%add_horizontal_variable(trim(link%name)//'_sms', trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
-                                         0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, domain=domain_surface, source=source_)
+      if (.not. associated(sms_id%link)) call self%add_horizontal_variable(trim(link%name)//'_sms', &
+         trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
+         0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, &
+         domain=domain_surface, source=source_)
       sms_id%link%target%prefill = prefill_constant
       sms_id%link%target%write_operator = operator_add
       link2 => link%target%sms_list%append(sms_id%link%target,sms_id%link%target%name)
@@ -1677,42 +1576,26 @@ end subroutine real_pointer_set_set_value
 
       source_ = source_do_bottom
       if (present(source)) source_ = source
-      if (.not.associated(sms_id%link)) &
-         call self%add_horizontal_variable(trim(link%name)//'_sms', trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
-                                         0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, domain=domain_bottom, source=source_)
+      if (.not. associated(sms_id%link)) call self%add_horizontal_variable(trim(link%name)//'_sms', &
+         trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
+         0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, domain=domain_bottom, source=source_)
       sms_id%link%target%prefill = prefill_constant
       sms_id%link%target%write_operator = operator_add
       link2 => link%target%sms_list%append(sms_id%link%target,sms_id%link%target%name)
       link%target%sms => link2
    end subroutine register_bottom_source
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Registers a new state variable
-!
-! !INTERFACE:
    subroutine register_bottom_state_variable(self, id, name, units, long_name, &
                                              initial_value, minimum, maximum, missing_value, &
                                              standard_variable, presence, background_value)
-!
-! !DESCRIPTION:
-!  This function registers a new biogeochemical state variable in the global model database.
-!  It returns an identifier that may be used later to retrieve the value of the state variable.
-!
-! !INPUT/OUTPUT PARAMETERS:
-      class (type_base_model),             intent(inout)        :: self
-      type (type_bottom_state_variable_id),intent(inout),target :: id
-!
-! !INPUT PARAMETERS:
+      class (type_base_model),                  intent(inout)        :: self
+      type (type_bottom_state_variable_id),     intent(inout),target :: id
       character(len=*),                         intent(in)          :: name, long_name, units
       real(rk),                                 intent(in),optional :: initial_value
       real(rk),                                 intent(in),optional :: minimum, maximum,missing_value,background_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
       integer,                                  intent(in),optional :: presence
-!EOP
-!-----------------------------------------------------------------------
-!BOC
+
       if (associated(id%link)) call self%fatal_error('register_bottom_state_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
@@ -1723,35 +1606,18 @@ end subroutine real_pointer_set_set_value
                                         background=id%background, link=id%link, source=source_state)
       call register_bottom_source(self,id%link,id%bottom_sms)
    end subroutine register_bottom_state_variable
-!EOC
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Registers a new state variable
-!
-! !INTERFACE:
    subroutine register_surface_state_variable(self, id, name, units, long_name, &
                                               initial_value, minimum, maximum, missing_value, &
                                               standard_variable, presence, background_value)
-!
-! !DESCRIPTION:
-!  This subroutine registers a new surface-bound biogeochemical state variable in the global model database.
-!  The identifier "id" may be used later to retrieve the value of the state variable.
-!
-! !INPUT/OUTPUT PARAMETERS:
-      class (type_base_model),              intent(inout)        :: self
-      type (type_surface_state_variable_id),intent(inout),target :: id
-!
-! !INPUT PARAMETERS:
+      class (type_base_model),                  intent(inout)        :: self
+      type (type_surface_state_variable_id),    intent(inout),target :: id
       character(len=*),                         intent(in)          :: name, long_name, units
       real(rk),                                 intent(in),optional :: initial_value
       real(rk),                                 intent(in),optional :: minimum, maximum,missing_value,background_value
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
       integer,                                  intent(in),optional :: presence
-!EOP
-!-----------------------------------------------------------------------
-!BOC
+
       if (associated(id%link)) call self%fatal_error('register_surface_state_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
@@ -1763,24 +1629,10 @@ end subroutine real_pointer_set_set_value
       call register_surface_source(self,id%link,id%surface_sms)
 
    end subroutine register_surface_state_variable
-!EOC
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Adds a generic variable (interior, horizontal or scalar) to the model and returns the link to it.
-!
-! !INTERFACE:
    subroutine add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
                            initial_value, background_value, presence, output, &
                            act_as_state_variable, read_index, state_index, write_index, background, link)
-!
-! !DESCRIPTION:
-!  This function fills all generic variable fields (i.e., those independent of the variable's domain), and returns
-!  a link to the variable. A pointer to the provided variable object will be kept after the function returns. Thus,
-!  the object must not be deallocated (create it by allocating a pointer).
-!
-! !INPUT/OUTPUT PARAMETERS:
       class (type_base_model),       target,intent(inout)       :: self
       type (type_internal_variable),pointer                     :: variable
       character(len=*),              target,intent(in)          :: name
@@ -1791,15 +1643,10 @@ end subroutine real_pointer_set_set_value
       integer,                       target,           optional :: read_index, state_index, write_index
       real(rk),                      target,           optional :: background
       type (type_link),              pointer,          optional :: link
-!
-!EOP
-!
-! !LOCAL VARIABLES:
+
       character(len=256)                     :: text
       type (type_link),              pointer :: link_
-!
-!-----------------------------------------------------------------------
-!BOC
+
       ! Check whether the model information may be written to (only during initialization)
       if (self%frozen) call self%fatal_error('add_variable', &
          'Cannot register variable "'//trim(name)//'" because the model initialization phase has already completed &
@@ -1865,26 +1712,13 @@ end subroutine real_pointer_set_set_value
       link_ => add_object(self,variable)
       if (present(link)) link => link_
    end subroutine add_variable
-!EOC
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Adds an interior variable to the model and returns the link to it.
-!
-! !INTERFACE:
    recursive subroutine add_interior_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
                                           background_value, specific_light_extinction, &
                                           no_precipitation_dilution, no_river_dilution, standard_variable, presence, output, &
                                           act_as_state_variable, source, &
                                           read_index, state_index, write_index, &
                                           background, link)
-!
-! !DESCRIPTION:
-!  This function registers a new interior variable. It is not predefined to be a state variable, diagnostic variable or dependency.
-!  This is set implicitly by providing (or omitting) target variables state_index, write_index, data, background.
-!
-! !INPUT/OUTPUT PARAMETERS:
       class (type_base_model),target,    intent(inout)       :: self
       character(len=*),                  intent(in)          :: name
       character(len=*),                  intent(in),optional :: long_name, units
@@ -1899,15 +1733,10 @@ end subroutine real_pointer_set_set_value
       real(rk),                     target,optional :: background
 
       type (type_link),pointer,optional :: link
-!
-!EOP
-!
-! !LOCAL VARIABLES:
+
       type (type_internal_variable), pointer :: variable
       type (type_link),              pointer :: link_
-!
-!-----------------------------------------------------------------------
-!BOC
+
       allocate(variable)
       variable%domain = domain_interior
 
@@ -1927,24 +1756,11 @@ end subroutine real_pointer_set_set_value
 
       if (present(link)) link => link_
    end subroutine add_interior_variable
-!EOC
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Adds a horizontal variable to the model and returns the link to it.
-!
-! !INTERFACE:
    recursive subroutine add_horizontal_variable(self,name,units,long_name, missing_value, minimum, maximum, initial_value, &
                                                 background_value, standard_variable, presence, output, &
                                                 act_as_state_variable, domain, source, &
                                                 read_index, state_index, write_index, background, link)
-!
-! !DESCRIPTION:
-!  This function registers a new horizontal variable. It is not predefined to be a state variable, diagnostic variable
-!  or dependency. This is set implicitly by providing (or omitting) target variables state_index, write_index, data, background.
-!
-! !INPUT/OUTPUT PARAMETERS:
       class (type_base_model),target,           intent(inout)       :: self
       character(len=*),                         intent(in)          :: name
       character(len=*),                         intent(in),optional :: long_name, units
@@ -1958,16 +1774,11 @@ end subroutine real_pointer_set_set_value
       real(rk),                           target,optional :: background
 
       type (type_link),pointer,optional :: link
-!
-!EOP
-!
-! !LOCAL VARIABLES:
+
       type (type_internal_variable),pointer :: variable
       type (type_link),             pointer :: link_,link_dum
       integer                               :: sms_source
-!
-!-----------------------------------------------------------------------
-!BOC
+
       allocate(variable)
       variable%domain = domain_horizontal
       variable%source = source_unknown
@@ -1978,7 +1789,8 @@ end subroutine real_pointer_set_set_value
       if (present(source)) then
          variable%source = source
       elseif (present(write_index)) then
-         call self%log_message('WARNING: "source" argument not provided when registering variable '//trim(name)//'. In the future this argument will be required for horizontal diagnostic variables.')
+         call self%log_message('WARNING: "source" argument not provided when registering variable ' // trim(name) // '. &
+            &In the future this argument will be required for horizontal diagnostic variables.')
       end if
 
       if (variable%source==source_unknown) variable%prefill = prefill_previous_value
@@ -1990,23 +1802,10 @@ end subroutine real_pointer_set_set_value
 
       if (present(link)) link => link_
    end subroutine add_horizontal_variable
-!EOC
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Adds a scalar variable to the model and returns the link to it.
-!
-! !INTERFACE:
    recursive subroutine add_scalar_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
                                             background_value, standard_variable, presence, output, &
                                             read_index, state_index, write_index, sms_index, background, link)
-!
-! !DESCRIPTION:
-!  This function registers a new scalar variable. It is not predefined to be a state variable, diagnostic variable or dependency.
-!  This is set implicitly by providing (or omitting) target variables state_index, write_index, data, background.
-!
-! !INPUT/OUTPUT PARAMETERS:
       class (type_base_model),target,       intent(inout)       :: self
       character(len=*),                     intent(in)          :: name
       character(len=*),                     intent(in),optional :: long_name, units
@@ -2018,14 +1817,9 @@ end subroutine real_pointer_set_set_value
       real(rk),                       target,optional :: background
 
       type (type_link),pointer,optional :: link
-!
-!EOP
-!
-! !LOCAL VARIABLES:
+
       type (type_internal_variable), pointer :: variable
-!
-!-----------------------------------------------------------------------
-!BOC
+
       allocate(variable)
       variable%domain = domain_scalar
 
@@ -2037,7 +1831,6 @@ end subroutine real_pointer_set_set_value
                         initial_value, background_value, presence, output, &
                         .false., read_index, state_index, write_index, background, link)
    end subroutine add_scalar_variable
-!EOC
 
    recursive function add_object(self,object) result(link)
       ! This subroutine creates a link to the supplied object, then allows
@@ -2091,74 +1884,39 @@ end subroutine real_pointer_set_set_value
       end if
    end function add_object
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Registers a new diagnostic variable
-!
-! !INTERFACE:
    subroutine register_interior_diagnostic_variable(self, id, name, units, long_name, &
                                                 missing_value, standard_variable, output, source, &
                                                 act_as_state_variable, prefill_value)
-!
-! !DESCRIPTION:
-!  This function registers a new biogeochemical diagnostic variable in the global model database.
-!
-! !INPUT/OUTPUT PARAMETERS:
-      class (type_base_model),           intent(inout),target :: self
-      type (type_diagnostic_variable_id),intent(inout),target :: id
-!
-! !INPUT PARAMETERS:
+      class (type_base_model),            intent(inout),target :: self
+      type (type_diagnostic_variable_id), intent(inout),target :: id
       character(len=*),                   intent(in)          :: name, long_name, units
       integer,                            intent(in),optional :: output, source
       real(rk),                           intent(in),optional :: missing_value, prefill_value
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
       logical,                            intent(in),optional :: act_as_state_variable
-!
-!EOP
-!
-!-----------------------------------------------------------------------
-!BOC
+
       if (associated(id%link)) call self%fatal_error('register_interior_diagnostic_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
-      call self%add_interior_variable(name, units, long_name, missing_value, &
-                                  standard_variable=standard_variable, output=output, &
-                                  source=source, write_index=id%diag_index, link=id%link, act_as_state_variable=act_as_state_variable)
+      call self%add_interior_variable(name, units, long_name, missing_value, standard_variable=standard_variable, &
+         output=output, source=source, write_index=id%diag_index, link=id%link, act_as_state_variable=act_as_state_variable)
       if (present(prefill_value)) then
          id%link%target%prefill = prefill_constant
          id%link%target%prefill_value = prefill_value
       end if
    end subroutine register_interior_diagnostic_variable
-!EOC
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Registers a new diagnostic variable
-!
-! !INTERFACE:
    subroutine register_horizontal_diagnostic_variable(self, id, name, units, long_name, &
                                                       missing_value, standard_variable, output, source, &
                                                       act_as_state_variable, domain)
-!
-! !DESCRIPTION:
-!  This function registers a new biogeochemical diagnostic variable in the global model database.
-!
-! !INPUT/OUTPUT PARAMETER:
       class (type_base_model),                      intent(inout),target :: self
       type (type_horizontal_diagnostic_variable_id),intent(inout),target :: id
-!
-! !INPUT PARAMETERS:
-      character(len=*),                         intent(in)          :: name, long_name, units
-      integer,                                  intent(in),optional :: output, source, domain
-      real(rk),                                 intent(in),optional :: missing_value
-      type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
-      logical,                                  intent(in),optional :: act_as_state_variable
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
+      character(len=*),                             intent(in)          :: name, long_name, units
+      integer,                                      intent(in),optional :: output, source, domain
+      real(rk),                                     intent(in),optional :: missing_value
+      type (type_horizontal_standard_variable),     intent(in),optional :: standard_variable
+      logical,                                      intent(in),optional :: act_as_state_variable
+
       if (associated(id%link)) call self%fatal_error('register_horizontal_diagnostic_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
@@ -2168,93 +1926,16 @@ end subroutine real_pointer_set_set_value
                                         act_as_state_variable=act_as_state_variable, domain=domain)
 
    end subroutine register_horizontal_diagnostic_variable
-!EOC
 
-#ifdef _FABM_BGC_BACKWARD_COMPATIBILITY_
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Registers a conserved quantity taken from a standard set
-!
-! !INTERFACE:
-   subroutine register_standard_conserved_quantity(self, id, standard_variable, name)
-!
-! !DESCRIPTION:
-!  This function registers a new biogeochemically conserved quantity in the global
-!  model database.
-!
-! !INPUT/OUTPUT PARAMETERS:
-      class (type_base_model),          intent(inout)        :: self
-      type (type_conserved_quantity_id),intent(inout),target :: id
-      character(len=*),                 intent(in), optional :: name
-!
-! !INPUT PARAMETERS:
-      type (type_bulk_standard_variable), intent(in) :: standard_variable
-!
-!-----------------------------------------------------------------------
-!BOC
-      call self%fatal_error('register_standard_conserved_quantity', &
-                            'register_conserved_quantity is no longer supported; please use add_to_aggregate_variable.')
-
-   end subroutine register_standard_conserved_quantity
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Registers a new conserved quantity
-!
-! !INTERFACE:
-   subroutine register_custom_conserved_quantity(self, id, name, units, long_name)
-!
-! !DESCRIPTION:
-!  This function registers a new biogeochemically conserved quantity in the global
-!  model database.
-!
-! !INPUT/OUTPUT PARAMETERS:
-      class (type_base_model),          intent(inout)        :: self
-      type (type_conserved_quantity_id),intent(inout),target :: id
-!
-! !INPUT PARAMETERS:
-      character(len=*), intent(in) :: name
-      character(len=*), intent(in) :: long_name
-      character(len=*), intent(in) :: units
-!
-!-----------------------------------------------------------------------
-!BOC
-      call self%fatal_error('register_standard_conserved_quantity', &
-                            'register_conserved_quantity is no longer supported; please use add_to_aggregate_variable.')
-
-   end subroutine register_custom_conserved_quantity
-!EOC
-#endif
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Registers a dependency on an external state variable
-!
-! !INTERFACE:
    subroutine register_interior_state_dependency_ex(self,id,name,units,long_name,required,standard_variable)
-!
-! !DESCRIPTION:
-!  This function searches for a biogeochemical state variable by the user-supplied name
-!  in the global model database. It returns the identifier of the variable (or -1 if
-!  the variable is not found), which may be used to retrieve the variable value at a later stage.
-!
-! !INPUT/OUTPUT PARAMETERS:
-      class (type_base_model),      intent(inout)        :: self
-      type (type_state_variable_id),intent(inout),target :: id
-!
-! !INPUT PARAMETERS:
+      class (type_base_model),            intent(inout)        :: self
+      type (type_state_variable_id),      intent(inout),target :: id
       character(len=*),                   intent(in)          :: name,units,long_name
       logical,                            intent(in),optional :: required
       type (type_bulk_standard_variable), intent(in),optional :: standard_variable
-!
-!EOP
+
       integer :: presence
-!-----------------------------------------------------------------------
-!BOC
+
       presence = presence_external_required
       if (present(required)) then
          if (.not.required) presence = presence_external_optional
@@ -2262,34 +1943,16 @@ end subroutine real_pointer_set_set_value
       call register_interior_state_variable(self, id, name, units, long_name, presence=presence, standard_variable=standard_variable)
 
    end subroutine register_interior_state_dependency_ex
-!EOC
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Registers a dependency on an external bottom state variable
-!
-! !INTERFACE:
    subroutine register_bottom_state_dependency_ex(model,id,name,units,long_name,required,standard_variable)
-!
-! !DESCRIPTION:
-!  This function searches for a biogeochemical state variable by the user-supplied name
-!  in the global model database. It returns the identifier of the variable (or -1 if
-!  the variable is not found), which may be used to retrieve the variable value at a later stage.
-!
-! !INPUT/OUTPUT PARAMETERS:
-      class (type_base_model),              intent(inout)        :: model
-      type (type_bottom_state_variable_id), intent(inout),target :: id
-!
-! !INPUT PARAMETERS:
+      class (type_base_model),                  intent(inout)        :: model
+      type (type_bottom_state_variable_id),     intent(inout),target :: id
       character(len=*),                         intent(in)          :: name,units,long_name
       logical,                                  intent(in),optional :: required
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
-!
-!EOP
+
       integer :: presence
-!-----------------------------------------------------------------------
-!BOC
+
       presence = presence_external_required
       if (present(required)) then
          if (.not.required) presence = presence_external_optional
@@ -2297,42 +1960,23 @@ end subroutine real_pointer_set_set_value
       call register_bottom_state_variable(model, id, name, units, long_name, presence=presence, standard_variable=standard_variable)
 
    end subroutine register_bottom_state_dependency_ex
-!EOC
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Registers a dependency on an external surface-bound state variable
-!
-! !INTERFACE:
+
    subroutine register_surface_state_dependency_ex(model,id,name,units,long_name,required,standard_variable)
-!
-! !DESCRIPTION:
-!  This function searches for a biogeochemical state variable by the user-supplied name
-!  in the global model database. It returns the identifier of the variable (or -1 if
-!  the variable is not found), which may be used to retrieve the variable value at a later stage.
-!
-! !INPUT/OUTPUT PARAMETERS:
-      class (type_base_model),               intent(inout)        :: model
-      type (type_surface_state_variable_id), intent(inout),target :: id
-!
-! !INPUT PARAMETERS:
+      class (type_base_model),                  intent(inout)        :: model
+      type (type_surface_state_variable_id),    intent(inout),target :: id
       character(len=*),                         intent(in)          :: name,units,long_name
       logical,                                  intent(in),optional :: required
       type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
-!
-!EOP
+
       integer :: presence
-!-----------------------------------------------------------------------
-!BOC
+
       presence = presence_external_required
       if (present(required)) then
          if (.not.required) presence = presence_external_optional
       end if
       call register_surface_state_variable(model, id, name, units, long_name, &
                                            presence=presence, standard_variable=standard_variable)
-
    end subroutine register_surface_state_dependency_ex
-!EOC
 
    subroutine register_standard_interior_state_dependency(self,id,standard_variable,required)
       class (type_base_model),             intent(inout) :: self
@@ -2438,37 +2082,16 @@ end subroutine real_pointer_set_set_value
       call self%request_coupling(id,standard_variable)
    end subroutine register_standard_global_dependency
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Registers a read-only dependency on a variable defined on
-! the full model domain.
-!
-! !INTERFACE:
    subroutine register_named_interior_dependency(self,id,name,units,long_name,standard_variable,required)
-!
-! !DESCRIPTION:
-!  This function searches for a biogeochemical state variable by the user-supplied name
-!  in the global model database. It returns the identifier of the variable (or -1 if
-!  the variable is not found), which may be used to retrieve the variable value at a later stage.
-!
-! !INPUT/OUTPUT PARAMETERS:
-      class (type_base_model),  intent(inout)        :: self
-      type (type_dependency_id),intent(inout),target :: id
-!
-! !INPUT PARAMETERS:
-      character(len=*),                  intent(in)          :: name
-      character(len=*),                  intent(in)          :: units,long_name
-      type (type_bulk_standard_variable),intent(in),optional :: standard_variable
-      logical,                           intent(in),optional :: required
-!
-!EOP
-!
-! !LOCAL VARIABLES:
+      class (type_base_model),           intent(inout)        :: self
+      type (type_dependency_id),         intent(inout),target :: id
+      character(len=*),                  intent(in)           :: name
+      character(len=*),                  intent(in)           :: units,long_name
+      type (type_bulk_standard_variable),intent(in), optional :: standard_variable
+      logical,                           intent(in), optional :: required
+
       integer :: presence
-!
-!-----------------------------------------------------------------------
-!BOC
+
       if (associated(id%link)) call self%fatal_error('register_named_interior_dependency', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
@@ -2482,39 +2105,17 @@ end subroutine real_pointer_set_set_value
                                       read_index=id%index, background=id%background, link=id%link)
       if (present(standard_variable)) call self%request_coupling(id,standard_variable)
    end subroutine register_named_interior_dependency
-!EOC
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Registers a read-only dependency on a variable defined on
-! a horizontal slice of the model domain.
-!
-! !INTERFACE:
    subroutine register_named_horizontal_dependency(self,id,name,units,long_name,standard_variable,required)
-!
-! !DESCRIPTION:
-!  This function searches for a biogeochemical state variable by the user-supplied name
-!  in the global model database. It returns the identifier of the variable (or -1 if
-!  the variable is not found), which may be used to retrieve the variable value at a later stage.
-!
-! !INPUT/OUTPUT PARAMETERS:
-      class (type_base_model),             intent(inout)        :: self
-      type (type_horizontal_dependency_id),intent(inout),target :: id
-!
-! !INPUT PARAMETERS:
+      class (type_base_model),                 intent(inout)        :: self
+      type (type_horizontal_dependency_id),    intent(inout),target :: id
       character(len=*),                        intent(in)          :: name
       character(len=*),                        intent(in)          :: units,long_name
       type (type_horizontal_standard_variable),intent(in),optional :: standard_variable
       logical,                                 intent(in),optional :: required
-!
-!EOP
-!
-! !LOCAL VARIABLES:
+
       integer :: presence
-!
-!-----------------------------------------------------------------------
-!BOC
+
       if (associated(id%link)) call self%fatal_error('register_named_horizontal_dependency', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
@@ -2528,39 +2129,17 @@ end subroutine real_pointer_set_set_value
                                         read_index=id%horizontal_index, background=id%background, link=id%link)
       if (present(standard_variable)) call self%request_coupling(id,standard_variable)
    end subroutine register_named_horizontal_dependency
-!EOC
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Registers a read-only dependency on a global (space-
-! independent) variable.
-!
-! !INTERFACE:
    subroutine register_named_global_dependency(self,id,name,units,long_name,standard_variable,required)
-!
-! !DESCRIPTION:
-!  This function searches for a biogeochemical state variable by the user-supplied name
-!  in the global model database. It returns the identifier of the variable (or -1 if
-!  the variable is not found), which may be used to retrieve the variable value at a later stage.
-!
-! !INPUT/OUTPUT PARAMETERS:
-      class (type_base_model),         intent(inout)        :: self
-      type (type_global_dependency_id),intent(inout),target :: id
-!
-! !INPUT PARAMETERS:
+      class (type_base_model),             intent(inout)        :: self
+      type (type_global_dependency_id),    intent(inout),target :: id
       character(len=*),                    intent(in)          :: name
       character(len=*),                    intent(in)          :: units,long_name
       type (type_global_standard_variable),intent(in),optional :: standard_variable
       logical,                             intent(in),optional :: required
-!
-!EOP
-!
-! !LOCAL VARIABLES:
+
       integer :: presence
-!
-!-----------------------------------------------------------------------
-!BOC
+
       if (associated(id%link)) call self%fatal_error('register_named_global_dependency', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
 
@@ -2574,7 +2153,6 @@ end subroutine real_pointer_set_set_value
                                     read_index=id%global_index, background=id%background, link=id%link)
       if (present(standard_variable)) call self%request_coupling(id,standard_variable)
    end subroutine register_named_global_dependency
-!EOC
 
    subroutine register_named_interior_dependency_old(self,id,name)
       class (type_base_model),  intent(inout)        :: self
@@ -2663,23 +2241,17 @@ recursive subroutine register_expression(self,expression)
 end subroutine
 
 subroutine get_real_parameter(self,value,name,units,long_name,default,scale_factor,minimum,maximum)
-! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target  :: self
    real(rk),                intent(inout)          :: value
    character(len=*),        intent(in)             :: name
    character(len=*),        intent(in),   optional :: units,long_name
    real(rk),                intent(in),   optional :: default,scale_factor,minimum,maximum
-!
-!EOP
-!
-! !LOCAL VARIABLES:
+
    class (type_property),    pointer :: property
    logical                           :: success
    type (type_real_property)         :: current_parameter
    character(len=13)                 :: text1,text2
-!
-!-----------------------------------------------------------------------
-!BOC
+
    if (present(default)) then
       current_parameter%has_default = .true.
       current_parameter%default = default
@@ -2721,43 +2293,32 @@ subroutine get_real_parameter(self,value,name,units,long_name,default,scale_fact
    ! Apply scale factor to value provided to the model (if requested).
    if (present(scale_factor)) value = value*scale_factor
 end subroutine get_real_parameter
-!EOC
 
 subroutine set_parameter(self,parameter,name,units,long_name)
-! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target :: self
    class (type_property),   intent(inout)         :: parameter
    character(len=*),        intent(in)            :: name
    character(len=*),        intent(in),optional   :: units,long_name
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
+
    parameter%name = name
    if (present(units))     parameter%units     = units
    if (present(long_name)) parameter%long_name = long_name
    call self%parameters%set_in_tree(parameter)
 end subroutine set_parameter
-!EOC
 
 subroutine get_integer_parameter(self,value,name,units,long_name,default,minimum,maximum)
-! !INPUT PARAMETERS:
+
    class (type_base_model), intent(inout), target :: self
    integer,                 intent(inout)         :: value
    character(len=*),        intent(in)            :: name
    character(len=*),        intent(in),optional   :: units,long_name
    integer,                 intent(in),optional   :: default,minimum,maximum
-!
-!EOP
-!
-! !LOCAL VARIABLES:
+
    class (type_property),       pointer :: property
    type (type_integer_property)         :: current_parameter
    logical                              :: success
    character(len=8)                     :: text1,text2
-!
-!-----------------------------------------------------------------------
-!BOC
+
    if (present(default)) then
       current_parameter%has_default = .true.
       current_parameter%default = default
@@ -2796,25 +2357,18 @@ subroutine get_integer_parameter(self,value,name,units,long_name,default,minimum
    current_parameter%value = value
    call set_parameter(self,current_parameter,name,units,long_name)
 end subroutine get_integer_parameter
-!EOC
 
 subroutine get_logical_parameter(self,value,name,units,long_name,default)
-! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target :: self
    logical,                 intent(inout)         :: value
    character(len=*),        intent(in)            :: name
    character(len=*),        intent(in),optional   :: units,long_name
    logical,                 intent(in),optional   :: default
-!
-!EOP
-!
-! !LOCAL VARIABLES:
+
    class (type_property),       pointer :: property
    type (type_logical_property)         :: current_parameter
    logical                              :: success
-!
-!-----------------------------------------------------------------------
-!BOC
+
    if (present(default)) then
       current_parameter%has_default = .true.
       current_parameter%default = default
@@ -2836,25 +2390,18 @@ subroutine get_logical_parameter(self,value,name,units,long_name,default)
    current_parameter%value = value
    call set_parameter(self,current_parameter,name,units,long_name)
 end subroutine get_logical_parameter
-!EOC
 
 recursive subroutine get_string_parameter(self,value,name,units,long_name,default)
-! !INPUT PARAMETERS:
    class (type_base_model), intent(inout), target :: self
    character(len=*),        intent(inout)         :: value
    character(len=*),        intent(in)            :: name
    character(len=*),        intent(in),optional   :: units,long_name
    character(len=*),        intent(in),optional   :: default
-!
-!EOP
-!
-! !LOCAL VARIABLES:
+
    class (type_property),      pointer :: property
    type (type_string_property)         :: current_parameter
    logical                             :: success
-!
-!-----------------------------------------------------------------------
-!BOC
+
    if (present(default)) then
       current_parameter%has_default = .true.
       current_parameter%default = default
@@ -2876,7 +2423,6 @@ recursive subroutine get_string_parameter(self,value,name,units,long_name,defaul
    current_parameter%value = value
    call set_parameter(self,current_parameter,name,units,long_name)
 end subroutine get_string_parameter
-!EOC
 
    function find_object(self,name,recursive,exact) result(object)
 
@@ -2957,17 +2503,7 @@ end subroutine get_string_parameter
 
    end function find_link
 
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Find a model by name.
-!
-! !INTERFACE:
    function find_model(self,name,recursive) result(found_model)
-!
-! !DESCRIPTION:
-!
-! !INPUT PARAMETERS:
       class (type_base_model),       intent(in),target :: self
       character(len=*),              intent(in)        :: name
       logical,optional,              intent(in)        :: recursive
@@ -2977,10 +2513,7 @@ end subroutine get_string_parameter
       logical                             :: recursive_eff
       type (type_model_list_node),pointer :: node
       integer                             :: istart,length
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
+
       found_model => null()
 
       ! Determine whether to also try among ancestors
@@ -3011,7 +2544,6 @@ end subroutine get_string_parameter
          current_root => current_root%parent
       end do
    end function find_model
-!EOC
 
 function get_aggregate_variable_access(self,standard_variable) result(aggregate_variable_access)
    class (type_base_model),           intent(inout) :: self
@@ -3359,7 +2891,7 @@ end subroutine abstract_model_factory_register_version
       if (present(index)) index = self%count
    end subroutine variable_list_append
 
-   end module fabm_types
+end module fabm_types
 
 !-----------------------------------------------------------------------
 ! Copyright Bolding & Bruggeman ApS (GNU Public License - www.gnu.org)
