@@ -241,10 +241,10 @@ module fabm_types
    ! --------------------------------------------------------------------------
 
    type type_contribution
-      type (type_bulk_standard_variable)   :: target
-      real(rk)                             :: scale_factor = 1.0_rk
-      logical                              :: include_background = .false.
-      type (type_contribution), pointer    :: next => null()
+      type (type_interior_standard_variable) :: target
+      real(rk)                               :: scale_factor = 1.0_rk
+      logical                                :: include_background = .false.
+      type (type_contribution), pointer      :: next => null()
    end type
 
    type type_contribution_list
@@ -254,7 +254,7 @@ module fabm_types
    end type
 
    type type_aggregate_variable_access
-      type (type_bulk_standard_variable)             :: standard_variable
+      type (type_interior_standard_variable)         :: standard_variable
       integer                                        :: interior   = access_none
       integer                                        :: horizontal = access_none
       integer                                        :: bottom     = access_none
@@ -758,7 +758,7 @@ contains
 
    function base_get_path(self) result(path)
       class (type_base_model), intent(in), target :: self
-      character(len=attribute_length) :: path
+      character(len=attribute_length)             :: path
 
       class (type_base_model), pointer :: current
 
@@ -770,21 +770,21 @@ contains
       end do
    end function
 
-   subroutine base_fatal_error(self,location,message)
+   subroutine base_fatal_error(self, location, message)
       class (type_base_model), intent(in) :: self
-      character(len=*),        intent(in) :: location,message
+      character(len=*),        intent(in) :: location, message
       if (self%name /= '') then
-         call driver%fatal_error('model '//trim(self%get_path())//', '//trim(location),message)
+         call driver%fatal_error('model ' // trim(self%get_path()) // ', ' // trim(location), message)
       else
-         call driver%fatal_error(location,message)
+         call driver%fatal_error(location, message)
       end if
    end subroutine
 
-   subroutine base_log_message(self,message)
+   subroutine base_log_message(self, message)
       class (type_base_model), intent(in) :: self
       character(len=*),        intent(in) :: message
-      if (self%name/='') then
-         call driver%log_message('model "'//trim(self%name)//'": '//message)
+      if (self%name /= '') then
+         call driver%log_message('model "' // trim(self%name) // '": ' // message)
       else
          call driver%log_message(message)
       end if
@@ -801,7 +801,7 @@ contains
    function implements(self, source) result(is_implemented)
       class (type_base_model), intent(in) :: self
       integer,                 intent(in) :: source
-      logical :: is_implemented
+      logical                             :: is_implemented
 
       integer :: i
 
@@ -834,17 +834,17 @@ contains
       integer                              :: ind
 
       ! If a path with / is given, redirect to tentative parent model.
-      islash = index(name,'/',.true.)
-      if (islash/=0) then
-         parent => self%find_model(name(:islash-1))
-         if (.not.associated(parent)) call self%fatal_error('add_child', &
-            'Proposed parent model "'//trim(name(:islash-1))//'" was not found.')
-         call parent%add_child(model,name(islash+1:),long_name,configunit)
+      islash = index(name, '/', .true.)
+      if (islash /= 0) then
+         parent => self%find_model(name(:islash - 1))
+         if (.not. associated(parent)) call self%fatal_error('add_child', &
+            'Proposed parent model "' // trim(name(:islash - 1)) // '" was not found.')
+         call parent%add_child(model, name(islash + 1:), long_name, configunit)
          return
       end if
 
       if (associated(model%parent)) call self%fatal_error('add_child', &
-         'The provided child model "'//trim(name)//'" has already been assigned parent '//trim(model%parent%name)//'.')
+         'The provided child model "' // trim(name) // '" has already been assigned parent ' // trim(model%parent%name) // '.')
 
       if (name == '*') then
          ! This instance is for internal use only - auto-generate a unique name
@@ -861,13 +861,13 @@ contains
          end do
       else
          ! Ascertain whether the provided name is valid.
-         if (name == '') call self%fatal_error('add_child', 'Invalid model name "'//trim(name)// &
+         if (name == '') call self%fatal_error('add_child', 'Invalid model name "' // trim(name) // &
             '". Names cannot be empty.')
-         if (name(1:1) == '_') call self%fatal_error('add_child', 'Invalid model name "'//trim(name)// &
+         if (name(1:1) == '_') call self%fatal_error('add_child', 'Invalid model name "' // trim(name) // &
             '". Names beginning with underscore are reserved for internal use.')
-         if (len_trim(name) > len(model%name)) call self%fatal_error('add_child', 'Invalid model name "'//trim(name)// &
+         if (len_trim(name) > len(model%name)) call self%fatal_error('add_child', 'Invalid model name "' // trim(name) // &
             '". This name is longer than the maximum allowed number of characters.')
-         if (name /= get_safe_name(name)) call self%fatal_error('add_child', 'Invalid model name "'//trim(name)// &
+         if (name /= get_safe_name(name)) call self%fatal_error('add_child', 'Invalid model name " '// trim(name) // &
             '". Names can contain letters, digits and underscores only.')
 
          ! Make sure a child with this name does not exist yet.
@@ -886,8 +886,8 @@ contains
          model%long_name = trim(model%name)
       end if
       model%parent => self
-      call self%parameters%add_child(model%parameters,trim(model%name))
-      call self%couplings%add_child(model%couplings,trim(model%name))
+      call self%parameters%add_child(model%parameters, trim(model%name))
+      call self%couplings%add_child(model%couplings, trim(model%name))
       call self%children%append(model)
       call model%initialize(configunit)
 
@@ -902,22 +902,22 @@ contains
       end if
    end subroutine add_child
 
-   subroutine set_variable_property_real(self,variable,name,value)
-      class (type_base_model), intent(inout) :: self
-      class (type_variable_id),intent(inout) :: variable
-      character(len=*),        intent(in)    :: name
-      real(rk),                intent(in)    :: value
-      if (.not.associated(variable%link)) call self%fatal_error('set_variable_property_real','variable has not been registered')
-      call variable%link%target%properties%set_real(name,value)
+   subroutine set_variable_property_real(self, variable, name, value)
+      class (type_base_model),  intent(inout) :: self
+      class (type_variable_id), intent(inout) :: variable
+      character(len=*),         intent(in)    :: name
+      real(rk),                 intent(in)    :: value
+      if (.not. associated(variable%link)) call self%fatal_error('set_variable_property_real', 'variable has not been registered')
+      call variable%link%target%properties%set_real(name, value)
    end subroutine
 
    subroutine set_variable_property_integer(self, variable, name, value)
-      class (type_base_model), intent(inout) :: self
-      class (type_variable_id),intent(inout) :: variable
-      character(len=*),        intent(in)    :: name
-      integer,                 intent(in)    :: value
-      if (.not.associated(variable%link)) call self%fatal_error('set_variable_property_integer', 'variable has not been registered')
-      call variable%link%target%properties%set_integer(name,value)
+      class (type_base_model),  intent(inout) :: self
+      class (type_variable_id), intent(inout) :: variable
+      character(len=*),         intent(in)    :: name
+      integer,                  intent(in)    :: value
+      if (.not. associated(variable%link)) call self%fatal_error('set_variable_property_integer', 'variable has not been registered')
+      call variable%link%target%properties%set_integer(name, value)
    end subroutine
 
    subroutine set_variable_property_logical(self, variable, name, value)
@@ -926,39 +926,39 @@ contains
       character(len=*),        intent(in)    :: name
       logical,                 intent(in)    :: value
       if (.not.associated(variable%link)) call self%fatal_error('set_variable_property_logical', 'variable has not been registered')
-      call variable%link%target%properties%set_logical(name,value)
+      call variable%link%target%properties%set_logical(name, value)
    end subroutine
 
    subroutine add_interior_state_variable_to_aggregate_variable(self, target, variable_id, scale_factor, include_background)
-      class (type_base_model),           intent(inout) :: self
-      type (type_bulk_standard_variable),intent(in)    :: target
-      class (type_state_variable_id),    intent(inout) :: variable_id
-      real(rk),optional,                 intent(in)    :: scale_factor
-      logical,optional,                  intent(in)    :: include_background
+      class (type_base_model),                intent(inout) :: self
+      type (type_interior_standard_variable), intent(in)    :: target
+      class (type_state_variable_id),         intent(inout) :: variable_id
+      real(rk), optional,                     intent(in)    :: scale_factor
+      logical, optional,                      intent(in)    :: include_background
 
       if (.not. associated(variable_id%link)) call self%fatal_error('add_to_aggregate_variable', &
          'interior state variable added to ' // trim(target%name) // ' has not been registered')
-      call variable_id%link%target%contributions%add(target,scale_factor,include_background)
+      call variable_id%link%target%contributions%add(target, scale_factor, include_background)
    end subroutine add_interior_state_variable_to_aggregate_variable
 
    subroutine add_interior_source_to_aggregate_variable(self, target, variable_id, scale_factor, include_background)
-      class (type_base_model),           intent(inout) :: self
-      type (type_bulk_standard_variable),intent(in)    :: target
-      class (type_aggregate_variable_id),intent(inout) :: variable_id
-      real(rk),optional,                 intent(in)    :: scale_factor
-      logical,optional,                  intent(in)    :: include_background
+      class (type_base_model),                intent(inout) :: self
+      type (type_interior_standard_variable), intent(in)    :: target
+      class (type_aggregate_variable_id),     intent(inout) :: variable_id
+      real(rk), optional,                     intent(in)    :: scale_factor
+      logical, optional,                      intent(in)    :: include_background
 
       if (.not.associated(variable_id%link)) call self%fatal_error('add_to_aggregate_variable', &
          'interior aggregate variable added to ' // trim(target%name) // ' has not been registered')
-      call variable_id%link%target%contributions%add(target,scale_factor,include_background)
+      call variable_id%link%target%contributions%add(target, scale_factor, include_background)
    end subroutine add_interior_source_to_aggregate_variable
 
    subroutine add_bottom_state_variable_to_aggregate_variable(self, target, variable_id, scale_factor, include_background)
-      class (type_base_model),              intent(inout) :: self
-      type (type_bulk_standard_variable),   intent(in)    :: target
-      class (type_bottom_state_variable_id),intent(inout) :: variable_id
-      real(rk),optional,                    intent(in)    :: scale_factor
-      logical,optional,                     intent(in)    :: include_background
+      class (type_base_model),                intent(inout) :: self
+      type (type_interior_standard_variable), intent(in)    :: target
+      class (type_bottom_state_variable_id),  intent(inout) :: variable_id
+      real(rk),optional,                      intent(in)    :: scale_factor
+      logical,optional,                       intent(in)    :: include_background
 
       if (.not.associated(variable_id%link)) call self%fatal_error('add_to_aggregate_variable', &
          'bottom state variable added to ' // trim(target%name) // ' has not been registered')
@@ -966,11 +966,11 @@ contains
    end subroutine add_bottom_state_variable_to_aggregate_variable
 
    subroutine add_surface_state_variable_to_aggregate_variable(self, target, variable_id, scale_factor, include_background)
-      class (type_base_model),               intent(inout) :: self
-      type (type_bulk_standard_variable),    intent(in)    :: target
-      class (type_surface_state_variable_id),intent(inout) :: variable_id
-      real(rk),optional,                     intent(in)    :: scale_factor
-      logical,optional,                      intent(in)    :: include_background
+      class (type_base_model),                intent(inout) :: self
+      type (type_interior_standard_variable), intent(in)    :: target
+      class (type_surface_state_variable_id), intent(inout) :: variable_id
+      real(rk), optional,                     intent(in)    :: scale_factor
+      logical, optional,                      intent(in)    :: include_background
 
       if (.not.associated(variable_id%link)) call self%fatal_error('add_to_aggregate_variable', &
          'bottom state variable added to ' // trim(target%name) // ' has not been registered')
@@ -978,10 +978,10 @@ contains
    end subroutine add_surface_state_variable_to_aggregate_variable
 
    subroutine add_interior_diagnostic_variable_to_aggregate_variable(self, target, variable_id, scale_factor)
-      class (type_base_model),            intent(inout) :: self
-      type (type_bulk_standard_variable), intent(in)    :: target
-      class (type_diagnostic_variable_id),intent(inout) :: variable_id
-      real(rk),optional,                  intent(in)    :: scale_factor
+      class (type_base_model),                intent(inout) :: self
+      type (type_interior_standard_variable), intent(in)    :: target
+      class (type_diagnostic_variable_id),    intent(inout) :: variable_id
+      real(rk), optional,                     intent(in)    :: scale_factor
 
       if (.not. associated(variable_id%link)) call self%fatal_error('add_to_aggregate_variable', &
          'interior diagnostic variable added to ' // trim(target%name) // ' has not been registered')
@@ -989,27 +989,27 @@ contains
    end subroutine add_interior_diagnostic_variable_to_aggregate_variable
 
    subroutine add_horizontal_diagnostic_variable_to_aggregate_variable(self, target, variable_id, scale_factor)
-      class (type_base_model),                       intent(inout) :: self
-      type (type_bulk_standard_variable),            intent(in)    :: target
-      class (type_horizontal_diagnostic_variable_id),intent(inout) :: variable_id
-      real(rk),optional,                             intent(in)    :: scale_factor
+      class (type_base_model),                        intent(inout) :: self
+      type (type_interior_standard_variable),         intent(in)    :: target
+      class (type_horizontal_diagnostic_variable_id), intent(inout) :: variable_id
+      real(rk), optional,                             intent(in)    :: scale_factor
 
       if (.not. associated(variable_id%link)) call self%fatal_error('add_to_aggregate_variable', &
          'horizontal diagnostic variable added to ' // trim(target%name) // ' has not been registered')
       call variable_id%link%target%contributions%add(target, scale_factor)
    end subroutine add_horizontal_diagnostic_variable_to_aggregate_variable
 
-   subroutine contribution_list_add(self,target,scale_factor,include_background)
-      class (type_contribution_list),    intent(inout) :: self
-      type (type_bulk_standard_variable),intent(in)    :: target
-      real(rk),optional,                 intent(in)    :: scale_factor
-      logical,optional,                  intent(in)    :: include_background
+   subroutine contribution_list_add(self, target, scale_factor, include_background)
+      class (type_contribution_list),         intent(inout) :: self
+      type (type_interior_standard_variable), intent(in)    :: target
+      real(rk), optional,                     intent(in)    :: scale_factor
+      logical, optional,                      intent(in)    :: include_background
 
-      type (type_contribution),pointer :: contribution
+      type (type_contribution), pointer :: contribution
 
       ! If the scale factor is 0, no need to register any contribution.
       if (present(scale_factor)) then
-         if (scale_factor==0.0_rk) return
+         if (scale_factor == 0.0_rk) return
       end if
 
       ! First look for existing contribution to this aggregate variable.
@@ -1019,7 +1019,7 @@ contains
          contribution => contribution%next
       end do
 
-      if (.not.associated(contribution)) then
+      if (.not. associated(contribution)) then
          ! No contribution to this aggregate variable exists - prepend it to the list.
          allocate(contribution)
          contribution%next => self%first
@@ -1032,13 +1032,13 @@ contains
       if (present(include_background)) contribution%include_background = include_background
    end subroutine
 
-   subroutine model_list_append(self,model)
+   subroutine model_list_append(self, model)
       class (type_model_list), intent(inout) :: self
-      class (type_base_model),target         :: model
+      class (type_base_model), target        :: model
 
-      type (type_model_list_node),pointer :: node
+      type (type_model_list_node), pointer :: node
 
-      if (.not.associated(self%first)) then
+      if (.not. associated(self%first)) then
          allocate(self%first)
          node => self%first
       else
@@ -1052,11 +1052,11 @@ contains
       node%model => model
    end subroutine
 
-   subroutine model_list_extend(self,source)
+   subroutine model_list_extend(self, source)
       class (type_model_list), intent(inout) :: self
       class (type_model_list), intent(in)    :: source
 
-      type (type_model_list_node),pointer :: node
+      type (type_model_list_node), pointer :: node
 
       node => source%first
       do while (associated(node))
@@ -1065,28 +1065,28 @@ contains
       end do
    end subroutine
 
-   function model_list_find_name(self,name) result(node)
-      class (type_model_list),intent(in) :: self
-      character(len=*),       intent(in) :: name
+   function model_list_find_name(self, name) result(node)
+      class (type_model_list), intent(in) :: self
+      character(len=*),        intent(in) :: name
 
-      type (type_model_list_node),pointer :: node
+      type (type_model_list_node), pointer :: node
 
       node => self%first
       do while (associated(node))
-         if (node%model%name==name) return
+         if (node%model%name == name) return
          node => node%next
       end do
    end function model_list_find_name
 
-   function model_list_find_model(self,model) result(node)
-      class (type_model_list),       intent(in) :: self
-      class (type_base_model),target,intent(in) :: model
+   function model_list_find_model(self, model) result(node)
+      class (type_model_list),         intent(in) :: self
+      class (type_base_model), target, intent(in) :: model
 
-      type (type_model_list_node),pointer :: node
+      type (type_model_list_node), pointer :: node
 
       node => self%first
       do while (associated(node))
-         if (associated(node%model,model)) return
+         if (associated(node%model, model)) return
          node => node%next
       end do
    end function model_list_find_model
@@ -1103,26 +1103,26 @@ contains
       end do
    end subroutine
 
-   function model_list_count(self,model) result(count)
-      class (type_model_list),       intent(in) :: self
-      class (type_base_model),target,intent(in) :: model
+   function model_list_count(self, model) result(count)
+      class (type_model_list),         intent(in) :: self
+      class (type_base_model), target, intent(in) :: model
 
       integer :: count
 
-      type (type_model_list_node),pointer :: node
+      type (type_model_list_node), pointer :: node
 
       count = 0
       node => self%first
       do while (associated(node))
-         if (associated(node%model,model)) count = count + 1
+         if (associated(node%model, model)) count = count + 1
          node => node%next
       end do
    end function
 
    subroutine model_list_finalize(self)
-      class (type_model_list),       intent(in) :: self
+      class (type_model_list), intent(in) :: self
 
-      type (type_model_list_node),pointer :: node,next
+      type (type_model_list_node), pointer :: node, next
 
       node => self%first
       do while (associated(node))
@@ -1132,322 +1132,321 @@ contains
       end do
    end subroutine
 
-function link_list_find(self,name) result(link)
-   class (type_link_list),intent(in) :: self
-   character(len=*),      intent(in) :: name
+   function link_list_find(self, name) result(link)
+      class (type_link_list), intent(in) :: self
+      character(len=*),       intent(in) :: name
 
-   type (type_link),pointer :: link
+      type (type_link), pointer :: link
 
-   link => self%first
-   do while (associated(link))
-      if (link%name==name) return
-      link => link%next
-   end do
-end function link_list_find
-
-function link_list_append(self,target,name) result(link)
-   class (type_link_list),             intent(inout) :: self
-   type (type_internal_variable),pointer             :: target
-   character(len=*),                   intent(in)    :: name
-
-   type (type_link),pointer :: link
-
-   ! Append a new link to the list.
-   if (.not.associated(self%first)) then
-      allocate(self%first)
-      self%last => self%first
-   else
-      allocate(self%last%next)
-      self%last => self%last%next
-   end if
-
-   ! Set link attributes.
-   link => self%last
-   link%name = name
-   link%target => target
-   link%original => target
-end function link_list_append
-
-subroutine link_list_extend(self,source)
-   class (type_link_list),intent(inout) :: self
-   class (type_link_list),intent(in)    :: source
-
-   type (type_link),pointer :: source_link,link
-
-   source_link => source%first
-   do while (associated(source_link))
-      link => self%append(source_link%target,source_link%name)
-      source_link => source_link%next
-   end do
-end subroutine link_list_extend
-
-function link_list_count(self) result(count)
-   class (type_link_list),intent(in) :: self
-
-   type (type_link),pointer :: link
-   integer                  :: count
-
-   count = 0
-   link => self%first
-   do while (associated(link))
-      count = count + 1
-      link => link%next
-   end do
-end function link_list_count
-
-subroutine link_list_finalize(self)
-   class (type_link_list),intent(inout) :: self
-
-   type (type_link),pointer :: link,next
-
-   link => self%first
-   do while (associated(link))
-      next => link%next
-      deallocate(link)
-      link => next
-   end do
-   self%first => null()
-end subroutine link_list_finalize
-
-function create_coupling_task(self,link) result(task)
-   class (type_base_model),intent(inout) :: self
-   type (type_link),target,intent(inout) :: link
-   class (type_coupling_task),pointer :: task
-
-   type (type_link), pointer :: current_link
-
-   ! First make sure that we are called for a link that we own ourselves.
-   current_link => self%links%first
-   do while (associated(current_link))
-      if (associated(current_link,link)) exit
-      current_link => current_link%next
-   end do
-   if (.not.associated(current_link)) call self%fatal_error('request_coupling_for_link', &
-      'Couplings can only be requested for variables that you own yourself.')
-
-   ! Make sure that the link also points to a variable that we registered ourselves,
-   ! rather than one registered by a child model.
-   if (index(link%name,'/')/=0) call self%fatal_error('request_coupling_for_link', &
-      'Couplings can only be requested for variables that you registered yourself, &
-      &not inherited ones such as the current '//trim(link%name)//'.')
-
-   ! Create a coupling task (reuse existing one if available, and not user-specified)
-   call self%coupling_task_list%add(link,.false.,task)
-end function create_coupling_task
-
-subroutine request_coupling_for_link(self,link,master)
-   class (type_base_model),intent(inout) :: self
-   type (type_link),target,intent(inout) :: link
-   character(len=*),       intent(in)    :: master
-
-   class (type_coupling_task),pointer :: task
-
-   ! Create a coupling task (reuse existing one if available, and not user-specified)
-   task => create_coupling_task(self,link)
-   if (.not.associated(task)) return   ! We already have a user-specified task, which takes priority
-
-   ! Configure coupling task
-   task%master_name = master
-end subroutine request_coupling_for_link
-
-recursive subroutine request_coupling_for_name(self,slave,master)
-   class (type_base_model),intent(inout),target :: self
-   character(len=*),       intent(in)           :: slave,master
-
-   class (type_base_model),pointer :: parent
-   type (type_link),       pointer :: link
-   integer                         :: islash
-
-   ! If a path with / is given, redirect to tentative parent model.
-   islash = index(slave,'/',.true.)
-   if (islash/=0) then
-      parent => self%find_model(slave(:islash-1))
-      call request_coupling_for_name(parent,slave(islash+1:),master)
-      return
-   end if
-
-   link => self%links%find(slave)
-   if (.not.associated(link)) call self%fatal_error('request_coupling_for_name', &
-      'Specified slave ('//trim(slave)//') not found. Make sure the variable is registered before calling request_coupling.')
-   call request_coupling_for_link(self,link,master)
-end subroutine request_coupling_for_name
-
-subroutine request_coupling_for_id(self,id,master)
-   class (type_base_model), intent(inout) :: self
-   class (type_variable_id),intent(inout) :: id
-   character(len=*),        intent(in)    :: master
-
-   if (.not. associated(id%link)) call self%fatal_error('request_coupling_for_id', &
-      'The provided variable identifier has not been registered yet.')
-   call self%request_coupling(id%link,master)
-end subroutine request_coupling_for_id
-
-subroutine request_standard_coupling_for_link(self,link,master,domain)
-   class (type_base_model),            intent(inout) :: self
-   type (type_link),target,            intent(inout) :: link
-   class (type_base_standard_variable),intent(in)    :: master
-   integer,optional,                   intent(in)    :: domain
-
-   class (type_coupling_task),pointer :: task
-
-   task => create_coupling_task(self,link)
-   if (.not.associated(task)) return   ! We already have a user-specified task, which takes priority
-   allocate(task%master_standard_variable,source=master)
-   if (present(domain)) task%domain = domain
-end subroutine request_standard_coupling_for_link
-
-subroutine request_standard_coupling_for_id(self,id,master,domain)
-   class (type_base_model),            intent(inout) :: self
-   class (type_variable_id),           intent(inout) :: id
-   class (type_base_standard_variable),intent(in)    :: master
-   integer,optional,                   intent(in)    :: domain
-
-   if (.not. associated(id%link)) call self%fatal_error('request_standard_coupling_for_id', &
-      'The provided variable identifier has not been registered yet.')
-   call self%request_standard_coupling_for_link(id%link,master,domain)
-end subroutine request_standard_coupling_for_id
-
-subroutine integer_pointer_set_append(self,value)
-   class (type_integer_pointer_set),intent(inout) :: self
-   integer,target :: value
-   type (type_integer_pointer),allocatable :: oldarray(:)
-
-   ! Create a new list of integer pointers, or extend it if already allocated.
-   if (.not.allocated(self%pointers)) then
-      allocate(self%pointers(1))
-   else
-      allocate(oldarray(size(self%pointers)))
-      oldarray = self%pointers
-      deallocate(self%pointers)
-      allocate(self%pointers(size(oldarray)+1))
-      self%pointers(1:size(oldarray)) = oldarray
-      deallocate(oldarray)
-   end if
-
-   ! Add pointer to provided integer to the list.
-   self%pointers(size(self%pointers))%p => value
-   self%pointers(size(self%pointers))%p = self%value
-end subroutine integer_pointer_set_append
-
-subroutine integer_pointer_set_extend(self,other)
-   class (type_integer_pointer_set),intent(inout) :: self
-   class (type_integer_pointer_set),intent(in)    :: other
-
-   integer :: i
-
-   if (allocated(other%pointers)) then
-      do i=1,size(other%pointers)
-         call self%append(other%pointers(i)%p)
+      link => self%first
+      do while (associated(link))
+         if (link%name == name) return
+         link => link%next
       end do
-   end if
-end subroutine integer_pointer_set_extend
+   end function link_list_find
 
-subroutine integer_pointer_set_clear(self)
-   class (type_integer_pointer_set),intent(inout) :: self
+   function link_list_append(self, target, name) result(link)
+      class (type_link_list),  intent(inout) :: self
+      type (type_internal_variable), pointer :: target
+      character(len=*),        intent(in)    :: name
 
-   if (allocated(self%pointers)) deallocate(self%pointers)
-   self%value = -1
-end subroutine integer_pointer_set_clear
+      type (type_link), pointer :: link
 
-subroutine integer_pointer_set_set_value(self,value)
-   class (type_integer_pointer_set),intent(inout) :: self
-   integer,                         intent(in)    :: value
+      ! Append a new link to the list.
+      if (.not. associated(self%first)) then
+         allocate(self%first)
+         self%last => self%first
+      else
+         allocate(self%last%next)
+         self%last => self%last%next
+      end if
 
-   integer :: i
+      ! Set link attributes.
+      link => self%last
+      link%name = name
+      link%target => target
+      link%original => target
+   end function link_list_append
 
-   if (allocated(self%pointers)) then
-      do i=1,size(self%pointers)
-         self%pointers(i)%p = value
+   subroutine link_list_extend(self, source)
+      class (type_link_list), intent(inout) :: self
+      class (type_link_list), intent(in)    :: source
+
+      type (type_link), pointer :: source_link, link
+
+      source_link => source%first
+      do while (associated(source_link))
+         link => self%append(source_link%target, source_link%name)
+         source_link => source_link%next
       end do
-   end if
-   self%value = value
-end subroutine integer_pointer_set_set_value
+   end subroutine link_list_extend
 
-logical function integer_pointer_set_is_empty(self)
-   class (type_integer_pointer_set),intent(in) :: self
-   integer_pointer_set_is_empty = .not.allocated(self%pointers)
-end function integer_pointer_set_is_empty
+   function link_list_count(self) result(count)
+      class (type_link_list), intent(in) :: self
+      integer                            :: count
 
-subroutine integer_pointer_set_copy_values(self,target)
-   class (type_integer_pointer_set),intent(in) :: self
-   integer,allocatable                         :: target(:)
+      type (type_link), pointer :: link
 
-   integer :: i
-
-   if (.not.allocated(self%pointers)) then
-      allocate(target(0))
-   else
-      allocate(target(size(self%pointers)))
-      do i=1,size(self%pointers)
-         target(i) = self%pointers(i)%p
+      count = 0
+      link => self%first
+      do while (associated(link))
+         count = count + 1
+         link => link%next
       end do
-   end if
-end subroutine integer_pointer_set_copy_values
+   end function link_list_count
 
-subroutine real_pointer_set_append(self,value)
-   class (type_real_pointer_set),intent(inout) :: self
-   real(rk),target :: value
-   type (type_real_pointer),allocatable :: oldarray(:)
+   subroutine link_list_finalize(self)
+      class (type_link_list), intent(inout) :: self
 
-   ! Create a new list of real pointers, or extend it if already allocated.
-   if (.not.allocated(self%pointers)) then
-      allocate(self%pointers(1))
-   else
-      allocate(oldarray(size(self%pointers)))
-      oldarray = self%pointers
-      deallocate(self%pointers)
-      allocate(self%pointers(size(oldarray)+1))
-      self%pointers(1:size(oldarray)) = oldarray
-      deallocate(oldarray)
-   end if
+      type (type_link), pointer :: link, next
 
-   ! Add pointer to provided real to the list.
-   self%pointers(size(self%pointers))%p => value
-   self%pointers(size(self%pointers))%p = self%pointers(1)%p
-end subroutine real_pointer_set_append
-
-subroutine real_pointer_set_extend(self,other)
-   class (type_real_pointer_set),intent(inout) :: self
-   class (type_real_pointer_set),intent(in)    :: other
-
-   integer :: i
-
-   if (allocated(other%pointers)) then
-      do i=1,size(other%pointers)
-         call self%append(other%pointers(i)%p)
+      link => self%first
+      do while (associated(link))
+         next => link%next
+         deallocate(link)
+         link => next
       end do
-   end if
-end subroutine real_pointer_set_extend
+      self%first => null()
+   end subroutine link_list_finalize
 
-subroutine real_pointer_set_set_value(self,value)
-   class (type_real_pointer_set),intent(inout) :: self
-   real(rk),                     intent(in)    :: value
+   function create_coupling_task(self, link) result(task)
+      class (type_base_model),  intent(inout) :: self
+      type (type_link), target, intent(inout) :: link
+      class (type_coupling_task), pointer     :: task
 
-   integer :: i
+      type (type_link), pointer :: current_link
 
-   if (allocated(self%pointers)) then
-      do i=1,size(self%pointers)
-         self%pointers(i)%p = value
+      ! First make sure that we are called for a link that we own ourselves.
+      current_link => self%links%first
+      do while (associated(current_link))
+         if (associated(current_link, link)) exit
+         current_link => current_link%next
       end do
-   end if
-end subroutine real_pointer_set_set_value
+      if (.not.associated(current_link)) call self%fatal_error('request_coupling_for_link', &
+         'Couplings can only be requested for variables that you own yourself.')
+
+      ! Make sure that the link also points to a variable that we registered ourselves,
+      ! rather than one registered by a child model.
+      if (index(link%name, '/') /= 0) call self%fatal_error('request_coupling_for_link', &
+         'Couplings can only be requested for variables that you registered yourself, &
+         &not inherited ones such as the current ' // trim(link%name) // '.')
+
+      ! Create a coupling task (reuse existing one if available, and not user-specified)
+      call self%coupling_task_list%add(link, .false., task)
+   end function create_coupling_task
+
+   subroutine request_coupling_for_link(self, link, master)
+      class (type_base_model),  intent(inout) :: self
+      type (type_link), target, intent(inout) :: link
+      character(len=*),         intent(in)    :: master
+
+      class (type_coupling_task), pointer :: task
+
+      ! Create a coupling task (reuse existing one if available, and not user-specified)
+      task => create_coupling_task(self, link)
+      if (.not. associated(task)) return   ! We already have a user-specified task, which takes priority
+
+      ! Configure coupling task
+      task%master_name = master
+   end subroutine request_coupling_for_link
+
+   recursive subroutine request_coupling_for_name(self, slave, master)
+      class (type_base_model), intent(inout), target :: self
+      character(len=*),        intent(in)            :: slave, master
+
+      class (type_base_model), pointer :: parent
+      type (type_link),        pointer :: link
+      integer                          :: islash
+
+      ! If a path with / is given, redirect to tentative parent model.
+      islash = index(slave, '/', .true.)
+      if (islash /= 0) then
+         parent => self%find_model(slave(:islash - 1))
+         call request_coupling_for_name(parent, slave(islash + 1:), master)
+         return
+      end if
+
+      link => self%links%find(slave)
+      if (.not.associated(link)) call self%fatal_error('request_coupling_for_name', &
+         'Specified slave (' // trim(slave) // ') not found. Make sure the variable is registered before calling request_coupling.')
+      call request_coupling_for_link(self, link, master)
+   end subroutine request_coupling_for_name
+
+   subroutine request_coupling_for_id(self, id, master)
+      class (type_base_model),  intent(inout) :: self
+      class (type_variable_id), intent(inout) :: id
+      character(len=*),         intent(in)    :: master
+
+      if (.not. associated(id%link)) call self%fatal_error('request_coupling_for_id', &
+         'The provided variable identifier has not been registered yet.')
+      call self%request_coupling(id%link, master)
+   end subroutine request_coupling_for_id
+
+   subroutine request_standard_coupling_for_link(self, link, master, domain)
+      class (type_base_model),             intent(inout) :: self
+      type (type_link), target,            intent(inout) :: link
+      class (type_base_standard_variable), intent(in)    :: master
+      integer,optional,                    intent(in)    :: domain
+
+      class (type_coupling_task), pointer :: task
+
+      task => create_coupling_task(self, link)
+      if (.not. associated(task)) return   ! We already have a user-specified task, which takes priority
+      allocate(task%master_standard_variable, source=master)
+      if (present(domain)) task%domain = domain
+   end subroutine request_standard_coupling_for_link
+
+   subroutine request_standard_coupling_for_id(self, id, master, domain)
+      class (type_base_model),             intent(inout) :: self
+      class (type_variable_id),            intent(inout) :: id
+      class (type_base_standard_variable), intent(in)    :: master
+      integer,optional,                    intent(in)    :: domain
+
+      if (.not. associated(id%link)) call self%fatal_error('request_standard_coupling_for_id', &
+         'The provided variable identifier has not been registered yet.')
+      call self%request_standard_coupling_for_link(id%link, master, domain)
+   end subroutine request_standard_coupling_for_id
+
+   subroutine integer_pointer_set_append(self, value)
+      class (type_integer_pointer_set), intent(inout) :: self
+      integer, target                                 :: value
+
+      type (type_integer_pointer), allocatable :: oldarray(:)
+
+      ! Create a new list of integer pointers, or extend it if already allocated.
+      if (.not. allocated(self%pointers)) then
+         allocate(self%pointers(1))
+      else
+         call move_alloc(self%pointers, oldarray)
+         allocate(self%pointers(size(oldarray) + 1))
+         self%pointers(1:size(oldarray)) = oldarray
+         deallocate(oldarray)
+      end if
+
+      ! Add pointer to provided integer to the list.
+      self%pointers(size(self%pointers))%p => value
+      self%pointers(size(self%pointers))%p = self%value
+   end subroutine integer_pointer_set_append
+
+   subroutine integer_pointer_set_extend(self, other)
+      class (type_integer_pointer_set), intent(inout) :: self
+      class (type_integer_pointer_set), intent(in)    :: other
+
+      integer :: i
+
+      if (allocated(other%pointers)) then
+         do i=1,size(other%pointers)
+            call self%append(other%pointers(i)%p)
+         end do
+      end if
+   end subroutine integer_pointer_set_extend
+
+   subroutine integer_pointer_set_clear(self)
+      class (type_integer_pointer_set), intent(inout) :: self
+
+      if (allocated(self%pointers)) deallocate(self%pointers)
+      self%value = -1
+   end subroutine integer_pointer_set_clear
+
+   subroutine integer_pointer_set_set_value(self, value)
+      class (type_integer_pointer_set), intent(inout) :: self
+      integer,                          intent(in)    :: value
+
+      integer :: i
+
+      if (allocated(self%pointers)) then
+         do i=1,size(self%pointers)
+            self%pointers(i)%p = value
+         end do
+      end if
+      self%value = value
+   end subroutine integer_pointer_set_set_value
+
+   logical function integer_pointer_set_is_empty(self)
+      class (type_integer_pointer_set), intent(in) :: self
+
+      integer_pointer_set_is_empty = .not. allocated(self%pointers)
+   end function integer_pointer_set_is_empty
+
+   subroutine integer_pointer_set_copy_values(self, target)
+      class (type_integer_pointer_set), intent(in) :: self
+      integer, allocatable                         :: target(:)
+
+      integer :: i
+
+      if (.not. allocated(self%pointers)) then
+         allocate(target(0))
+      else
+         allocate(target(size(self%pointers)))
+         do i=1,size(self%pointers)
+            target(i) = self%pointers(i)%p
+         end do
+      end if
+   end subroutine integer_pointer_set_copy_values
+
+   subroutine real_pointer_set_append(self, value)
+      class (type_real_pointer_set), intent(inout) :: self
+      real(rk),target                              :: value
+
+      type (type_real_pointer), allocatable :: oldarray(:)
+
+      ! Create a new list of real pointers, or extend it if already allocated.
+      if (.not. allocated(self%pointers)) then
+         allocate(self%pointers(1))
+      else
+         call move_alloc(self%pointers, oldarray)
+         allocate(self%pointers(size(oldarray) + 1))
+         self%pointers(1:size(oldarray)) = oldarray
+         deallocate(oldarray)
+      end if
+
+      ! Add pointer to provided real to the list.
+      self%pointers(size(self%pointers))%p => value
+      self%pointers(size(self%pointers))%p = self%pointers(1)%p
+   end subroutine real_pointer_set_append
+
+   subroutine real_pointer_set_extend(self, other)
+      class (type_real_pointer_set), intent(inout) :: self
+      class (type_real_pointer_set), intent(in)    :: other
+
+      integer :: i
+
+      if (allocated(other%pointers)) then
+         do i=1,size(other%pointers)
+            call self%append(other%pointers(i)%p)
+         end do
+      end if
+   end subroutine real_pointer_set_extend
+
+   subroutine real_pointer_set_set_value(self, value)
+      class (type_real_pointer_set), intent(inout) :: self
+      real(rk),                      intent(in)    :: value
+
+      integer :: i
+
+      if (allocated(self%pointers)) then
+         do i=1,size(self%pointers)
+            self%pointers(i)%p = value
+         end do
+      end if
+   end subroutine real_pointer_set_set_value
 
    subroutine register_interior_state_variable(self, id, name, units, long_name, &
                                                initial_value, vertical_movement, specific_light_extinction, &
                                                minimum, maximum, missing_value, &
                                                no_precipitation_dilution, no_river_dilution, &
                                                standard_variable, presence, background_value)
-      class (type_base_model),            intent(inout)        :: self
-      type (type_state_variable_id),      intent(inout),target :: id
-      character(len=*),                   intent(in)          :: name, long_name, units
-      real(rk),                           intent(in),optional :: initial_value,vertical_movement,specific_light_extinction
-      real(rk),                           intent(in),optional :: minimum, maximum,missing_value,background_value
-      logical,                            intent(in),optional :: no_precipitation_dilution,no_river_dilution
-      type (type_bulk_standard_variable), intent(in),optional :: standard_variable
-      integer,                            intent(in),optional :: presence
+      class (type_base_model),                intent(inout)         :: self
+      type (type_state_variable_id),          intent(inout), target :: id
+      character(len=*),                       intent(in)            :: name, long_name, units
+      real(rk),                               intent(in), optional  :: initial_value,vertical_movement,specific_light_extinction
+      real(rk),                               intent(in), optional  :: minimum, maximum,missing_value,background_value
+      logical,                                intent(in), optional  :: no_precipitation_dilution,no_river_dilution
+      type (type_interior_standard_variable), intent(in), optional  :: standard_variable
+      integer,                                intent(in), optional  :: presence
 
       if (associated(id%link)) call self%fatal_error('register_interior_state_variable', &
-         'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
+         'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(id%link%name) // '.')
 
       call self%add_interior_variable(name, units, long_name, missing_value, minimum, maximum, &
                                       initial_value=initial_value, background_value=background_value, &
@@ -1566,10 +1565,10 @@ end subroutine real_pointer_set_set_value
    end subroutine register_surface_source
 
    subroutine register_bottom_source(self, link, sms_id, source)
-      class (type_base_model),                      intent(inout)        :: self
-      type (type_link),                             intent(inout)        :: link
-      type (type_horizontal_aggregate_variable_id), intent(inout),target :: sms_id
-      integer, optional,                            intent(in)           :: source
+      class (type_base_model),                      intent(inout)         :: self
+      type (type_link),                             intent(inout)         :: link
+      type (type_horizontal_aggregate_variable_id), intent(inout), target :: sms_id
+      integer, optional,                            intent(in)            :: source
 
       integer                   :: source_
       type (type_link), pointer :: link2
@@ -1588,13 +1587,13 @@ end subroutine real_pointer_set_set_value
    subroutine register_bottom_state_variable(self, id, name, units, long_name, &
                                              initial_value, minimum, maximum, missing_value, &
                                              standard_variable, presence, background_value)
-      class (type_base_model),                  intent(inout)        :: self
-      type (type_bottom_state_variable_id),     intent(inout),target :: id
-      character(len=*),                         intent(in)          :: name, long_name, units
-      real(rk),                                 intent(in),optional :: initial_value
-      real(rk),                                 intent(in),optional :: minimum, maximum,missing_value,background_value
-      type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
-      integer,                                  intent(in),optional :: presence
+      class (type_base_model),                  intent(inout)         :: self
+      type (type_bottom_state_variable_id),     intent(inout), target :: id
+      character(len=*),                         intent(in)            :: name, long_name, units
+      real(rk),                                 intent(in), optional  :: initial_value
+      real(rk),                                 intent(in), optional  :: minimum, maximum,missing_value,background_value
+      type (type_horizontal_standard_variable), intent(in), optional  :: standard_variable
+      integer,                                  intent(in), optional  :: presence
 
       if (associated(id%link)) call self%fatal_error('register_bottom_state_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
@@ -1610,13 +1609,13 @@ end subroutine real_pointer_set_set_value
    subroutine register_surface_state_variable(self, id, name, units, long_name, &
                                               initial_value, minimum, maximum, missing_value, &
                                               standard_variable, presence, background_value)
-      class (type_base_model),                  intent(inout)        :: self
-      type (type_surface_state_variable_id),    intent(inout),target :: id
-      character(len=*),                         intent(in)          :: name, long_name, units
-      real(rk),                                 intent(in),optional :: initial_value
-      real(rk),                                 intent(in),optional :: minimum, maximum,missing_value,background_value
-      type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
-      integer,                                  intent(in),optional :: presence
+      class (type_base_model),                  intent(inout)         :: self
+      type (type_surface_state_variable_id),    intent(inout), target :: id
+      character(len=*),                         intent(in)            :: name, long_name, units
+      real(rk),                                 intent(in), optional  :: initial_value
+      real(rk),                                 intent(in), optional  :: minimum, maximum,missing_value,background_value
+      type (type_horizontal_standard_variable), intent(in), optional  :: standard_variable
+      integer,                                  intent(in), optional  :: presence
 
       if (associated(id%link)) call self%fatal_error('register_surface_state_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
@@ -1652,11 +1651,11 @@ end subroutine real_pointer_set_set_value
          'Cannot register variable "'//trim(name)//'" because the model initialization phase has already completed &
          &(fabm_initialize has been called).')
 
-      if (len_trim(name)>len(variable%name)) call self%fatal_error('add_variable', &
+      if (len_trim(name) > len(variable%name)) call self%fatal_error('add_variable', &
          'Variable name "'//trim(name)//'" exceeds maximum length.')
 
       ! Ascertain whether the provided name is valid.
-      if (name=='' .or. name/=get_safe_name(name)) call self%fatal_error('add_variable', &
+      if (name == '' .or. name /= get_safe_name(name)) call self%fatal_error('add_variable', &
          'Cannot register variable "'//trim(name)//'" because its name is not valid. &
          &Variable names should not be empty, and can contain letters, digits and underscores only.')
 
@@ -1719,20 +1718,19 @@ end subroutine real_pointer_set_set_value
                                           act_as_state_variable, source, &
                                           read_index, state_index, write_index, &
                                           background, link)
-      class (type_base_model),target,    intent(inout)       :: self
-      character(len=*),                  intent(in)          :: name
-      character(len=*),                  intent(in),optional :: long_name, units
-      real(rk),                          intent(in),optional :: minimum, maximum, missing_value, initial_value, background_value
-      real(rk),                          intent(in),optional :: specific_light_extinction
-      logical,                           intent(in),optional :: no_precipitation_dilution, no_river_dilution
-      type (type_bulk_standard_variable),intent(in),optional :: standard_variable
-      integer,                           intent(in),optional :: presence, output, source
-      logical,                           intent(in),optional :: act_as_state_variable
-
-      integer,                      target,optional :: read_index, state_index, write_index
-      real(rk),                     target,optional :: background
-
-      type (type_link),pointer,optional :: link
+      class (type_base_model),target,         intent(inout)        :: self
+      character(len=*),                       intent(in)           :: name
+      character(len=*),                       intent(in), optional :: long_name, units
+      real(rk),                               intent(in), optional :: minimum, maximum
+      real(rk),                               intent(in), optional :: missing_value, initial_value, background_value
+      real(rk),                               intent(in), optional :: specific_light_extinction
+      logical,                                intent(in), optional :: no_precipitation_dilution, no_river_dilution
+      type (type_interior_standard_variable), intent(in), optional :: standard_variable
+      integer,                                intent(in), optional :: presence, output, source
+      logical,                                intent(in), optional :: act_as_state_variable
+      integer,  target, optional :: read_index, state_index, write_index
+      real(rk), target, optional :: background
+      type (type_link), pointer, optional :: link
 
       type (type_internal_variable), pointer :: variable
       type (type_link),              pointer :: link_
@@ -1887,13 +1885,13 @@ end subroutine real_pointer_set_set_value
    subroutine register_interior_diagnostic_variable(self, id, name, units, long_name, &
                                                 missing_value, standard_variable, output, source, &
                                                 act_as_state_variable, prefill_value)
-      class (type_base_model),            intent(inout),target :: self
-      type (type_diagnostic_variable_id), intent(inout),target :: id
-      character(len=*),                   intent(in)          :: name, long_name, units
-      integer,                            intent(in),optional :: output, source
-      real(rk),                           intent(in),optional :: missing_value, prefill_value
-      type (type_bulk_standard_variable), intent(in),optional :: standard_variable
-      logical,                            intent(in),optional :: act_as_state_variable
+      class (type_base_model),                intent(inout), target :: self
+      type (type_diagnostic_variable_id),     intent(inout), target :: id
+      character(len=*),                       intent(in)           :: name, long_name, units
+      integer,                                intent(in), optional :: output, source
+      real(rk),                               intent(in), optional :: missing_value, prefill_value
+      type (type_interior_standard_variable), intent(in), optional :: standard_variable
+      logical,                                intent(in), optional :: act_as_state_variable
 
       if (associated(id%link)) call self%fatal_error('register_interior_diagnostic_variable', &
          'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
@@ -1927,12 +1925,12 @@ end subroutine real_pointer_set_set_value
 
    end subroutine register_horizontal_diagnostic_variable
 
-   subroutine register_interior_state_dependency_ex(self,id,name,units,long_name,required,standard_variable)
-      class (type_base_model),            intent(inout)        :: self
-      type (type_state_variable_id),      intent(inout),target :: id
-      character(len=*),                   intent(in)          :: name,units,long_name
-      logical,                            intent(in),optional :: required
-      type (type_bulk_standard_variable), intent(in),optional :: standard_variable
+   subroutine register_interior_state_dependency_ex(self, id, name, units, long_name, required, standard_variable)
+      class (type_base_model),                intent(inout)         :: self
+      type (type_state_variable_id),          intent(inout), target :: id
+      character(len=*),                       intent(in)            :: name,units,long_name
+      logical,                                intent(in), optional  :: required
+      type (type_interior_standard_variable), intent(in), optional  :: standard_variable
 
       integer :: presence
 
@@ -1944,7 +1942,7 @@ end subroutine real_pointer_set_set_value
 
    end subroutine register_interior_state_dependency_ex
 
-   subroutine register_bottom_state_dependency_ex(model,id,name,units,long_name,required,standard_variable)
+   subroutine register_bottom_state_dependency_ex(model, id, name, units, long_name, required, standard_variable)
       class (type_base_model),                  intent(inout)        :: model
       type (type_bottom_state_variable_id),     intent(inout),target :: id
       character(len=*),                         intent(in)          :: name,units,long_name
@@ -1955,7 +1953,7 @@ end subroutine real_pointer_set_set_value
 
       presence = presence_external_required
       if (present(required)) then
-         if (.not.required) presence = presence_external_optional
+         if (.not. required) presence = presence_external_optional
       end if
       call register_bottom_state_variable(model, id, name, units, long_name, presence=presence, standard_variable=standard_variable)
 
@@ -1972,23 +1970,23 @@ end subroutine real_pointer_set_set_value
 
       presence = presence_external_required
       if (present(required)) then
-         if (.not.required) presence = presence_external_optional
+         if (.not. required) presence = presence_external_optional
       end if
       call register_surface_state_variable(model, id, name, units, long_name, &
                                            presence=presence, standard_variable=standard_variable)
    end subroutine register_surface_state_dependency_ex
 
-   subroutine register_standard_interior_state_dependency(self,id,standard_variable,required)
-      class (type_base_model),             intent(inout) :: self
-      type (type_state_variable_id),target,intent(inout) :: id
-      type (type_bulk_standard_variable),  intent(in)    :: standard_variable
-      logical,optional,                    intent(in)    :: required
+   subroutine register_standard_interior_state_dependency(self, id, standard_variable, required)
+      class (type_base_model),                intent(inout) :: self
+      type (type_state_variable_id), target,  intent(inout) :: id
+      type (type_interior_standard_variable), intent(in)    :: standard_variable
+      logical,optional,                       intent(in)    :: required
 
       call register_interior_state_dependency_ex(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
          required=required, standard_variable=standard_variable)
    end subroutine register_standard_interior_state_dependency
 
-   subroutine register_standard_bottom_state_dependency(self,id,standard_variable,required)
+   subroutine register_standard_bottom_state_dependency(self, id, standard_variable, required)
       class (type_base_model),                    intent(inout) :: self
       type (type_bottom_state_variable_id),target,intent(inout) :: id
       type (type_horizontal_standard_variable),   intent(in)    :: standard_variable
@@ -1998,7 +1996,7 @@ end subroutine real_pointer_set_set_value
          required=required, standard_variable=standard_variable)
    end subroutine register_standard_bottom_state_dependency
 
-   subroutine register_standard_surface_state_dependency(self,id,standard_variable,required)
+   subroutine register_standard_surface_state_dependency(self, id, standard_variable, required)
       class (type_base_model),                     intent(inout) :: self
       type (type_surface_state_variable_id),target,intent(inout) :: id
       type (type_horizontal_standard_variable),    intent(in)    :: standard_variable
@@ -2026,7 +2024,7 @@ end subroutine real_pointer_set_set_value
       call self%request_coupling(id,name)
    end subroutine
 
-   subroutine register_surface_state_dependency_old(self,id,name)
+   subroutine register_surface_state_dependency_old(self, id, name)
       class (type_base_model),              intent(inout)        :: self
       type (type_surface_state_variable_id),intent(inout),target :: id
       character(len=*),                     intent(in)           :: name
@@ -2035,38 +2033,38 @@ end subroutine real_pointer_set_set_value
       call self%request_coupling(id,name)
    end subroutine
 
-   subroutine register_standard_interior_dependency(self,id,standard_variable,required)
-      class (type_base_model),           intent(inout)        :: self
-      type (type_dependency_id),         intent(inout),target :: id
-      type (type_bulk_standard_variable),intent(in)           :: standard_variable
-      logical,optional,                  intent(in)           :: required
+   subroutine register_standard_interior_dependency(self, id, standard_variable, required)
+      class (type_base_model),                intent(inout) :: self
+      type (type_dependency_id), target,      intent(inout) :: id
+      type (type_interior_standard_variable), intent(in)    :: standard_variable
+      logical, optional,                      intent(in)    :: required
 
-      call register_named_interior_dependency(self,id,standard_variable%name,standard_variable%units,standard_variable%name, &
+      call register_named_interior_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
                                               required=required)
       call self%request_coupling(id,standard_variable)
    end subroutine register_standard_interior_dependency
 
-   subroutine register_standard_horizontal_dependency(self,id,standard_variable,required)
+   subroutine register_standard_horizontal_dependency(self, id, standard_variable, required)
       class (type_base_model),                 intent(inout)        :: self
       type (type_horizontal_dependency_id),    intent(inout),target :: id
       type (type_horizontal_standard_variable),intent(in)           :: standard_variable
       logical,optional,                        intent(in)           :: required
 
-      call register_named_horizontal_dependency(self,id,standard_variable%name,standard_variable%units,standard_variable%name, &
+      call register_named_horizontal_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
                                                 required=required)
       call self%request_coupling(id,standard_variable)
    end subroutine register_standard_horizontal_dependency
 
-   subroutine register_standard_interface_dependency(self,id,standard_variable,domain,required)
-      class (type_base_model),             intent(inout)        :: self
-      type (type_horizontal_dependency_id),intent(inout),target :: id
-      type (type_bulk_standard_variable),  intent(in)           :: standard_variable
-      integer,                             intent(in)           :: domain
-      logical,optional,                    intent(in)           :: required
+   subroutine register_standard_interface_dependency(self, id, standard_variable, domain,required)
+      class (type_base_model),                intent(inout)         :: self
+      type (type_horizontal_dependency_id),   intent(inout), target :: id
+      type (type_interior_standard_variable), intent(in)            :: standard_variable
+      integer,                                intent(in)            :: domain
+      logical, optional,                      intent(in)            :: required
 
-      if (domain/=domain_surface .and. domain/=domain_bottom) &
-         call self%fatal_error('register_standard_interface_dependency','Specified domain must be domain_surface or domain_bottom.')
-      call register_named_horizontal_dependency(self,id,standard_variable%name,standard_variable%units,standard_variable%name, &
+      if (domain /= domain_surface .and. domain /= domain_bottom) &
+         call self%fatal_error('register_standard_interface_dependency', 'Specified domain must be domain_surface or domain_bottom.')
+      call register_named_horizontal_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
                                                 required=required)
       call self%request_coupling(id,standard_variable,domain=domain)
    end subroutine register_standard_interface_dependency
@@ -2077,18 +2075,18 @@ end subroutine real_pointer_set_set_value
       type (type_global_standard_variable),intent(in)           :: standard_variable
       logical,optional,                    intent(in)           :: required
 
-      call register_named_global_dependency(self,id,standard_variable%name,standard_variable%units,standard_variable%name, &
+      call register_named_global_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
                                             required=required)
       call self%request_coupling(id,standard_variable)
    end subroutine register_standard_global_dependency
 
-   subroutine register_named_interior_dependency(self,id,name,units,long_name,standard_variable,required)
-      class (type_base_model),           intent(inout)        :: self
-      type (type_dependency_id),         intent(inout),target :: id
-      character(len=*),                  intent(in)           :: name
-      character(len=*),                  intent(in)           :: units,long_name
-      type (type_bulk_standard_variable),intent(in), optional :: standard_variable
-      logical,                           intent(in), optional :: required
+   subroutine register_named_interior_dependency(self, id, name, units, long_name, standard_variable, required)
+      class (type_base_model),                intent(inout)         :: self
+      type (type_dependency_id),              intent(inout), target :: id
+      character(len=*),                       intent(in)            :: name
+      character(len=*),                       intent(in)            :: units, long_name
+      type (type_interior_standard_variable), intent(in), optional  :: standard_variable
+      logical,                                intent(in), optional  :: required
 
       integer :: presence
 
@@ -2098,39 +2096,39 @@ end subroutine real_pointer_set_set_value
       ! Dependencies MUST be fulfilled, unless explicitly specified that this is not so (required=.false.)
       presence = presence_external_required
       if (present(required)) then
-         if (.not.required) presence = presence_external_optional
+         if (.not. required) presence = presence_external_optional
       end if
 
       call self%add_interior_variable(name, units, long_name, presence=presence, &
-                                      read_index=id%index, background=id%background, link=id%link)
+         read_index=id%index, background=id%background, link=id%link)
       if (present(standard_variable)) call self%request_coupling(id,standard_variable)
    end subroutine register_named_interior_dependency
 
-   subroutine register_named_horizontal_dependency(self,id,name,units,long_name,standard_variable,required)
+   subroutine register_named_horizontal_dependency(self, id, name, units, long_name, standard_variable, required)
       class (type_base_model),                 intent(inout)        :: self
       type (type_horizontal_dependency_id),    intent(inout),target :: id
       character(len=*),                        intent(in)          :: name
-      character(len=*),                        intent(in)          :: units,long_name
+      character(len=*),                        intent(in)          :: units, long_name
       type (type_horizontal_standard_variable),intent(in),optional :: standard_variable
       logical,                                 intent(in),optional :: required
 
       integer :: presence
 
       if (associated(id%link)) call self%fatal_error('register_named_horizontal_dependency', &
-         'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
+         'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(id%link%name) // '.')
 
       ! Dependencies MUST be fulfilled, unless explicitly specified that this is not so (required=.false.)
       presence = presence_external_required
       if (present(required)) then
-         if (.not.required) presence = presence_external_optional
+         if (.not. required) presence = presence_external_optional
       end if
 
       call self%add_horizontal_variable(name, units, long_name, presence=presence, &
-                                        read_index=id%horizontal_index, background=id%background, link=id%link)
-      if (present(standard_variable)) call self%request_coupling(id,standard_variable)
+         read_index=id%horizontal_index, background=id%background, link=id%link)
+      if (present(standard_variable)) call self%request_coupling(id, standard_variable)
    end subroutine register_named_horizontal_dependency
 
-   subroutine register_named_global_dependency(self,id,name,units,long_name,standard_variable,required)
+   subroutine register_named_global_dependency(self, id, name, units, long_name, standard_variable, required)
       class (type_base_model),             intent(inout)        :: self
       type (type_global_dependency_id),    intent(inout),target :: id
       character(len=*),                    intent(in)          :: name
@@ -2141,291 +2139,290 @@ end subroutine real_pointer_set_set_value
       integer :: presence
 
       if (associated(id%link)) call self%fatal_error('register_named_global_dependency', &
-         'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
+         'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(id%link%name) // '.')
 
       ! Dependencies MUST be fulfilled, unless explicitly specified that this is not so (required=.false.)
       presence = presence_external_required
       if (present(required)) then
-         if (.not.required) presence = presence_external_optional
+         if (.not. required) presence = presence_external_optional
       end if
 
       call self%add_scalar_variable(name, units, long_name, presence=presence, &
-                                    read_index=id%global_index, background=id%background, link=id%link)
-      if (present(standard_variable)) call self%request_coupling(id,standard_variable)
+         read_index=id%global_index, background=id%background, link=id%link)
+      if (present(standard_variable)) call self%request_coupling(id, standard_variable)
    end subroutine register_named_global_dependency
 
-   subroutine register_named_interior_dependency_old(self,id,name)
-      class (type_base_model),  intent(inout)        :: self
-      type (type_dependency_id),intent(inout),target :: id
-      character(len=*),         intent(in)           :: name
+   subroutine register_named_interior_dependency_old(self, id, name)
+      class (type_base_model),   intent(inout)         :: self
+      type (type_dependency_id), intent(inout), target :: id
+      character(len=*),          intent(in)            :: name
 
       call self%log_message('Deprecated syntax for register_interior_dependency; please call it with a local name, &
                             &units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
-      call self%register_dependency(id,name, '', name)
-      if (associated(self%parent)) call self%request_coupling(id,name)
+      call self%register_dependency(id, name, '', name)
+      if (associated(self%parent)) call self%request_coupling(id, name)
    end subroutine register_named_interior_dependency_old
 
-   subroutine register_named_horizontal_dependency_old(self,id,name)
-      class (type_base_model),             intent(inout)        :: self
-      type (type_horizontal_dependency_id),intent(inout),target :: id
-      character(len=*),                    intent(in)           :: name
+   subroutine register_named_horizontal_dependency_old(self, id, name)
+      class (type_base_model),              intent(inout)         :: self
+      type (type_horizontal_dependency_id), intent(inout), target :: id
+      character(len=*),                     intent(in)            :: name
 
       call self%log_message('Deprecated syntax for register_horizontal_dependency; please call it with a local name, &
                             &units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
-      call self%register_dependency(id,name, '', name)
-      if (associated(self%parent)) call self%request_coupling(id,name)
+      call self%register_dependency(id, name, '', name)
+      if (associated(self%parent)) call self%request_coupling(id, name)
    end subroutine register_named_horizontal_dependency_old
 
-   subroutine register_named_global_dependency_old(self,id,name)
-      class (type_base_model),         intent(inout)        :: self
-      type (type_global_dependency_id),intent(inout),target :: id
-      character(len=*),                intent(in)           :: name
+   subroutine register_named_global_dependency_old(self, id, name)
+      class (type_base_model),          intent(inout)         :: self
+      type (type_global_dependency_id), intent(inout), target :: id
+      character(len=*),                 intent(in)            :: name
 
       call self%log_message('Deprecated syntax for register_global_dependency; please call it with a local name, &
                             &units, long_name. Subsequently call request_coupling if coupling to an external variable is desired.')
-      call self%register_dependency(id,name, '', name)
-      if (associated(self%parent)) call self%request_coupling(id,name)
+      call self%register_dependency(id, name, '', name)
+      if (associated(self%parent)) call self%request_coupling(id, name)
    end subroutine register_named_global_dependency_old
 
-subroutine register_bulk_expression_dependency(self,id,expression)
-   class (type_base_model),       intent(inout)        :: self
-   type (type_dependency_id),     intent(inout),target :: id
-   class (type_bulk_expression),  intent(in)           :: expression
+   subroutine register_bulk_expression_dependency(self, id, expression)
+      class (type_base_model),      intent(inout)         :: self
+      type (type_dependency_id),    intent(inout), target :: id
+      class (type_bulk_expression), intent(in)            :: expression
 
-   class (type_bulk_expression),allocatable :: copy
+      class (type_bulk_expression), allocatable :: copy
 
-   allocate(copy,source=expression)
-   copy%out => id%index
-   call self%register_dependency(id,copy%output_name,'',copy%output_name)
-   copy%output_name = id%link%target%name
+      allocate(copy, source=expression)
+      copy%out => id%index
+      call self%register_dependency(id, copy%output_name, '', copy%output_name)
+      copy%output_name = id%link%target%name
 
-   call register_expression(self,copy)
-   deallocate(copy)
-end subroutine
+      call register_expression(self,copy)
+      deallocate(copy)
+   end subroutine
 
-subroutine register_horizontal_expression_dependency(self,id,expression)
-   class (type_base_model),             intent(inout)        :: self
-   type (type_horizontal_dependency_id),intent(inout),target :: id
-   class (type_horizontal_expression),  intent(in)           :: expression
+   subroutine register_horizontal_expression_dependency(self, id, expression)
+      class (type_base_model),              intent(inout)         :: self
+      type (type_horizontal_dependency_id), intent(inout), target :: id
+      class (type_horizontal_expression),   intent(in)            :: expression
 
-   class (type_horizontal_expression),allocatable :: copy
+      class (type_horizontal_expression), allocatable :: copy
 
-   allocate(copy,source=expression)
-   copy%out => id%horizontal_index
-   call self%register_dependency(id,copy%output_name,'',copy%output_name)
-   copy%output_name = id%link%target%name
+      allocate(copy, source=expression)
+      copy%out => id%horizontal_index
+      call self%register_dependency(id, copy%output_name, '', copy%output_name)
+      copy%output_name = id%link%target%name
 
-   call register_expression(self,copy)
-   deallocate(copy)
-end subroutine
+      call register_expression(self, copy)
+      deallocate(copy)
+   end subroutine
 
-recursive subroutine register_expression(self,expression)
-   class (type_base_model), intent(inout)           :: self
-   class (type_expression), intent(in)              :: expression
+   recursive subroutine register_expression(self, expression)
+      class (type_base_model), intent(inout) :: self
+      class (type_expression), intent(in)    :: expression
 
-   class (type_expression), pointer :: current
+      class (type_expression), pointer :: current
 
-   if (.not.associated(self%first_expression)) then
-      allocate(self%first_expression,source=expression)
-      current => self%first_expression
-   else
-      current => self%first_expression
-      do while (associated(current%next))
+      if (.not.associated(self%first_expression)) then
+         allocate(self%first_expression, source=expression)
+         current => self%first_expression
+      else
+         current => self%first_expression
+         do while (associated(current%next))
+            current => current%next
+         end do
+         allocate(current%next, source=expression)
          current => current%next
-      end do
-      allocate(current%next,source=expression)
-      current => current%next
-   end if
-
-   if (associated(self%parent)) call register_expression(self%parent,expression)
-end subroutine
-
-subroutine get_real_parameter(self,value,name,units,long_name,default,scale_factor,minimum,maximum)
-   class (type_base_model), intent(inout), target  :: self
-   real(rk),                intent(inout)          :: value
-   character(len=*),        intent(in)             :: name
-   character(len=*),        intent(in),   optional :: units,long_name
-   real(rk),                intent(in),   optional :: default,scale_factor,minimum,maximum
-
-   class (type_property),    pointer :: property
-   logical                           :: success
-   type (type_real_property)         :: current_parameter
-   character(len=13)                 :: text1,text2
-
-   if (present(default)) then
-      current_parameter%has_default = .true.
-      current_parameter%default = default
-      value = default
-   end if
-
-   ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-   property => self%parameters%find_in_tree(name)
-   if (associated(property)) then
-      ! Value found - try to convert to real.
-      value = property%to_real(success=success)
-      if (.not.success) call self%fatal_error('get_real_parameter', &
-         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not a real number.')
-   elseif (.not.present(default)) then
-      call self%fatal_error('get_real_parameter','No value provided for parameter "'//trim(name)//'".')
-   end if
-
-   if (present(minimum)) then
-      if (value<minimum) then
-         write (text1,'(G13.6)') value
-         write (text2,'(G13.6)') minimum
-         call self%fatal_error('get_real_parameter','Value '//trim(adjustl(text1))//' for parameter "'//trim(name) &
-            //'" is less than prescribed minimum of '//trim(adjustl(text2))//'.')
       end if
-   end if
-   if (present(maximum)) then
-      if (value>maximum) then
-         write (text1,'(G13.6)') value
-         write (text2,'(G13.6)') maximum
-         call self%fatal_error('get_real_parameter','Value '//trim(adjustl(text1))//' for parameter "'//trim(name) &
-            //'" exceeds prescribed maximum of '//trim(adjustl(text2))//'.')
+
+      if (associated(self%parent)) call register_expression(self%parent, expression)
+   end subroutine
+
+   subroutine get_real_parameter(self, value, name, units, long_name, default, scale_factor, minimum, maximum)
+      class (type_base_model), intent(inout), target  :: self
+      real(rk),                intent(inout)          :: value
+      character(len=*),        intent(in)             :: name
+      character(len=*),        intent(in),   optional :: units, long_name
+      real(rk),                intent(in),   optional :: default, scale_factor, minimum, maximum
+
+      class (type_property), pointer :: property
+      logical                        :: success
+      type (type_real_property)      :: current_parameter
+      character(len=13)              :: text1, text2
+
+      if (present(default)) then
+         current_parameter%has_default = .true.
+         current_parameter%default = default
+         value = default
       end if
-   end if
 
-   ! Store parameter settings
-   current_parameter%value = value
-   call set_parameter(self,current_parameter,name,units,long_name)
-
-   ! Apply scale factor to value provided to the model (if requested).
-   if (present(scale_factor)) value = value*scale_factor
-end subroutine get_real_parameter
-
-subroutine set_parameter(self,parameter,name,units,long_name)
-   class (type_base_model), intent(inout), target :: self
-   class (type_property),   intent(inout)         :: parameter
-   character(len=*),        intent(in)            :: name
-   character(len=*),        intent(in),optional   :: units,long_name
-
-   parameter%name = name
-   if (present(units))     parameter%units     = units
-   if (present(long_name)) parameter%long_name = long_name
-   call self%parameters%set_in_tree(parameter)
-end subroutine set_parameter
-
-subroutine get_integer_parameter(self,value,name,units,long_name,default,minimum,maximum)
-
-   class (type_base_model), intent(inout), target :: self
-   integer,                 intent(inout)         :: value
-   character(len=*),        intent(in)            :: name
-   character(len=*),        intent(in),optional   :: units,long_name
-   integer,                 intent(in),optional   :: default,minimum,maximum
-
-   class (type_property),       pointer :: property
-   type (type_integer_property)         :: current_parameter
-   logical                              :: success
-   character(len=8)                     :: text1,text2
-
-   if (present(default)) then
-      current_parameter%has_default = .true.
-      current_parameter%default = default
-      value = default
-   end if
-
-   ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-   property => self%parameters%find_in_tree(name)
-   if (associated(property)) then
-      ! Value found - try to convert to integer.
-      value = property%to_integer(success=success)
-      if (.not.success) call self%fatal_error('get_integer_parameter', &
-         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not an integer number.')
-   elseif (.not.present(default)) then
-      call self%fatal_error('get_integer_parameter','No value provided for parameter "'//trim(name)//'".')
-   end if
-
-   if (present(minimum)) then
-      if (value<minimum) then
-         write (text1,'(I0)') value
-         write (text2,'(I0)') minimum
-         call self%fatal_error('get_integer_parameter','Value '//trim(adjustl(text1))//' for parameter "'//trim(name) &
-            //'" is less than prescribed minimum of '//trim(adjustl(text2))//'.')
+      ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
+      property => self%parameters%find_in_tree(name)
+      if (associated(property)) then
+         ! Value found - try to convert to real.
+         value = property%to_real(success=success)
+         if (.not. success) call self%fatal_error('get_real_parameter', &
+            'Value "' // trim(property%to_string()) // '" for parameter "' // trim(name) // '" is not a real number.')
+      elseif (.not.present(default)) then
+         call self%fatal_error('get_real_parameter', 'No value provided for parameter "' // trim(name) // '".')
       end if
-   end if
-   if (present(maximum)) then
-      if (value>maximum) then
-         write (text1,'(I0)') value
-         write (text2,'(I0)') maximum
-         call self%fatal_error('get_integer_parameter','Value '//trim(adjustl(text1))//' for parameter "'//trim(name) &
-            //'" exceeds prescribed maximum of '//trim(adjustl(text2))//'.')
+
+      if (present(minimum)) then
+         if (value < minimum) then
+            write (text1,'(G13.6)') value
+            write (text2,'(G13.6)') minimum
+            call self%fatal_error('get_real_parameter', 'Value '//trim(adjustl(text1)) // ' for parameter "' // trim(name) &
+               // '" is less than prescribed minimum of ' // trim(adjustl(text2)) // '.')
+         end if
       end if
-   end if
+      if (present(maximum)) then
+         if (value > maximum) then
+            write (text1,'(G13.6)') value
+            write (text2,'(G13.6)') maximum
+            call self%fatal_error('get_real_parameter','Value ' // trim(adjustl(text1)) // ' for parameter "' // trim(name) &
+               // '" exceeds prescribed maximum of ' // trim(adjustl(text2)) // '.')
+         end if
+      end if
 
-   ! Store parameter settings
-   current_parameter%value = value
-   call set_parameter(self,current_parameter,name,units,long_name)
-end subroutine get_integer_parameter
+      ! Store parameter settings
+      current_parameter%value = value
+      call set_parameter(self, current_parameter, name, units, long_name)
 
-subroutine get_logical_parameter(self,value,name,units,long_name,default)
-   class (type_base_model), intent(inout), target :: self
-   logical,                 intent(inout)         :: value
-   character(len=*),        intent(in)            :: name
-   character(len=*),        intent(in),optional   :: units,long_name
-   logical,                 intent(in),optional   :: default
+      ! Apply scale factor to value provided to the model (if requested).
+      if (present(scale_factor)) value = value * scale_factor
+   end subroutine get_real_parameter
 
-   class (type_property),       pointer :: property
-   type (type_logical_property)         :: current_parameter
-   logical                              :: success
+   subroutine set_parameter(self, parameter, name, units, long_name)
+      class (type_base_model), intent(inout), target :: self
+      class (type_property),   intent(inout)         :: parameter
+      character(len=*),        intent(in)            :: name
+      character(len=*),        intent(in),optional   :: units, long_name
 
-   if (present(default)) then
-      current_parameter%has_default = .true.
-      current_parameter%default = default
-      value = default
-   end if
+      parameter%name = name
+      if (present(units))     parameter%units     = units
+      if (present(long_name)) parameter%long_name = long_name
+      call self%parameters%set_in_tree(parameter)
+   end subroutine set_parameter
 
-   ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-   property => self%parameters%find_in_tree(name)
-   if (associated(property)) then
-      ! Value found - try to convert to logical.
-      value = property%to_logical(success=success)
-      if (.not.success) call self%fatal_error('get_logical_parameter', &
-         'Value "'//trim(property%to_string())//'" for parameter "'//trim(name)//'" is not a Boolean value.')
-   elseif (.not.present(default)) then
-      call self%fatal_error('get_logical_parameter','No value provided for parameter "'//trim(name)//'".')
-   end if
+   subroutine get_integer_parameter(self, value, name, units, long_name, default, minimum, maximum)
 
-   ! Store parameter settings
-   current_parameter%value = value
-   call set_parameter(self,current_parameter,name,units,long_name)
-end subroutine get_logical_parameter
+      class (type_base_model), intent(inout), target :: self
+      integer,                 intent(inout)         :: value
+      character(len=*),        intent(in)            :: name
+      character(len=*),        intent(in),optional   :: units, long_name
+      integer,                 intent(in),optional   :: default, minimum, maximum
 
-recursive subroutine get_string_parameter(self,value,name,units,long_name,default)
-   class (type_base_model), intent(inout), target :: self
-   character(len=*),        intent(inout)         :: value
-   character(len=*),        intent(in)            :: name
-   character(len=*),        intent(in),optional   :: units,long_name
-   character(len=*),        intent(in),optional   :: default
+      class (type_property), pointer :: property
+      type (type_integer_property)   :: current_parameter
+      logical                        :: success
+      character(len=8)               :: text1, text2
 
-   class (type_property),      pointer :: property
-   type (type_string_property)         :: current_parameter
-   logical                             :: success
+      if (present(default)) then
+         current_parameter%has_default = .true.
+         current_parameter%default = default
+         value = default
+      end if
 
-   if (present(default)) then
-      current_parameter%has_default = .true.
-      current_parameter%default = default
-      value = default
-   end if
+      ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
+      property => self%parameters%find_in_tree(name)
+      if (associated(property)) then
+         ! Value found - try to convert to integer.
+         value = property%to_integer(success=success)
+         if (.not. success) call self%fatal_error('get_integer_parameter', &
+            'Value "' // trim(property%to_string()) // '" for parameter "' // trim(name) // '" is not an integer number.')
+      elseif (.not.present(default)) then
+         call self%fatal_error('get_integer_parameter', 'No value provided for parameter "' // trim(name) // '".')
+      end if
 
-   ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-   property => self%parameters%find_in_tree(name)
-   if (associated(property)) then
-      ! Value found - try to convert to string.
-      value = property%to_string(success=success)
-      if (.not.success) call self%fatal_error('get_string_parameter', &
-         'Value for parameter "'//trim(name)//'" cannot be converted to string.')
-   elseif (.not.present(default)) then
-      call self%fatal_error('get_string_parameter','No value provided for parameter "'//trim(name)//'".')
-   end if
+      if (present(minimum)) then
+         if (value < minimum) then
+            write (text1,'(I0)') value
+            write (text2,'(I0)') minimum
+            call self%fatal_error('get_integer_parameter','Value ' // trim(adjustl(text1)) // ' for parameter "' // trim(name) &
+               // '" is less than prescribed minimum of ' // trim(adjustl(text2)) // '.')
+         end if
+      end if
+      if (present(maximum)) then
+         if (value > maximum) then
+            write (text1,'(I0)') value
+            write (text2,'(I0)') maximum
+            call self%fatal_error('get_integer_parameter','Value ' // trim(adjustl(text1)) // ' for parameter "' // trim(name) &
+               //'" exceeds prescribed maximum of ' // trim(adjustl(text2)) // '.')
+         end if
+      end if
 
-   ! Store parameter settings
-   current_parameter%value = value
-   call set_parameter(self,current_parameter,name,units,long_name)
-end subroutine get_string_parameter
+      ! Store parameter settings
+      current_parameter%value = value
+      call set_parameter(self, current_parameter, name, units, long_name)
+   end subroutine get_integer_parameter
 
-   function find_object(self,name,recursive,exact) result(object)
+   subroutine get_logical_parameter(self, value, name, units, long_name, default)
+      class (type_base_model), intent(inout), target :: self
+      logical,                 intent(inout)         :: value
+      character(len=*),        intent(in)            :: name
+      character(len=*),        intent(in), optional  :: units, long_name
+      logical,                 intent(in), optional  :: default
 
+      class (type_property), pointer :: property
+      type (type_logical_property)   :: current_parameter
+      logical                        :: success
+
+      if (present(default)) then
+         current_parameter%has_default = .true.
+         current_parameter%default = default
+         value = default
+      end if
+
+      ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
+      property => self%parameters%find_in_tree(name)
+      if (associated(property)) then
+         ! Value found - try to convert to logical.
+         value = property%to_logical(success=success)
+         if (.not. success) call self%fatal_error('get_logical_parameter', &
+            'Value "' // trim(property%to_string()) // '" for parameter "' // trim(name) // '" is not a Boolean value.')
+      elseif (.not. present(default)) then
+         call self%fatal_error('get_logical_parameter', 'No value provided for parameter "' // trim(name) // '".')
+      end if
+
+      ! Store parameter settings
+      current_parameter%value = value
+      call set_parameter(self, current_parameter, name, units, long_name)
+   end subroutine get_logical_parameter
+
+   recursive subroutine get_string_parameter(self, value, name, units, long_name, default)
+      class (type_base_model), intent(inout), target :: self
+      character(len=*),        intent(inout)         :: value
+      character(len=*),        intent(in)            :: name
+      character(len=*),        intent(in), optional  :: units, long_name
+      character(len=*),        intent(in), optional  :: default
+
+      class (type_property),pointer :: property
+      type (type_string_property)   :: current_parameter
+      logical                       :: success
+
+      if (present(default)) then
+         current_parameter%has_default = .true.
+         current_parameter%default = default
+         value = default
+      end if
+
+      ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
+      property => self%parameters%find_in_tree(name)
+      if (associated(property)) then
+         ! Value found - try to convert to string.
+         value = property%to_string(success=success)
+         if (.not. success) call self%fatal_error('get_string_parameter', &
+            'Value for parameter "' // trim(name) // '" cannot be converted to string.')
+      elseif (.not. present(default)) then
+         call self%fatal_error('get_string_parameter','No value provided for parameter "' // trim(name) // '".')
+      end if
+
+      ! Store parameter settings
+      current_parameter%value = value
+      call set_parameter(self, current_parameter, name, units, long_name)
+   end subroutine get_string_parameter
+
+   function find_object(self, name, recursive, exact) result(object)
       class (type_base_model),  intent(in),target :: self
       character(len=*),         intent(in)        :: name
       logical,         optional,intent(in)        :: recursive,exact
@@ -2439,8 +2436,7 @@ end subroutine get_string_parameter
 
    end function find_object
 
-   recursive function find_link(self,name,recursive,exact) result(link)
-
+   recursive function find_link(self, name, recursive, exact) result(link)
       class (type_base_model),  intent(in),target :: self
       character(len=*),         intent(in)        :: name
       logical,         optional,intent(in)        :: recursive,exact
@@ -2503,16 +2499,16 @@ end subroutine get_string_parameter
 
    end function find_link
 
-   function find_model(self,name,recursive) result(found_model)
-      class (type_base_model),       intent(in),target :: self
-      character(len=*),              intent(in)        :: name
-      logical,optional,              intent(in)        :: recursive
-      class (type_base_model),pointer                  :: found_model
+   function find_model(self, name, recursive) result(found_model)
+      class (type_base_model), target, intent(in) :: self
+      character(len=*),                intent(in) :: name
+      logical,optional,                intent(in) :: recursive
+      class (type_base_model), pointer            :: found_model
 
-      class (type_base_model),pointer     :: current_root
-      logical                             :: recursive_eff
-      type (type_model_list_node),pointer :: node
-      integer                             :: istart,length
+      class (type_base_model), pointer     :: current_root
+      logical                              :: recursive_eff
+      type (type_model_list_node), pointer :: node
+      integer                              :: istart, length
 
       found_model => null()
 
@@ -2525,163 +2521,164 @@ end subroutine get_string_parameter
          ! Process individual path components (separated by /)
          found_model => current_root
          istart = 1
-         do while (associated(found_model).and.istart<=len(name))
-            length = index(name(istart:),'/')-1
-            if (length==-1) length = len(name) - istart + 1
-            if (length==2.and.name(istart:istart+1)=='..') then
+         do while (associated(found_model) .and. istart <= len(name))
+            length = index(name(istart:), '/') - 1
+            if (length == -1) length = len(name) - istart + 1
+            if (length == 2 .and. name(istart:istart+1) == '..') then
                found_model => found_model%parent
-            elseif (.not.(length==1.and.name(istart:istart)=='.')) then
-               node => found_model%children%find(name(istart:istart+length-1))
+            elseif (.not. (length == 1 .and. name(istart:istart) == '.')) then
+               node => found_model%children%find(name(istart:istart + length - 1))
                found_model => null()
                if (associated(node)) found_model => node%model
             end if
-            istart = istart+length+1
+            istart = istart + length + 1
          end do
 
          ! Only continue if we have not found the model and are allowed to try parent model.
-         if (associated(found_model).or..not.recursive_eff) return
+         if (associated(found_model) .or. .not. recursive_eff) return
 
          current_root => current_root%parent
       end do
    end function find_model
 
-function get_aggregate_variable_access(self,standard_variable) result(aggregate_variable_access)
-   class (type_base_model),           intent(inout) :: self
-   type (type_bulk_standard_variable),intent(in)    :: standard_variable
+   function get_aggregate_variable_access(self, standard_variable) result(aggregate_variable_access)
+      class (type_base_model),                intent(inout) :: self
+      type (type_interior_standard_variable), intent(in)    :: standard_variable
 
-   type (type_aggregate_variable_access),pointer :: aggregate_variable_access
+      type (type_aggregate_variable_access), pointer :: aggregate_variable_access
 
-   ! First try to locate existing requests object for the speicifed standard variable.
-   aggregate_variable_access => self%first_aggregate_variable_access
-   do while (associated(aggregate_variable_access))
-      if (aggregate_variable_access%standard_variable%compare(standard_variable)) return
-      aggregate_variable_access => aggregate_variable_access%next
-   end do
+      ! First try to locate existing requests object for the speicifed standard variable.
+      aggregate_variable_access => self%first_aggregate_variable_access
+      do while (associated(aggregate_variable_access))
+         if (aggregate_variable_access%standard_variable%compare(standard_variable)) return
+         aggregate_variable_access => aggregate_variable_access%next
+      end do
 
-   ! Not found - create a new requests object.
-   allocate(aggregate_variable_access)
-   aggregate_variable_access%standard_variable = standard_variable
-   aggregate_variable_access%next => self%first_aggregate_variable_access
-   self%first_aggregate_variable_access => aggregate_variable_access
-end function get_aggregate_variable_access
+      ! Not found - create a new requests object.
+      allocate(aggregate_variable_access)
+      aggregate_variable_access%standard_variable = standard_variable
+      aggregate_variable_access%next => self%first_aggregate_variable_access
+      self%first_aggregate_variable_access => aggregate_variable_access
+   end function get_aggregate_variable_access
 
-function get_free_unit() result(unit)
-   integer :: unit
-   integer, parameter :: LUN_MIN=10, LUN_MAX=1000
+   function get_free_unit() result(unit)
+      integer :: unit
+      integer, parameter :: LUN_MIN=10, LUN_MAX=1000
 
-   logical :: opened
+      logical :: opened
 
-   do unit=LUN_MIN,LUN_MAX
-      inquire(unit=unit,opened=opened)
-      if (.not.opened) return
-   end do
-   unit = -1
-end function get_free_unit
+      do unit = LUN_MIN, LUN_MAX
+         inquire(unit=unit, opened=opened)
+         if (.not. opened) return
+      end do
+      unit = -1
+   end function get_free_unit
 
-function get_safe_name(name) result(safe_name)
-   character(len=*),intent(in) :: name
-   character(len=len(name))    :: safe_name
-   integer :: i,ch
-   logical :: valid
-   safe_name = name
-   do i=1,len_trim(name)
-      ch = iachar(name(i:i))
-      valid = (ch>=iachar('a').and.ch<=iachar('z')) & ! Lower-case letter
-          .or.(ch>=iachar('A').and.ch<=iachar('Z')) & ! Upper-case letter
-          .or.(ch>=iachar('0').and.ch<=iachar('9')) & ! Number
-          .or.(ch==iachar('_'))                       ! Underscore
-      if (.not.valid) safe_name(i:i) = '_'
-   end do
-end function
+   function get_safe_name(name) result(safe_name)
+      character(len=*), intent(in) :: name
+      character(len=len(name))     :: safe_name
 
+      integer :: i, ch
+      logical :: valid
 
-recursive subroutine abstract_model_factory_initialize(self)
-   class (type_base_model_factory),intent(inout) :: self
+      safe_name = name
+      do i = 1, len_trim(name)
+         ch = iachar(name(i:i))
+         valid = (ch >= iachar('a') .and. ch <= iachar('z')) & ! Lower-case letter
+            .or. (ch >= iachar('A') .and. ch <= iachar('Z')) & ! Upper-case letter
+            .or. (ch >= iachar('0') .and. ch <= iachar('9')) & ! Number
+            .or. (ch == iachar('_'))                           ! Underscore
+         if (.not. valid) safe_name(i:i) = '_'
+      end do
+   end function
 
-   type (type_base_model_factory_node),pointer :: current
+   recursive subroutine abstract_model_factory_initialize(self)
+      class (type_base_model_factory), intent(inout) :: self
 
-   self%initialized = .true.
-   current => self%first_child
-   do while(associated(current))
-      if (.not.current%factory%initialized) call current%factory%initialize()
-      current => current%next
-   end do
-end subroutine abstract_model_factory_initialize
+      type (type_base_model_factory_node), pointer :: current
 
-subroutine abstract_model_factory_add(self,child,prefix)
-   class (type_base_model_factory),       intent(inout) :: self
-   class (type_base_model_factory),target,intent(in)    :: child
-   character(len=*),intent(in),optional                 :: prefix
-
-   type (type_base_model_factory_node),pointer :: current
-
-   if (self%initialized) call driver%fatal_error('abstract_model_factory_add', &
-      'BUG! Factory initialiation is complete. Child factories can no longer be added.')
-
-   if (.not.associated(self%first_child)) then
-      allocate(self%first_child)
+      self%initialized = .true.
       current => self%first_child
-   else
-      current => self%first_child
-      do while(associated(current%next))
+      do while(associated(current))
+         if (.not. current%factory%initialized) call current%factory%initialize()
          current => current%next
       end do
-      allocate(current%next)
-      current => current%next
-   end if
+   end subroutine abstract_model_factory_initialize
 
-   current%factory => child
-   if (present(prefix)) current%prefix = prefix
-end subroutine abstract_model_factory_add
+   subroutine abstract_model_factory_add(self, child, prefix)
+      class (type_base_model_factory),         intent(inout) :: self
+      class (type_base_model_factory), target, intent(in)    :: child
+      character(len=*) ,optional,              intent(in)    :: prefix
 
-recursive subroutine abstract_model_factory_create(self,name,model)
-   class (type_base_model_factory),intent(in) :: self
-   character(len=*),               intent(in) :: name
-   class (type_base_model),pointer            :: model
+      type (type_base_model_factory_node), pointer :: current
 
-   type (type_base_model_factory_node),pointer :: child
-   integer                                     :: n
+      if (self%initialized) call driver%fatal_error('abstract_model_factory_add', &
+         'BUG! Factory initialiation is complete. Child factories can no longer be added.')
 
-   child => self%first_child
-   do while(associated(child))
-      if (child%prefix/='') then
-         n = len_trim(child%prefix)
-         if (len_trim(name)>n+1) then
-            if (name(1:n)==child%prefix .and. (name(n+1:n+1)=='_' .or. name(n+1:n+1)=='/')) &
-               call child%factory%create(name(n+2:),model)
-         end if
+      if (.not.associated(self%first_child)) then
+         allocate(self%first_child)
+         current => self%first_child
       else
-         call child%factory%create(name,model)
+         current => self%first_child
+         do while(associated(current%next))
+            current => current%next
+         end do
+         allocate(current%next)
+         current => current%next
       end if
-      if (associated(model)) return
-      child => child%next
-   end do
-end subroutine abstract_model_factory_create
 
-recursive subroutine abstract_model_factory_register_version(self,name,version_string)
-   class (type_base_model_factory),intent(in) :: self
-   character(len=*),               intent(in) :: name,version_string
+      current%factory => child
+      if (present(prefix)) current%prefix = prefix
+   end subroutine abstract_model_factory_add
 
-   type (type_version),pointer :: version
+   recursive subroutine abstract_model_factory_create(self, name, model)
+      class (type_base_model_factory), intent(in) :: self
+      character(len=*),                intent(in) :: name
+      class (type_base_model), pointer            :: model
 
-   if (associated(first_module_version)) then
-      version => first_module_version
-      do while (associated(version%next))
-         version => version%next
+      type (type_base_model_factory_node), pointer :: child
+      integer                                      :: n
+
+      child => self%first_child
+      do while(associated(child))
+         if (child%prefix /= '') then
+            n = len_trim(child%prefix)
+            if (len_trim(name)>n+1) then
+               if (name(1:n) == child%prefix .and. (name(n+1:n+1) == '_' .or. name(n+1:n+1) == '/')) &
+                  call child%factory%create(name(n+2:),model)
+            end if
+         else
+            call child%factory%create(name,model)
+         end if
+         if (associated(model)) return
+         child => child%next
       end do
-      allocate(version%next)
-      version => version%next
-   else
-      allocate(first_module_version)
-      version => first_module_version
-   end if
-   version%module_name = name
-   version%version_string = version_string
-end subroutine abstract_model_factory_register_version
+   end subroutine abstract_model_factory_create
 
-   subroutine coupling_task_list_remove(self,task)
-      class (type_coupling_task_list),intent(inout) :: self
-      class (type_coupling_task),pointer            :: task
+   recursive subroutine abstract_model_factory_register_version(self, name, version_string)
+      class (type_base_model_factory),intent(in) :: self
+      character(len=*),               intent(in) :: name, version_string
+
+      type (type_version), pointer :: version
+
+      if (associated(first_module_version)) then
+         version => first_module_version
+         do while (associated(version%next))
+            version => version%next
+         end do
+         allocate(version%next)
+         version => version%next
+      else
+         allocate(first_module_version)
+         version => first_module_version
+      end if
+      version%module_name = name
+      version%version_string = version_string
+   end subroutine abstract_model_factory_register_version
+
+   subroutine coupling_task_list_remove(self, task)
+      class (type_coupling_task_list), intent(inout) :: self
+      class (type_coupling_task), pointer            :: task
       if (associated(task%previous)) then
          task%previous%next => task%next
       else
@@ -2691,13 +2688,13 @@ end subroutine abstract_model_factory_register_version
       deallocate(task)
    end subroutine
 
-   function coupling_task_list_add_object(self,task,always_create) result(used)
-      class (type_coupling_task_list),intent(inout) :: self
-      class (type_coupling_task),pointer            :: task
-      logical,                        intent(in)    :: always_create
-      logical                                       :: used
+   function coupling_task_list_add_object(self, task, always_create) result(used)
+      class (type_coupling_task_list), intent(inout) :: self
+      class (type_coupling_task), pointer            :: task
+      logical,                         intent(in)    :: always_create
+      logical                                        :: used
 
-      class (type_coupling_task),pointer            :: existing_task
+      class (type_coupling_task), pointer :: existing_task
 
       ! First try to find an existing coupling task for this link. If one exists, we'll replace it.
       used = .false.
@@ -2735,11 +2732,11 @@ end subroutine abstract_model_factory_register_version
       task%next => null()
    end function coupling_task_list_add_object
 
-   subroutine coupling_task_list_add(self,link,always_create,task)
-      class (type_coupling_task_list),intent(inout)         :: self
-      type (type_link),               intent(inout), target :: link
-      logical,                        intent(in)            :: always_create
-      class (type_coupling_task),pointer                    :: task
+   subroutine coupling_task_list_add(self, link, always_create, task)
+      class (type_coupling_task_list), intent(inout)         :: self
+      type (type_link),                intent(inout), target :: link
+      logical,                         intent(in)            :: always_create
+      class (type_coupling_task), pointer                    :: task
 
       logical :: used
 
@@ -2778,16 +2775,16 @@ end subroutine abstract_model_factory_register_version
       end select
    end function source2string
 
-   subroutine variable_set_add(self,variable)
-      class (type_variable_set),intent(inout) :: self
-      type (type_internal_variable),target    :: variable
+   subroutine variable_set_add(self, variable)
+      class (type_variable_set), intent(inout) :: self
+      type (type_internal_variable), target    :: variable
 
       type (type_variable_node), pointer :: node
 
       ! Check if this variable already exists.
       node => self%first
       do while (associated(node))
-         if (associated(node%target,variable)) return
+         if (associated(node%target, variable)) return
          node => node%next
       end do
 
@@ -2798,10 +2795,10 @@ end subroutine abstract_model_factory_register_version
       self%first => node
    end subroutine variable_set_add
 
-   subroutine variable_set_remove(self,variable,discard)
-      class (type_variable_set),intent(inout) :: self
-      type (type_internal_variable),target    :: variable
-      logical,optional,         intent(in)    :: discard
+   subroutine variable_set_remove(self, variable, discard)
+      class (type_variable_set), intent(inout) :: self
+      type (type_internal_variable), target    :: variable
+      logical, optional,         intent(in)    :: discard
 
       type (type_variable_node), pointer :: node, previous
       logical                            :: discard_
@@ -2810,7 +2807,7 @@ end subroutine abstract_model_factory_register_version
       previous => null()
       node => self%first
       do while (associated(node))
-         if (associated(node%target,variable)) then
+         if (associated(node%target, variable)) then
             if (associated(previous)) then
                previous%next => node%next
             else
@@ -2824,27 +2821,28 @@ end subroutine abstract_model_factory_register_version
       end do
       discard_ = .false.
       if (present(discard)) discard_ = discard
-      if (.not. discard_) call driver%fatal_error('variable_set_remove','Variable "'//trim(variable%name)//'" not found in set.')
+      if (.not. discard_) call driver%fatal_error('variable_set_remove', &
+         'Variable "' // trim(variable%name) // '" not found in set.')
    end subroutine variable_set_remove
 
-   logical function variable_set_contains(self,variable)
-      class (type_variable_set),intent(in) :: self
-      type (type_internal_variable),target :: variable
+   logical function variable_set_contains(self, variable)
+      class (type_variable_set), intent(in) :: self
+      type (type_internal_variable), target :: variable
 
       type (type_variable_node), pointer :: node
 
       variable_set_contains = .true.
       node => self%first
       do while (associated(node))
-         if (associated(node%target,variable)) return
+         if (associated(node%target, variable)) return
          node => node%next
       end do
       variable_set_contains = .false.
    end function variable_set_contains
 
-   subroutine variable_set_update(self,other)
-      class (type_variable_set),intent(inout) :: self
-      class (type_variable_set),intent(in)    :: other
+   subroutine variable_set_update(self, other)
+      class (type_variable_set), intent(inout) :: self
+      class (type_variable_set), intent(in)    :: other
 
       type (type_variable_node), pointer :: node
 
@@ -2858,7 +2856,7 @@ end subroutine abstract_model_factory_register_version
    subroutine variable_set_finalize(self)
       class (type_variable_set), intent(inout) :: self
 
-      type (type_variable_node),pointer :: node, next
+      type (type_variable_node), pointer :: node, next
 
       node => self%first
       do while (associated(node))
@@ -2869,10 +2867,10 @@ end subroutine abstract_model_factory_register_version
       self%first => null()
    end subroutine variable_set_finalize
 
-   subroutine variable_list_append(self,variable,index)
-      class (type_variable_list),intent(inout) :: self
-      type (type_internal_variable), target    :: variable
-      integer,optional,          intent(out)   :: index
+   subroutine variable_list_append(self, variable, index)
+      class (type_variable_list), intent(inout) :: self
+      type (type_internal_variable), target     :: variable
+      integer,optional,           intent(out)   :: index
 
       type (type_variable_node), pointer :: last
 
