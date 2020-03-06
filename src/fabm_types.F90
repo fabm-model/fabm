@@ -1523,7 +1523,7 @@ contains
 
    subroutine register_movement(self, link, movement_id, vertical_movement)
       class (type_base_model),           intent(inout)         :: self
-      type (type_link),                  intent(in)            :: link
+      type (type_link),                  intent(inout)         :: link
       type (type_aggregate_variable_id), intent(inout), target :: movement_id
       real(rk),                          intent(in), optional  :: vertical_movement
 
@@ -1791,7 +1791,7 @@ contains
             &In the future this argument will be required for horizontal diagnostic variables.')
       end if
 
-      if (variable%source==source_unknown) variable%prefill = prefill_previous_value
+      if (variable%source == source_unknown) variable%prefill = prefill_previous_value
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
@@ -1804,17 +1804,15 @@ contains
    recursive subroutine add_scalar_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
                                             background_value, standard_variable, presence, output, &
                                             read_index, state_index, write_index, sms_index, background, link)
-      class (type_base_model),target,       intent(inout)       :: self
-      character(len=*),                     intent(in)          :: name
-      character(len=*),                     intent(in),optional :: long_name, units
-      real(rk),                             intent(in),optional :: minimum, maximum, missing_value, initial_value, background_value
-      type (type_global_standard_variable), intent(in),optional :: standard_variable
-      integer,                              intent(in),optional :: presence, output
-
-      integer,                        target,optional :: read_index, state_index, write_index, sms_index
-      real(rk),                       target,optional :: background
-
-      type (type_link),pointer,optional :: link
+      class (type_base_model),target,       intent(inout)        :: self
+      character(len=*),                     intent(in)           :: name
+      character(len=*),                     intent(in), optional :: long_name, units
+      real(rk),                             intent(in), optional :: minimum, maximum, missing_value, initial_value, background_value
+      type (type_global_standard_variable), intent(in), optional :: standard_variable
+      integer,                              intent(in), optional :: presence, output
+      integer,  target,                                 optional :: read_index, state_index, write_index, sms_index
+      real(rk), target,                                 optional :: background
+      type (type_link), pointer,                        optional :: link
 
       type (type_internal_variable), pointer :: variable
 
@@ -1830,13 +1828,13 @@ contains
                         .false., read_index, state_index, write_index, background, link)
    end subroutine add_scalar_variable
 
-   recursive function add_object(self,object) result(link)
+   recursive function add_object(self, object) result(link)
       ! This subroutine creates a link to the supplied object, then allows
       ! parent models to do the same.
       ! NB this subroutine MUST be recursive, to allow parent models to override
       ! the properties of objects added by their child models.
-      class (type_base_model),target,     intent(inout) :: self
-      type (type_internal_variable),pointer             :: object
+      class (type_base_model), target, intent(inout) :: self
+      type (type_internal_variable), pointer         :: object
 
       type (type_link), pointer         :: link, parent_link
       character(len=attribute_length)   :: oriname
@@ -1853,8 +1851,8 @@ contains
          oriname = object%name
          instance = 0
          do
-            write (object%name,'(a,a,i0)') trim(oriname),'_',instance
-            if (.not.associated(self%links%find(object%name))) exit
+            write (object%name,'(a,a,i0)') trim(oriname), '_', instance
+            if (.not. associated(self%links%find(object%name))) exit
             instance = instance + 1
          end do
       end if
@@ -1869,13 +1867,13 @@ contains
       object%first_link => link_pointer
 
       ! If this name matched that of a previous variable, create a coupling to it.
-      if (duplicate) call self%request_coupling(link,oriname)
+      if (duplicate) call self%request_coupling(link, oriname)
 
       ! Forward to parent
       if (associated(self%parent)) then
-         if (len_trim(self%name)+1+len_trim(object%name)>len(object%name)) call self%fatal_error('add_object', &
-            'Variable path "'//trim(self%name)//'/'//trim(object%name)//'" exceeds maximum allowed length.')
-         object%name = trim(self%name)//'/'//trim(object%name)
+         if (len_trim(self%name)+1+len_trim(object%name) > len(object%name)) call self%fatal_error('add_object', &
+            'Variable path "' // trim(self%name) // '/' // trim(object%name) // '" exceeds maximum allowed length.')
+         object%name = trim(self%name) // '/' // trim(object%name)
 
          ! Below, the equivalent self%parent%add_object(object) confuses PGI 18.10 (Jorn 2019-04-24)
          parent_link => add_object(self%parent, object)
@@ -1894,7 +1892,7 @@ contains
       logical,                                intent(in), optional :: act_as_state_variable
 
       if (associated(id%link)) call self%fatal_error('register_interior_diagnostic_variable', &
-         'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
+         'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(id%link%name) // '.')
 
       call self%add_interior_variable(name, units, long_name, missing_value, standard_variable=standard_variable, &
          output=output, source=source, write_index=id%diag_index, link=id%link, act_as_state_variable=act_as_state_variable)
@@ -1916,7 +1914,7 @@ contains
       logical,                                      intent(in),optional :: act_as_state_variable
 
       if (associated(id%link)) call self%fatal_error('register_horizontal_diagnostic_variable', &
-         'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
+         'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(id%link%name) // '.')
 
       call self%add_horizontal_variable(name, units, long_name, missing_value, &
                                         standard_variable=standard_variable, output=output, &
@@ -1936,10 +1934,9 @@ contains
 
       presence = presence_external_required
       if (present(required)) then
-         if (.not.required) presence = presence_external_optional
+         if (.not. required) presence = presence_external_optional
       end if
       call register_interior_state_variable(self, id, name, units, long_name, presence=presence, standard_variable=standard_variable)
-
    end subroutine register_interior_state_dependency_ex
 
    subroutine register_bottom_state_dependency_ex(model, id, name, units, long_name, required, standard_variable)
@@ -1956,7 +1953,6 @@ contains
          if (.not. required) presence = presence_external_optional
       end if
       call register_bottom_state_variable(model, id, name, units, long_name, presence=presence, standard_variable=standard_variable)
-
    end subroutine register_bottom_state_dependency_ex
 
    subroutine register_surface_state_dependency_ex(model,id,name,units,long_name,required,standard_variable)
@@ -1972,8 +1968,7 @@ contains
       if (present(required)) then
          if (.not. required) presence = presence_external_optional
       end if
-      call register_surface_state_variable(model, id, name, units, long_name, &
-                                           presence=presence, standard_variable=standard_variable)
+      call register_surface_state_variable(model, id, name, units, long_name, presence=presence, standard_variable=standard_variable)
    end subroutine register_surface_state_dependency_ex
 
    subroutine register_standard_interior_state_dependency(self, id, standard_variable, required)
