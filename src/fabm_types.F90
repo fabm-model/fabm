@@ -1618,7 +1618,7 @@ contains
       integer,                                  intent(in), optional  :: presence
 
       if (associated(id%link)) call self%fatal_error('register_surface_state_variable', &
-         'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
+         'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(id%link%name) // '.')
 
       call self%add_horizontal_variable(name, units, long_name, missing_value, minimum, maximum, &
                                         initial_value=initial_value, background_value=background_value, &
@@ -1635,28 +1635,28 @@ contains
       class (type_base_model),       target,intent(inout)       :: self
       type (type_internal_variable),pointer                     :: variable
       character(len=*),              target,intent(in)          :: name
-      character(len=*),                     intent(in),optional :: long_name, units
-      real(rk),                             intent(in),optional :: minimum, maximum,missing_value,initial_value,background_value
-      integer,                              intent(in),optional :: presence, output
-      logical,                              intent(in),optional :: act_as_state_variable
-      integer,                       target,           optional :: read_index, state_index, write_index
-      real(rk),                      target,           optional :: background
-      type (type_link),              pointer,          optional :: link
+      character(len=*),                     intent(in), optional :: long_name, units
+      real(rk),                             intent(in), optional :: minimum, maximum,missing_value,initial_value,background_value
+      integer,                              intent(in), optional :: presence, output
+      logical,                              intent(in), optional :: act_as_state_variable
+      integer,                       target,            optional :: read_index, state_index, write_index
+      real(rk),                      target,            optional :: background
+      type (type_link),              pointer,           optional :: link
 
-      character(len=256)                     :: text
-      type (type_link),              pointer :: link_
+      character(len=256)        :: text
+      type (type_link), pointer :: link_
 
       ! Check whether the model information may be written to (only during initialization)
       if (self%frozen) call self%fatal_error('add_variable', &
-         'Cannot register variable "'//trim(name)//'" because the model initialization phase has already completed &
+         'Cannot register variable "' // trim(name) // '" because the model initialization phase has already completed &
          &(fabm_initialize has been called).')
 
       if (len_trim(name) > len(variable%name)) call self%fatal_error('add_variable', &
-         'Variable name "'//trim(name)//'" exceeds maximum length.')
+         'Variable name "' // trim(name) // '" exceeds maximum length.')
 
       ! Ascertain whether the provided name is valid.
       if (name == '' .or. name /= get_safe_name(name)) call self%fatal_error('add_variable', &
-         'Cannot register variable "'//trim(name)//'" because its name is not valid. &
+         'Cannot register variable "' // trim(name) // '" because its name is not valid. &
          &Variable names should not be empty, and can contain letters, digits and underscores only.')
 
       variable%name = name
@@ -1678,10 +1678,10 @@ contains
 
       if (present(state_index)) then
          ! Ensure that initial value falls within prescribed valid range.
-         if (variable%initial_value<variable%minimum .or. variable%initial_value>variable%maximum) then
-            write (text,*) 'Initial value',variable%initial_value,'for variable "'//trim(name)//'" lies&
-                  &outside allowed range',variable%minimum,'to',variable%maximum
-            call self%fatal_error('fill_internal_variable',text)
+         if (variable%initial_value < variable%minimum .or. variable%initial_value > variable%maximum) then
+            write (text,*) 'Initial value', variable%initial_value, 'for variable "' // trim(name) // '" lies&
+                  &outside allowed range', variable%minimum, 'to', variable%maximum
+            call self%fatal_error('fill_internal_variable', text)
          end if
 
          ! Store a pointer to the variable that should hold the state variable index.
@@ -1702,10 +1702,10 @@ contains
       end if
       if (present(write_index)) then
          variable%write_index => write_index
-         _ASSERT_(variable%source /= source_state, 'add_variable', 'Variable '//trim(name)//' being registered with source_state and write index.')
+         _ASSERT_(variable%source /= source_state, 'add_variable', 'Variable ' // trim(name) // ' being registered with source_state and write index.')
          call variable%write_indices%append(write_index)
       end if
-      variable%can_be_slave = .not.present(write_index)
+      variable%can_be_slave = .not. present(write_index)
 
       ! Create a class pointer and use that to create a link.
       link_ => add_object(self,variable)
@@ -1728,9 +1728,9 @@ contains
       type (type_interior_standard_variable), intent(in), optional :: standard_variable
       integer,                                intent(in), optional :: presence, output, source
       logical,                                intent(in), optional :: act_as_state_variable
-      integer,  target, optional :: read_index, state_index, write_index
-      real(rk), target, optional :: background
-      type (type_link), pointer, optional :: link
+      integer,  target,                                   optional :: read_index, state_index, write_index
+      real(rk), target,                                   optional :: background
+      type (type_link), pointer,                          optional :: link
 
       type (type_internal_variable), pointer :: variable
       type (type_link),              pointer :: link_
@@ -1761,21 +1761,19 @@ contains
                                                 read_index, state_index, write_index, background, link)
       class (type_base_model),target,           intent(inout)       :: self
       character(len=*),                         intent(in)          :: name
-      character(len=*),                         intent(in),optional :: long_name, units
-      real(rk),                                 intent(in),optional :: minimum, maximum, missing_value
-      real(rk),                                 intent(in),optional :: initial_value, background_value
-      type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
-      integer,                                  intent(in),optional :: presence, domain, output, source
-      logical,                                  intent(in),optional :: act_as_state_variable
+      character(len=*),                         intent(in), optional :: long_name, units
+      real(rk),                                 intent(in), optional :: minimum, maximum, missing_value
+      real(rk),                                 intent(in), optional :: initial_value, background_value
+      type (type_horizontal_standard_variable), intent(in), optional :: standard_variable
+      integer,                                  intent(in), optional :: presence, domain, output, source
+      logical,                                  intent(in), optional :: act_as_state_variable
+      integer,  target,                                     optional :: read_index, state_index, write_index
+      real(rk), target,                                     optional :: background
+      type (type_link), pointer,                            optional :: link
 
-      integer,                            target,optional :: read_index, state_index, write_index
-      real(rk),                           target,optional :: background
-
-      type (type_link),pointer,optional :: link
-
-      type (type_internal_variable),pointer :: variable
-      type (type_link),             pointer :: link_,link_dum
-      integer                               :: sms_source
+      type (type_internal_variable), pointer :: variable
+      type (type_link),              pointer :: link_, link_dum
+      integer                                :: sms_source
 
       allocate(variable)
       variable%domain = domain_horizontal
@@ -1905,13 +1903,13 @@ contains
    subroutine register_horizontal_diagnostic_variable(self, id, name, units, long_name, &
                                                       missing_value, standard_variable, output, source, &
                                                       act_as_state_variable, domain)
-      class (type_base_model),                      intent(inout),target :: self
-      type (type_horizontal_diagnostic_variable_id),intent(inout),target :: id
-      character(len=*),                             intent(in)          :: name, long_name, units
-      integer,                                      intent(in),optional :: output, source, domain
-      real(rk),                                     intent(in),optional :: missing_value
-      type (type_horizontal_standard_variable),     intent(in),optional :: standard_variable
-      logical,                                      intent(in),optional :: act_as_state_variable
+      class (type_base_model),                       intent(inout), target :: self
+      type (type_horizontal_diagnostic_variable_id), intent(inout), target :: id
+      character(len=*),                              intent(in)            :: name, units, long_name
+      integer,                                       intent(in), optional  :: output, source, domain
+      real(rk),                                      intent(in), optional  :: missing_value
+      type (type_horizontal_standard_variable),      intent(in), optional  :: standard_variable
+      logical,                                       intent(in), optional  :: act_as_state_variable
 
       if (associated(id%link)) call self%fatal_error('register_horizontal_diagnostic_variable', &
          'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(id%link%name) // '.')
@@ -1920,13 +1918,12 @@ contains
                                         standard_variable=standard_variable, output=output, &
                                         source=source, write_index=id%horizontal_diag_index, link=id%link, &
                                         act_as_state_variable=act_as_state_variable, domain=domain)
-
    end subroutine register_horizontal_diagnostic_variable
 
    subroutine register_interior_state_dependency_ex(self, id, name, units, long_name, required, standard_variable)
       class (type_base_model),                intent(inout)         :: self
       type (type_state_variable_id),          intent(inout), target :: id
-      character(len=*),                       intent(in)            :: name,units,long_name
+      character(len=*),                       intent(in)            :: name, units, long_name
       logical,                                intent(in), optional  :: required
       type (type_interior_standard_variable), intent(in), optional  :: standard_variable
 
@@ -1940,11 +1937,11 @@ contains
    end subroutine register_interior_state_dependency_ex
 
    subroutine register_bottom_state_dependency_ex(model, id, name, units, long_name, required, standard_variable)
-      class (type_base_model),                  intent(inout)        :: model
-      type (type_bottom_state_variable_id),     intent(inout),target :: id
-      character(len=*),                         intent(in)          :: name,units,long_name
-      logical,                                  intent(in),optional :: required
-      type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
+      class (type_base_model),                  intent(inout)         :: model
+      type (type_bottom_state_variable_id),     intent(inout), target :: id
+      character(len=*),                         intent(in)            :: name, units, long_name
+      logical,                                  intent(in), optional  :: required
+      type (type_horizontal_standard_variable), intent(in), optional  :: standard_variable
 
       integer :: presence
 
@@ -1955,12 +1952,12 @@ contains
       call register_bottom_state_variable(model, id, name, units, long_name, presence=presence, standard_variable=standard_variable)
    end subroutine register_bottom_state_dependency_ex
 
-   subroutine register_surface_state_dependency_ex(model,id,name,units,long_name,required,standard_variable)
-      class (type_base_model),                  intent(inout)        :: model
-      type (type_surface_state_variable_id),    intent(inout),target :: id
-      character(len=*),                         intent(in)          :: name,units,long_name
-      logical,                                  intent(in),optional :: required
-      type (type_horizontal_standard_variable), intent(in),optional :: standard_variable
+   subroutine register_surface_state_dependency_ex(model, id, name, units, long_name, required, standard_variable)
+      class (type_base_model),                  intent(inout)         :: model
+      type (type_surface_state_variable_id),    intent(inout), target :: id
+      character(len=*),                         intent(in)            :: name, units, long_name
+      logical,                                  intent(in), optional  :: required
+      type (type_horizontal_standard_variable), intent(in), optional  :: standard_variable
 
       integer :: presence
 
@@ -1982,50 +1979,50 @@ contains
    end subroutine register_standard_interior_state_dependency
 
    subroutine register_standard_bottom_state_dependency(self, id, standard_variable, required)
-      class (type_base_model),                    intent(inout) :: self
-      type (type_bottom_state_variable_id),target,intent(inout) :: id
-      type (type_horizontal_standard_variable),   intent(in)    :: standard_variable
-      logical,optional,                           intent(in)    :: required
+      class (type_base_model),                      intent(inout) :: self
+      type (type_bottom_state_variable_id), target, intent(inout) :: id
+      type (type_horizontal_standard_variable),     intent(in)    :: standard_variable
+      logical,optional,                             intent(in)    :: required
 
       call register_bottom_state_dependency_ex(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
          required=required, standard_variable=standard_variable)
    end subroutine register_standard_bottom_state_dependency
 
    subroutine register_standard_surface_state_dependency(self, id, standard_variable, required)
-      class (type_base_model),                     intent(inout) :: self
-      type (type_surface_state_variable_id),target,intent(inout) :: id
-      type (type_horizontal_standard_variable),    intent(in)    :: standard_variable
-      logical,optional,                            intent(in)    :: required
+      class (type_base_model),                       intent(inout) :: self
+      type (type_surface_state_variable_id), target, intent(inout) :: id
+      type (type_horizontal_standard_variable),      intent(in)    :: standard_variable
+      logical,optional,                              intent(in)    :: required
 
       call register_surface_state_dependency_ex(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
          required=required, standard_variable=standard_variable)
    end subroutine register_standard_surface_state_dependency
 
-   subroutine register_interior_state_dependency_old(self,id,name)
-      class (type_base_model),      intent(inout)        :: self
-      type (type_state_variable_id),intent(inout),target :: id
-      character(len=*),             intent(in)           :: name
+   subroutine register_interior_state_dependency_old(self, id, name)
+      class (type_base_model),       intent(inout)        :: self
+      type (type_state_variable_id), intent(inout), target :: id
+      character(len=*),              intent(in)           :: name
 
       call self%register_interior_state_dependency(id, name, '', name)
-      call self%request_coupling(id,name)
+      call self%request_coupling(id, name)
    end subroutine
 
-   subroutine register_bottom_state_dependency_old(self,id,name)
-      class (type_base_model),             intent(inout)        :: self
-      type (type_bottom_state_variable_id),intent(inout),target :: id
-      character(len=*),                    intent(in)           :: name
+   subroutine register_bottom_state_dependency_old(self, id, name)
+      class (type_base_model),              intent(inout)         :: self
+      type (type_bottom_state_variable_id), intent(inout), target :: id
+      character(len=*),                     intent(in)            :: name
 
       call self%register_bottom_state_dependency(id, name, '', name)
-      call self%request_coupling(id,name)
+      call self%request_coupling(id, name)
    end subroutine
 
    subroutine register_surface_state_dependency_old(self, id, name)
-      class (type_base_model),              intent(inout)        :: self
-      type (type_surface_state_variable_id),intent(inout),target :: id
-      character(len=*),                     intent(in)           :: name
+      class (type_base_model),               intent(inout)         :: self
+      type (type_surface_state_variable_id), intent(inout), target :: id
+      character(len=*),                      intent(in)            :: name
 
       call self%register_surface_state_dependency(id, name, '', name)
-      call self%request_coupling(id,name)
+      call self%request_coupling(id, name)
    end subroutine
 
    subroutine register_standard_interior_dependency(self, id, standard_variable, required)
@@ -2036,7 +2033,7 @@ contains
 
       call register_named_interior_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
                                               required=required)
-      call self%request_coupling(id,standard_variable)
+      call self%request_coupling(id, standard_variable)
    end subroutine register_standard_interior_dependency
 
    subroutine register_standard_horizontal_dependency(self, id, standard_variable, required)
@@ -2047,7 +2044,7 @@ contains
 
       call register_named_horizontal_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
                                                 required=required)
-      call self%request_coupling(id,standard_variable)
+      call self%request_coupling(id, standard_variable)
    end subroutine register_standard_horizontal_dependency
 
    subroutine register_standard_interface_dependency(self, id, standard_variable, domain,required)
@@ -2061,25 +2058,24 @@ contains
          call self%fatal_error('register_standard_interface_dependency', 'Specified domain must be domain_surface or domain_bottom.')
       call register_named_horizontal_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
                                                 required=required)
-      call self%request_coupling(id,standard_variable,domain=domain)
+      call self%request_coupling(id, standard_variable,domain=domain)
    end subroutine register_standard_interface_dependency
 
-   subroutine register_standard_global_dependency(self,id,standard_variable,required)
-      class (type_base_model),             intent(inout)        :: self
-      type (type_global_dependency_id),    intent(inout),target :: id
-      type (type_global_standard_variable),intent(in)           :: standard_variable
-      logical,optional,                    intent(in)           :: required
+   subroutine register_standard_global_dependency(self, id, standard_variable, required)
+      class (type_base_model),              intent(inout)         :: self
+      type (type_global_dependency_id),     intent(inout), target :: id
+      type (type_global_standard_variable), intent(in)            :: standard_variable
+      logical,optional,                     intent(in)            :: required
 
       call register_named_global_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
                                             required=required)
-      call self%request_coupling(id,standard_variable)
+      call self%request_coupling(id, standard_variable)
    end subroutine register_standard_global_dependency
 
    subroutine register_named_interior_dependency(self, id, name, units, long_name, standard_variable, required)
       class (type_base_model),                intent(inout)         :: self
       type (type_dependency_id),              intent(inout), target :: id
-      character(len=*),                       intent(in)            :: name
-      character(len=*),                       intent(in)            :: units, long_name
+      character(len=*),                       intent(in)            :: name, units, long_name
       type (type_interior_standard_variable), intent(in), optional  :: standard_variable
       logical,                                intent(in), optional  :: required
 
@@ -2100,12 +2096,11 @@ contains
    end subroutine register_named_interior_dependency
 
    subroutine register_named_horizontal_dependency(self, id, name, units, long_name, standard_variable, required)
-      class (type_base_model),                 intent(inout)        :: self
-      type (type_horizontal_dependency_id),    intent(inout),target :: id
-      character(len=*),                        intent(in)          :: name
-      character(len=*),                        intent(in)          :: units, long_name
-      type (type_horizontal_standard_variable),intent(in),optional :: standard_variable
-      logical,                                 intent(in),optional :: required
+      class (type_base_model),                  intent(inout)         :: self
+      type (type_horizontal_dependency_id),     intent(inout), target :: id
+      character(len=*),                         intent(in)            :: name, units, long_name
+      type (type_horizontal_standard_variable), intent(in), optional  :: standard_variable
+      logical,                                  intent(in), optional  :: required
 
       integer :: presence
 
@@ -2124,12 +2119,11 @@ contains
    end subroutine register_named_horizontal_dependency
 
    subroutine register_named_global_dependency(self, id, name, units, long_name, standard_variable, required)
-      class (type_base_model),             intent(inout)        :: self
-      type (type_global_dependency_id),    intent(inout),target :: id
-      character(len=*),                    intent(in)          :: name
-      character(len=*),                    intent(in)          :: units,long_name
-      type (type_global_standard_variable),intent(in),optional :: standard_variable
-      logical,                             intent(in),optional :: required
+      class (type_base_model),              intent(inout)         :: self
+      type (type_global_dependency_id),     intent(inout), target :: id
+      character(len=*),                     intent(in)            :: name, units, long_name
+      type (type_global_standard_variable), intent(in), optional  :: standard_variable
+      logical,                              intent(in), optional  :: required
 
       integer :: presence
 
@@ -2291,7 +2285,7 @@ contains
       class (type_base_model), intent(inout), target :: self
       class (type_property),   intent(inout)         :: parameter
       character(len=*),        intent(in)            :: name
-      character(len=*),        intent(in),optional   :: units, long_name
+      character(len=*),        intent(in), optional  :: units, long_name
 
       parameter%name = name
       if (present(units))     parameter%units     = units
@@ -2300,12 +2294,11 @@ contains
    end subroutine set_parameter
 
    subroutine get_integer_parameter(self, value, name, units, long_name, default, minimum, maximum)
-
       class (type_base_model), intent(inout), target :: self
       integer,                 intent(inout)         :: value
       character(len=*),        intent(in)            :: name
-      character(len=*),        intent(in),optional   :: units, long_name
-      integer,                 intent(in),optional   :: default, minimum, maximum
+      character(len=*),        intent(in), optional  :: units, long_name
+      integer,                 intent(in), optional  :: default, minimum, maximum
 
       class (type_property), pointer :: property
       type (type_integer_property)   :: current_parameter
@@ -2391,9 +2384,9 @@ contains
       character(len=*),        intent(in), optional  :: units, long_name
       character(len=*),        intent(in), optional  :: default
 
-      class (type_property),pointer :: property
-      type (type_string_property)   :: current_parameter
-      logical                       :: success
+      class (type_property), pointer :: property
+      type (type_string_property)    :: current_parameter
+      logical                        :: success
 
       if (present(default)) then
          current_parameter%has_default = .true.
@@ -2418,10 +2411,10 @@ contains
    end subroutine get_string_parameter
 
    function find_object(self, name, recursive, exact) result(object)
-      class (type_base_model),  intent(in),target :: self
-      character(len=*),         intent(in)        :: name
-      logical,         optional,intent(in)        :: recursive,exact
-      type (type_internal_variable),pointer       :: object
+      class (type_base_model),  intent(in), target :: self
+      character(len=*),         intent(in)         :: name
+      logical,        optional, intent(in)         :: recursive, exact
+      type (type_internal_variable), pointer       :: object
 
       type (type_link), pointer :: link
 
@@ -2432,32 +2425,32 @@ contains
    end function find_object
 
    recursive function find_link(self, name, recursive, exact) result(link)
-      class (type_base_model),  intent(in),target :: self
-      character(len=*),         intent(in)        :: name
-      logical,         optional,intent(in)        :: recursive,exact
-      type (type_link),pointer                    :: link
+      class (type_base_model),  intent(in), target :: self
+      character(len=*),         intent(in)         :: name
+      logical,        optional, intent(in)         :: recursive, exact
+      type (type_link), pointer                    :: link
 
       integer                         :: n
-      logical                         :: recursive_eff,exact_eff
+      logical                         :: recursive_eff, exact_eff
       class (type_base_model),pointer :: current
 
       link => null()
 
       n = len_trim(name)
-      if (n>=1) then
-         if (name(1:1)=='/') then
-            link => find_link(self,name(2:),recursive,exact=.true.)
+      if (n >= 1) then
+         if (name(1:1) == '/') then
+            link => find_link(self, name(2:), recursive, exact=.true.)
             return
          end if
-         if (n>=2) then
-            if (name(1:2)=='./') then
-               link => find_link(self,name(3:),recursive,exact=.true.)
+         if (n >= 2) then
+            if (name(1:2) == './') then
+               link => find_link(self, name(3:), recursive, exact=.true.)
                return
             end if
-            if (n>=3) then
-               if (name(1:3)=='../') then
-                  if (.not.associated(self%parent)) return
-                  link => find_link(self%parent,name(4:),recursive,exact=.true.)
+            if (n >= 3) then
+               if (name(1:3) == '../') then
+                  if (.not. associated(self%parent)) return
+                  link => find_link(self%parent, name(4:), recursive, exact=.true.)
                   return
                end if
             end if
@@ -2472,7 +2465,7 @@ contains
       do while (associated(current))
          link => current%links%find(name)
          if (associated(link)) return
-         if (.not.recursive_eff) exit
+         if (.not. recursive_eff) exit
          current => current%parent
       end do
 
@@ -2485,13 +2478,12 @@ contains
       do while (associated(current))
          link => current%links%first
          do while (associated(link))
-            if (get_safe_name(link%name)==name) return
+            if (get_safe_name(link%name) == name) return
             link => link%next
          end do
-         if (.not.recursive_eff) exit
+         if (.not. recursive_eff) exit
          current => current%parent
       end do
-
    end function find_link
 
    function find_model(self, name, recursive) result(found_model)
@@ -2519,7 +2511,7 @@ contains
          do while (associated(found_model) .and. istart <= len(name))
             length = index(name(istart:), '/') - 1
             if (length == -1) length = len(name) - istart + 1
-            if (length == 2 .and. name(istart:istart+1) == '..') then
+            if (length == 2 .and. name(istart:istart + 1) == '..') then
                found_model => found_model%parent
             elseif (.not. (length == 1 .and. name(istart:istart) == '.')) then
                node => found_model%children%find(name(istart:istart + length - 1))
@@ -2603,7 +2595,7 @@ contains
    subroutine abstract_model_factory_add(self, child, prefix)
       class (type_base_model_factory),         intent(inout) :: self
       class (type_base_model_factory), target, intent(in)    :: child
-      character(len=*) ,optional,              intent(in)    :: prefix
+      character(len=*), optional,              intent(in)    :: prefix
 
       type (type_base_model_factory_node), pointer :: current
 
@@ -2638,12 +2630,12 @@ contains
       do while(associated(child))
          if (child%prefix /= '') then
             n = len_trim(child%prefix)
-            if (len_trim(name)>n+1) then
-               if (name(1:n) == child%prefix .and. (name(n+1:n+1) == '_' .or. name(n+1:n+1) == '/')) &
-                  call child%factory%create(name(n+2:),model)
+            if (len_trim(name) > n + 1) then
+               if (name(1:n) == child%prefix .and. (name(n + 1:n + 1) == '_' .or. name(n + 1:n + 1) == '/')) &
+                  call child%factory%create(name(n+2:), model)
             end if
          else
-            call child%factory%create(name,model)
+            call child%factory%create(name, model)
          end if
          if (associated(model)) return
          child => child%next
@@ -2696,9 +2688,9 @@ contains
       existing_task => self%first
       do while (associated(existing_task))
          ! Check if we have found an existing task for the same link.
-         if (associated(existing_task%slave,task%slave)) then
+         if (associated(existing_task%slave, task%slave)) then
             ! If existing one has higher priority, do not add the new task and return (used=.false.)
-            if (existing_task%user_specified.and..not.always_create) return
+            if (existing_task%user_specified .and. .not. always_create) return
 
             ! We will overwrite the existing task - remove existing task and exit loop
             call self%remove(existing_task)
@@ -2738,9 +2730,8 @@ contains
       allocate(task)
       task%slave => link
       task%domain = link%target%domain
-      used = self%add_object(task,always_create)
-      if (.not.used) deallocate(task)
-
+      used = self%add_object(task, always_create)
+      if (.not. used) deallocate(task)
    end subroutine coupling_task_list_add
 
    character(len=32) function source2string(source)
