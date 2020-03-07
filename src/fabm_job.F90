@@ -746,18 +746,15 @@ subroutine job_create_tasks(self, log_unit)
    class (type_job), target, intent(inout) :: self
    integer,                  intent(in)    :: log_unit
 
-   type (type_job_node),        pointer :: job_node
-   type (type_graph_subset_node_set)    :: subset
-   type (type_task_tree_node)           :: root
-   class (type_task_tree_node), pointer :: leaf
-   integer                              :: ntasks
-   type (type_task),            pointer :: task
-   type (type_call),            pointer :: call_node, next_call_node
+   type (type_job_node),                  pointer :: job_node
+   type (type_step), allocatable                  :: steps(:)
+   integer                                        :: itask
+   type (type_task),                      pointer :: task
+   type (type_call),                      pointer :: call_node, previous_call_node, next_call_node
+   type (type_graph_subset_node_pointer), pointer :: pnode
 
-   _ASSERT_(self%state < job_state_tasks_created, 'job_create_tasks', trim(self%name)//': tasks for this job have already been created.')
-   _ASSERT_(self%state >= job_state_graph_created, 'job_create_tasks', trim(self%name)//': the graph for this job have not been created yet.')
-
-   if (log_unit /= -1) write (log_unit,'(a)') trim(self%name)
+   _ASSERT_(self%state < job_state_tasks_created, 'job_create_tasks', trim(self%name) // ': tasks for this job have already been created.')
+   _ASSERT_(self%state >= job_state_graph_created, 'job_create_tasks', trim(self%name) // ': the graph for this job have not been created yet.')
 
    ! If we are linked to an earlier called job, make sure its task list has already been created.
    ! This is essential if we will try to outsource our own calls to previous tasks/jobs.
@@ -767,26 +764,41 @@ subroutine job_create_tasks(self, log_unit)
       job_node => job_node%next
    end do
 
-   ! Create tree that describes all possible task orders (root is at the right of the call list, i.e., at the end of the very last call)
-   if (log_unit /= -1) write (log_unit,'(a)') '  possible task orders:'
-   call create_graph_subset_node_set(self%graph, subset, log_unit)
-   root%operation = self%operation
-   if (root%operation /= source_unknown) then
-      call subset%collect_and_branch(root)
-   else
-      call subset%branch(root)
-   end if
+   if (log_unit /= -1) write (log_unit,'(a)') trim(self%name)
+   steps = find_best_order(self%graph, self%operation, log_unit)
 
-   ! Determine optimum task order and use it to create the task objects.
-   ntasks = root%get_minimum_depth()
-   leaf => root%get_leaf_at_depth(ntasks)
-   call create_tasks(leaf)
-   _ASSERT_(.not. associated(subset%first), 'job_select_order', 'BUG: graph subset should be empty after create_tasks.')
+   ! Build task list by prepending
+   do itask = size(steps), 1, -1
+      ! Create the task and preprend it to the list.
+      allocate(task)
+      task%next => self%first_task
+      self%first_task => task
+      task%operation = steps(itask)%operation
 
-   if (log_unit /= -1) then
-      if (root%operation == source_unknown) ntasks = ntasks - 1
-      write (log_unit,'(a,i0,a,a)') '  best task order (', ntasks, ' tasks): ', trim(leaf%to_string())
-   end if
+      ! Collect all calls for this task.
+      ! Preserve the order in which calls appear in the "step",
+      ! as this also represents the desired call order.
+      previous_call_node => null()
+      pnode => steps(itask)%first
+      do while (associated(pnode))
+         allocate(call_node)
+         call_node%graph_node => pnode%p%graph_node
+         call_node%model      => pnode%p%graph_node%model
+         call_node%source     =  pnode%p%graph_node%source
+         if (associated(previous_call_node)) then
+            previous_call_node%next => call_node
+         else
+            task%first_call => call_node
+         end if
+         previous_call_node => call_node
+         _ASSERT_(associated(call_node%model), 'create_tasks', 'Call node does not have a model pointer.')
+         _ASSERT_(call_node%source /= source_constant .and. call_node%source /= source_state .and. call_node%source /= source_external .and. call_node%source /= source_unknown, 'create_tasks', 'Call node has invalid source.')
+         pnode => pnode%next
+      end do
+
+      ! Clean-up array with processed calls.
+      call steps(itask)%finalize()
+   end do
 
    if (self%outsource_tasks) then
       task => self%first_task
@@ -808,55 +820,6 @@ subroutine job_create_tasks(self, log_unit)
    self%state = job_state_tasks_created
 
 contains
-
-   recursive subroutine create_tasks(tree_node)
-      type (type_task_tree_node),target,intent(in) :: tree_node
-
-      type (type_graph_subset_node_set)             :: removed
-      type (type_graph_subset_node_pointer),pointer :: pnode
-      type (type_task),                     pointer :: task
-      type (type_call),                     pointer :: call_node, previous_call_node
-
-      ! Start at the root of the tree. This represents the last task that will be executed;
-      ! as tasks will be prepended to the list, it must be processed first.
-      if (associated(tree_node%parent)) call create_tasks(tree_node%parent)
-
-      ! If we have a root that does NOT represent a task itself, we are done.
-      if (tree_node%operation == source_unknown) return
-
-      ! Collect all nodes that can be processed with the currently selected source.
-      call subset%collect(tree_node%operation, removed)
-
-      ! Create the task and preprend it to the list.
-      allocate(task)
-      task%next => self%first_task
-      self%first_task => task
-      task%operation = tree_node%operation
-
-      ! Collect all calls for this task.
-      ! Preserve the order in which calls appear in the "removed" set,
-      ! as this also represents the desired call order.
-      previous_call_node => null()
-      pnode => removed%first
-      do while (associated(pnode))
-         allocate(call_node)
-         call_node%graph_node => pnode%p%graph_node
-         call_node%model      => pnode%p%graph_node%model
-         call_node%source     =  pnode%p%graph_node%source
-         if (associated(previous_call_node)) then
-            previous_call_node%next => call_node
-         else
-            task%first_call => call_node
-         end if
-         previous_call_node => call_node
-         _ASSERT_(associated(call_node%model), 'create_tasks', 'Call node does not have a model pointer.')
-         _ASSERT_(call_node%source /= source_constant .and. call_node%source /= source_state .and. call_node%source /= source_external .and. call_node%source /= source_unknown, 'create_tasks', 'Call node has invalid source.')
-         pnode => pnode%next
-      end do
-
-      ! Clean-up array with processed calls.
-      call removed%finalize()
-   end subroutine create_tasks
 
    !subroutine move_call_backwards(job,task,call_node)
    !   class (type_job),target :: job

@@ -1,14 +1,17 @@
+#include "fabm_driver.h"
+
 module fabm_task_order
 
    use fabm_graph
    use fabm_types, only: source_unknown, source_do_bottom, source_do_surface, source_do_horizontal, source2string
+   use fabm_driver, only: driver
 
    implicit none
 
    private
 
-   public create_graph_subset_node_set, type_graph_subset_node_set, type_graph_subset_node_pointer, type_task_tree_node
-
+   public find_best_order, type_step, type_graph_subset_node_pointer
+      
    type type_graph_subset_node_pointer
       type (type_graph_subset_node),         pointer :: p    => null()
       type (type_graph_subset_node_pointer), pointer :: next => null()
@@ -41,7 +44,52 @@ module fabm_task_order
       procedure :: get_leaf_at_depth => task_tree_node_get_leaf_at_depth
    end type
 
+   type, extends(type_graph_subset_node_set) :: type_step
+      integer :: operation = source_unknown
+   end type
+
 contains
+
+   function find_best_order(graph, first_operation, log_unit) result(steps)
+      type (type_graph), intent(in) :: graph
+      integer,           intent(in) :: first_operation
+      integer,           intent(in) :: log_unit
+      type (type_step), allocatable :: steps(:)
+
+      type (type_graph_subset_node_set)    :: subset
+      class (type_task_tree_node), pointer :: leaf
+      type (type_task_tree_node)           :: root
+      integer                              :: ntasks
+      integer                              :: itask
+
+      ! Create tree that describes all possible task orders (root is at the right of the call list, i.e., at the end of the very last call)
+      if (log_unit /= -1) write (log_unit,'(a)') '  possible task orders:'
+      call create_graph_subset_node_set(graph, subset, log_unit)
+      root%operation = first_operation
+      if (root%operation /= source_unknown) then
+         call subset%collect_and_branch(root)
+      else
+         call subset%branch(root)
+      end if
+
+      ! Determine optimum task order and use it to create the task objects.
+      ntasks = root%get_minimum_depth()
+      leaf => root%get_leaf_at_depth(ntasks)
+
+      if (root%operation == source_unknown) ntasks = ntasks - 1
+      if (log_unit /= -1) write (log_unit,'(a,i0,a,a)') '  best task order (', ntasks, ' tasks): ', trim(leaf%to_string())
+
+      allocate(steps(ntasks))
+      do itask = 1, ntasks
+         _ASSERT_(leaf%operation /= source_unknown, 'find_best_order', 'BUG: step with operation source_unknown.')
+         steps(itask)%operation = leaf%operation
+         leaf => leaf%parent
+      end do
+      do itask = ntasks, 1, -1
+         call subset%collect(steps(itask)%operation, steps(itask))
+      end do
+      _ASSERT_(.not. associated(subset%first), 'find_best_order', 'BUG: graph subset should be empty after create_tasks.')
+   end function find_best_order
 
    subroutine create_graph_subset_node_set(graph, set, log_unit)
       type (type_graph),                 intent(in)  :: graph
@@ -164,7 +212,7 @@ contains
             end if
             pnode => pnode_next
          end do
-         if (.not.found) exit
+         if (.not. found) exit
       end do
    end subroutine graph_subset_node_set_collect
 
