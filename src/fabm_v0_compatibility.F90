@@ -10,7 +10,7 @@ module fabm_v0_compatibility
    use fabm_debug
    use fabm_job, only: type_job, type_call
    use fabm_driver, only: driver
-   use fabm_cache
+   use fabm_work
 
    implicit none
 

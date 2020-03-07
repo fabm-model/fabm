@@ -29,7 +29,7 @@ module fabm
    use fabm_job
    use fabm_schedule
    use fabm_debug
-   use fabm_cache
+   use fabm_work
 
    implicit none
 

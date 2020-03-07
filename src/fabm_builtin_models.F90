@@ -497,7 +497,7 @@ module fabm_builtin_models
             call target_variable%cowriters%add(component_variable)
          end if
          call component_variable%read_indices%set_value(-1)
-         call component_variable%read_indices%clear()
+         call component_variable%read_indices%finalize()
          component_link%original%read_index => null()
          merge_component = .true.
       end if

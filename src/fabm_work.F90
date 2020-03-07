@@ -1,7 +1,7 @@
 #include "fabm_driver.h"
 #include "fabm_private.h"
 
-module fabm_cache
+module fabm_work
 
    use fabm_types, only: rki => rk, rke, type_interior_cache, type_horizontal_cache, type_vertical_cache, &
       prefill_none, prefill_constant, source_do, source_do_horizontal, source_do_surface, source_do_bottom, &

@@ -122,7 +122,7 @@ module fabm_types
                                  output_time_step_integrated = 8
 
    ! --------------------------------------------------------------------------
-   ! Data types for pointers to variable values.
+   ! Data types for pointers to variable values
    ! --------------------------------------------------------------------------
 
    type type_integer_pointer
@@ -149,9 +149,12 @@ module fabm_types
       procedure :: extend      => integer_pointer_set_extend
       procedure :: set_value   => integer_pointer_set_set_value
       procedure :: is_empty    => integer_pointer_set_is_empty
-      procedure :: copy_values => integer_pointer_set_copy_values
-      procedure :: clear       => integer_pointer_set_clear
+      procedure :: finalize    => integer_pointer_set_finalize
    end type
+
+   ! --------------------------------------------------------------------------
+   ! Data types for coupling tasks
+   ! --------------------------------------------------------------------------
 
    type type_coupling_task
       type (type_link), pointer                    :: slave       => null()
@@ -167,13 +170,13 @@ module fabm_types
       class (type_coupling_task), pointer :: first => null()
       logical                             :: includes_custom = .false.
    contains
-      procedure :: remove => coupling_task_list_remove
-      procedure :: add => coupling_task_list_add
+      procedure :: remove     => coupling_task_list_remove
+      procedure :: add        => coupling_task_list_add
       procedure :: add_object => coupling_task_list_add_object
    end type
 
    ! --------------------------------------------------------------------------
-   ! Variable identifiers used by biogeochemical models.
+   ! Data types for variable identifiers used by biogeochemical models
    ! --------------------------------------------------------------------------
 
    type, abstract :: type_variable_id
@@ -236,8 +239,7 @@ module fabm_types
    end type
 
    ! --------------------------------------------------------------------------
-   ! Derived types used internally to register contributions of variables to
-   ! aggregate variables.
+   ! Data types for contributions to aggregate variables.
    ! --------------------------------------------------------------------------
 
    type type_contribution
@@ -261,6 +263,10 @@ module fabm_types
       integer                                        :: surface    = access_none
       type (type_aggregate_variable_access), pointer :: next       => null()
    end type
+
+   ! --------------------------------------------------------------------------
+   ! Data types for collections of variables
+   ! --------------------------------------------------------------------------
 
    type type_link_list
       type (type_link), pointer :: first => null()
@@ -301,8 +307,7 @@ module fabm_types
    end type
 
    ! --------------------------------------------------------------------------
-   ! Derived types used internally to store information on model variables and
-   ! model references.
+   ! Data types for information on model variables and model references
    ! --------------------------------------------------------------------------
 
    type type_internal_variable
@@ -340,9 +345,9 @@ module fabm_types
       logical          :: has_data = .false.
 
       ! Collections to collect information from all coupled variables.
-      type (type_integer_pointer_set)  :: read_indices,state_indices,write_indices
+      type (type_integer_pointer_set)  :: read_indices, state_indices, write_indices
       type (type_real_pointer_set)     :: background_values
-      type (type_link_list)            :: sms_list,surface_flux_list,bottom_flux_list,movement_list
+      type (type_link_list)            :: sms_list, surface_flux_list, bottom_flux_list, movement_list
       type (type_link), pointer        :: sms_sum             => null()
       type (type_link), pointer        :: surface_flux_sum    => null()
       type (type_link), pointer        :: bottom_flux_sum     => null()
@@ -364,7 +369,7 @@ module fabm_types
    end type
 
    ! --------------------------------------------------------------------------
-   ! Types that describe custom expressions (arbitrary functions of one or more
+   ! Data type for custom expressions (arbitrary functions of one or more
    ! variables).
    ! --------------------------------------------------------------------------
 
@@ -383,8 +388,7 @@ module fabm_types
    end type
 
    ! --------------------------------------------------------------------------
-   ! Base model type, used by biogeochemical models to inherit from, and by
-   ! external host to get variable lists and metadata.
+   ! Data type for collection of models
    ! --------------------------------------------------------------------------
 
    type type_model_list_node
@@ -404,6 +408,11 @@ module fabm_types
       procedure :: print      => model_list_print
       generic   :: find       => find_name, find_model
    end type
+
+   ! --------------------------------------------------------------------------
+   ! Base model type, used by biogeochemical models to inherit from, and by
+   ! external host to get variable lists and metadata.
+   ! --------------------------------------------------------------------------
 
    type type_base_model
       ! Flag determining whether the contents of the type are "frozen", i.e., they will not change anymore.
@@ -1341,12 +1350,12 @@ contains
       end if
    end subroutine integer_pointer_set_extend
 
-   subroutine integer_pointer_set_clear(self)
+   subroutine integer_pointer_set_finalize(self)
       class (type_integer_pointer_set), intent(inout) :: self
 
       if (allocated(self%pointers)) deallocate(self%pointers)
       self%value = -1
-   end subroutine integer_pointer_set_clear
+   end subroutine integer_pointer_set_finalize
 
    subroutine integer_pointer_set_set_value(self, value)
       class (type_integer_pointer_set), intent(inout) :: self
@@ -1367,22 +1376,6 @@ contains
 
       integer_pointer_set_is_empty = .not. allocated(self%pointers)
    end function integer_pointer_set_is_empty
-
-   subroutine integer_pointer_set_copy_values(self, target)
-      class (type_integer_pointer_set), intent(in) :: self
-      integer, allocatable                         :: target(:)
-
-      integer :: i
-
-      if (.not. allocated(self%pointers)) then
-         allocate(target(0))
-      else
-         allocate(target(size(self%pointers)))
-         do i=1,size(self%pointers)
-            target(i) = self%pointers(i)%p
-         end do
-      end if
-   end subroutine integer_pointer_set_copy_values
 
    subroutine real_pointer_set_append(self, value)
       class (type_real_pointer_set), intent(inout) :: self
