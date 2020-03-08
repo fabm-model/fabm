@@ -1385,8 +1385,7 @@ contains
       class (type_fabm_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 
-      integer                   :: ivar, read_index
-      type (type_call), pointer :: call_node
+      integer                   :: ivar, read_index, icall
       logical                   :: set_interior
       _DECLARE_INTERIOR_INDICES_
 
@@ -1406,10 +1405,8 @@ contains
 
       ! Allow biogeochemical models to initialize their interior state.
       set_interior = .false.
-      call_node => self%initialize_state_job%first_task%first_call
-      do while (associated(call_node))
-         if (call_node%source == source_initialize_state) call call_node%model%initialize_state(self%cache_int, set_interior)
-         call_node => call_node%next
+      do icall = 1, size(self%initialize_state_job%first_task%calls)
+         if (self%initialize_state_job%first_task%calls(icall)%source == source_initialize_state) call self%initialize_state_job%first_task%calls(icall)%model%initialize_state(self%cache_int, set_interior)
       end do
 
       ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
@@ -1427,8 +1424,7 @@ contains
       class (type_fabm_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
-      integer                   :: ivar, read_index
-      type (type_call), pointer :: call_node
+      integer                   :: icall, ivar, read_index
       logical                   :: set_horizontal
       _DECLARE_HORIZONTAL_INDICES_
 
@@ -1448,10 +1444,8 @@ contains
 
       ! Allow biogeochemical models to initialize their bottom state.
       set_horizontal = .false.
-      call_node => self%initialize_bottom_state_job%first_task%first_call
-      do while (associated(call_node))
-         if (call_node%source == source_initialize_bottom_state) call call_node%model%initialize_bottom_state(self%cache_hz,set_horizontal)
-         call_node => call_node%next
+      do icall = 1, size(self%initialize_bottom_state_job%first_task%calls)
+         if (self%initialize_bottom_state_job%first_task%calls(icall)%source == source_initialize_bottom_state) call self%initialize_bottom_state_job%first_task%calls(icall)%model%initialize_bottom_state(self%cache_hz, set_horizontal)
       end do
 
       ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
@@ -1469,8 +1463,7 @@ contains
       class (type_fabm_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
-      integer                   :: ivar, read_index
-      type (type_call), pointer :: call_node
+      integer                   :: icall, ivar, read_index
       logical                   :: set_horizontal
       _DECLARE_HORIZONTAL_INDICES_
 
@@ -1490,10 +1483,8 @@ contains
 
       ! Allow biogeochemical models to initialize their surface state.
       set_horizontal = .false.
-      call_node => self%initialize_surface_state_job%first_task%first_call
-      do while (associated(call_node))
-         if (call_node%source == source_initialize_surface_state) call call_node%model%initialize_surface_state(self%cache_hz,set_horizontal)
-         call_node => call_node%next
+      do icall = 1, size(self%initialize_surface_state_job%first_task%calls)
+         if (self%initialize_surface_state_job%first_task%calls(icall)%source == source_initialize_surface_state) call self%initialize_surface_state_job%first_task%calls(icall)%model%initialize_surface_state(self%cache_hz,set_horizontal)
       end do
 
       ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
@@ -1538,8 +1529,7 @@ contains
      _DECLARE_ARGUMENTS_INTERIOR_IN_
       real(rke) _DIMENSION_EXT_SLICE_PLUS_2_, intent(inout) :: pp, dd
 
-      type (type_call), pointer :: call_node
-      integer                   :: i, j, k
+      integer :: icall, i, j, k, ncopy
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
@@ -1555,20 +1545,19 @@ contains
 
       call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%do_interior_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
 
-      call_node => self%do_interior_job%first_task%first_call
-      do while (associated(call_node))
-         call call_node%model%do_ppdd(self%cache_int, pp, dd)
+      ncopy = 0
+      do icall = 1, size(self%do_interior_job%first_task%calls)
+         call self%do_interior_job%first_task%calls(icall)%model%do_ppdd(self%cache_int, pp, dd)
 
          ! Copy outputs of interest to read cache so consecutive models can use it.
-         _DO_CONCURRENT_(i,1,size(call_node%copy_commands_int))
-            j = call_node%copy_commands_int(i)%read_index
-            k = call_node%copy_commands_int(i)%write_index
+         _DO_CONCURRENT_(i,1 + ncopy,self%do_interior_job%first_task%calls(icall)%ncopy_int + ncopy)
+            j = self%do_interior_job%first_task%copy_commands_int(i)%read_index
+            k = self%do_interior_job%first_task%copy_commands_int(i)%write_index
             _CONCURRENT_LOOP_BEGIN_EX_(self%cache_int)
                self%cache_int%read _INDEX_SLICE_PLUS_1_(j) = self%cache_int%write _INDEX_SLICE_PLUS_1_(k)
             _LOOP_END_
          end do
-
-         call_node => call_node%next
+         ncopy = ncopy + self%do_interior_job%first_task%calls(icall)%ncopy_int
       end do
 
       call cache_unpack(self%do_interior_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
@@ -1580,8 +1569,7 @@ contains
       logical,                 intent(in)    :: repair
       logical,                 intent(out)   :: valid
 
-      integer                   :: ivar, read_index
-      type (type_call), pointer :: call_node
+      integer                   :: icall, ivar, read_index
       real(rki)                 :: value, minimum, maximum
       character(len=256)        :: err
       logical                   :: set_interior
@@ -1597,11 +1585,9 @@ contains
       call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%check_state_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
 
       ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
-      call_node => self%check_state_job%first_task%first_call
-      do while (associated(call_node) .and. valid)
-         if (call_node%source == source_check_state) call call_node%model%check_state(self%cache_int, repair, valid, set_interior)
+      do icall = 1, size(self%check_state_job%first_task%calls)
+         if (self%check_state_job%first_task%calls(icall)%source == source_check_state) call self%check_state_job%first_task%calls(icall)%model%check_state(self%cache_int, repair, valid, set_interior)
          if (.not. (valid .or. repair)) return
-         call_node => call_node%next
       end do
 
       ! Finally check whether all state variable values lie within their prescribed [constant] bounds.
@@ -1700,8 +1686,7 @@ contains
       logical,                                    intent(in)    :: repair
       logical,                                    intent(out)   :: valid
 
-      type (type_call), pointer :: call_node
-      integer                   :: ivar, read_index
+      integer                   :: icall, ivar, read_index
       real(rki)                 :: value, minimum, maximum
       character(len=256)        :: err
       _DECLARE_HORIZONTAL_INDICES_
@@ -1720,15 +1705,13 @@ contains
       set_interior = .false.
 
       ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
-      call_node => job%first_task%first_call
-      do while (associated(call_node) .and. valid)
+      do icall = 1, size(job%first_task%calls)
          if (flag==1) then
-            if (call_node%source == source_check_surface_state) call call_node%model%check_surface_state(self%cache_hz, repair, valid, set_horizontal, set_interior)
+            if (job%first_task%calls(icall)%source == source_check_surface_state) call job%first_task%calls(icall)%model%check_surface_state(self%cache_hz, repair, valid, set_horizontal, set_interior)
          else
-            if (call_node%source == source_check_bottom_state) call call_node%model%check_bottom_state(self%cache_hz, repair, valid, set_horizontal, set_interior)
+            if (job%first_task%calls(icall)%source == source_check_bottom_state) call job%first_task%calls(icall)%model%check_bottom_state(self%cache_hz, repair, valid, set_horizontal, set_interior)
          end if
          if (.not. (valid .or. repair)) return
-         call_node => call_node%next
       end do
 
       ! Check boundaries for horizontal state variables, as prescribed by the owning models.
@@ -1912,8 +1895,7 @@ contains
       integer,                                       intent(in)    :: benthos_offset
       real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_, intent(inout) :: pp, dd
 
-      type (type_call), pointer :: call_node
-      integer                   :: i, j, k
+      integer                   :: icall, i, j, k, ncopy
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
@@ -1922,20 +1904,19 @@ contains
 
       call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%do_bottom_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
-      call_node => self%do_bottom_job%first_task%first_call
-      do while (associated(call_node))
-         if (call_node%source == source_do_bottom) call call_node%model%do_bottom_ppdd(self%cache_hz, pp, dd, benthos_offset)
+      ncopy = 0
+      do icall = 1, size(self%do_bottom_job%first_task%calls)
+         if (self%do_bottom_job%first_task%calls(icall)%source == source_do_bottom) call self%do_bottom_job%first_task%calls(icall)%model%do_bottom_ppdd(self%cache_hz, pp, dd, benthos_offset)
 
          ! Copy outputs of interest to read cache so consecutive models can use it.
-         _DO_CONCURRENT_(i,1,size(call_node%copy_commands_hz))
-            j = call_node%copy_commands_hz(i)%read_index
-            k = call_node%copy_commands_hz(i)%write_index
+         _DO_CONCURRENT_(i,1 + ncopy,self%do_bottom_job%first_task%calls(icall)%ncopy_hz + ncopy)
+            j = self%do_bottom_job%first_task%copy_commands_hz(i)%read_index
+            k = self%do_bottom_job%first_task%copy_commands_hz(i)%write_index
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
                self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%cache_hz%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
             _HORIZONTAL_LOOP_END_
          end do
-
-         call_node => call_node%next
+         ncopy = ncopy + self%do_bottom_job%first_task%calls(icall)%ncopy_hz
       end do
 
       call cache_unpack(self%do_bottom_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)

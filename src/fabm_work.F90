@@ -591,41 +591,38 @@ end subroutine end_vertical_task
       type (type_interior_cache),    intent(inout) :: cache
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 
-      type (type_call), pointer :: call_node
-      integer                   :: i, j, k
+      integer :: icall, i, j, k, ncopy
       _DECLARE_INTERIOR_INDICES_
 
       call cache_pack(domain, catalog, cache_fill_values, task, cache _POSTARG_INTERIOR_IN_)
 
-      call_node => task%first_call
-      do while (associated(call_node))
-         if (call_node%active) then
+      ncopy = 0
+      do icall = 1, size(task%calls)
+         if (task%calls(icall)%active) then
 #ifndef NDEBUG
-            call invalidate_interior_call_output(call_node, cache)
+            call invalidate_interior_call_output(task%calls(icall), cache)
 #endif
 
-            select case (call_node%source)
-            case (source_do);                    call call_node%model%do(cache)
-            case (source_get_light_extinction);  call call_node%model%get_light_extinction(cache)
-            case (source_get_vertical_movement); call call_node%model%get_vertical_movement(cache)
+            select case (task%calls(icall)%source)
+            case (source_do);                    call task%calls(icall)%model%do(cache)
+            case (source_get_light_extinction);  call task%calls(icall)%model%get_light_extinction(cache)
+            case (source_get_vertical_movement); call task%calls(icall)%model%get_vertical_movement(cache)
             end select
 
 #ifndef NDEBUG
-            call check_interior_call_output(call_node, cache)
+            call check_interior_call_output(task%calls(icall), cache)
 #endif
          end if
 
          ! Copy outputs of interest to read cache so consecutive models can use it.
-         _DO_CONCURRENT_(i,1,size(call_node%copy_commands_int))
-            j = call_node%copy_commands_int(i)%read_index
-            k = call_node%copy_commands_int(i)%write_index
+         _DO_CONCURRENT_(i,1 + ncopy,task%calls(icall)%ncopy_int + ncopy)
+            j = task%copy_commands_int(i)%read_index
+            k = task%copy_commands_int(i)%write_index
             _CONCURRENT_LOOP_BEGIN_EX_(cache)
                cache%read _INDEX_SLICE_PLUS_1_(j) = cache%write _INDEX_SLICE_PLUS_1_(k)
             _LOOP_END_
          end do
-
-         ! Move to next model
-         call_node => call_node%next
+         ncopy = ncopy + task%calls(icall)%ncopy_int
       end do
 
       call cache_unpack(task, cache, store _POSTARG_INTERIOR_IN_)
@@ -641,40 +638,38 @@ end subroutine end_vertical_task
       type (type_horizontal_cache),  intent(inout) :: cache
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
-      type (type_call), pointer :: call_node
-      integer                   :: i, j, k
+      integer :: icall, i, j, k, ncopy
       _DECLARE_HORIZONTAL_INDICES_
 
       call cache_pack(domain, catalog, cache_fill_values, task, cache _POSTARG_HORIZONTAL_IN_)
 
-      call_node => task%first_call
-      do while (associated(call_node))
-         if (call_node%active) then
+      ncopy = 0
+      do icall = 1, size(task%calls)
+         if (task%calls(icall)%active) then
 #ifndef NDEBUG
-            call invalidate_horizontal_call_output(call_node, cache)
+            call invalidate_horizontal_call_output(task%calls(icall), cache)
 #endif
 
-            select case (call_node%source)
-            case (source_do_surface);    call call_node%model%do_surface   (cache)
-            case (source_do_bottom);     call call_node%model%do_bottom    (cache)
-            case (source_do_horizontal); call call_node%model%do_horizontal(cache)
+            select case (task%calls(icall)%source)
+            case (source_do_surface);    call task%calls(icall)%model%do_surface   (cache)
+            case (source_do_bottom);     call task%calls(icall)%model%do_bottom    (cache)
+            case (source_do_horizontal); call task%calls(icall)%model%do_horizontal(cache)
             end select
 
 #ifndef NDEBUG
-            call check_horizontal_call_output(call_node, cache)
+            call check_horizontal_call_output(task%calls(icall), cache)
 #endif
          end if
 
          ! Copy outputs of interest to read cache so consecutive models can use it.
-         _DO_CONCURRENT_(i,1,size(call_node%copy_commands_hz))
-            j = call_node%copy_commands_hz(i)%read_index
-            k = call_node%copy_commands_hz(i)%write_index
+         _DO_CONCURRENT_(i,1 + ncopy,task%calls(icall)%ncopy_hz + ncopy)
+            j = task%copy_commands_hz(i)%read_index
+            k = task%copy_commands_hz(i)%write_index
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(cache)
                cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
             _HORIZONTAL_LOOP_END_
          end do
-
-         call_node => call_node%next
+         ncopy = ncopy + task%calls(icall)%ncopy_hz
       end do
 
       call cache_unpack(task, cache, store _POSTARG_HORIZONTAL_IN_)
@@ -690,46 +685,46 @@ end subroutine end_vertical_task
       type (type_vertical_cache),    intent(inout) :: cache
       _DECLARE_ARGUMENTS_VERTICAL_IN_
 
-      type (type_call), pointer :: call_node
-      integer                   :: i, j, k
+      integer :: icall, i, j, k, ncopy_int, ncopy_hz
       _DECLARE_VERTICAL_INDICES_
 
       call cache_pack(domain, catalog, cache_fill_values, task, cache _POSTARG_VERTICAL_IN_)
 
-      call_node => task%first_call
-      do while (associated(call_node))
+      ncopy_int = 0
+      ncopy_hz = 0
+      do icall = 1, size(task%calls)
 
-         if (call_node%active) then
+         if (task%calls(icall)%active) then
 #ifndef NDEBUG
-            call invalidate_vertical_call_output(call_node, cache)
+            call invalidate_vertical_call_output(task%calls(icall), cache)
 #endif
 
-            call call_node%model%get_light(cache)
+            call task%calls(icall)%model%get_light(cache)
 
 #ifndef NDEBUG
-            call check_vertical_call_output(call_node, cache)
+            call check_vertical_call_output(task%calls(icall), cache)
 #endif
          end if
 
          ! Copy outputs of interest to read cache so consecutive models can use it.
-         _DO_CONCURRENT_(i,1,size(call_node%copy_commands_int))
-            j = call_node%copy_commands_int(i)%read_index
-            k = call_node%copy_commands_int(i)%write_index
+         _DO_CONCURRENT_(i,1 + ncopy_int,task%calls(icall)%ncopy_int + ncopy_int)
+            j = task%copy_commands_int(i)%read_index
+            k = task%copy_commands_int(i)%write_index
             _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(cache)
                cache%read _INDEX_SLICE_PLUS_1_(j) = cache%write _INDEX_SLICE_PLUS_1_(k)
             _VERTICAL_LOOP_END_
          end do
-         _DO_CONCURRENT_(i,1,size(call_node%copy_commands_hz))
-            j = call_node%copy_commands_hz(i)%read_index
-            k = call_node%copy_commands_hz(i)%write_index
+         ncopy_int = ncopy_int + task%calls(icall)%ncopy_int
+         _DO_CONCURRENT_(i,1 + ncopy_hz,task%calls(icall)%ncopy_hz + ncopy_hz)
+            j = task%copy_commands_hz(i)%read_index
+            k = task%copy_commands_hz(i)%write_index
 #ifdef _HORIZONTAL_IS_VECTORIZED_
             cache%read_hz(1, j) = cache%write_hz(1, k)
 #else
             cache%read_hz(j) = cache%write_hz(k)
 #endif
          end do
-
-         call_node => call_node%next
+         ncopy_hz = ncopy_hz + task%calls(icall)%ncopy_hz
       end do
 
       call cache_unpack(task, cache, store _POSTARG_VERTICAL_IN_)

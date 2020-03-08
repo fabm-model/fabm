@@ -34,27 +34,26 @@ module fabm_job
    end type
 
    type type_cache_copy_command
-      integer :: read_index
-      integer :: write_index
+      integer :: read_index  = -1
+      integer :: write_index = -1
    end type
 
    ! A single call to a specific API of a specific biogeochemical model.
    ! It is defined by the combination of a model object ("model") and one of its procedures ("source").
    type type_call
-      class (type_base_model), pointer            :: model => null()
-      integer                                     :: source = source_unknown
-      type (type_node), pointer                   :: graph_node => null()
-      logical                                     :: active = .true.
-      type (type_cache_copy_command), allocatable :: copy_commands_int(:) ! interior variables to copy from write to read cache after call completes
-      type (type_cache_copy_command), allocatable :: copy_commands_hz(:)  ! horizontal variables to copy from write to read cache after call completes
-      type (type_call), pointer                   :: next => null()
+      class (type_base_model), pointer :: model => null()
+      integer                          :: source = source_unknown
+      type (type_node), pointer        :: graph_node => null()
+      logical                          :: active = .true.
+      integer                          :: ncopy_int = 0 ! interior variables to copy from write to read cache after call completes
+      integer                          :: ncopy_hz = 0  ! horizontal variables to copy from write to read cache after call completes
    end type type_call
 
    ! A task contains one or more model calls that all use the same operation over the domain.
    ! Valid operations: interior in native direction, interior per column, surface only, bottom only, horizontal-only.
    type type_task
       integer                   :: operation = source_unknown
-      type (type_call), pointer :: first_call => null()
+      type (type_call), allocatable :: calls(:)
       type (type_variable_set)  :: read_cache_preload
       type (type_variable_set)  :: write_cache_preload
 
@@ -65,6 +64,8 @@ module fabm_job
       integer, allocatable :: load(:)
       integer, allocatable :: load_hz(:)
       integer, allocatable :: load_scalar(:)
+      type (type_cache_copy_command), allocatable :: copy_commands_int(:) ! interior variables to copy from write to read cache after call completes
+      type (type_cache_copy_command), allocatable :: copy_commands_hz(:)  ! horizontal variables to copy from write to read cache after call completes
       type (type_task), pointer :: next => null()
    contains
       procedure :: initialize => task_initialize
@@ -148,13 +149,12 @@ contains
       type (type_global_variable_register), intent(inout) :: variable_register
       type (type_schedules),                intent(inout) :: schedules
 
-      type (type_call),                    pointer :: call_node
+      integer                                      :: icall
       type (type_input_variable_set_node), pointer :: input_variable_node
 
       ! Initialize individual call objects, then collect all input variables in a task-encompassing set.
-      call_node => self%first_call
-      do while (associated(call_node))
-         input_variable_node => call_node%graph_node%inputs%first
+      do icall = 1, size(self%calls)
+         input_variable_node => self%calls(icall)%graph_node%inputs%first
          do while (associated(input_variable_node))
             _ASSERT_(.not. input_variable_node%p%target%read_indices%is_empty(), 'task_initialize', 'variable without read indices among inputs')
             _ASSERT_(.not. associated(input_variable_node%p%target%write_owner), 'task_initialize', 'write contribution among inputs')
@@ -167,14 +167,11 @@ contains
 
             input_variable_node => input_variable_node%next
          end do
-         call_node => call_node%next
       end do
 
-      call_node => self%first_call
-      do while (associated(call_node))
-         call call_initialize(call_node, variable_register)
-         call schedules%attach(call_node%model, call_node%source, call_node%active)
-         call_node => call_node%next
+      do icall = 1, size(self%calls)
+         call call_initialize(self%calls(icall), variable_register)
+         call schedules%attach(self%calls(icall)%model, self%calls(icall)%source, self%calls(icall)%active)
       end do
    end subroutine task_initialize
 
@@ -182,55 +179,120 @@ contains
       class (type_task),       intent(inout) :: self
       type (type_variable_set),intent(inout) :: unfulfilled_dependencies
 
-      type (type_call),           pointer :: call_node
-      type (type_output_variable_set_node),pointer :: output_variable
+      integer                                       :: icall, n_int, n_hz
+      type (type_output_variable_set_node), pointer :: output_variable
 
-      call_node => self%first_call
-      do while (associated(call_node))
-         call call_process_indices(call_node)
-         call_node => call_node%next
+      do icall = 1, size(self%calls)
+         self%calls(icall)%ncopy_int = get_copy_command_count(self%calls(icall), domain_interior)
+         self%calls(icall)%ncopy_hz = get_copy_command_count(self%calls(icall), domain_horizontal)
       end do
+      allocate(self%copy_commands_int(sum(self%calls%ncopy_int)))
+      allocate(self%copy_commands_hz(sum(self%calls%ncopy_hz)))
+      n_int = 0
+      n_hz = 0
+      do icall = 1, size(self%calls)
+         call create_cache_copy_commands(self%calls(icall), self%copy_commands_int, domain_interior, n_int)
+         call create_cache_copy_commands(self%calls(icall), self%copy_commands_hz, domain_horizontal, n_hz)
+      end do
+      _ASSERT_(n_int == sum(self%calls%ncopy_int), 'task_process_indices', 'mismatch in count of interior copy commands')
+      _ASSERT_(n_hz == sum(self%calls%ncopy_hz), 'task_process_indices', 'mismatch in count of horizontal copy commands')
+      _ASSERT_(all(self%copy_commands_int%read_index > 0), 'task_process_indices', 'one or more read_index values for interior copy command <= 0')
+      _ASSERT_(all(self%copy_commands_int%write_index > 0), 'task_process_indices', 'one or more write_index values for interior copy command <= 0')
+      _ASSERT_(all(self%copy_commands_hz%read_index > 0), 'task_process_indices', 'one or more read_index values for horizontal copy command <= 0')
+      _ASSERT_(all(self%copy_commands_hz%write_index > 0), 'task_process_indices', 'one or more write_index values for horizontal copy command <= 0')
 
       ! For all variables that this task computes itself, there is no need to preload a value in cache.
-      call_node => self%first_call
-      do while (associated(call_node))
-         output_variable => call_node%graph_node%outputs%first
+      do icall = 1, size(self%calls)
+         output_variable => self%calls(icall)%graph_node%outputs%first
          do while (associated(output_variable))
             call self%read_cache_preload%remove(output_variable%p%target, discard=.true.)
             output_variable => output_variable%next
          end do
-         call_node => call_node%next
       end do
 
       ! Find all variables that must be written to persistent storage after this job completes.
-      call create_persistent_store_commands(self%save_sources,   domain_interior)
-      call create_persistent_store_commands(self%save_sources_hz,domain_horizontal)
+      call create_persistent_store_commands(self%save_sources,    domain_interior)
+      call create_persistent_store_commands(self%save_sources_hz, domain_horizontal)
 
       ! Create prefill instructions for all variables that will be written to.
-      call create_prefill_commands(self%prefill,   domain_interior)
-      call create_prefill_commands(self%prefill_hz,domain_horizontal)
+      call create_prefill_commands(self%prefill,    domain_interior)
+      call create_prefill_commands(self%prefill_hz, domain_horizontal)
 
       ! Create read cache load instructions for all input variables.
-      call create_load_commands(self%load,       domain_interior)
-      call create_load_commands(self%load_hz,    domain_horizontal)
-      call create_load_commands(self%load_scalar,domain_scalar)
+      call create_load_commands(self%load,        domain_interior)
+      call create_load_commands(self%load_hz,     domain_horizontal)
+      call create_load_commands(self%load_scalar, domain_scalar)
 
    contains
 
-      subroutine create_prefill_commands(prefill, domain)
-         integer, intent(out),allocatable :: prefill(:)
-         integer, intent(in)              :: domain
+      integer function get_copy_command_count(call_node, domain)
+         type (type_call), intent(in) :: call_node
+         integer,          intent(in) :: domain
 
-         integer                              :: ilast
-         type (type_call),            pointer :: call_node
+         type (type_output_variable_set_node), pointer :: variable
+         integer                                       :: read_index
+
+         get_copy_command_count = 0
+         variable => call_node%graph_node%outputs%first
+         do while (associated(variable))
+            if (variable%p%copy_to_cache .and. iand(variable%p%target%domain, domain) /= 0) then
+               _ASSERT_(variable%p%target%write_indices%value > 0, 'call_list_node_initialize::create_cache_copy_commands', 'BUG: ' // trim(variable%p%target%name) // ' cannot be copied from write to read cache because it lacks a write cache index.')
+               read_index = variable%p%target%read_indices%value
+               if (associated(variable%p%target%write_owner)) read_index = variable%p%target%write_owner%read_indices%value
+               _ASSERT_(read_index > 0, 'call_list_node_initialize::create_cache_copy_commands', 'BUG: ' // trim(variable%p%target%name) // ' cannot be copied from write to read cache because it lacks a read cache index.')
+               get_copy_command_count = get_copy_command_count + 1
+            end if
+            variable => variable%next
+         end do
+      end function
+
+      subroutine create_cache_copy_commands(call_node, commands, domain, n)
+         type (type_call),               intent(in)    :: call_node
+         type (type_cache_copy_command), intent(inout) :: commands(:)
+         integer,                        intent(in)    :: domain
+         integer,                        intent(inout) :: n
+
+         type (type_output_variable_set_node), pointer :: variable
+         integer                                       :: max_write_index, read_index, write_index
+
+         max_write_index = -1
+         variable => call_node%graph_node%outputs%first
+         do while (associated(variable))
+            if (variable%p%copy_to_cache .and. iand(variable%p%target%domain, domain) /= 0) then
+               max_write_index = max(max_write_index, variable%p%target%write_indices%value)
+            end if
+            variable => variable%next
+         end do
+
+         do write_index = 1, max_write_index
+            variable => call_node%graph_node%outputs%first
+            do while (associated(variable))
+               if (variable%p%copy_to_cache .and. iand(variable%p%target%domain, domain) /= 0 .and. variable%p%target%write_indices%value == write_index) then
+                  n = n + 1
+                  read_index = variable%p%target%read_indices%value
+                  if (associated(variable%p%target%write_owner)) read_index = variable%p%target%write_owner%read_indices%value
+                  commands(n)%read_index = read_index
+                  commands(n)%write_index = write_index
+                  exit
+               end if
+               variable => variable%next
+            end do
+         end do
+      end subroutine create_cache_copy_commands
+
+      subroutine create_prefill_commands(prefill, domain)
+         integer, intent(out), allocatable :: prefill(:)
+         integer, intent(in)               :: domain
+
+         integer                                       :: ilast
+         integer                                       :: icall
          type (type_output_variable_set_node), pointer :: output_variable
-         type (type_variable_node),   pointer :: variable_node
+         type (type_variable_node),            pointer :: variable_node
 
          ! Find the last write cache index
          ilast = 0
-         call_node => self%first_call
-         do while (associated(call_node))
-            output_variable => call_node%graph_node%outputs%first
+         do icall = 1, size(self%calls)
+            output_variable => self%calls(icall)%graph_node%outputs%first
             do while (associated(output_variable))
                if (output_variable%p%target%prefill /= prefill_none .and. iand(output_variable%p%target%domain, domain) /= 0) then
                   _ASSERT_(output_variable%p%target%write_indices%value > 0, 'create_prefill_commands', 'Variable ' // trim(output_variable%p%target%name) // ' was registered for prefilling, but it does not have a write cache index.')
@@ -239,7 +301,6 @@ contains
                end if
                output_variable => output_variable%next
             end do
-            call_node => call_node%next
          end do
          variable_node => self%write_cache_preload%first
          do while (associated(variable_node))
@@ -256,9 +317,8 @@ contains
 
          if (ilast == 0) return
 
-         call_node => self%first_call
-         do while (associated(call_node))
-            output_variable => call_node%graph_node%outputs%first
+         do icall = 1, size(self%calls)
+            output_variable => self%calls(icall)%graph_node%outputs%first
             do while (associated(output_variable))
                if (output_variable%p%target%prefill /= prefill_none .and. iand(output_variable%p%target%domain, domain) /= 0) then
                   ilast = output_variable%p%target%write_indices%value
@@ -274,7 +334,6 @@ contains
                end if
                output_variable => output_variable%next
             end do
-            call_node => call_node%next
          end do
          variable_node => self%write_cache_preload%first
          do while (associated(variable_node))
@@ -294,24 +353,22 @@ contains
          integer,allocatable,intent(out) :: commands(:)
          integer,            intent(in)  :: domain
 
-         integer                              :: ilast
-         type (type_call),            pointer :: call_node
+         integer                                       :: ilast
+         integer                                       :: icall
          type (type_output_variable_set_node), pointer :: variable_node
 
          ! First find the last index in persistent storage that will be written to.
          ilast = 0
-         call_node => self%first_call
-         do while (associated(call_node))
-            variable_node => call_node%graph_node%outputs%first
+         do icall = 1, size(self%calls)
+            variable_node => self%calls(icall)%graph_node%outputs%first
             do while (associated(variable_node))
-               if (variable_node%p%copy_to_store .and. iand(variable_node%p%target%domain, domain) /= 0 .and. call_node%graph_node%source /= source_constant) then
+               if (variable_node%p%copy_to_store .and. iand(variable_node%p%target%domain, domain) /= 0 .and. self%calls(icall)%graph_node%source /= source_constant) then
                   _ASSERT_(variable_node%p%target%write_indices%value > 0, 'create_prefill_commands', 'Variable ' // trim(variable_node%p%target%name) // ' has copy_to_store set, but it does not have a write cache index.')
                   _ASSERT_(variable_node%p%target%store_index /= store_index_none, 'create_persistent_store_commands', 'Variable ' // trim(variable_node%p%target%name) // ' has copy_to_store set, but it does not have a persistent storage index.')
                   ilast = max(ilast,variable_node%p%target%store_index)
                end if
                variable_node => variable_node%next
             end do
-            call_node => call_node%next
          end do
 
          ! Allocate the commands array (go up to the last written-to index in persistent storage only)
@@ -319,15 +376,13 @@ contains
          commands(:) = 0
 
          ! Associate indices in persistent storage with the index in the write cache at which the source variable will be found.
-         call_node => self%first_call
-         do while (associated(call_node))
-            variable_node => call_node%graph_node%outputs%first
+         do icall = 1, size(self%calls)
+            variable_node => self%calls(icall)%graph_node%outputs%first
             do while (associated(variable_node))
-               if (variable_node%p%copy_to_store .and. iand(variable_node%p%target%domain,domain) /= 0 .and. call_node%graph_node%source /= source_constant) &
+               if (variable_node%p%copy_to_store .and. iand(variable_node%p%target%domain,domain) /= 0 .and. self%calls(icall)%graph_node%source /= source_constant) &
                   commands(variable_node%p%target%store_index) = variable_node%p%target%write_indices%value
                variable_node => variable_node%next
             end do
-            call_node => call_node%next
          end do
       end subroutine create_persistent_store_commands
 
@@ -388,14 +443,6 @@ contains
       end do
    end subroutine job_print
 
-subroutine call_finalize(self)
-   type (type_call), intent(inout) :: self
-
-   if (allocated(self%copy_commands_int)) deallocate(self%copy_commands_int)
-   if (allocated(self%copy_commands_hz))  deallocate(self%copy_commands_hz)
-   self%graph_node => null()
-end subroutine call_finalize
-
 subroutine print_output_variable(variable, unit, indent)
    type (type_output_variable), intent(in) :: variable
    integer,                     intent(in) :: unit
@@ -438,7 +485,7 @@ subroutine task_print(self, unit, indent, specific_variable)
 
    integer                                       :: indent_
    integer                                       :: i
-   type (type_call),                     pointer :: call_node
+   integer                                       :: icall
    type (type_output_variable_set_node), pointer :: output_variable
    logical                                       :: show
    type (type_input_variable_set_node),  pointer :: input_variable
@@ -479,13 +526,12 @@ subroutine task_print(self, unit, indent, specific_variable)
       end select
    end do
 
-   call_node => self%first_call
-   do while (associated(call_node))
+   do icall = 1, size(self%calls)
       header_written = .false.
       if (.not. present(specific_variable)) call write_header()
 
       subheader_written = .false.
-      input_variable => call_node%graph_node%inputs%first
+      input_variable => self%calls(icall)%graph_node%inputs%first
       do while (associated(input_variable))
          show = .true.
          if (present(specific_variable)) show = associated(input_variable%p%target, specific_variable)
@@ -501,7 +547,7 @@ subroutine task_print(self, unit, indent, specific_variable)
       end do
 
       subheader_written = .false.
-      output_variable => call_node%graph_node%outputs%first
+      output_variable => self%calls(icall)%graph_node%outputs%first
       do while (associated(output_variable))
          show = .true.
          if (present(specific_variable)) show = associated(output_variable%p%target, specific_variable)
@@ -515,16 +561,14 @@ subroutine task_print(self, unit, indent, specific_variable)
          end if
          output_variable => output_variable%next
       end do
-
-      call_node => call_node%next
    end do
 
-   contains
+contains
 
    subroutine write_header()
       if (.not. header_written) then
-         if (associated(call_node%model)) then
-            write (unit,'(a,a,": ",a)') repeat(' ', indent_), trim(call_node%model%get_path()), trim(source2string(call_node%source))
+         if (associated(self%calls(icall)%model)) then
+            write (unit,'(a,a,": ",a)') repeat(' ', indent_), trim(self%calls(icall)%model%get_path()), trim(source2string(self%calls(icall)%source))
          else
             write (unit,'(a,"host")') repeat(' ', indent_)
          end if
@@ -537,24 +581,17 @@ end subroutine task_print
 subroutine task_finalize(self)
    class (type_task), intent(inout) :: self
 
-   type (type_call),pointer :: node,next
-
-   node => self%first_call
-   do while (associated(node))
-      next => node%next
-      call call_finalize(node)
-      deallocate(node)
-      node => next
-   end do
-   self%first_call => null()
+   deallocate(self%calls)
+   deallocate(self%copy_commands_int)
+   deallocate(self%copy_commands_hz)
 end subroutine task_finalize
 
 subroutine call_initialize(self, variable_register)
-   type (type_call),             intent(inout) :: self
-   type (type_global_variable_register),intent(inout) :: variable_register
+   type (type_call),                     intent(inout) :: self
+   type (type_global_variable_register), intent(inout) :: variable_register
 
-   class (type_base_model),     pointer :: parent
-   class (type_model_list_node),pointer :: model_list_node
+   class (type_base_model),              pointer :: parent
+   class (type_model_list_node),         pointer :: model_list_node
    type (type_output_variable_set_node), pointer :: variable_node
 
    ! Make sure the pointer to the model has the highest class (and not a base class)
@@ -587,62 +624,6 @@ subroutine call_initialize(self, variable_register)
       variable_node => variable_node%next
    end do
 end subroutine call_initialize
-
-subroutine call_process_indices(self)
-   type (type_call), intent(inout) :: self
-
-   call create_cache_copy_commands(self%copy_commands_int, domain_interior)
-   call create_cache_copy_commands(self%copy_commands_hz, domain_horizontal)
-
-contains
-
-   subroutine create_cache_copy_commands(commands, domain)
-      type (type_cache_copy_command), allocatable, intent(out) :: commands(:)
-      integer,                                     intent(in)  :: domain
-
-      type (type_output_variable_set_node), pointer :: variable
-      integer                              :: n, max_write_index, read_index, write_index
-
-      n = 0
-      max_write_index = -1
-      variable => self%graph_node%outputs%first
-      do while (associated(variable))
-         if (variable%p%copy_to_cache .and. iand(variable%p%target%domain, domain) /= 0) then
-            _ASSERT_(variable%p%target%write_indices%value > 0, 'call_list_node_initialize::create_cache_copy_commands', 'BUG: ' // trim(variable%p%target%name) // ' cannot be copied from write to read cache because it lacks a write cache index.')
-            read_index = variable%p%target%read_indices%value
-            if (associated(variable%p%target%write_owner)) read_index = variable%p%target%write_owner%read_indices%value
-            _ASSERT_(read_index > 0, 'call_list_node_initialize::create_cache_copy_commands', 'BUG: ' // trim(variable%p%target%name) // ' cannot be copied from write to read cache because it lacks a read cache index.')
-            n = n + 1
-            max_write_index = max(max_write_index, variable%p%target%write_indices%value)
-         end if
-         variable => variable%next
-      end do
-
-      ! Create list of cache copy commands (source index in write cache, target index in read cache)
-      ! They are sorted by write index (= where the data comes from) to hopefully benefit cache prefetching.
-      allocate(commands(n))
-      commands%read_index = -1
-      commands%write_index = -1
-      n = 0
-      do write_index = 1, max_write_index
-         variable => self%graph_node%outputs%first
-         do while (associated(variable))
-            if (variable%p%copy_to_cache .and. iand(variable%p%target%domain, domain) /= 0 .and. variable%p%target%write_indices%value == write_index) then
-               n = n + 1
-               read_index = variable%p%target%read_indices%value
-               if (associated(variable%p%target%write_owner)) read_index = variable%p%target%write_owner%read_indices%value
-               commands(n)%read_index = read_index
-               commands(n)%write_index = write_index
-               exit
-            end if
-            variable => variable%next
-         end do
-      end do
-      _ASSERT_(all(commands%read_index > 0), 'call_process_indices', 'one or more read_index values <= 0')
-      _ASSERT_(all(commands%write_index > 0), 'call_process_indices', 'one or more write_index values <= 0')
-   end subroutine create_cache_copy_commands
-
-end subroutine call_process_indices
 
 subroutine job_request_variable(self, variable, store)
    class (type_job),target,      intent(inout)        :: self
@@ -750,7 +731,8 @@ subroutine job_create_tasks(self, log_unit)
    type (type_step), allocatable                  :: steps(:)
    integer                                        :: itask
    type (type_task),                      pointer :: task
-   type (type_call),                      pointer :: call_node, previous_call_node, next_call_node
+   integer                                        :: ncall
+   integer                                        :: icall
    type (type_graph_subset_node_pointer), pointer :: pnode
 
    _ASSERT_(self%state < job_state_tasks_created, 'job_create_tasks', trim(self%name) // ': tasks for this job have already been created.')
@@ -775,24 +757,24 @@ subroutine job_create_tasks(self, log_unit)
       self%first_task => task
       task%operation = steps(itask)%operation
 
+      ncall = 0
+      pnode => steps(itask)%first
+      do while (associated(pnode))
+         ncall = ncall + 1
+         pnode => pnode%next
+      end do
+      allocate(task%calls(ncall))
+
       ! Collect all calls for this task.
       ! Preserve the order in which calls appear in the "step",
       ! as this also represents the desired call order.
-      previous_call_node => null()
       pnode => steps(itask)%first
-      do while (associated(pnode))
-         allocate(call_node)
-         call_node%graph_node => pnode%p%graph_node
-         call_node%model      => pnode%p%graph_node%model
-         call_node%source     =  pnode%p%graph_node%source
-         if (associated(previous_call_node)) then
-            previous_call_node%next => call_node
-         else
-            task%first_call => call_node
-         end if
-         previous_call_node => call_node
-         _ASSERT_(associated(call_node%model), 'create_tasks', 'Call node does not have a model pointer.')
-         _ASSERT_(call_node%source /= source_constant .and. call_node%source /= source_state .and. call_node%source /= source_external .and. call_node%source /= source_unknown, 'create_tasks', 'Call node has invalid source.')
+      do icall = 1, ncall
+         task%calls(icall)%graph_node => pnode%p%graph_node
+         task%calls(icall)%model      => pnode%p%graph_node%model
+         task%calls(icall)%source     =  pnode%p%graph_node%source
+         _ASSERT_(associated(task%calls(icall)%model), 'create_tasks', 'Call node does not have a model pointer.')
+         _ASSERT_(task%calls(icall)%source /= source_constant .and. task%calls(icall)%source /= source_state .and. task%calls(icall)%source /= source_external .and. task%calls(icall)%source /= source_unknown, 'create_tasks', 'Call node has invalid source.')
          pnode => pnode%next
       end do
 
@@ -803,11 +785,8 @@ subroutine job_create_tasks(self, log_unit)
    if (self%outsource_tasks) then
       task => self%first_task
       do while (associated(task))
-         call_node => task%first_call
-         do while (associated(call_node))
-            next_call_node => call_node%next
-            !call move_call_backwards(self,task,call_node)
-            call_node => next_call_node
+         do icall = 1, size(task%calls)
+            !call move_call_backwards(self, task, task%calls(icall))
          end do
          task => task%next
       end do
@@ -939,19 +918,17 @@ logical function task_is_responsible(task, output_variable)
    class (type_task), intent(in)       :: task
    type (type_output_variable), target :: output_variable
 
-   type (type_call),                     pointer :: call_node
+   integer                                       :: icall
    type (type_output_variable_set_node), pointer :: output_variable_node
 
    task_is_responsible = .true.
-   call_node => task%first_call
-   do while (associated(call_node))
+   do icall = 1, size(task%calls)
       ! Loop over all outputs of this call
-      output_variable_node => call_node%graph_node%outputs%first
+      output_variable_node => task%calls(icall)%graph_node%outputs%first
       do while (associated(output_variable_node))
          if (associated(output_variable_node%p, output_variable)) return
          output_variable_node => output_variable_node%next
       end do
-      call_node => call_node%next
    end do
    task_is_responsible = .false.
 end function
@@ -960,20 +937,18 @@ logical function output_is_produced_before(task, reference_output_variable, outp
    class (type_task), intent(in)       :: task
    type (type_output_variable), target :: reference_output_variable, output_variable
 
-   type (type_call),                     pointer :: call_node
+   integer                                       :: icall
    type (type_output_variable_set_node), pointer :: output_variable_node
 
    output_is_produced_before = .false.
-   call_node => task%first_call
-   do while (associated(call_node))
+   do icall = 1, size(task%calls)
       ! Loop over all outputs of this call
-      output_variable_node => call_node%graph_node%outputs%first
+      output_variable_node => task%calls(icall)%graph_node%outputs%first
       do while (associated(output_variable_node))
          if (associated(output_variable_node%p, output_variable)) output_is_produced_before = .true.
          if (associated(output_variable_node%p, reference_output_variable)) return
          output_variable_node => output_variable_node%next
       end do
-      call_node => call_node%next
    end do
    _ASSERT_(.false., 'output_is_produced_before', 'reference output not found in task')
 end function output_is_produced_before
@@ -1067,16 +1042,15 @@ contains
    subroutine prepare_task(task)
       type (type_task), pointer :: task
 
-      type (type_call),                     pointer :: call_node
+      integer                                       :: icall
       type (type_input_variable_set_node),  pointer :: input_variable
       type (type_output_variable_set_node), pointer :: output_variable
       type (type_output_variable),          pointer :: final_output_variable
 
-      call_node => task%first_call
-      do while (associated(call_node))
+      do icall = 1, size(task%calls)
          ! For all inputs that this call requires, determine whether they are produced by the same task
          ! (solved by copying between write and read cache) or by an earlier task (solved by temporary storing)
-         input_variable => call_node%graph_node%inputs%first
+         input_variable => task%calls(icall)%graph_node%inputs%first
          do while (associated(input_variable))
             final_output_variable => null()
             output_variable => input_variable%p%sources%first
@@ -1101,7 +1075,6 @@ contains
             call link_cowritten_outputs(input_variable%p%sources, task)
             input_variable => input_variable%next
          end do
-         call_node => call_node%next
       end do
    end subroutine prepare_task
 

@@ -305,7 +305,7 @@ contains
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
       real(rke) _DIMENSION_HORIZONTAL_SLICE_, intent(out)   :: drag
 
-      type (type_call), pointer :: call_node
+      integer :: icall
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
@@ -319,10 +319,8 @@ contains
 
       call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%get_drag_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
-      call_node => self%get_drag_job%first_task%first_call
-      do while (associated(call_node))
-         if (call_node%source == source_get_drag) call call_node%model%get_drag(self%cache_hz, drag)
-         call_node => call_node%next
+      do icall = 1,  size(self%get_drag_job%first_task%calls)
+         if (self%get_drag_job%first_task%calls(icall)%source == source_get_drag) call self%get_drag_job%first_task%calls(icall)%model%get_drag(self%cache_hz, drag)
       end do
 
       call cache_unpack(self%get_drag_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
@@ -333,7 +331,7 @@ contains
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
       real(rke) _DIMENSION_HORIZONTAL_SLICE_, intent(out)   :: albedo
 
-      type (type_call), pointer :: call_node
+      integer :: icall
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
@@ -347,10 +345,8 @@ contains
 
       call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%get_albedo_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
-      call_node => self%get_albedo_job%first_task%first_call
-      do while (associated(call_node))
-         if (call_node%source == source_get_albedo) call call_node%model%get_albedo(self%cache_hz, albedo)
-         call_node => call_node%next
+      do icall = 1,  size(self%get_albedo_job%first_task%calls)
+         if (self%get_albedo_job%first_task%calls(icall)%source == source_get_albedo) call self%get_albedo_job%first_task%calls(icall)%model%get_albedo(self%cache_hz, albedo)
       end do
 
       call cache_unpack(self%get_albedo_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
