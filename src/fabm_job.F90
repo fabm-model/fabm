@@ -94,12 +94,12 @@ module fabm_job
 
    ! A job contains one or more tasks, each using their own specific operation over the domain.
    type type_job
+      private
+
       type (type_task), pointer, public :: first_task => null()
 
       logical, allocatable, public :: interior_store_prefill(:)
       logical, allocatable, public :: horizontal_store_prefill(:)
-
-      private
 
       character(len=attribute_length) :: name = ''
       integer                         :: state = job_state_none
