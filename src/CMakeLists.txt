@@ -140,6 +140,12 @@ if(NOT FABM_USE_DO_CONCURRENT)
   add_definitions(-D_NO_DO_CONCURRENT_)
 endif()
 
+option(FABM_USE_IEEE_ARITHMETIC "Use ieee_arithmetic module" ON)
+mark_as_advanced(FABM_USE_IEEE_ARITHMETIC)
+if(NOT FABM_USE_IEEE_ARITHMETIC)
+  add_definitions(-D_NO_IEEE_ARITHMETIC_)
+endif()
+
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<NOT:$<CONFIG:DEBUG>>:NDEBUG>)
 
 # Use use position-independent code (-fPIC) everywhere if building shared libraries
