@@ -217,8 +217,8 @@
 #    define _DECLARE_ARGUMENTS_LOCAL_ class (type_cache),intent(in) :: cache;integer,intent(in) :: _I_
 #  endif
 #else
-#  define _ARGUMENTS_LOCAL_ cache
-#  define _DECLARE_ARGUMENTS_LOCAL_ class (type_cache),intent(in) :: cache
+#  define _ARGUMENTS_LOCAL_ cache%type_cache
+#  define _DECLARE_ARGUMENTS_LOCAL_ type (type_cache),intent(in) :: cache
 #endif
 
 ! For BGC models: FABM arguments to routines implemented by biogeochemical models.
@@ -231,13 +231,11 @@
 #define _ARGUMENTS_GET_EXTINCTION_ _ARGUMENTS_INTERIOR_
 #define _ARGUMENTS_GET_DRAG_ _ARGUMENTS_HORIZONTAL_,drag
 #define _ARGUMENTS_GET_ALBEDO_ _ARGUMENTS_HORIZONTAL_,albedo
-#define _ARGUMENTS_GET_CONSERVED_QUANTITIES_ _ARGUMENTS_INTERIOR_,sums
-#define _ARGUMENTS_GET_HORIZONTAL_CONSERVED_QUANTITIES_ _ARGUMENTS_HORIZONTAL_,sums
-#define _ARGUMENTS_CHECK_STATE_ _ARGUMENTS_INTERIOR_,repair,valid,set_interior
-#define _ARGUMENTS_CHECK_SURFACE_STATE_ _ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior
-#define _ARGUMENTS_CHECK_BOTTOM_STATE_ _ARGUMENTS_HORIZONTAL_,repair,valid,set_horizontal,set_interior
-#define _ARGUMENTS_INITIALIZE_STATE_ _ARGUMENTS_INTERIOR_,set_interior
-#define _ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _ARGUMENTS_HORIZONTAL_,set_horizontal
+#define _ARGUMENTS_CHECK_STATE_ _ARGUMENTS_INTERIOR_
+#define _ARGUMENTS_CHECK_SURFACE_STATE_ _ARGUMENTS_HORIZONTAL_
+#define _ARGUMENTS_CHECK_BOTTOM_STATE_ _ARGUMENTS_HORIZONTAL_
+#define _ARGUMENTS_INITIALIZE_STATE_ _ARGUMENTS_INTERIOR_
+#define _ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _ARGUMENTS_HORIZONTAL_
 
 ! For BGC models: Declaration of FABM arguments to routines implemented by biogeochemical models.
 #define _DECLARE_ARGUMENTS_DO_  _DECLARE_ARGUMENTS_INTERIOR_
@@ -249,13 +247,11 @@
 #define _DECLARE_ARGUMENTS_GET_EXTINCTION_ _DECLARE_ARGUMENTS_INTERIOR_
 #define _DECLARE_ARGUMENTS_GET_DRAG_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rke) _DIMENSION_HORIZONTAL_SLICE_,intent(inout) :: drag
 #define _DECLARE_ARGUMENTS_GET_ALBEDO_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rke) _DIMENSION_HORIZONTAL_SLICE_,intent(inout) :: albedo
-#define _DECLARE_ARGUMENTS_GET_CONSERVED_QUANTITIES_ _DECLARE_ARGUMENTS_INTERIOR_;real(rke) _DIMENSION_SLICE_PLUS_1_,intent(inout) :: sums
-#define _DECLARE_ARGUMENTS_GET_HORIZONTAL_CONSERVED_QUANTITIES_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_,intent(inout) :: sums
-#define _DECLARE_ARGUMENTS_CHECK_STATE_ _DECLARE_ARGUMENTS_INTERIOR_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_interior
-#define _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_horizontal,set_interior
-#define _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(in) :: repair;logical,intent(inout) :: valid,set_horizontal,set_interior
-#define _DECLARE_ARGUMENTS_INITIALIZE_STATE_ _DECLARE_ARGUMENTS_INTERIOR_;logical,intent(inout) :: set_interior
-#define _DECLARE_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_;logical,intent(inout) :: set_horizontal
+#define _DECLARE_ARGUMENTS_CHECK_STATE_ _DECLARE_ARGUMENTS_INTERIOR_
+#define _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_
+#define _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_
+#define _DECLARE_ARGUMENTS_INITIALIZE_STATE_ _DECLARE_ARGUMENTS_INTERIOR_
+#define _DECLARE_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_
 
 #define _ADD_(variable,value) cache%write _INDEX_SLICE_PLUS_1_(variable%sum_index) = cache%write _INDEX_SLICE_PLUS_1_(variable%sum_index) + (value)
 #define _ADD_HORIZONTAL_(variable,value) cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_sum_index) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_sum_index) + (value)
@@ -271,10 +267,9 @@
 #define _SET_EXTINCTION_(value) _ADD_(self%extinction_id,value)
 #define _SCALE_DRAG_(value) drag _INDEX_HORIZONTAL_SLICE_ = drag _INDEX_HORIZONTAL_SLICE_ * (value)
 #define _SET_ALBEDO_(value) albedo _INDEX_HORIZONTAL_SLICE_ = albedo _INDEX_HORIZONTAL_SLICE_ + (value)
-#define _SET_CONSERVED_QUANTITY_(variable,value) sums _INDEX_SLICE_PLUS_1_(variable%cons_index) = sums _INDEX_SLICE_PLUS_1_(variable%cons_index) + (value)
 #define _SET_VERTICAL_MOVEMENT_(variable,value) cache%write _INDEX_SLICE_PLUS_1_(variable%movement%sum_index) = cache%write _INDEX_SLICE_PLUS_1_(variable%movement%sum_index) + value/self%dt
-#define _INVALIDATE_STATE_ valid = .false.
-#define _REPAIR_STATE_ repair
+#define _INVALIDATE_STATE_ cache%valid = .false.
+#define _REPAIR_STATE_ cache%repair
 
 #define _GET_WITH_BACKGROUND_(variable,target) target = cache%read _INDEX_SLICE_PLUS_1_(variable%index)+variable%background
 #define _GET_HORIZONTAL_WITH_BACKGROUND_(variable,target) target = cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index)+variable%background
@@ -292,8 +287,8 @@
 #define _GET_(variable,target) target = cache%read _INDEX_SLICE_PLUS_1_(variable%index)
 #define _GET_HORIZONTAL_(variable,target) target = cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index)
 #define _GET_GLOBAL_(variable,target) target = cache%read_scalar(variable%global_index)
-#define _SET_(variable,value) set_interior=.true.;cache%read _INDEX_SLICE_PLUS_1_(variable%index) = value
-#define _SET_HORIZONTAL_(variable,value) set_horizontal=.true.;cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index) = value
+#define _SET_(variable,value) cache%set_interior=.true.;cache%read _INDEX_SLICE_PLUS_1_(variable%index) = value
+#define _SET_HORIZONTAL_(variable,value) cache%set_horizontal=.true.;cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index) = value
 #define _SET_DIAGNOSTIC_(variable,value) cache%write _INDEX_SLICE_PLUS_1_(variable%diag_index) = value
 #define _SET_HORIZONTAL_DIAGNOSTIC_(variable,value) cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_diag_index) = value
 

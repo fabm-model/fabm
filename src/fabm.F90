@@ -365,7 +365,6 @@ contains
 
       class (type_property), pointer :: property => null()
       integer                        :: islash
-      type (type_link),      pointer :: link
       integer                        :: ivar
 
       if (self%status >= status_initialize_done) &
@@ -832,7 +831,7 @@ contains
          case (domain_scalar)
             call log_message('  This is a scalar field (single value valid across the entire domain).')
          end select
-         if (variable%units/='') call log_message('  It has units ' // trim(variable%units))
+         if (variable%units /= '') call log_message('  It has units ' // trim(variable%units))
          call log_message('  It is needed by the following model instances:')
 
          first => null()
@@ -1385,8 +1384,7 @@ contains
       class (type_fabm_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 
-      integer                   :: ivar, read_index, icall
-      logical                   :: set_interior
+      integer :: ivar, read_index, icall
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
@@ -1404,9 +1402,8 @@ contains
       end do
 
       ! Allow biogeochemical models to initialize their interior state.
-      set_interior = .false.
       do icall = 1, size(self%initialize_state_job%first_task%calls)
-         if (self%initialize_state_job%first_task%calls(icall)%source == source_initialize_state) call self%initialize_state_job%first_task%calls(icall)%model%initialize_state(self%cache_int, set_interior)
+         if (self%initialize_state_job%first_task%calls(icall)%source == source_initialize_state) call self%initialize_state_job%first_task%calls(icall)%model%initialize_state(self%cache_int)
       end do
 
       ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
@@ -1424,8 +1421,7 @@ contains
       class (type_fabm_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
-      integer                   :: icall, ivar, read_index
-      logical                   :: set_horizontal
+      integer :: icall, ivar, read_index
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
@@ -1443,9 +1439,8 @@ contains
       end do
 
       ! Allow biogeochemical models to initialize their bottom state.
-      set_horizontal = .false.
       do icall = 1, size(self%initialize_bottom_state_job%first_task%calls)
-         if (self%initialize_bottom_state_job%first_task%calls(icall)%source == source_initialize_bottom_state) call self%initialize_bottom_state_job%first_task%calls(icall)%model%initialize_bottom_state(self%cache_hz, set_horizontal)
+         if (self%initialize_bottom_state_job%first_task%calls(icall)%source == source_initialize_bottom_state) call self%initialize_bottom_state_job%first_task%calls(icall)%model%initialize_bottom_state(self%cache_hz)
       end do
 
       ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
@@ -1463,8 +1458,7 @@ contains
       class (type_fabm_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
-      integer                   :: icall, ivar, read_index
-      logical                   :: set_horizontal
+      integer :: icall, ivar, read_index
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
@@ -1482,9 +1476,8 @@ contains
       end do
 
       ! Allow biogeochemical models to initialize their surface state.
-      set_horizontal = .false.
       do icall = 1, size(self%initialize_surface_state_job%first_task%calls)
-         if (self%initialize_surface_state_job%first_task%calls(icall)%source == source_initialize_surface_state) call self%initialize_surface_state_job%first_task%calls(icall)%model%initialize_surface_state(self%cache_hz,set_horizontal)
+         if (self%initialize_surface_state_job%first_task%calls(icall)%source == source_initialize_surface_state) call self%initialize_surface_state_job%first_task%calls(icall)%model%initialize_surface_state(self%cache_hz)
       end do
 
       ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
@@ -1569,26 +1562,23 @@ contains
       logical,                 intent(in)    :: repair
       logical,                 intent(out)   :: valid
 
-      integer                   :: icall, ivar, read_index
-      real(rki)                 :: value, minimum, maximum
-      character(len=256)        :: err
-      logical                   :: set_interior
+      integer            :: icall, ivar, read_index
+      real(rki)          :: value, minimum, maximum
+      character(len=256) :: err
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
       call check_interior_location(self%domain%size _POSTARG_INTERIOR_IN_, 'check_interior_state')
 #endif
 
-      valid = .true.
-      set_interior = .false.
+      self%cache_int%repair = repair
+      self%cache_int%valid = .true.
+      self%cache_int%set_interior = .false.
 
-      call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%check_state_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
+      call process_interior_slice(self%check_state_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
 
-      ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
-      do icall = 1, size(self%check_state_job%first_task%calls)
-         if (self%check_state_job%first_task%calls(icall)%source == source_check_state) call self%check_state_job%first_task%calls(icall)%model%check_state(self%cache_int, repair, valid, set_interior)
-         if (.not. (valid .or. repair)) return
-      end do
+      valid = self%cache_int%valid
+      if (.not. (valid .or. repair)) return
 
       ! Finally check whether all state variable values lie within their prescribed [constant] bounds.
       ! This is always done, independently of any model-specific checks that may have been called above.
@@ -1639,7 +1629,7 @@ contains
          end do
       end if
 
-      if (set_interior .or. .not. valid) then
+      if (self%cache_int%set_interior .or. .not. valid) then
          do ivar = 1, size(self%state_variables)
             read_index = self%state_variables(ivar)%target%read_indices%value
             if (self%catalog%interior_sources(read_index) == data_source_fabm) then
@@ -1647,8 +1637,6 @@ contains
             end if
          end do
       end if
-
-      call cache_unpack(self%check_state_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
    end subroutine check_interior_state
 
    subroutine check_bottom_state(self _POSTARG_HORIZONTAL_IN_, repair, valid)
@@ -1686,33 +1674,23 @@ contains
       logical,                                    intent(in)    :: repair
       logical,                                    intent(out)   :: valid
 
-      integer                   :: icall, ivar, read_index
-      real(rki)                 :: value, minimum, maximum
-      character(len=256)        :: err
+      integer            :: icall, ivar, read_index
+      real(rki)          :: value, minimum, maximum
+      character(len=256) :: err
       _DECLARE_HORIZONTAL_INDICES_
-      logical                   :: set_horizontal, set_interior
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
       integer :: _VERTICAL_ITERATOR_
 #endif
-#if _FABM_BOTTOM_INDEX_==-1 && defined(_HORIZONTAL_IS_VECTORIZED_) && defined(_HAS_MASK_)
-      integer :: j
-#endif
 
-      call cache_pack(self%domain, self%catalog, self%cache_fill_values, job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
+      self%cache_hz%repair = repair
+      self%cache_hz%valid = .true.
+      self%cache_hz%set_horizontal = .false.
+      self%cache_hz%set_interior = .false.
 
-      valid = .true.
-      set_horizontal = .false.
-      set_interior = .false.
+      call process_horizontal_slice(job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_) 
 
-      ! Allow individual models to check their state for their custom constraints, and to perform custom repairs.
-      do icall = 1, size(job%first_task%calls)
-         if (flag==1) then
-            if (job%first_task%calls(icall)%source == source_check_surface_state) call job%first_task%calls(icall)%model%check_surface_state(self%cache_hz, repair, valid, set_horizontal, set_interior)
-         else
-            if (job%first_task%calls(icall)%source == source_check_bottom_state) call job%first_task%calls(icall)%model%check_bottom_state(self%cache_hz, repair, valid, set_horizontal, set_interior)
-         end if
-         if (.not. (valid .or. repair)) return
-      end do
+      valid = self%cache_hz%valid
+      if (.not. (valid .or. repair)) return
 
       ! Check boundaries for horizontal state variables, as prescribed by the owning models.
       ! If repair is permitted, this clips invalid values to the closest boundary.
@@ -1750,7 +1728,7 @@ contains
          _HORIZONTAL_LOOP_END_
       end do
 
-      if (set_horizontal .or. .not. valid) then
+      if (self%cache_hz%set_horizontal .or. .not. valid) then
          do ivar = 1, size(state_variables)
             read_index = state_variables(ivar)%target%read_indices%value
             if (self%catalog%horizontal_sources(read_index)==data_source_fabm) then
@@ -1759,7 +1737,7 @@ contains
          end do
       end if
 
-      if (set_interior) then
+      if (self%cache_hz%set_interior) then
          ! One or more models have provided new values for an interior state variable [at the interface]
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
@@ -1812,8 +1790,6 @@ contains
             end if
          end do
       end if
-
-      call cache_unpack(job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
    end subroutine internal_check_horizontal_state
 
    subroutine get_surface_sources(self _POSTARG_HORIZONTAL_IN_, flux_pel, flux_sf)

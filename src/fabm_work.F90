@@ -6,6 +6,7 @@ module fabm_work
    use fabm_types, only: rki => rk, rke, type_interior_cache, type_horizontal_cache, type_vertical_cache, &
       prefill_none, prefill_constant, source_do, source_do_horizontal, source_do_surface, source_do_bottom, &
       source_get_light_extinction, source_get_vertical_movement, source2string, &
+      source_check_state, source_check_bottom_state, source_check_surface_state, &
       domain_interior, domain_surface, domain_bottom, domain_horizontal
    use fabm_job, only: type_task, type_call
    use fabm_driver, only: driver
@@ -605,8 +606,9 @@ end subroutine end_vertical_task
 
             select case (task%calls(icall)%source)
             case (source_do);                    call task%calls(icall)%model%do(cache)
-            case (source_get_light_extinction);  call task%calls(icall)%model%get_light_extinction(cache)
             case (source_get_vertical_movement); call task%calls(icall)%model%get_vertical_movement(cache)
+            case (source_check_state);           call task%calls(icall)%model%check_state(cache)
+            case (source_get_light_extinction);  call task%calls(icall)%model%get_light_extinction(cache)
             end select
 
 #ifndef NDEBUG
@@ -651,9 +653,11 @@ end subroutine end_vertical_task
 #endif
 
             select case (task%calls(icall)%source)
-            case (source_do_surface);    call task%calls(icall)%model%do_surface   (cache)
-            case (source_do_bottom);     call task%calls(icall)%model%do_bottom    (cache)
-            case (source_do_horizontal); call task%calls(icall)%model%do_horizontal(cache)
+            case (source_do_surface);          call task%calls(icall)%model%do_surface   (cache)
+            case (source_do_bottom);           call task%calls(icall)%model%do_bottom    (cache)
+            case (source_do_horizontal);       call task%calls(icall)%model%do_horizontal(cache)
+            case (source_check_bottom_state);  call task%calls(icall)%model%check_bottom_state(cache)
+            case (source_check_surface_state); call task%calls(icall)%model%check_surface_state(cache)
             end select
 
 #ifndef NDEBUG

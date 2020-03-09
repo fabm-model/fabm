@@ -623,6 +623,11 @@ module fabm_types
       ! Indices of non-masked data in masked source arrays
       integer, allocatable _DIMENSION_SLICE_ :: ipack
 #endif
+
+      logical :: repair
+      logical :: valid
+      logical :: set_interior
+      logical :: set_horizontal
    end type
 
    type, extends(type_cache) :: type_interior_cache
@@ -1461,14 +1466,14 @@ contains
       type (type_link),                  intent(inout)        :: link
       type (type_aggregate_variable_id), intent(inout),target :: sms_id
 
-      type (type_link),pointer :: link2
+      type (type_link), pointer :: link2
 
       if (.not. associated(sms_id%link)) call self%add_interior_variable(trim(link%name)//'_sms', &
          trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
          0.0_rk, output=output_none, write_index=sms_id%sum_index, link=sms_id%link)
       sms_id%link%target%prefill = prefill_constant
       sms_id%link%target%write_operator = operator_add
-      link2 => link%target%sms_list%append(sms_id%link%target,sms_id%link%target%name)
+      link2 => link%target%sms_list%append(sms_id%link%target, sms_id%link%target%name)
       link%target%sms => link2
    end subroutine register_source
 
@@ -1483,13 +1488,13 @@ contains
 
       source_ = source_do_surface
       if (present(source)) source_ = source
-      if (.not. associated(surface_flux_id%link)) call self%add_horizontal_variable(trim(link%name)//'_sfl', &
-         trim(link%target%units)//'*m/s', trim(link%target%long_name)//' surface flux', &
+      if (.not. associated(surface_flux_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sfl', &
+         trim(link%target%units) // '*m/s', trim(link%target%long_name) // ' surface flux', &
          0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
          domain=domain_surface, source=source_, link=surface_flux_id%link)
       surface_flux_id%link%target%prefill = prefill_constant
       surface_flux_id%link%target%write_operator = operator_add
-      link2 => link%target%surface_flux_list%append(surface_flux_id%link%target,surface_flux_id%link%target%name)
+      link2 => link%target%surface_flux_list%append(surface_flux_id%link%target, surface_flux_id%link%target%name)
       link%target%surface_flux => link2
    end subroutine register_surface_flux
 
@@ -1504,13 +1509,13 @@ contains
 
       source_ = source_do_bottom
       if (present(source)) source_ = source
-      if (.not. associated(bottom_flux_id%link)) call self%add_horizontal_variable(trim(link%name)//'_bfl', &
-         trim(link%target%units)//'*m/s', trim(link%target%long_name)//' bottom flux', &
+      if (.not. associated(bottom_flux_id%link)) call self%add_horizontal_variable(trim(link%name) // '_bfl', &
+         trim(link%target%units) // '*m/s', trim(link%target%long_name) // ' bottom flux', &
          0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
          domain=domain_bottom, source=source_, link=bottom_flux_id%link)
       bottom_flux_id%link%target%prefill = prefill_constant
       bottom_flux_id%link%target%write_operator = operator_add
-      link2 => link%target%bottom_flux_list%append(bottom_flux_id%link%target,bottom_flux_id%link%target%name)
+      link2 => link%target%bottom_flux_list%append(bottom_flux_id%link%target, bottom_flux_id%link%target%name)
       link%target%bottom_flux => link2
    end subroutine register_bottom_flux
 
@@ -1525,8 +1530,8 @@ contains
 
       vertical_movement_ = 0
       if (present(vertical_movement)) vertical_movement_ = vertical_movement
-      if (.not.associated(movement_id%link)) call self%add_interior_variable(trim(link%name)//'_w', &
-         'm/s', trim(link%target%long_name)//' vertical velocity', &
+      if (.not.associated(movement_id%link)) call self%add_interior_variable(trim(link%name) // '_w', &
+         'm/s', trim(link%target%long_name) // ' vertical velocity', &
          vertical_movement_, output=output_none, write_index=movement_id%sum_index, link=movement_id%link, source=source_constant)
       if (self%implements(source_get_vertical_movement)) then
          movement_id%link%target%source = source_get_vertical_movement
@@ -1547,13 +1552,13 @@ contains
 
       source_ = source_do_surface
       if (present(source)) source_ = source
-      if (.not. associated(sms_id%link)) call self%add_horizontal_variable(trim(link%name)//'_sms', &
-         trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
+      if (.not. associated(sms_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sms', &
+         trim(link%target%units) // '/s', trim(link%target%long_name) // ' sources-sinks', &
          0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, &
          domain=domain_surface, source=source_)
       sms_id%link%target%prefill = prefill_constant
       sms_id%link%target%write_operator = operator_add
-      link2 => link%target%sms_list%append(sms_id%link%target,sms_id%link%target%name)
+      link2 => link%target%sms_list%append(sms_id%link%target, sms_id%link%target%name)
       link%target%sms => link2
    end subroutine register_surface_source
 
@@ -1568,12 +1573,12 @@ contains
 
       source_ = source_do_bottom
       if (present(source)) source_ = source
-      if (.not. associated(sms_id%link)) call self%add_horizontal_variable(trim(link%name)//'_sms', &
-         trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
+      if (.not. associated(sms_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sms', &
+         trim(link%target%units) // '/s', trim(link%target%long_name) // ' sources-sinks', &
          0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, domain=domain_bottom, source=source_)
       sms_id%link%target%prefill = prefill_constant
       sms_id%link%target%write_operator = operator_add
-      link2 => link%target%sms_list%append(sms_id%link%target,sms_id%link%target%name)
+      link2 => link%target%sms_list%append(sms_id%link%target, sms_id%link%target%name)
       link%target%sms => link2
    end subroutine register_bottom_source
 
@@ -1589,14 +1594,14 @@ contains
       integer,                                  intent(in), optional  :: presence
 
       if (associated(id%link)) call self%fatal_error('register_bottom_state_variable', &
-         'Identifier supplied for '//trim(name)//' is already associated with '//trim(id%link%name)//'.')
+         'Identifier supplied for ' // trim(name)//' is already associated with ' // trim(id%link%name)//'.')
 
       call self%add_horizontal_variable(name, units, long_name, missing_value, minimum, maximum, &
                                         initial_value=initial_value, background_value=background_value, &
                                         standard_variable=standard_variable, presence=presence, domain=domain_bottom, &
                                         state_index=id%bottom_state_index, read_index=id%horizontal_index, &
                                         background=id%background, link=id%link, source=source_state)
-      call register_bottom_source(self,id%link,id%bottom_sms)
+      call register_bottom_source(self, id%link, id%bottom_sms)
    end subroutine register_bottom_state_variable
 
    subroutine register_surface_state_variable(self, id, name, units, long_name, &
@@ -1618,8 +1623,7 @@ contains
                                         standard_variable=standard_variable, presence=presence, domain=domain_surface, &
                                         state_index=id%surface_state_index, read_index=id%horizontal_index, &
                                         background=id%background, link=id%link, source=source_state)
-      call register_surface_source(self,id%link,id%surface_sms)
-
+      call register_surface_source(self, id%link, id%surface_sms)
    end subroutine register_surface_state_variable
 
    subroutine add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
