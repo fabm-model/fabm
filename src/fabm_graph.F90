@@ -100,7 +100,7 @@ module fabm_graph
    end type
 
    type type_graph_set_member
-      type (type_graph), pointer :: p => null()
+      class (type_graph), pointer :: p => null()
       type (type_graph_set_member), pointer :: next => null()
    end type
 
@@ -108,7 +108,7 @@ module fabm_graph
       type (type_graph_set_member), pointer :: first => null()
    end type
 
-   type,extends(type_node_list) :: type_graph
+   type, extends(type_node_list) :: type_graph
       type (type_graph_set)     :: previous
       type (type_graph_set)     :: next
       integer                   :: operation = source_unknown
@@ -150,7 +150,7 @@ subroutine output_variable_set_add_output_variable(self, output_variable)
    class (type_output_variable_set), intent(inout) :: self
    type (type_output_variable), target             :: output_variable
 
-   class (type_output_variable_set_node), pointer :: node
+   type (type_output_variable_set_node), pointer :: node
 
    allocate(node)
    node%p => output_variable
@@ -251,8 +251,8 @@ recursive subroutine find_node(self, model, source, graph, node)
    class (type_graph),      intent(inout), target :: self
    class (type_base_model), intent(in),    target :: model
    integer,                 intent(in)            :: source
-   type (type_graph), pointer :: graph
-   type (type_node), pointer :: node
+   class (type_graph), pointer :: graph
+   type (type_node),   pointer :: node
 
    type (type_graph_set_member), pointer :: member
 
@@ -271,8 +271,8 @@ recursive subroutine find_node(self, model, source, graph, node)
 end subroutine
 
 recursive function graph_has_descendant(self, graph) result(has_descendant)
-   type (type_graph), pointer :: self
-   type (type_graph), pointer :: graph
+   class (type_graph), pointer :: self
+   class (type_graph), pointer :: graph
    logical :: has_descendant
 
    type (type_graph_set_member), pointer :: member
@@ -296,7 +296,7 @@ recursive function graph_add_call(self, model, source, outer_calls) result(node)
 
    type (type_node_list_member), pointer :: pnode
    character(len=2048)                   :: chain
-   type (type_graph),            pointer :: root_graph, owner_graph, target_graph
+   class (type_graph),           pointer :: root_graph, owner_graph, target_graph
    integer                               :: operation
    type (type_link),             pointer :: link
    logical                               :: same_source
