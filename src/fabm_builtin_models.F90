@@ -433,10 +433,11 @@ module fabm_builtin_models
       if (present(log_unit)) write (log_unit,'(a)') 'Reindexing ' // trim(sum_variable%name)
       component_previous => null()
       component => self%first
+      sum_variable%prefill_value = sum_variable%prefill_value + self%offset
       n = 0
       do while (associated(component))
          component_next => component%next
-         if (merge_component(component%id%link, component%weight, sum_variable, self%offset, log_unit)) then
+         if (merge_component(component%id%link, component%weight, sum_variable, log_unit)) then
             ! Component was merged into target
             if (associated(component_previous)) then
                component_previous%next => component_next
@@ -462,11 +463,10 @@ module fabm_builtin_models
       end do
    end subroutine weighted_sum_reindex
 
-   logical function merge_component(component_link, weight, target_variable, offset, log_unit)
+   logical function merge_component(component_link, weight, target_variable, log_unit)
       type (type_link),              intent(inout)         :: component_link
       type (type_internal_variable), intent(inout), target :: target_variable
       real(rk),                      intent(in)            :: weight
-      real(rk),                      intent(inout)         :: offset
       integer, optional,             intent(in)            :: log_unit
 
       type (type_internal_variable), pointer :: component_variable
@@ -484,7 +484,7 @@ module fabm_builtin_models
          if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it is accessed by other models'
       else
          ! This component does not need a separate diagnostic - it will be merged into the target
-         offset = offset + component_variable%prefill_value
+         target_variable%prefill_value = target_variable%prefill_value + component_variable%prefill_value
          if (component_variable%source == source_constant) then
             ! This component is a constant that we can just add to our offset
             if (present(log_unit)) write (log_unit,'(a,g0.6,a)') '- merged ' // trim(component_variable%name) // ' - constant ', component_variable%prefill_value, ' added to offset'
@@ -512,13 +512,14 @@ module fabm_builtin_models
       type (type_horizontal_component), pointer :: component, component_next, component_previous
 
       sum_variable => self%id_output%link%target
+      sum_variable%prefill_value = sum_variable%prefill_value + self%offset
       if (present(log_unit)) write (log_unit,'(a)') 'Reindexing ' // trim(sum_variable%name)
       component_previous => null()
       component => self%first
       n = 0
       do while (associated(component))
          component_next => component%next
-         if (merge_component(component%id%link, component%weight, sum_variable, self%offset, log_unit)) then
+         if (merge_component(component%id%link, component%weight, sum_variable, log_unit)) then
             ! Component was merged into target
             if (associated(component_previous)) then
                component_previous%next => component_next
@@ -550,11 +551,6 @@ module fabm_builtin_models
 
       integer  :: i
       real(rk) :: value
-
-      ! Initialize sum to starting value (typically zero).
-      _CONCURRENT_LOOP_BEGIN_
-         _ADD_(self%id_output, self%offset)
-      _LOOP_END_
 
       ! Enumerate components included in the sum, and add their contributions.
       do i = 1, size(self%sources)
@@ -755,10 +751,6 @@ module fabm_builtin_models
 
       integer  :: i
       real(rk) :: value
-
-      _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-         _ADD_HORIZONTAL_(self%id_output, self%offset)
-      _HORIZONTAL_LOOP_END_
 
       do i = 1, size(self%sources)
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
