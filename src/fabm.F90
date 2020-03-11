@@ -17,10 +17,8 @@
 
 module fabm
 
-   use fabm_standard_variables, only: type_interior_standard_variable, type_horizontal_standard_variable, &
-                                      type_global_standard_variable, initialize_standard_variables, type_standard_variable_node
    use fabm_parameters
-   use fabm_types, rki => rk
+   use fabm_types, rki => rk, fabm_standard_variables => standard_variables
    use fabm_expressions
    use fabm_driver
    use fabm_properties
@@ -30,6 +28,8 @@ module fabm
    use fabm_schedule
    use fabm_debug
    use fabm_work
+   use fabm_standard_variables, only: type_interior_standard_variable, type_horizontal_standard_variable, &
+                                      type_global_standard_variable, initialize_standard_variables, type_standard_variable_node
 
    implicit none
 
@@ -52,7 +52,7 @@ module fabm
 
    ! Object with all supported standard variables as its members.
    ! Imported from fabm_types, and made available so hosts only need to "use fabm"
-   public standard_variables
+   public fabm_standard_variables
 
    logical, save, public :: fabm_log = .false.
 

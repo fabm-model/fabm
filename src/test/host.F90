@@ -33,7 +33,7 @@ end module host_hooks
    
 program test_host
 
-   use fabm, only: type_fabm_model, standard_variables, type_fabm_interior_variable_id, type_fabm_horizontal_variable_id, &
+   use fabm, only: type_fabm_model, fabm_standard_variables, type_fabm_interior_variable_id, type_fabm_horizontal_variable_id, &
       type_fabm_scalar_variable_id, fabm_initialize_library
    use fabm_config
    use fabm_driver
@@ -400,12 +400,12 @@ program test_host
        allocate(wind_speed _INDEX_HORIZONTAL_LOCATION_)
 
        call start_test('link_interior_data')
-       call model%link_interior_data(standard_variables%temperature, temperature)
-       call model%link_interior_data(standard_variables%depth, depth)
+       call model%link_interior_data(fabm_standard_variables%temperature, temperature)
+       call model%link_interior_data(fabm_standard_variables%depth, depth)
        call report_test_result()
 
        call start_test('link_horizontal_data')
-       call model%link_horizontal_data(standard_variables%wind_speed, wind_speed)
+       call model%link_horizontal_data(fabm_standard_variables%wind_speed, wind_speed)
        call report_test_result()
    case (2)
        call read_environment

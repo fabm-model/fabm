@@ -6,7 +6,7 @@ module fabm_v0_compatibility
    use fabm, type_bulk_variable_id => type_fabm_interior_variable_id, type_horizontal_variable_id => type_fabm_horizontal_variable_id, type_scalar_variable_id => type_fabm_scalar_variable_id, type_external_variable => type_fabm_variable, type_horizontal_state_variable_info => type_fabm_horizontal_state_variable
    use fabm_config, only: fabm_configure_model
    use fabm_properties, only: type_property_dictionary
-   use fabm_types, only: rke, attribute_length, source_get_light_extinction, source_get_albedo, source_get_drag, type_base_model, type_model_list_node, type_bulk_standard_variable
+   use fabm_types, only: rke, attribute_length, source_get_light_extinction, source_get_albedo, source_get_drag, type_base_model, type_model_list_node, type_bulk_standard_variable, standard_variables
    use fabm_debug
    use fabm_job, only: type_job, type_call
    use fabm_driver, only: driver
@@ -16,7 +16,7 @@ module fabm_v0_compatibility
 
    public fabm_create_model_from_yaml_file
 
-   public type_bulk_variable_id, type_external_variable, type_model
+   public type_bulk_variable_id, type_external_variable, type_model, standard_variables
 
    public fabm_initialize, fabm_finalize, fabm_set_domain, fabm_check_ready, fabm_update_time
    public fabm_initialize_state, fabm_initialize_surface_state, fabm_initialize_bottom_state
