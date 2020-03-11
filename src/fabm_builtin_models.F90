@@ -454,7 +454,15 @@ module fabm_builtin_models
          component => component_next
       end do
 
-      if (n == 0) return
+      if (n == 0) then
+         if (associated(sum_variable%cowriters%first)) then
+            if (present(log_unit)) write (log_unit,'(a)') '- all contributions written in place - skipping actual sum'
+         else
+            if (present(log_unit)) write (log_unit,'(a,g0.6)') '- no contributions left - sum becomes a constant with value ', sum_variable%prefill_value
+            sum_variable%source = source_constant
+         end if
+         return
+      end if
 
       call sum_variable%cowriters%add(sum_variable)
 
@@ -539,7 +547,15 @@ module fabm_builtin_models
          component => component_next
       end do
 
-      if (n == 0) return
+      if (n == 0) then
+         if (associated(sum_variable%cowriters%first)) then
+            if (present(log_unit)) write (log_unit,'(a)') '- all contributions written in place - skipping actual sum'
+         else
+            if (present(log_unit)) write (log_unit,'(a,g0.6)') '- no contributions left - sum becomes a constant with value ', sum_variable%prefill_value
+            sum_variable%source = source_constant
+         end if
+         return
+      end if
 
       call sum_variable%cowriters%add(sum_variable)
 
