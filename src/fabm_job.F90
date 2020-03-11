@@ -240,7 +240,11 @@ contains
       do icall = 1, size(self%calls)
          output_variable => self%calls(icall)%graph_node%outputs%first
          do while (associated(output_variable))
-            call self%read_cache_preload%remove(output_variable%p%target, discard=.true.)
+            if (associated(output_variable%p%target%write_owner)) then
+               call self%read_cache_preload%remove(output_variable%p%target%write_owner, discard=.true.)
+            else
+               call self%read_cache_preload%remove(output_variable%p%target, discard=.true.)
+            end if
             output_variable => output_variable%next
          end do
       end do
@@ -665,7 +669,7 @@ contains
    end subroutine job_request_call
 
    subroutine job_create_graph(self, variable_register)
-      class (type_job),target,intent(inout) :: self
+      class (type_job), target,             intent(inout) :: self
       type (type_global_variable_register), intent(inout) :: variable_register
 
       type (type_job_node),        pointer :: job_node
@@ -714,11 +718,6 @@ contains
 
       !self%graph%frozen = .true.
 
-      ! Save graph
-      !open(newunit=unit,file='graph.gv',action='write',status='replace',iostat=ios)
-      !call self%graph%save_as_dot(unit)
-      !close(unit)
-
       self%state = job_state_graph_created
    end subroutine job_create_graph
 
@@ -741,7 +740,7 @@ contains
       ! This is essential if we will try to outsource our own calls to previous tasks/jobs.
       job_node => self%previous%first
       do while (associated(job_node))
-         _ASSERT_(job_node%p%state >= job_state_tasks_created, 'job_create_graph', trim(self%name) // ': tasks for previous job (' // trim(job_node%p%name) // ') have not been created yet.')
+         _ASSERT_(job_node%p%state >= job_state_tasks_created, 'job_create_tasks', trim(self%name) // ': tasks for previous job (' // trim(job_node%p%name) // ') have not been created yet.')
          job_node => job_node%next
       end do
 
@@ -1199,6 +1198,7 @@ contains
       integer,                              intent(in)    :: log_unit
 
       type (type_job_node), pointer :: node, first_ordered
+      integer                       :: graph_unit, ios
 
       ! Order jobs according to call order.
       ! This ensures that jobs that are scheduled to run earlier are also initialized earlier.
@@ -1219,6 +1219,16 @@ contains
          call job_create_graph(node%p, variable_register)
          node => node%next
       end do
+
+      open(newunit=graph_unit,file='graph.gv',action='write',status='replace',iostat=ios)
+      write (graph_unit,'(A)') 'digraph {'
+      node => self%first
+      do while (associated(node))
+         call node%p%graph%save_as_dot(graph_unit, node%p%name)
+         node => node%next
+      end do
+      write (graph_unit,'(A)') '}'
+      close(graph_unit)
 
 #ifndef NDEBUG
       ! Ensure each call appears exactly once in the superset of all graphs
@@ -1385,16 +1395,18 @@ contains
       variable%store_index = variable_register_add(self%store, variable, share_constants=.true.)
 
       ! Propagate store index to any contributing variables.
-      variable_node => variable%cowriters%first
-      do while (associated(variable_node))
-         variable_node%target%store_index = variable%store_index
-         variable_node => variable_node%next
-      end do
+      if (associated(variable%cowriters)) then
+         variable_node => variable%cowriters%first
+         do while (associated(variable_node))
+            variable_node%target%store_index = variable%store_index
+            variable_node => variable_node%next
+         end do
+      end if
    end subroutine variable_register_add_to_store
 
    recursive subroutine variable_register_add_to_read_cache(self, variable)
-      class (type_global_variable_register),intent(inout) :: self
-      type (type_internal_variable), target        :: variable
+      class (type_global_variable_register), intent(inout) :: self
+      type (type_internal_variable), target                :: variable
 
       integer :: index
 
@@ -1427,23 +1439,23 @@ contains
    end subroutine variable_register_add_to_catalog
 
    recursive subroutine variable_register_add_to_write_cache(self, variable)
-      class (type_global_variable_register),intent(inout) :: self
-      type (type_internal_variable), target               :: variable
+      class (type_global_variable_register), intent(inout) :: self
+      type (type_internal_variable), target                :: variable
 
       integer :: index
 
       ! If this variable has already been added to the write cache, we are done: return.
       if (variable%write_indices%value /= -1) return
 
-      ! If this variable is contributing to a variable (e.g., by adding to a sum), that other variable
-      ! takes control. That controlling variable will then propagate its write index to all contributors.
-      if (associated(variable%write_owner)) then
-         call self%add_to_write_cache(variable%write_owner)
-         return
-      end if
-
       ! Add the variable to the register and obtain its index.
-      index = variable_register_add(self%write_cache, variable, share_constants=.true.)
+      if (associated(variable%write_owner)) then
+         ! This variable is contributing to a variable (e.g., by adding to a sum), that other variable
+         ! takes control and determines the index
+         call self%add_to_write_cache(variable%write_owner)
+         index = variable%write_owner%write_indices%value
+      else
+         index = variable_register_add(self%write_cache, variable, share_constants=.true.)
+      end if
 
       ! Assign the write index to the variable.
       ! This automatically propagates to other variables that contribute to this one,

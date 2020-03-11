@@ -805,6 +805,8 @@ contains
             if (data_sources(i) > data_source_fabm) then
                variable_node%target%source = source_external
                variable_node%target%write_operator = operator_assign
+            elseif (data_sources(i) /= data_source_none .and. variable_node%target%source == source_unknown) then
+               variable_node%target%source = source_external
             end if
             variable_node => variable_node%next
          end do

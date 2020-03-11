@@ -345,7 +345,7 @@ module fabm_builtin_models
       end do
 
       !call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output) !,act_as_state_variable=iand(self%access,access_set_source)/=0)
-      call self%add_interior_variable('result', self%units, 'result', 0.0_rk, output=self%result_output, write_index=self%id_output%sum_index, link=self%id_output%link)
+      call self%add_interior_variable('result', self%units, 'result', 0.0_rk, output=self%result_output, write_index=self%id_output%sum_index, link=self%id_output%link, source=source_do)
       self%id_output%link%target%prefill = prefill_constant
 
       if (iand(self%access,access_set_source)/=0) then
@@ -430,10 +430,11 @@ module fabm_builtin_models
       type (type_component),         pointer :: component, component_next, component_previous
 
       sum_variable => self%id_output%link%target
+      sum_variable%prefill_value = sum_variable%prefill_value + self%offset
+      allocate(sum_variable%cowriters)
       if (present(log_unit)) write (log_unit,'(a)') 'Reindexing ' // trim(sum_variable%name)
       component_previous => null()
       component => self%first
-      sum_variable%prefill_value = sum_variable%prefill_value + self%offset
       n = 0
       do while (associated(component))
          component_next => component%next
@@ -452,6 +453,10 @@ module fabm_builtin_models
          end if
          component => component_next
       end do
+
+      if (n == 0) return
+
+      call sum_variable%cowriters%add(sum_variable)
 
       ! Put all ids and weights in a single array to minimize memory bottlenecks when computing sum
       allocate(self%sources(n))
@@ -491,8 +496,6 @@ module fabm_builtin_models
          else
             ! This component can increment the sum result directly
             if (present(log_unit)) write (log_unit,'(a,g0.6,a)') '- merged ' // trim(component_variable%name) // ' - to be written in-place'
-            call target_variable%write_indices%extend(component_variable%write_indices)
-            call target_variable%write_indices%append(component_variable%write_indices%value)
             component_variable%write_owner => target_variable
             call target_variable%cowriters%add(component_variable)
          end if
@@ -513,6 +516,7 @@ module fabm_builtin_models
 
       sum_variable => self%id_output%link%target
       sum_variable%prefill_value = sum_variable%prefill_value + self%offset
+      allocate(sum_variable%cowriters)
       if (present(log_unit)) write (log_unit,'(a)') 'Reindexing ' // trim(sum_variable%name)
       component_previous => null()
       component => self%first
@@ -534,6 +538,10 @@ module fabm_builtin_models
          end if
          component => component_next
       end do
+
+      if (n == 0) return
+
+      call sum_variable%cowriters%add(sum_variable)
 
       ! Put all ids and weights in a single array to minimize memory bottlenecks when computing sum
       allocate(self%sources(n))

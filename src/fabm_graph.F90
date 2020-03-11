@@ -299,7 +299,6 @@ recursive function graph_add_call(self, model, source, outer_calls) result(node)
    class (type_graph),           pointer :: root_graph, owner_graph, target_graph
    integer                               :: operation
    type (type_link),             pointer :: link
-   logical                               :: same_source
    type (type_input_variable),   pointer :: input_variable
 
    ! Circular dependency check:
@@ -366,8 +365,8 @@ recursive function graph_add_call(self, model, source, outer_calls) result(node)
          ! This is the model's own variable (not inherited from child model) and the model itself originally requested read access to it.
          _ASSERT_(.not. associated(link%target%write_owner), 'graph::add_call', 'BUG: required input variable is co-written.')
          input_variable => node%inputs%add(link%target)
-         same_source = link%target%source == source .or. (link%target%source == source_unknown .and. (source == source_do_surface .or. source == source_do_bottom))
-         if (.not. (associated(link%target%owner, model) .and. same_source)) call target_graph%add_variable(link%target, outer_calls, input_variable%sources, caller=node)
+         if (.not. (associated(link%target%owner, model) .and. link%target%source == source)) &
+            call target_graph%add_variable(link%target, outer_calls, input_variable%sources, caller=node)
       end if
       link => link%next
    end do
@@ -389,34 +388,29 @@ recursive subroutine graph_add_variable(self, variable, outer_calls, variable_se
 
    if (self%frozen) call driver%fatal_error('graph_add_variable','Graph is frozen; no variables can be added.')
 
-   ! If this variable is not an output of some model (e.g., a state variable or external dependency), no call is needed.
-   if (variable%write_indices%is_empty()) return
-
-   if (variable%source == source_unknown) then
-      ! This variable is either written by do_surface or do_bottom - which one of these two APIs is unknown.
-      call add_call(source_do_surface)
-      call add_call(source_do_bottom)
-   elseif (variable%source /= source_constant .and. variable%source /= source_state .and. variable%source /= source_external) then
-      ! This variable is written by a known BGC API [is is not constant/part of state/host- or user-provided]
-      call add_call(variable%source)
+   if (associated(variable%cowriters)) then
+      variable_node => variable%cowriters%first
+      do while (associated(variable_node))
+         call add_call(variable_node%target)
+         variable_node => variable_node%next
+      end do
+   else
+      call add_call(variable)
    end if
-
-   ! Automatically request additional value contributions (for reduction operators that accept in-place modification of the variable value)
-   variable_node => variable%cowriters%first
-   do while (associated(variable_node))
-      call self%add_variable(variable_node%target, outer_calls, variable_set, copy_to_store, caller)
-      variable_node => variable_node%next
-   end do
 
 contains
 
-   recursive subroutine add_call(source)
-      integer, intent(in) :: source
+   recursive subroutine add_call(variable)
+      type (type_internal_variable), intent(in) :: variable
 
-      type (type_node),           pointer :: node
-      type (type_output_variable),pointer :: output_variable
+      type (type_node),            pointer :: node
+      type (type_output_variable), pointer :: output_variable
 
-      node => self%add_call(variable%owner, source, outer_calls)
+      _ASSERT_(variable%source /= source_unknown, 'graph_add_variable::add_call', 'Variable registered with source_unknown')
+      if (variable%source == source_constant .or. variable%source == source_state .or. variable%source == source_external) return
+      _ASSERT_ (.not. variable%write_indices%is_empty(), 'graph_add_variable::add_call', 'Variable ' // trim(variable%name) // ' with source ' // trim(source2string(variable%source)) // ' does not have a write index')
+
+      node => self%add_call(variable%owner, variable%source, outer_calls)
       output_variable => node%outputs%add(variable)
       if (present(copy_to_store)) output_variable%copy_to_store = output_variable%copy_to_store .or. copy_to_store
       if (present(caller)) then
@@ -654,14 +648,30 @@ subroutine graph_finalize(self)
    call self%type_node_list%finalize()
 end subroutine graph_finalize
 
-subroutine graph_save_as_dot(self, unit)
+subroutine graph_save_as_dot(self, unit, subgraph)
    class (type_graph),intent(in) :: self
    integer,           intent(in) :: unit
+   character(len=*), optional, intent(in) :: subgraph
 
    type (type_node_list_member),pointer :: node
    type (type_node_set_member), pointer :: pnode
+   character(len=20)                    :: color
 
-   write (unit,'(A)') 'digraph {'
+   ! Nodes
+   if (present(subgraph)) write (unit,'(A)') 'subgraph "' // trim(subgraph) // '" {'
+   node => self%first
+   do while (associated(node))
+      select case (node%p%source)
+         case (source_do);         color = 'green'
+         case (source_do_bottom);  color = 'yellow'
+         case (source_do_surface); color = 'blue'
+         case (source_do_column);  color = 'red'
+         case default;             color = 'white'
+      end select
+      write (unit,'(A)') '  "' // trim(node%p%as_string()) // '" [label="'//trim(node%p%model%get_path())//'",style=filled,color=' // trim(color) // '];'
+      node => node%next
+   end do
+   if (present(subgraph))  write (unit,'(A)') '}'
 
    ! Edges
    node => self%first
@@ -673,8 +683,6 @@ subroutine graph_save_as_dot(self, unit)
       end do
       node => node%next
    end do
-
-   write (unit,'(A)') '}'
 end subroutine graph_save_as_dot
 
 function node_as_string(node) result(string)

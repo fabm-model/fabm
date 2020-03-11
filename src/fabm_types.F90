@@ -357,7 +357,7 @@ module fabm_types
       type (type_link), pointer        :: bottom_flux         => null()
 
       type (type_internal_variable), pointer :: write_owner => null()
-      type (type_variable_set)               :: cowriters
+      type (type_variable_set),      pointer :: cowriters   => null()
       type (type_link_pointer),      pointer :: first_link  => null()
    end type
 
@@ -1461,16 +1461,20 @@ contains
 
    end subroutine register_interior_state_variable
 
-   subroutine register_source(self, link, sms_id)
-      class (type_base_model),           intent(inout)        :: self
-      type (type_link),                  intent(inout)        :: link
-      type (type_aggregate_variable_id), intent(inout),target :: sms_id
+   subroutine register_source(self, link, sms_id, source)
+      class (type_base_model),           intent(inout)         :: self
+      type (type_link),                  intent(inout)         :: link
+      type (type_aggregate_variable_id), intent(inout), target :: sms_id
+      integer, optional,                 intent(in)            :: source
 
+      integer                   :: source_
       type (type_link), pointer :: link2
 
+      source_ = source_do
+      if (present(source)) source_ = source
       if (.not. associated(sms_id%link)) call self%add_interior_variable(trim(link%name)//'_sms', &
          trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
-         0.0_rk, output=output_none, write_index=sms_id%sum_index, link=sms_id%link)
+         0.0_rk, output=output_none, write_index=sms_id%sum_index, source=source_, link=sms_id%link)
       sms_id%link%target%prefill = prefill_constant
       sms_id%link%target%write_operator = operator_add
       link2 => link%target%sms_list%append(sms_id%link%target, sms_id%link%target%name)
@@ -1478,10 +1482,10 @@ contains
    end subroutine register_source
 
    subroutine register_surface_flux(self, link, surface_flux_id, source)
-      class (type_base_model),                      intent(inout)        :: self
-      type (type_link),                             intent(inout)        :: link
-      type (type_horizontal_aggregate_variable_id), intent(inout),target :: surface_flux_id
-      integer, optional,                            intent(in)           :: source
+      class (type_base_model),                      intent(inout)         :: self
+      type (type_link),                             intent(inout)         :: link
+      type (type_horizontal_aggregate_variable_id), intent(inout), target :: surface_flux_id
+      integer, optional,                            intent(in)            :: source
 
       integer                   :: source_
       type (type_link), pointer :: link2
@@ -1499,10 +1503,10 @@ contains
    end subroutine register_surface_flux
 
    subroutine register_bottom_flux(self, link, bottom_flux_id, source)
-      class (type_base_model),                      intent(inout)        :: self
-      type (type_link),                             intent(inout)        :: link
-      type (type_horizontal_aggregate_variable_id), intent(inout),target :: bottom_flux_id
-      integer, optional,                            intent(in)           :: source
+      class (type_base_model),                      intent(inout)         :: self
+      type (type_link),                             intent(inout)         :: link
+      type (type_horizontal_aggregate_variable_id), intent(inout), target :: bottom_flux_id
+      integer, optional,                            intent(in)            :: source
 
       integer                   :: source_
       type (type_link), pointer :: link2
@@ -1627,14 +1631,14 @@ contains
    end subroutine register_surface_state_variable
 
    subroutine add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
-                           initial_value, background_value, presence, output, &
+                           initial_value, background_value, presence, output, source, &
                            act_as_state_variable, read_index, state_index, write_index, background, link)
       class (type_base_model),       target,intent(inout)       :: self
       type (type_internal_variable),pointer                     :: variable
       character(len=*),              target,intent(in)          :: name
       character(len=*),                     intent(in), optional :: long_name, units
       real(rk),                             intent(in), optional :: minimum, maximum,missing_value,initial_value,background_value
-      integer,                              intent(in), optional :: presence, output
+      integer,                              intent(in), optional :: presence, output, source
       logical,                              intent(in), optional :: act_as_state_variable
       integer,                       target,            optional :: read_index, state_index, write_index
       real(rk),                      target,            optional :: background
@@ -1656,6 +1660,9 @@ contains
          'Cannot register variable "' // trim(name) // '" because its name is not valid. &
          &Variable names should not be empty, and can contain letters, digits and underscores only.')
 
+      if (present(write_index) .and. .not. present(source)) call self%fatal_error('add_variable', &
+         'Cannot register writable variable "' // trim(name) // '" because "source" argument is not provided.')
+
       variable%name = name
       variable%owner => self
       if (present(units))         variable%units         = units
@@ -1671,6 +1678,7 @@ contains
       if (present(presence))      variable%presence      = presence
       if (present(act_as_state_variable)) variable%fake_state_variable = act_as_state_variable
       if (present(output))        variable%output        = output
+      if (present(source))        variable%source        = source
       variable%prefill_value = variable%missing_value
 
       if (present(state_index)) then
@@ -1730,14 +1738,11 @@ contains
       type (type_link), pointer,                          optional :: link
 
       type (type_internal_variable), pointer :: variable
-      type (type_link),              pointer :: link_
 
       allocate(variable)
       variable%domain = domain_interior
 
       ! Fill fields specific to interior variables.
-      variable%source = source_do
-      if (present(source))                    variable%source                    = source
       if (present(no_precipitation_dilution)) variable%no_precipitation_dilution = no_precipitation_dilution
       if (present(no_river_dilution))         variable%no_river_dilution         = no_river_dilution
       if (present(standard_variable))         call variable%standard_variables%add(standard_variable)
@@ -1746,10 +1751,8 @@ contains
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
-                        initial_value, background_value, presence, output, &
-                        act_as_state_variable, read_index, state_index, write_index, background, link_)
-
-      if (present(link)) link => link_
+                        initial_value, background_value, presence, output, source, &
+                        act_as_state_variable, read_index, state_index, write_index, background, link)
    end subroutine add_interior_variable
 
    recursive subroutine add_horizontal_variable(self,name,units,long_name, missing_value, minimum, maximum, initial_value, &
@@ -1769,31 +1772,18 @@ contains
       type (type_link), pointer,                            optional :: link
 
       type (type_internal_variable), pointer :: variable
-      type (type_link),              pointer :: link_, link_dum
-      integer                                :: sms_source
 
       allocate(variable)
       variable%domain = domain_horizontal
-      variable%source = source_unknown
 
       ! Fill fields specific to horizontal variables.
-      if (present(domain))            variable%domain = domain
+      if (present(domain)) variable%domain = domain
       if (present(standard_variable)) call variable%standard_variables%add(standard_variable)
-      if (present(source)) then
-         variable%source = source
-      elseif (present(write_index)) then
-         call self%log_message('WARNING: "source" argument not provided when registering variable ' // trim(name) // '. &
-            &In the future this argument will be required for horizontal diagnostic variables.')
-      end if
-
-      if (variable%source == source_unknown) variable%prefill = prefill_previous_value
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
-                        initial_value, background_value, presence, output, &
-                        act_as_state_variable, read_index, state_index, write_index, background, link_)
-
-      if (present(link)) link => link_
+                        initial_value, background_value, presence, output, source, &
+                        act_as_state_variable, read_index, state_index, write_index, background, link)
    end subroutine add_horizontal_variable
 
    recursive subroutine add_scalar_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
@@ -1819,7 +1809,7 @@ contains
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
-                        initial_value, background_value, presence, output, &
+                        initial_value, background_value, presence, output, source_unknown, &
                         .false., read_index, state_index, write_index, background, link)
    end subroutine add_scalar_variable
 
@@ -1886,11 +1876,15 @@ contains
       type (type_interior_standard_variable), intent(in), optional :: standard_variable
       logical,                                intent(in), optional :: act_as_state_variable
 
+      integer :: source_
+
       if (associated(id%link)) call self%fatal_error('register_interior_diagnostic_variable', &
          'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(id%link%name) // '.')
 
+      source_ = source_do
+      if (present(source)) source_ = source
       call self%add_interior_variable(name, units, long_name, missing_value, standard_variable=standard_variable, &
-         output=output, source=source, write_index=id%diag_index, link=id%link, act_as_state_variable=act_as_state_variable)
+         output=output, source=source_, write_index=id%diag_index, link=id%link, act_as_state_variable=act_as_state_variable)
       if (present(prefill_value)) then
          id%link%target%prefill = prefill_constant
          id%link%target%prefill_value = prefill_value
@@ -1996,9 +1990,9 @@ contains
    end subroutine register_standard_surface_state_dependency
 
    subroutine register_interior_state_dependency_old(self, id, name)
-      class (type_base_model),       intent(inout)        :: self
+      class (type_base_model),       intent(inout)         :: self
       type (type_state_variable_id), intent(inout), target :: id
-      character(len=*),              intent(in)           :: name
+      character(len=*),              intent(in)            :: name
 
       call self%register_interior_state_dependency(id, name, '', name)
       call self%request_coupling(id, name)
@@ -2044,7 +2038,7 @@ contains
       call self%request_coupling(id, standard_variable)
    end subroutine register_standard_horizontal_dependency
 
-   subroutine register_standard_interface_dependency(self, id, standard_variable, domain,required)
+   subroutine register_standard_interface_dependency(self, id, standard_variable, domain, required)
       class (type_base_model),                intent(inout)         :: self
       type (type_horizontal_dependency_id),   intent(inout), target :: id
       type (type_interior_standard_variable), intent(in)            :: standard_variable
@@ -2257,7 +2251,7 @@ contains
          if (value < minimum) then
             write (text1,'(G13.6)') value
             write (text2,'(G13.6)') minimum
-            call self%fatal_error('get_real_parameter', 'Value '//trim(adjustl(text1)) // ' for parameter "' // trim(name) &
+            call self%fatal_error('get_real_parameter', 'Value ' // trim(adjustl(text1)) // ' for parameter "' // trim(name) &
                // '" is less than prescribed minimum of ' // trim(adjustl(text2)) // '.')
          end if
       end if
