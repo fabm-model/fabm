@@ -80,7 +80,17 @@ contains
       type (type_property_dictionary), optional, intent(in)  :: parameters
       integer,                         optional, intent(in)  :: unit
 
-      call fabm_configure_model(model, path, do_not_initialize, parameters, unit)
+      logical :: initialize
+
+      ! Make sure the library is initialized.
+      call fabm_initialize_library()
+
+      call fabm_configure_model(model%root, model%schedules, path, parameters, unit)
+
+      ! Initialize model tree
+      initialize = .true.
+      if (present(do_not_initialize)) initialize = .not. do_not_initialize
+      if (initialize) call model%initialize()
    end subroutine
 
    subroutine fabm_initialize(self)

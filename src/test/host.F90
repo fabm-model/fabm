@@ -33,9 +33,7 @@ end module host_hooks
    
 program test_host
 
-   use fabm, only: type_fabm_model, fabm_standard_variables, type_fabm_interior_variable_id, type_fabm_horizontal_variable_id, &
-      type_fabm_scalar_variable_id, fabm_initialize_library
-   use fabm_config
+   use fabm
    use fabm_driver
    use fabm_parameters, only: rke
    use fabm_types, only: source_do, source_do_surface, source_do_bottom, source_do_column

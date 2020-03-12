@@ -28,6 +28,7 @@ module fabm
    use fabm_schedule
    use fabm_debug
    use fabm_work
+   use fabm_config
    use fabm_standard_variables, only: type_interior_standard_variable, type_horizontal_standard_variable, &
                                       type_global_standard_variable, initialize_standard_variables, type_standard_variable_node
 
@@ -41,6 +42,7 @@ module fabm
 
    public fabm_initialize_library
    public fabm_get_version
+   public fabm_create_model
    public type_fabm_model
 
    ! Variable identifier types by external physical drivers.
@@ -352,6 +354,30 @@ contains
          version => version%next
       end do
    end subroutine fabm_get_version
+
+   ! --------------------------------------------------------------------------
+   ! fabm_create_model: create a model from a yaml-based configuration file
+   ! --------------------------------------------------------------------------
+   function fabm_create_model(path, initialize, parameters, unit) result(model)
+      character(len=*),                optional, intent(in) :: path
+      logical,                         optional, intent(in) :: initialize
+      type (type_property_dictionary), optional, intent(in) :: parameters
+      integer,                         optional, intent(in) :: unit
+      class (type_fabm_model), pointer                      :: model
+
+      logical :: initialize_
+
+      ! Make sure the library is initialized.
+      call fabm_initialize_library()
+
+      allocate(model)
+      call fabm_configure_model(model%root, model%schedules, path, parameters=parameters, unit=unit, log=fabm_log)
+
+      ! Initialize model tree
+      initialize_ = .true.
+      if (present(initialize)) initialize_ = initialize
+      if (initialize_) call model%initialize()
+   end function
 
    ! --------------------------------------------------------------------------
    ! initialize: initialize a model object
