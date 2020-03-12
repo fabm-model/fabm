@@ -742,12 +742,20 @@ contains
       call cache_create(self%domain, self%cache_fill_values, self%cache_vert)
 
       ! For diagnostics that are not needed, set their write index to 0 (rubbish bin)
+      if (fabm_log) then
+         open(unit=log_unit, file=log_prefix // 'discards.log', action='write', status='replace', iostat=ios)
+         if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'discards.log')
+         write (log_unit,'(a)') 'Writes for the following variables are discarded:'
+      end if
       link => self%links_postcoupling%first
       do while (associated(link))
-         if (.not. link%target%write_indices%is_empty() .and. link%target%write_indices%value == -1) &
+         if (.not. link%target%write_indices%is_empty() .and. link%target%write_indices%value == -1) then
             call link%target%write_indices%set_value(0)
+            if (fabm_log) write (log_unit,'("- ",a)') trim(link%target%name)
+         end if
          link => link%next
       end do
+      if (fabm_log) close(log_unit)
 
       if (fabm_log) then
          open(unit=log_unit, file=log_prefix // 'register.log', action='write', status='replace', iostat=ios)
@@ -758,16 +766,6 @@ contains
          open(unit=log_unit, file=log_prefix // 'jobs.log', action='write', status='replace', iostat=ios)
          if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'jobs.log')
          call self%job_manager%print(log_unit)
-         close(log_unit)
-
-         open(unit=log_unit, file=log_prefix // 'discards.log', action='write', status='replace', iostat=ios)
-         if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'discards.log')
-         write (log_unit,'(a)') 'Writes for the following variables are discarded:'
-         link => self%links_postcoupling%first
-         do while (associated(link))
-            if (link%target%write_indices%value == 0) write (log_unit,'("- ",a)') trim(link%target%name)
-            link => link%next
-         end do
          close(log_unit)
       end if
 
@@ -2285,46 +2283,42 @@ contains
          object => link%target
          _ASSERT_(object%source /= source_state .or. object%write_indices%is_empty(), 'classify_variables', 'variable ' // trim(object%name) // ' has source_state and one or more write indices.')
          select case (object%domain)
-            case (domain_interior)
-               if (.not. object%write_indices%is_empty()) then
-                  ! Interior diagnostic variable.
-                  ndiag = ndiag + 1
-               elseif (object%source == source_state) then
-                  ! Interior state variable.
-                  select case (object%presence)
-                     case (presence_internal)
-                        nstate = nstate + 1
-                        call object%state_indices%set_value(nstate)
-                     case (presence_external_required)
-                        call fatal_error('classify_variables', &
-                           'Variable ' // trim(link%name) // ' must be coupled to an existing state variable.')
-                     case default
-                        continue
+         case (domain_interior)
+            select case (object%source)
+            case (source_unknown)   ! Interior dependency
+            case (source_state)     ! Interior state variable
+               select case (object%presence)
+               case (presence_internal)
+                  nstate = nstate + 1
+                  call object%state_indices%set_value(nstate)
+               case (presence_external_required)
+                  call fatal_error('classify_variables', &
+                     'Variable ' // trim(link%name) // ' must be coupled to an existing state variable.')
+               end select
+            case default            ! Interior diagnostic variable
+               ndiag = ndiag + 1
+            end select
+         case (domain_horizontal, domain_surface, domain_bottom)
+            select case (object%source)
+            case (source_unknown)   ! Horizontal dependency
+            case (source_state)     ! Horizontal state variable
+               select case (object%presence)
+               case (presence_internal)
+                  select case (object%domain)
+                     case (domain_bottom)
+                        nstate_bot = nstate_bot + 1
+                        call object%state_indices%set_value(nstate_bot)
+                     case (domain_surface)
+                        nstate_surf = nstate_surf + 1
+                        call object%state_indices%set_value(nstate_surf)
                   end select
-               end if
-            case (domain_horizontal, domain_surface, domain_bottom)
-               if (.not. object%write_indices%is_empty()) then
-                  ! Horizontal diagnostic variable.
-                  ndiag_hz = ndiag_hz+1
-               elseif (object%source == source_state) then
-                  ! Horizontal state variable.
-                  select case (object%presence)
-                     case (presence_internal)
-                        select case (object%domain)
-                           case (domain_bottom)
-                              ! Bottom state variable
-                              nstate_bot = nstate_bot + 1
-                              call object%state_indices%set_value(nstate_bot)
-                           case (domain_surface)
-                              ! Surface state variable
-                              nstate_surf = nstate_surf + 1
-                              call object%state_indices%set_value(nstate_surf)
-                        end select
-                     case (presence_external_required)
-                        call fatal_error('classify_variables', &
-                           'Variable ' // trim(link%name) // ' must be coupled to an existing state variable.')
-                  end select
-               end if
+               case (presence_external_required)
+                  call fatal_error('classify_variables', &
+                     'Variable ' // trim(link%name) // ' must be coupled to an existing state variable.')
+               end select
+            case default            ! Horizontal diagnostic variable
+               ndiag_hz = ndiag_hz + 1
+            end select
          end select
          link => link%next
       end do
@@ -2346,22 +2340,11 @@ contains
       do while (associated(link))
          object => link%target
          select case (link%target%domain)
-            case (domain_interior)
-               if (.not. object%write_indices%is_empty()) then
-                  ! Interior diagnostic variable
-                  ndiag = ndiag + 1
-                  diagvar => self%diagnostic_variables(ndiag)
-                  call copy_variable_metadata(object,diagvar)
-                  if (associated(object%standard_variables%first)) then
-                     select type (standard_variable=>object%standard_variables%first%p)
-                        type is (type_interior_standard_variable)
-                           diagvar%standard_variable = standard_variable
-                     end select
-                  end if
-                  diagvar%save = diagvar%output /= output_none
-                  diagvar%source = object%source
-               elseif (object%presence == presence_internal .and. object%source == source_state) then
-                  ! Interior state variable
+         case (domain_interior)
+            select case (object%source)
+            case (source_unknown)   ! Interior dependency
+            case (source_state)     ! Interior state variable
+               if (object%presence == presence_internal) then
                   nstate = nstate + 1
                   statevar => self%state_variables(nstate)
                   call copy_variable_metadata(object, statevar)
@@ -2374,27 +2357,29 @@ contains
                   statevar%initial_value             = object%initial_value
                   statevar%no_precipitation_dilution = object%no_precipitation_dilution
                   statevar%no_river_dilution         = object%no_river_dilution
-                  if (.not. object%sms_sum%target%write_indices%is_empty()) call object%sms_sum%target%write_indices%append(statevar%sms_index)
-                  if (.not. object%surface_flux_sum%target%write_indices%is_empty()) call object%surface_flux_sum%target%write_indices%append(statevar%surface_flux_index)
-                  if (.not. object%bottom_flux_sum%target%write_indices%is_empty()) call object%bottom_flux_sum%target%write_indices%append(statevar%bottom_flux_index)
-                  if (.not. object%movement_sum%target%write_indices%is_empty()) call object%movement_sum%target%write_indices%append(statevar%movement_index)
+                  call object%sms_sum%target%write_indices%append(statevar%sms_index)
+                  call object%surface_flux_sum%target%write_indices%append(statevar%surface_flux_index)
+                  call object%bottom_flux_sum%target%write_indices%append(statevar%bottom_flux_index)
+                  call object%movement_sum%target%write_indices%append(statevar%movement_index)
                end if
-            case (domain_horizontal, domain_surface, domain_bottom)
-               if (.not. object%write_indices%is_empty()) then
-                  ! Horizontal diagnostic variable
-                  ndiag_hz = ndiag_hz + 1
-                  hz_diagvar => self%horizontal_diagnostic_variables(ndiag_hz)
-                  call copy_variable_metadata(object,hz_diagvar)
-                  if (associated(object%standard_variables%first)) then
-                     select type (standard_variable => object%standard_variables%first%p)
-                        type is (type_horizontal_standard_variable)
-                           hz_diagvar%standard_variable = standard_variable
-                     end select
-                  end if
-                  hz_diagvar%save = hz_diagvar%output /= output_none
-                  hz_diagvar%source = object%source
-               elseif (object%presence == presence_internal .and. object%source == source_state) then
-                  ! Horizontal state variable
+            case default            ! Interior diagnostic variable
+               ndiag = ndiag + 1
+               diagvar => self%diagnostic_variables(ndiag)
+               call copy_variable_metadata(object,diagvar)
+               if (associated(object%standard_variables%first)) then
+                  select type (standard_variable=>object%standard_variables%first%p)
+                     type is (type_interior_standard_variable)
+                        diagvar%standard_variable = standard_variable
+                  end select
+               end if
+               diagvar%save = diagvar%output /= output_none
+               diagvar%source = object%source
+            end select
+         case (domain_horizontal, domain_surface, domain_bottom)
+            select case (object%source)
+            case (source_unknown)   ! Horizontal dependency
+            case (source_state)     ! Horizontal state variable
+               if (object%presence == presence_internal) then
                   select case (object%domain)
                      case (domain_bottom)
                         nstate_bot = nstate_bot + 1
@@ -2413,8 +2398,21 @@ contains
                      end select
                   end if
                   hz_statevar%initial_value = object%initial_value
-                  if (.not. object%sms_sum%target%write_indices%is_empty()) call object%sms_sum%target%write_indices%append(hz_statevar%sms_index)
+                  call object%sms_sum%target%write_indices%append(hz_statevar%sms_index)
                end if
+            case default            ! Horizontal diagnostic variable
+               ndiag_hz = ndiag_hz + 1
+               hz_diagvar => self%horizontal_diagnostic_variables(ndiag_hz)
+               call copy_variable_metadata(object,hz_diagvar)
+               if (associated(object%standard_variables%first)) then
+                  select type (standard_variable => object%standard_variables%first%p)
+                     type is (type_horizontal_standard_variable)
+                        hz_diagvar%standard_variable = standard_variable
+                  end select
+               end if
+               hz_diagvar%save = hz_diagvar%output /= output_none
+               hz_diagvar%source = object%source
+            end select
          end select
          link => link%next
       end do

@@ -1474,6 +1474,7 @@ contains
 
       source_ = source_do
       if (present(source)) source_ = source
+      if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(sms_id%link)) call self%add_interior_variable(trim(link%name)//'_sms', &
          trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
          0.0_rk, output=output_none, write_index=sms_id%sum_index, source=source_, link=sms_id%link)
@@ -1494,6 +1495,7 @@ contains
 
       source_ = source_do_surface
       if (present(source)) source_ = source
+      if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(surface_flux_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sfl', &
          trim(link%target%units) // '*m/s', trim(link%target%long_name) // ' surface flux', &
          0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
@@ -1515,6 +1517,7 @@ contains
 
       source_ = source_do_bottom
       if (present(source)) source_ = source
+      if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(bottom_flux_id%link)) call self%add_horizontal_variable(trim(link%name) // '_bfl', &
          trim(link%target%units) // '*m/s', trim(link%target%long_name) // ' bottom flux', &
          0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
@@ -1558,6 +1561,7 @@ contains
 
       source_ = source_do_surface
       if (present(source)) source_ = source
+      if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(sms_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sms', &
          trim(link%target%units) // '/s', trim(link%target%long_name) // ' sources-sinks', &
          0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, &
@@ -1579,6 +1583,7 @@ contains
 
       source_ = source_do_bottom
       if (present(source)) source_ = source
+      if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(sms_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sms', &
          trim(link%target%units) // '/s', trim(link%target%long_name) // ' sources-sinks', &
          0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, domain=domain_bottom, source=source_)
