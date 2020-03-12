@@ -24,7 +24,7 @@ contains
       character(len=*),                optional, intent(in)    :: path
       type (type_property_dictionary), optional, intent(in)    :: parameters
       integer,                         optional, intent(in)    :: unit
-      logical, optional,                         intent(out)   :: log
+      logical,                         optional, intent(out)   :: log
 
       class (type_node), pointer       :: node
       character(len=yaml_error_length) :: yaml_error
@@ -48,8 +48,8 @@ contains
 
       ! Parse YAML file.
       node => yaml_parse(trim(path_eff), unit_eff, yaml_error)
-      if (yaml_error /= '') call fatal_error('fabm_create_model_from_yaml_file', trim(yaml_error))
-      if (.not. associated(node)) call fatal_error('fabm_create_model_from_yaml_file', &
+      if (yaml_error /= '') call fatal_error('fabm_configure_model', trim(yaml_error))
+      if (.not. associated(node)) call fatal_error('fabm_configure_model', &
          'No configuration information found in ' // trim(path_eff) // '.')
       !call node%dump(output_unit,0)
 
@@ -58,15 +58,15 @@ contains
 
       ! Create model tree from YAML root node.
       select type (node)
-         class is (type_dictionary)
-            if (present(log)) then
-               log = node%get_logical('log', default=.false., error=config_error)
-               if (associated(config_error)) call fatal_error('fabm_configure_model', config_error%message)
-            end if
-            call create_model_tree_from_dictionary(root, node, schedules)
-         class is (type_node)
-            call fatal_error('fabm_create_model_from_yaml_file', trim(path_eff) // ' must contain a dictionary &
-               &at the root (non-indented) level, not a single value. Are you missing a trailing colon?')
+      class is (type_dictionary)
+         if (present(log)) then
+            log = node%get_logical('log', default=.false., error=config_error)
+            if (associated(config_error)) call fatal_error('fabm_configure_model', config_error%message)
+         end if
+         call create_model_tree_from_dictionary(root, node, schedules)
+      class is (type_node)
+         call fatal_error('fabm_configure_model', trim(path_eff) // ' must contain a dictionary &
+            &at the root (non-indented) level, not a single value. Are you missing a trailing colon?')
       end select
    end subroutine fabm_configure_model
 
@@ -113,10 +113,10 @@ contains
          select type (dict => pair%value)
          class is (type_dictionary)
             call create_model_from_dictionary(instancename, dict, root, &
-                                                require_initialization, require_all_parameters, check_conservation, schedules)
+                                              require_initialization, require_all_parameters, check_conservation, schedules)
          class is (type_null)
             call create_model_from_dictionary(instancename, empty_dict, root, &
-                                                require_initialization, require_all_parameters, check_conservation, schedules)
+                                              require_initialization, require_all_parameters, check_conservation, schedules)
          class is (type_node)
             call fatal_error('create_model_tree_from_dictionary', 'Configuration information for model "' // &
                trim(instancename) // '" must be a dictionary, not a single value.')
@@ -127,8 +127,8 @@ contains
       ! Check whether any keys at the root level remain unused.
       pair => mapping%first
       do while (associated(pair))
-         if (.not. pair%accessed) call fatal_error('create_model_tree_from_dictionary','Unrecognized option "'// &
-            trim(pair%key)//'" found at root level.')
+         if (.not. pair%accessed) call fatal_error('create_model_tree_from_dictionary', 'Unrecognized option "' // &
+            trim(pair%key) // '" found at root level.')
          pair => pair%next
       end do
    end subroutine create_model_tree_from_dictionary
@@ -142,25 +142,25 @@ contains
       class (type_schedules),  intent(inout)         :: schedules
       class (type_base_model), pointer               :: model
 
-      logical                            :: use_model
-      character(len=64)                  :: modelname
-      character(len=256)                 :: long_name
-      type (type_dictionary)             :: parametermap
-      class (type_dictionary),pointer    :: childmap
-      class (type_property),pointer      :: property
-      type (type_key_value_pair),pointer :: pair
-      type (type_set)                    :: initialized_set,background_set
-      type (type_link),pointer           :: link
-      type (type_error),pointer          :: config_error
-      integer                            :: schedule_pattern, source
-      character(len=64)                  :: pattern
+      logical                             :: use_model
+      character(len=64)                   :: modelname
+      character(len=256)                  :: long_name
+      type (type_dictionary)              :: parametermap
+      class (type_dictionary),    pointer :: childmap
+      class (type_property),      pointer :: property
+      type (type_key_value_pair), pointer :: pair
+      type (type_set)                     :: initialized_set,background_set
+      type (type_link),           pointer :: link
+      type (type_error),          pointer :: config_error
+      integer                             :: schedule_pattern, source
+      character(len=64)                   :: pattern
 
       config_error => null()
 
       use_model = node%get_logical('use', default=.true., error=config_error)
       if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
       if (.not. use_model) then
-         call log_message('SKIPPING model instance '//trim(instancename)//' because it has use=false set.')
+         call log_message('SKIPPING model instance ' // trim(instancename) // ' because it has use=false set.')
          return
       end if
 
@@ -215,7 +215,7 @@ contains
       ! Check for parameters requested by the model, but not present in the configuration file.
       if (require_all_parameters .and. associated(model%parameters%missing%first)) &
          call fatal_error('create_model_from_dictionary', 'Value for parameter "'// &
-            trim(model%parameters%missing%first%string)//'" of model "' // trim(instancename) // '" is not provided.')
+            trim(model%parameters%missing%first%string) // '" of model "' // trim(instancename) // '" is not provided.')
 
       ! Check for parameters present in configuration file, but not interpreted by the models.
       property => model%parameters%first
@@ -271,7 +271,7 @@ contains
                end select
                call schedules%add(model, source, schedule_pattern)
             class is (type_node)
-               call fatal_error('create_model_from_dictionary','The value of '//trim(value%path)// &
+               call fatal_error('create_model_from_dictionary','The value of ' // trim(value%path) // &
                   ' must be a dictionary.')
             end select
             pair => pair%next
@@ -328,43 +328,42 @@ contains
    end subroutine create_model_from_dictionary
 
    subroutine parse_initialization(model, node, initialized_set, get_background)
-      class (type_base_model),intent(inout) :: model
-      class (type_dictionary),intent(in)    :: node
-      type (type_set),        intent(out)   :: initialized_set
-      logical,                intent(in)    :: get_background
+      class (type_base_model), intent(inout) :: model
+      class (type_dictionary), intent(in)    :: node
+      type (type_set),         intent(out)   :: initialized_set
+      logical,                 intent(in)    :: get_background
 
-      type (type_key_value_pair),   pointer :: pair
-      type (type_internal_variable),pointer :: object
-      logical                               :: success
-      real(rk)                              :: realvalue
+      type (type_key_value_pair),    pointer :: pair
+      type (type_internal_variable), pointer :: object
+      logical                                :: success
+      real(rk)                               :: realvalue
 
       ! Transfer user-specified initial state to the model.
       pair => node%first
       do while (associated(pair))
-         select type (value=>pair%value)
-            class is (type_scalar)
-               object => model%find_object(trim(pair%key))
-               if (.not.associated(object)) call fatal_error('parse_initialization', &
-                  trim(value%path)//': "'//trim(pair%key)//'" is not a member of model "'//trim(model%name)//'".')
-               if (object%source /= source_state) call fatal_error('parse_initialization', &
-                  trim(value%path)//': "'//trim(pair%key)//'" is not a state variable of model "'//trim(model%name)//'".')
-               realvalue = value%to_real(default=real(0, real_kind), success=success)
-               if (.not. success) call fatal_error('parse_initialization', &
-                  trim(value%path) // ': "' // trim(value%string) // '" is not a real number.')
-               if (get_background) then
-                  call object%background_values%set_value(realvalue)
-               else
-                  object%initial_value = realvalue
-               end if
-               call initialized_set%add(trim(pair%key))
-            class is (type_null)
-               call fatal_error('parse_initialization',trim(value%path)//' must be set to a real number, not to null.')
-            class is (type_dictionary)
-               call fatal_error('parse_initialization',trim(value%path)//' must be set to a real number, not to a dictionary.')
+         select type (value => pair%value)
+         class is (type_scalar)
+            object => model%find_object(trim(pair%key))
+            if (.not. associated(object)) call fatal_error('parse_initialization', &
+               trim(value%path) // ': "' // trim(pair%key) // '" is not a member of model "' // trim(model%name) // '".')
+            if (object%source /= source_state) call fatal_error('parse_initialization', &
+               trim(value%path) // ': "' // trim(pair%key) // '" is not a state variable of model "' // trim(model%name) // '".')
+            realvalue = value%to_real(default=real(0, real_kind), success=success)
+            if (.not. success) call fatal_error('parse_initialization', &
+               trim(value%path) // ': "' // trim(value%string) // '" is not a real number.')
+            if (get_background) then
+               call object%background_values%set_value(realvalue)
+            else
+               object%initial_value = realvalue
+            end if
+            call initialized_set%add(trim(pair%key))
+         class is (type_null)
+            call fatal_error('parse_initialization',trim(value%path)//' must be set to a real number, not to null.')
+         class is (type_dictionary)
+            call fatal_error('parse_initialization',trim(value%path)//' must be set to a real number, not to a dictionary.')
          end select
          pair => pair%next
       end do
-
    end subroutine
 
 end module fabm_config
