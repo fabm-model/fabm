@@ -2671,14 +2671,16 @@ contains
       end do
 
       ! Register data fields from persistent store in catalog.
-      variable_node => self%variable_register%store%interior%first
-      do i = 1, self%variable_register%store%interior%count
-         call self%link_interior_data(variable_node%target, self%store%interior(_PREARG_LOCATION_DIMENSIONS_ i), source=data_source_fabm)
+      variable_node => self%variable_register%catalog%interior%first
+      do while (associated(variable_node))
+         if (variable_node%target%store_index > 0) &
+            call self%link_interior_data(variable_node%target, self%store%interior(_PREARG_LOCATION_DIMENSIONS_ variable_node%target%store_index), source=data_source_fabm)
          variable_node => variable_node%next
       end do
-      variable_node => self%variable_register%store%horizontal%first
-      do i = 1, self%variable_register%store%horizontal%count
-         call self%link_horizontal_data(variable_node%target, self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i), source=data_source_fabm)
+      variable_node => self%variable_register%catalog%horizontal%first
+      do while (associated(variable_node))
+         if (variable_node%target%store_index > 0) &
+            call self%link_horizontal_data(variable_node%target, self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ variable_node%target%store_index), source=data_source_fabm)
          variable_node => variable_node%next
       end do
 

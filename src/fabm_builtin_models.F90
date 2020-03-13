@@ -279,15 +279,16 @@ module fabm_builtin_models
 
       sum_used = .false.
       if (associated(self%standard_variable)) then
-         call parent%add_interior_variable(name,self%units,name,link=link_,act_as_state_variable=iand(self%access,access_set_source)/=0,standard_variable=self%standard_variable)
+         call parent%add_interior_variable(name, self%units, name, link=link_, act_as_state_variable=iand(self%access,access_set_source) /= 0, standard_variable=self%standard_variable)
       else
-         call parent%add_interior_variable(name,self%units,name,link=link_,act_as_state_variable=iand(self%access,access_set_source)/=0)
+         call parent%add_interior_variable(name, self%units, name, link=link_, act_as_state_variable=iand(self%access,access_set_source) /= 0)
       end if
       if (present(link)) link => link_
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
          link_%target%source = source_constant
          link_%target%prefill_value = 0
+         link_%target%output = self%result_output
       elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk.and..not.create_for_one_) then
          ! One component with scale factor 1 - add link to component to parent.
          call parent%request_coupling(link_,self%first%name)
@@ -657,12 +658,13 @@ module fabm_builtin_models
       if (present(create_for_one)) create_for_one_ = create_for_one
 
       sum_used = .false.
-      call parent%add_horizontal_variable(name,self%units,name,link=link_,act_as_state_variable=iand(self%access,access_set_source)/=0)
+      call parent%add_horizontal_variable(name, self%units, name, link=link_, act_as_state_variable=iand(self%access, access_set_source) /= 0)
       if (present(link)) link => link_
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
          link_%target%source = source_constant
          link_%target%prefill_value = 0
+         link_%target%output = self%result_output
       elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk.and..not.create_for_one_) then
          ! One component with scale factor 1 - add link to component to parent.
          call parent%request_coupling(link_,self%first%name)
