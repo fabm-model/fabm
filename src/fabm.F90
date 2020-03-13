@@ -370,7 +370,7 @@ contains
       call fabm_initialize_library()
 
       allocate(model)
-      call fabm_configure_model(model%root, model%schedules, path, parameters=parameters, unit=unit, log=model%log)
+      call fabm_configure_model(model%root, model%schedules, model%log, path, parameters=parameters, unit=unit)
 
       ! Initialize model tree
       initialize_ = .true.
