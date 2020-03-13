@@ -18,13 +18,13 @@ module fabm_config
 
 contains
 
-   subroutine fabm_configure_model(root, schedules, path, parameters, unit, log)
+   subroutine fabm_configure_model(root, schedules, log, path, parameters, unit)
       class (type_base_model),                   intent(inout) :: root
       class (type_schedules),                    intent(inout) :: schedules
+      logical,                                   intent(out)   :: log
       character(len=*),                optional, intent(in)    :: path
       type (type_property_dictionary), optional, intent(in)    :: parameters
       integer,                         optional, intent(in)    :: unit
-      logical,                         optional, intent(out)   :: log
 
       class (type_node), pointer       :: node
       character(len=yaml_error_length) :: yaml_error
@@ -59,10 +59,8 @@ contains
       ! Create model tree from YAML root node.
       select type (node)
       class is (type_dictionary)
-         if (present(log)) then
-            log = node%get_logical('log', default=.false., error=config_error)
-            if (associated(config_error)) call fatal_error('fabm_configure_model', config_error%message)
-         end if
+         log = node%get_logical('log', default=.false., error=config_error)
+         if (associated(config_error)) call fatal_error('fabm_configure_model', config_error%message)
          call create_model_tree_from_dictionary(root, node, schedules)
       class is (type_node)
          call fatal_error('fabm_configure_model', trim(path_eff) // ' must contain a dictionary &
