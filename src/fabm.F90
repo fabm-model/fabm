@@ -56,8 +56,6 @@ module fabm
    ! Imported from fabm_types, and made available so hosts only need to "use fabm"
    public fabm_standard_variables
 
-   logical, save, public :: fabm_log = .false.
-
    integer, parameter :: status_none             = 0
    integer, parameter :: status_initialize_done  = 1
    integer, parameter :: status_set_domain_done  = 2
@@ -186,6 +184,7 @@ module fabm
       type (type_base_model) :: root
 
       integer :: status = status_none
+      logical :: log = .false.
 
       type (type_link_list) :: links_postcoupling
 
@@ -371,7 +370,7 @@ contains
       call fabm_initialize_library()
 
       allocate(model)
-      call fabm_configure_model(model%root, model%schedules, path, parameters=parameters, unit=unit, log=fabm_log)
+      call fabm_configure_model(model%root, model%schedules, path, parameters=parameters, unit=unit, log=model%log)
 
       ! Initialize model tree
       initialize_ = .true.
@@ -730,12 +729,12 @@ contains
       end do
 
       log_unit = -1
-      if (fabm_log) log_unit = get_free_unit()
+      if (self%log) log_unit = get_free_unit()
 
       ! Merge write indices when operations can be done in place
       ! This must be done after all variables are requested from the different jobs, so we know which variables
       ! will be retrieved (such variables cannot be merged)
-      if (fabm_log) then
+      if (self%log) then
          open(unit=log_unit, file=log_prefix // 'merges.log', action='write', status='replace', iostat=ios)
          if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'merges.log')
          call merge_indices(self%root, log_unit)
@@ -745,12 +744,12 @@ contains
       end if
 
       ! Initialize all jobs. This also creates registers for the read and write caches, as well as the persistent store.
-      if (fabm_log) then
+      if (self%log) then
          open(unit=log_unit, file=log_prefix // 'task_order.log', action='write', status='replace', iostat=ios)
          if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'task_order.log')
       end if
       call self%job_manager%initialize(self%variable_register, self%schedules, unfulfilled_dependencies, log_unit)
-      if (fabm_log) close(log_unit)
+      if (self%log) close(log_unit)
 
       ! Create persistent store. This provides memory for all variables to be stored there.
       call create_store(self)
@@ -768,7 +767,7 @@ contains
       call cache_create(self%domain, self%cache_fill_values, self%cache_vert)
 
       ! For diagnostics that are not needed, set their write index to 0 (rubbish bin)
-      if (fabm_log) then
+      if (self%log) then
          open(unit=log_unit, file=log_prefix // 'discards.log', action='write', status='replace', iostat=ios)
          if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'discards.log')
          write (log_unit,'(a)') 'Writes for the following variables are discarded:'
@@ -777,13 +776,13 @@ contains
       do while (associated(link))
          if (.not. link%target%write_indices%is_empty() .and. link%target%write_indices%value == -1) then
             call link%target%write_indices%set_value(0)
-            if (fabm_log) write (log_unit,'("- ",a)') trim(link%target%name)
+            if (self%log) write (log_unit,'("- ",a)') trim(link%target%name)
          end if
          link => link%next
       end do
-      if (fabm_log) close(log_unit)
+      if (self%log) close(log_unit)
 
-      if (fabm_log) then
+      if (self%log) then
          open(unit=log_unit, file=log_prefix // 'register.log', action='write', status='replace', iostat=ios)
          if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'register.log')
          call self%variable_register%print(log_unit)
