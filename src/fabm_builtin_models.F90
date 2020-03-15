@@ -48,8 +48,9 @@ module fabm_builtin_models
       character(len=attribute_length) :: units         = ''
       integer                         :: result_output = output_instantaneous
       real(rk)                        :: offset        = 0.0_rk
+      real(rk)                        :: missing_value = 0.0_rk
       integer                         :: access        = access_read
-      type (type_bulk_standard_variable),pointer :: standard_variable => null()
+      type (type_interior_standard_variable), pointer :: standard_variable => null()
       type (type_aggregate_variable_id) :: id_output
       type (type_component),pointer   :: first => null()
       type (type_sum_term), allocatable :: sources(:)
@@ -86,6 +87,7 @@ module fabm_builtin_models
       character(len=attribute_length) :: units         = ''
       integer                         :: result_output = output_instantaneous
       real(rk)                        :: offset        = 0.0_rk
+      real(rk)                        :: missing_value = 0.0_rk
       integer                         :: access        = access_read
       integer                         :: domain        = domain_horizontal
       type (type_horizontal_aggregate_variable_id) :: id_output
@@ -262,17 +264,17 @@ module fabm_builtin_models
 
    end subroutine
 
-   function weighted_sum_add_to_parent(self,parent,name,create_for_one,aggregate_variable,link) result(sum_used)
-      class (type_weighted_sum),         intent(inout),target :: self
-      class (type_base_model),           intent(inout),target :: parent
-      character(len=*),                  intent(in)           :: name
-      logical,optional,                  intent(in)           :: create_for_one
-      type (type_bulk_standard_variable),intent(in),optional  :: aggregate_variable
-      type (type_link),pointer,optional                       :: link
+   function weighted_sum_add_to_parent(self, parent, name, create_for_one, aggregate_variable, link) result(sum_used)
+      class (type_weighted_sum),              intent(inout), target :: self
+      class (type_base_model),                intent(inout), target :: parent
+      character(len=*),                       intent(in)            :: name
+      logical,optional,                       intent(in)            :: create_for_one
+      type (type_interior_standard_variable), intent(in), optional  :: aggregate_variable
+      type (type_link), pointer,                          optional  :: link
 
-      logical                                       :: sum_used,create_for_one_
-      type (type_link),                     pointer :: link_
-      class (type_scaled_interior_variable),pointer :: scaled_variable
+      logical                                        :: sum_used, create_for_one_
+      type (type_link),                      pointer :: link_
+      class (type_scaled_interior_variable), pointer :: scaled_variable
 
       create_for_one_ = .false.
       if (present(create_for_one)) create_for_one_ = create_for_one
@@ -284,43 +286,45 @@ module fabm_builtin_models
          call parent%add_interior_variable(name, self%units, name, link=link_, act_as_state_variable=iand(self%access,access_set_source) /= 0)
       end if
       if (present(link)) link => link_
-      if (.not.associated(self%first)) then
+      if (.not. associated(self%first)) then
          ! No components - add link to zero field to parent.
          link_%target%source = source_constant
          link_%target%prefill_value = 0
+         link_%target%missing_value = self%missing_value
          link_%target%output = self%result_output
-      elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk.and..not.create_for_one_) then
+      elseif (.not. associated(self%first%next) .and. self%first%weight == 1.0_rk .and. .not. create_for_one_) then
          ! One component with scale factor 1 - add link to component to parent.
-         call parent%request_coupling(link_,self%first%name)
-      elseif (.not.associated(self%first%next)) then
+         call parent%request_coupling(link_, self%first%name)
+      elseif (.not. associated(self%first%next)) then
          ! One component with scale factor other than 1 (or a user-specified requirement NOT to make a direct link to the source variable)
          allocate(scaled_variable)
-         call parent%add_child(scaled_variable,trim(name)//'_calculator',configunit=-1)
-         call scaled_variable%register_dependency(scaled_variable%id_source,'source',self%units,'source variable')
-         call scaled_variable%request_coupling(scaled_variable%id_source,self%first%name)
-         call scaled_variable%register_diagnostic_variable(scaled_variable%id_result,'result',self%units,'result',output=self%result_output,act_as_state_variable=iand(self%access,access_set_source)/=0)
+         call parent%add_child(scaled_variable, trim(name) // '_calculator', configunit=-1)
+         call scaled_variable%register_dependency(scaled_variable%id_source, 'source', self%units, 'source variable')
+         call scaled_variable%request_coupling(scaled_variable%id_source, self%first%name)
+         call scaled_variable%register_diagnostic_variable(scaled_variable%id_result, 'result', self%units, 'result', &
+            missing_value=self%missing_value, output=self%result_output, act_as_state_variable=iand(self%access, access_set_source) /= 0)
          scaled_variable%weight = self%first%weight
          scaled_variable%include_background = self%first%include_background
          scaled_variable%offset = self%offset
-         call parent%request_coupling(link_,trim(name)//'_calculator/result')
-         if (iand(self%access,access_set_source)/=0) then
+         call parent%request_coupling(link_, trim(name)//'_calculator/result')
+         if (iand(self%access, access_set_source) /= 0) then
             ! This scaled variable acts as a state variable. Create a child model to distribute source terms to the original source variable.
-            call copy_fluxes(scaled_variable,scaled_variable%id_result,self%first%name,scale_factor=1/scaled_variable%weight)
-            if (present(aggregate_variable)) call scaled_variable%add_to_aggregate_variable(aggregate_variable,scaled_variable%id_result)
+            call copy_fluxes(scaled_variable, scaled_variable%id_result, self%first%name, scale_factor=1.0_rk / scaled_variable%weight)
+            if (present(aggregate_variable)) call scaled_variable%add_to_aggregate_variable(aggregate_variable, scaled_variable%id_result)
          end if
       else
          ! Multiple components. Create the sum.
-         call parent%add_child(self,trim(name)//'_calculator',configunit=-1)
-         call parent%request_coupling(link_,trim(name)//'_calculator/result')
+         call parent%add_child(self, trim(name) // '_calculator', configunit=-1)
+         call parent%request_coupling(link_, trim(name) // '_calculator/result')
          sum_used = .true.
       end if
    end function weighted_sum_add_to_parent
 
    subroutine weighted_sum_initialize(self,configunit)
-      class (type_weighted_sum),intent(inout),target :: self
-      integer,                  intent(in)           :: configunit
+      class (type_weighted_sum), intent(inout), target :: self
+      integer,                   intent(in)            :: configunit
 
-      type (type_component),pointer :: component
+      type (type_component), pointer :: component
       integer           :: ncomponents, i
       character(len=10) :: temp
       real(rk)          :: weight
@@ -346,8 +350,8 @@ module fabm_builtin_models
       end do
 
       !call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output) !,act_as_state_variable=iand(self%access,access_set_source)/=0)
-      call self%add_interior_variable('result', self%units, 'result', 0.0_rk, output=self%result_output, write_index=self%id_output%sum_index, link=self%id_output%link, source=source_do)
-      self%id_output%link%target%prefill = prefill_constant
+      call self%add_interior_variable('result', self%units, 'result', fill_value=0.0_rk, missing_value=self%missing_value, &
+         output=self%result_output, write_index=self%id_output%sum_index, link=self%id_output%link, source=source_do)
 
       if (iand(self%access,access_set_source)/=0) then
          ! NB this does not function yet (hence the commented out act_as_state_variable above)
@@ -643,16 +647,16 @@ module fabm_builtin_models
    end subroutine scaled_horizontal_variable_after_coupling
 
    function horizontal_weighted_sum_add_to_parent(self,parent,name,create_for_one,aggregate_variable,link) result(sum_used)
-      class (type_horizontal_weighted_sum),intent(inout),target :: self
-      class (type_base_model),             intent(inout),target :: parent
-      character(len=*),                    intent(in)           :: name
-      logical,optional,                    intent(in)           :: create_for_one
-      type (type_bulk_standard_variable),optional,intent(in)    :: aggregate_variable
-      type (type_link),pointer,optional                         :: link
+      class (type_horizontal_weighted_sum), intent(inout), target :: self
+      class (type_base_model),              intent(inout), target :: parent
+      character(len=*),                     intent(in)            :: name
+      logical,optional,                     intent(in)            :: create_for_one
+      type (type_interior_standard_variable), optional, intent(in) :: aggregate_variable
+      type (type_link), pointer, optional                         :: link
 
-      logical :: sum_used,create_for_one_
-      type (type_link),pointer :: link_
-      class (type_scaled_horizontal_variable),pointer :: scaled_variable
+      logical :: sum_used, create_for_one_
+      type (type_link), pointer :: link_
+      class (type_scaled_horizontal_variable), pointer :: scaled_variable
 
       create_for_one_ = .false.
       if (present(create_for_one)) create_for_one_ = create_for_one
@@ -664,29 +668,32 @@ module fabm_builtin_models
          ! No components - add link to zero field to parent.
          link_%target%source = source_constant
          link_%target%prefill_value = 0
+         link_%target%missing_value = self%missing_value
          link_%target%output = self%result_output
-      elseif (.not.associated(self%first%next).and.self%first%weight==1.0_rk.and..not.create_for_one_) then
+      elseif (.not. associated(self%first%next) .and. self%first%weight == 1.0_rk .and. .not. create_for_one_) then
          ! One component with scale factor 1 - add link to component to parent.
-         call parent%request_coupling(link_,self%first%name)
+         call parent%request_coupling(link_, self%first%name)
       elseif (.not.associated(self%first%next)) then
          ! One component with scale factor other than 1 (or a user-specified requirement NOT to make a direct link to the source variable)
          allocate(scaled_variable)
-         call parent%add_child(scaled_variable,trim(name)//'_calculator',configunit=-1)
-         call scaled_variable%register_dependency(scaled_variable%id_source,'source',self%units,'source variable')
-         call scaled_variable%request_coupling(scaled_variable%id_source,self%first%name)
-         call scaled_variable%register_diagnostic_variable(scaled_variable%id_result,'result',self%units,'result',output=self%result_output,act_as_state_variable=iand(self%access,access_set_source)/=0,source=source_do_horizontal,domain=self%domain)
+         call parent%add_child(scaled_variable, trim(name) // '_calculator', configunit=-1)
+         call scaled_variable%register_dependency(scaled_variable%id_source, 'source', self%units, 'source variable')
+         call scaled_variable%request_coupling(scaled_variable%id_source, self%first%name)
+         call scaled_variable%register_diagnostic_variable(scaled_variable%id_result, 'result', self%units, 'result', &
+            missing_value=self%missing_value, output=self%result_output, act_as_state_variable= &
+            iand(self%access, access_set_source) /= 0, source=source_do_horizontal, domain=self%domain)
          scaled_variable%weight = self%first%weight
          scaled_variable%include_background = self%first%include_background
          scaled_variable%offset = self%offset
-         call parent%request_coupling(link_,trim(name)//'_calculator/result')
-         if (iand(self%access,access_set_source)/=0) then
-            call copy_horizontal_fluxes(scaled_variable,scaled_variable%id_result,self%first%name,scale_factor=1/scaled_variable%weight)
-            if (present(aggregate_variable)) call scaled_variable%add_to_aggregate_variable(aggregate_variable,scaled_variable%id_result)
+         call parent%request_coupling(link_, trim(name)//'_calculator/result')
+         if (iand(self%access,access_set_source) /= 0) then
+            call copy_horizontal_fluxes(scaled_variable, scaled_variable%id_result, self%first%name, scale_factor=1.0_rk / scaled_variable%weight)
+            if (present(aggregate_variable)) call scaled_variable%add_to_aggregate_variable(aggregate_variable, scaled_variable%id_result)
          end if
       else
          ! One component with scale factor unequal to 1, or multiple components. Create the sum.
-         call parent%add_child(self,trim(name)//'_calculator',configunit=-1)
-         call parent%request_coupling(link_,trim(name)//'_calculator/result')
+         call parent%add_child(self, trim(name) // '_calculator', configunit=-1)
+         call parent%request_coupling(link_, trim(name) // '_calculator/result')
          sum_used = .true.
       end if
    end function horizontal_weighted_sum_add_to_parent
@@ -718,9 +725,8 @@ module fabm_builtin_models
          call self%request_coupling(component%id,trim(component%name))
          component => component%next
       end do
-      !call self%register_diagnostic_variable(self%id_output,'result',self%units,'result',output=self%result_output,source=source_do_horizontal)
-      call self%add_horizontal_variable('result', self%units, 'result', 0.0_rk, output=self%result_output, write_index=self%id_output%horizontal_sum_index, link=self%id_output%link, source=source_do_horizontal)
-      self%id_output%link%target%prefill = prefill_constant
+      call self%add_horizontal_variable('result', self%units, 'result', missing_value=self%missing_value, fill_value=0.0_rk, output=self%result_output, &
+         write_index=self%id_output%horizontal_sum_index, link=self%id_output%link, source=source_do_horizontal)
    end subroutine
 
    subroutine horizontal_weighted_sum_after_coupling(self)
@@ -869,7 +875,7 @@ module fabm_builtin_models
       call self%get_parameter(value,'value','','value')
       if (standard_name/='') then
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
-            output=output_none, standard_variable=type_bulk_standard_variable(name=standard_name), source=source_constant)
+            output=output_none, standard_variable=type_interior_standard_variable(name=standard_name), source=source_constant)
       else
          call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
             output=output_none, source=source_constant)

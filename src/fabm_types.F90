@@ -909,9 +909,9 @@ contains
 
       if (model%implements(source_get_light_extinction)) then
          call model%add_interior_variable('light_extinction', 'm-1', &
-            'light extinction contribution computed by get_light_extinction', 0.0_rk, output=output_none, &
-            write_index=model%extinction_id%sum_index, link=model%extinction_id%link, source=source_get_light_extinction)
-         model%extinction_id%link%target%prefill = prefill_constant
+            'light extinction contribution computed by get_light_extinction', fill_value=0.0_rk, missing_value=0.0_rk, &
+            output=output_none, write_index=model%extinction_id%sum_index, link=model%extinction_id%link, &
+            source=source_get_light_extinction)
          model%extinction_id%link%target%write_operator = operator_add
          call model%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, &
             model%extinction_id)
@@ -1476,9 +1476,8 @@ contains
       if (present(source)) source_ = source
       if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(sms_id%link)) call self%add_interior_variable(trim(link%name)//'_sms', &
-         trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', &
-         0.0_rk, output=output_none, write_index=sms_id%sum_index, source=source_, link=sms_id%link)
-      sms_id%link%target%prefill = prefill_constant
+         trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', fill_value=0.0_rk, &
+         missing_value=0.0_rk, output=output_none, write_index=sms_id%sum_index, source=source_, link=sms_id%link)
       sms_id%link%target%write_operator = operator_add
       link2 => link%target%sms_list%append(sms_id%link%target, sms_id%link%target%name)
       link%target%sms => link2
@@ -1497,10 +1496,9 @@ contains
       if (present(source)) source_ = source
       if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(surface_flux_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sfl', &
-         trim(link%target%units) // '*m/s', trim(link%target%long_name) // ' surface flux', &
-         0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
+         trim(link%target%units) // '*m/s', trim(link%target%long_name) // ' surface flux', fill_value=0.0_rk, &
+         missing_value=0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
          domain=domain_surface, source=source_, link=surface_flux_id%link)
-      surface_flux_id%link%target%prefill = prefill_constant
       surface_flux_id%link%target%write_operator = operator_add
       link2 => link%target%surface_flux_list%append(surface_flux_id%link%target, surface_flux_id%link%target%name)
       link%target%surface_flux => link2
@@ -1519,10 +1517,9 @@ contains
       if (present(source)) source_ = source
       if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(bottom_flux_id%link)) call self%add_horizontal_variable(trim(link%name) // '_bfl', &
-         trim(link%target%units) // '*m/s', trim(link%target%long_name) // ' bottom flux', &
-         0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
+         trim(link%target%units) // '*m/s', trim(link%target%long_name) // ' bottom flux', fill_value=0.0_rk, &
+         missing_value=0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
          domain=domain_bottom, source=source_, link=bottom_flux_id%link)
-      bottom_flux_id%link%target%prefill = prefill_constant
       bottom_flux_id%link%target%write_operator = operator_add
       link2 => link%target%bottom_flux_list%append(bottom_flux_id%link%target, bottom_flux_id%link%target%name)
       link%target%bottom_flux => link2
@@ -1537,14 +1534,13 @@ contains
       real(rk)                  :: vertical_movement_
       type (type_link), pointer :: link2
 
-      vertical_movement_ = 0
+      vertical_movement_ = 0.0_rk
       if (present(vertical_movement)) vertical_movement_ = vertical_movement
       if (.not. associated(movement_id%link)) call self%add_interior_variable(trim(link%name) // '_w', &
-         'm/s', trim(link%target%long_name) // ' vertical velocity', &
-         vertical_movement_, output=output_none, write_index=movement_id%sum_index, link=movement_id%link, source=source_constant)
+         'm/s', trim(link%target%long_name) // ' vertical velocity', fill_value=vertical_movement_, missing_value=0.0_rk, &
+         output=output_none, write_index=movement_id%sum_index, link=movement_id%link, source=source_constant)
       if (self%implements(source_get_vertical_movement)) then
          movement_id%link%target%source = source_get_vertical_movement
-         movement_id%link%target%prefill = prefill_constant
          movement_id%link%target%write_operator = operator_add
       end if
       link2 => link%target%movement_list%append(movement_id%link%target, movement_id%link%target%name)
@@ -1563,10 +1559,9 @@ contains
       if (present(source)) source_ = source
       if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(sms_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sms', &
-         trim(link%target%units) // '/s', trim(link%target%long_name) // ' sources-sinks', &
-         0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, &
+         trim(link%target%units) // '/s', trim(link%target%long_name) // ' sources-sinks', fill_value=0.0_rk, &
+         missing_value=0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, &
          domain=domain_surface, source=source_)
-      sms_id%link%target%prefill = prefill_constant
       sms_id%link%target%write_operator = operator_add
       link2 => link%target%sms_list%append(sms_id%link%target, sms_id%link%target%name)
       link%target%sms => link2
@@ -1585,9 +1580,9 @@ contains
       if (present(source)) source_ = source
       if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(sms_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sms', &
-         trim(link%target%units) // '/s', trim(link%target%long_name) // ' sources-sinks', &
-         0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, domain=domain_bottom, source=source_)
-      sms_id%link%target%prefill = prefill_constant
+         trim(link%target%units) // '/s', trim(link%target%long_name) // ' sources-sinks', fill_value=0.0_rk, &
+         missing_value=0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, &
+         domain=domain_bottom, source=source_)
       sms_id%link%target%write_operator = operator_add
       link2 => link%target%sms_list%append(sms_id%link%target, sms_id%link%target%name)
       link%target%sms => link2
@@ -1600,7 +1595,7 @@ contains
       type (type_bottom_state_variable_id),     intent(inout), target :: id
       character(len=*),                         intent(in)            :: name, long_name, units
       real(rk),                                 intent(in), optional  :: initial_value
-      real(rk),                                 intent(in), optional  :: minimum, maximum,missing_value,background_value
+      real(rk),                                 intent(in), optional  :: minimum, maximum, missing_value, background_value
       type (type_horizontal_standard_variable), intent(in), optional  :: standard_variable
       integer,                                  intent(in), optional  :: presence
 
@@ -1622,7 +1617,7 @@ contains
       type (type_surface_state_variable_id),    intent(inout), target :: id
       character(len=*),                         intent(in)            :: name, long_name, units
       real(rk),                                 intent(in), optional  :: initial_value
-      real(rk),                                 intent(in), optional  :: minimum, maximum,missing_value,background_value
+      real(rk),                                 intent(in), optional  :: minimum, maximum, missing_value, background_value
       type (type_horizontal_standard_variable), intent(in), optional  :: standard_variable
       integer,                                  intent(in), optional  :: presence
 
@@ -1638,13 +1633,14 @@ contains
    end subroutine register_surface_state_variable
 
    subroutine add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
-                           initial_value, background_value, presence, output, source, &
+                           initial_value, background_value, fill_value, presence, output, source, &
                            act_as_state_variable, read_index, state_index, write_index, background, link)
       class (type_base_model),       target,intent(inout)       :: self
       type (type_internal_variable),pointer                     :: variable
       character(len=*),              target,intent(in)          :: name
       character(len=*),                     intent(in), optional :: long_name, units
-      real(rk),                             intent(in), optional :: minimum, maximum,missing_value,initial_value,background_value
+      real(rk),                             intent(in), optional :: minimum, maximum, missing_value
+      real(rk),                             intent(in), optional :: initial_value, background_value, fill_value
       integer,                              intent(in), optional :: presence, output, source
       logical,                              intent(in), optional :: act_as_state_variable
       integer,                       target,            optional :: read_index, state_index, write_index
@@ -1687,6 +1683,10 @@ contains
       if (present(output))        variable%output        = output
       if (present(source))        variable%source        = source
       variable%prefill_value = variable%missing_value
+      if (present(fill_value)) then
+         variable%prefill = prefill_constant
+         variable%prefill_value = fill_value
+      end if
 
       if (present(state_index)) then
          ! Ensure that initial value falls within prescribed valid range.
@@ -1724,8 +1724,8 @@ contains
       if (present(link)) link => link_
    end subroutine add_variable
 
-   recursive subroutine add_interior_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
-                                          background_value, specific_light_extinction, &
+   subroutine add_interior_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
+                                          background_value, fill_value, specific_light_extinction, &
                                           no_precipitation_dilution, no_river_dilution, standard_variable, presence, output, &
                                           act_as_state_variable, source, &
                                           read_index, state_index, write_index, &
@@ -1733,8 +1733,8 @@ contains
       class (type_base_model),target,         intent(inout)        :: self
       character(len=*),                       intent(in)           :: name
       character(len=*),                       intent(in), optional :: long_name, units
-      real(rk),                               intent(in), optional :: minimum, maximum
-      real(rk),                               intent(in), optional :: missing_value, initial_value, background_value
+      real(rk),                               intent(in), optional :: minimum, maximum, missing_value
+      real(rk),                               intent(in), optional :: initial_value, background_value, fill_value
       real(rk),                               intent(in), optional :: specific_light_extinction
       logical,                                intent(in), optional :: no_precipitation_dilution, no_river_dilution
       type (type_interior_standard_variable), intent(in), optional :: standard_variable
@@ -1758,19 +1758,19 @@ contains
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
-                        initial_value, background_value, presence, output, source, &
+                        initial_value, background_value, fill_value, presence, output, source, &
                         act_as_state_variable, read_index, state_index, write_index, background, link)
    end subroutine add_interior_variable
 
-   recursive subroutine add_horizontal_variable(self,name,units,long_name, missing_value, minimum, maximum, initial_value, &
-                                                background_value, standard_variable, presence, output, &
+   subroutine add_horizontal_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
+                                                background_value, fill_value, standard_variable, presence, output, &
                                                 act_as_state_variable, domain, source, &
                                                 read_index, state_index, write_index, background, link)
       class (type_base_model),target,           intent(inout)       :: self
       character(len=*),                         intent(in)          :: name
       character(len=*),                         intent(in), optional :: long_name, units
       real(rk),                                 intent(in), optional :: minimum, maximum, missing_value
-      real(rk),                                 intent(in), optional :: initial_value, background_value
+      real(rk),                                 intent(in), optional :: initial_value, background_value, fill_value
       type (type_horizontal_standard_variable), intent(in), optional :: standard_variable
       integer,                                  intent(in), optional :: presence, domain, output, source
       logical,                                  intent(in), optional :: act_as_state_variable
@@ -1789,17 +1789,18 @@ contains
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
-                        initial_value, background_value, presence, output, source, &
+                        initial_value, background_value, fill_value, presence, output, source, &
                         act_as_state_variable, read_index, state_index, write_index, background, link)
    end subroutine add_horizontal_variable
 
-   recursive subroutine add_scalar_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
-                                            background_value, standard_variable, presence, output, &
+   subroutine add_scalar_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
+                                            background_value, fill_value, standard_variable, presence, output, &
                                             read_index, state_index, write_index, sms_index, background, link)
       class (type_base_model),target,       intent(inout)        :: self
       character(len=*),                     intent(in)           :: name
       character(len=*),                     intent(in), optional :: long_name, units
-      real(rk),                             intent(in), optional :: minimum, maximum, missing_value, initial_value, background_value
+      real(rk),                             intent(in), optional :: minimum, maximum, missing_value
+      real(rk),                             intent(in), optional :: initial_value, background_value, fill_value
       type (type_global_standard_variable), intent(in), optional :: standard_variable
       integer,                              intent(in), optional :: presence, output
       integer,  target,                                 optional :: read_index, state_index, write_index, sms_index
@@ -1816,7 +1817,7 @@ contains
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
-                        initial_value, background_value, presence, output, source_unknown, &
+                        initial_value, background_value, fill_value, presence, output, source_unknown, &
                         .false., read_index, state_index, write_index, background, link)
    end subroutine add_scalar_variable
 
@@ -1890,12 +1891,9 @@ contains
 
       source_ = source_do
       if (present(source)) source_ = source
-      call self%add_interior_variable(name, units, long_name, missing_value, standard_variable=standard_variable, &
-         output=output, source=source_, write_index=id%diag_index, link=id%link, act_as_state_variable=act_as_state_variable)
-      if (present(prefill_value)) then
-         id%link%target%prefill = prefill_constant
-         id%link%target%prefill_value = prefill_value
-      end if
+      call self%add_interior_variable(name, units, long_name, missing_value, fill_value=prefill_value, &
+         standard_variable=standard_variable, output=output, source=source_, write_index=id%diag_index, link=id%link, &
+         act_as_state_variable=act_as_state_variable)
    end subroutine register_interior_diagnostic_variable
 
    subroutine register_horizontal_diagnostic_variable(self, id, name, units, long_name, &
