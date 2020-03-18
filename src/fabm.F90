@@ -29,8 +29,6 @@ module fabm
    use fabm_debug
    use fabm_work
    use fabm_config
-   use fabm_standard_variables, only: type_interior_standard_variable, type_horizontal_standard_variable, &
-                                      type_global_standard_variable, initialize_standard_variables, type_standard_variable_node
 
    implicit none
 

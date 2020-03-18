@@ -31,7 +31,8 @@ module fabm_types
 
    ! Collection with standard variables (e.g., temperature, practical_salinity)
    public standard_variables
-   public type_base_standard_variable, type_interior_standard_variable
+   public type_interior_standard_variable, type_horizontal_standard_variable, type_global_standard_variable, &
+      initialize_standard_variables, type_standard_variable_node
 
    ! Variable identifier types used by biogeochemical models
    public type_variable_id
