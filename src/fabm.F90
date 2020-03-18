@@ -759,6 +759,8 @@ contains
       call collect_internal_fill_values(self%variable_register%read_cache%scalar, self%cache_fill_values%read_scalar, use_missing=.false.)
       call collect_internal_fill_values(self%variable_register%write_cache%interior, self%cache_fill_values%write, use_missing=.false.)
       call collect_internal_fill_values(self%variable_register%write_cache%horizontal, self%cache_fill_values%write_hz, use_missing=.false.)
+      call collect_internal_fill_values(self%variable_register%write_cache%interior, self%cache_fill_values%write_missing, use_missing=.true.)
+      call collect_internal_fill_values(self%variable_register%write_cache%horizontal, self%cache_fill_values%write_hz_missing, use_missing=.true.)
 
       ! Create global caches for exchanging information with BGC models.
       ! This can only be done after collect_fill_values calls complete, because they specify what values to prefill te cache with.

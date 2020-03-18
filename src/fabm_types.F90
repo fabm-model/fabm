@@ -612,7 +612,7 @@ module fabm_types
    ! ====================================================================================================
 
    type type_cache
-      ! Length of a single cache line [first dimension of any spatially explicit caches below]
+      ! Number of active items in a single cache line [first dimension of any spatially explicit caches below]
       integer :: n = 1
 
       ! Read cache (separate interior, horizontal, scalar fields).
@@ -621,8 +621,9 @@ module fabm_types
       real(rk), allocatable, dimension(:)                       :: read_scalar
 
 #ifdef _FABM_MASK_TYPE_
-      ! Indices of non-masked data in masked source arrays
+      ! Index mapping between source arrays and packed data
       integer, allocatable _DIMENSION_SLICE_ :: ipack
+      integer, allocatable _DIMENSION_SLICE_ :: iunpack
 #endif
 
       logical :: repair
