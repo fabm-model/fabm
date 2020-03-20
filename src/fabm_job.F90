@@ -66,6 +66,7 @@ module fabm_job
       type (type_cache_copy_command), allocatable :: copy_commands_hz(:)  ! horizontal variables to copy from write to read cache after call completes
 
       type (type_task), pointer :: next => null()
+      type (type_job),  pointer :: job =>  null()
 
       type (type_variable_set), private :: read_cache_preload
       type (type_variable_set), private :: write_cache_preload
@@ -90,6 +91,10 @@ module fabm_job
 
    type type_job_set
       type (type_job_node), pointer :: first => null()
+   contains
+      procedure :: add        => job_set_add
+      procedure :: find_first => job_set_find_first
+      procedure :: finalize   => job_set_finalize
    end type
 
    ! A job contains one or more tasks, each using their own specific operation over the domain.
@@ -105,6 +110,7 @@ module fabm_job
       integer                         :: state = job_state_none
       logical                         :: outsource_tasks     = .false.
       integer                         :: operation = source_unknown
+      logical                         :: flag = .false.
 
       type (type_variable_request), pointer :: first_variable_request => null()
       type (type_call_request),     pointer :: first_call_request     => null()
@@ -751,6 +757,7 @@ contains
       do itask = size(steps), 1, -1
          ! Create the task and preprend it to the list.
          allocate(task)
+         task%job => self
          task%next => self%first_task
          self%first_task => task
          task%operation = steps(itask)%operation
@@ -1005,9 +1012,19 @@ contains
          type (type_output_variable_set), intent(in) :: output_variable_set
          type (type_task), pointer                   :: requesting_task
 
+         type type_variable_and_task
+            type (type_output_variable), pointer :: output_variable
+            type (type_task),            pointer :: task
+         end type
+
          type (type_output_variable_set_node), pointer :: output_variable
          logical                                       :: multiple_tasks
          type (type_task),                     pointer :: task
+         integer                                       :: n
+         type (type_variable_and_task), allocatable    :: variable_and_tasks(:)
+         type (type_job_set)                           :: job_set
+         type (type_job),                      pointer :: first_job
+         type (type_task),                     pointer :: first_task
 
          if (.not. associated(output_variable_set%first)) return
 
@@ -1026,14 +1043,49 @@ contains
          ! Thus we are done.
          if (.not. multiple_tasks) return
 
+         ! Build a list of output variables and responsible tasks
+         n = 0
+         output_variable => output_variable_set%first
+         do while (associated(output_variable))
+            n = n + 1
+            output_variable => output_variable%next
+         end do
+         allocate(variable_and_tasks(n))
+         n = 0
          output_variable => output_variable_set%first
          do while (associated(output_variable))
             task => find_responsible_task(self, output_variable%p)
             _ASSERT_(associated(task), 'job_finalize_prefill_settings', 'Task responsible for ' // trim(output_variable%p%target%name) // ' not found.')
-            call first_job%store_prefills%add(output_variable%p%target)
-            call task%write_cache_preload%add(output_variable%p%target)
             if (.not. associated(task, requesting_task)) output_variable%p%copy_to_store = .true.
+            n = n + 1
+            variable_and_tasks(n)%task => task
+            variable_and_tasks(n)%output_variable => output_variable%p
+            call job_set%add(task%job)
             output_variable => output_variable%next
+         end do
+
+         ! Find the first job (returns null if multiple jobs run in parallel)
+         first_job => job_set%find_first()
+         call job_set%finalize()
+
+         ! Find the first task in the first job (if any)
+         first_task => null()
+         if (associated(first_job)) then
+            first_task => first_job%first_task
+            do while (associated(first_task))
+               do n = 1, size(variable_and_tasks)
+                  if (associated(first_task, variable_and_tasks(n)%task)) exit
+               end do
+               if (n <= size(variable_and_tasks)) exit
+               first_task => first_task%next
+            end do
+            _ASSERT_(associated(first_task), 'link_cowritten_outputs', 'No contributing task found within first job.')
+         end if
+
+         do n = 1, size(variable_and_tasks)
+            if (.not. associated(first_task, variable_and_tasks(n)%task)) &
+               call variable_and_tasks(n)%task%write_cache_preload%add(variable_and_tasks(n)%output_variable%target)
+            if (.not. associated(first_task))  call first_job%store_prefills%add(variable_and_tasks(n)%output_variable%target)
          end do
       end subroutine
 
@@ -1077,6 +1129,93 @@ contains
       end subroutine prepare_task
 
    end subroutine job_finalize_prefill_settings
+
+   subroutine job_set_add(self, job)
+      class (type_job_set), intent(inout) :: self
+      type (type_job), target             :: job
+
+      type (type_job_node), pointer :: job_node
+
+      job_node => self%first
+      do while (associated(job_node))
+         if (associated(job_node%p, job)) return
+         job_node => job_node%next
+      end do
+      allocate(job_node)
+      job_node%p => job
+      job_node%next => self%first
+      self%first => job_node
+   end subroutine
+
+   function job_set_find_first(job_set) result(first)
+      class (type_job_set), intent(in) :: job_set
+      type (type_job), pointer :: first
+
+      type (type_job_node), pointer :: job_node
+
+      first => null()
+
+      job_node => job_set%first
+      if (.not. associated(job_node)) return
+      if (.not. associated(job_node%next)) then
+         first => job_node%p
+         return
+      end if
+      do while (associated(job_node))
+         job_node%p%flag = .true.
+         job_node => job_node%next
+      end do
+
+      job_node => job_set%first
+      do while (associated(job_node))
+         if (.not. has_flagged_ancestor(job_node%p)) then
+            if (associated(first)) then
+               first => null()
+               exit
+            end if
+            first => job_node%p
+         end if
+         job_node => job_node%next
+      end do
+
+      job_node => job_set%first
+      do while (associated(job_node))
+         job_node%p%flag = .false.
+         job_node => job_node%next
+      end do
+
+   contains
+
+      recursive function has_flagged_ancestor(job) result(found)
+         type (type_job), intent(in) :: job
+         logical :: found
+
+         type (type_job_node), pointer :: job_node
+
+         found = .true.
+         job_node => job%previous%first
+         do while (associated(job_node))
+            if (job_node%p%flag .or. has_flagged_ancestor(job_node%p)) return
+            job_node => job_node%next
+         end do
+         found = .false.
+      end function
+
+   end function
+
+   subroutine job_set_finalize(self)
+      class (type_job_set), intent(inout) :: self
+
+      type (type_job_node), pointer :: job_node, next
+
+      job_node => self%first
+      do while (associated(job_node))
+         next => job_node%next
+         deallocate(job_node)
+         job_node => next
+      end do
+      self%first => null()
+   end subroutine
 
    subroutine job_initialize(self, variable_register, schedules)
       class (type_job),target,             intent(inout) :: self
@@ -1458,8 +1597,6 @@ contains
       end if
 
       ! Assign the write index to the variable.
-      ! This automatically propagates to other variables that contribute to this one,
-      ! because their write indices are also referenced by the write owner.
       call variable%write_indices%set_value(index)
    end subroutine variable_register_add_to_write_cache
 
