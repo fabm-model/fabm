@@ -217,8 +217,8 @@
 #    define _DECLARE_ARGUMENTS_LOCAL_ class (type_cache),intent(in) :: cache;integer,intent(in) :: _I_
 #  endif
 #else
-#  define _ARGUMENTS_LOCAL_ cache%type_cache
-#  define _DECLARE_ARGUMENTS_LOCAL_ type (type_cache),intent(in) :: cache
+#  define _ARGUMENTS_LOCAL_ cache
+#  define _DECLARE_ARGUMENTS_LOCAL_ class (type_cache),intent(in) :: cache
 #endif
 
 ! For BGC models: FABM arguments to routines implemented by biogeochemical models.
