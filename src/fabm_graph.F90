@@ -655,20 +655,26 @@ subroutine graph_save_as_dot(self, unit, subgraph)
 
    type (type_node_list_member),pointer :: node
    type (type_node_set_member), pointer :: pnode
+   character(len=attribute_length)      :: path
    character(len=20)                    :: color
 
    ! Nodes
-   if (present(subgraph)) write (unit,'(A)') 'subgraph "' // trim(subgraph) // '" {'
+   if (present(subgraph)) write (unit,'(A)') 'subgraph "cluster' // trim(subgraph) // '" {'
+   write (unit,'(A)') '  label="' // trim(subgraph) // '";'
+   write (unit,'(A)') '  style=filled;'
+   write (unit,'(A)') '  node [color=black,style=filled];'
    node => self%first
    do while (associated(node))
       select case (node%p%source)
-         case (source_do);         color = 'green'
-         case (source_do_bottom);  color = 'yellow'
-         case (source_do_surface); color = 'blue'
-         case (source_do_column);  color = 'red'
-         case default;             color = 'white'
+         case (source_do);            color = 'white'
+         case (source_do_bottom);     color = 'yellow'
+         case (source_do_horizontal); color = 'green'
+         case (source_do_surface);    color = 'blue'
+         case (source_do_column);     color = 'red'
+         case default;                color = 'grey'
       end select
-      write (unit,'(A)') '  "' // trim(node%p%as_string()) // '" [label="'//trim(node%p%model%get_path())//'",style=filled,color=' // trim(color) // '];'
+      path = node%p%model%get_path()
+      write (unit,'(A)') '  "' // trim(node%p%as_string()) // '" [label="'//trim(path(2:))//'",fillcolor=' // trim(color) // '];'
       node => node%next
    end do
    if (present(subgraph))  write (unit,'(A)') '}'
@@ -677,10 +683,14 @@ subroutine graph_save_as_dot(self, unit, subgraph)
    node => self%first
    do while (associated(node))
       pnode => node%p%dependencies%first
-      do while (associated(pnode))
-         write (unit,'(A)') '  "' // trim(pnode%p%as_string()) // '" -> "' // trim(node%p%as_string()) // '";'
-         pnode => pnode%next
-      end do
+      if (associated(pnode)) then
+         write (unit,'(A)',advance='no') '  {'
+         do while (associated(pnode))
+            write (unit,'(A)',advance='no') ' "' // trim(pnode%p%as_string()) // '"'
+            pnode => pnode%next
+         end do
+         write (unit,'(A)') ' } -> "' // trim(node%p%as_string()) // '";'
+      end if
       node => node%next
    end do
 end subroutine graph_save_as_dot

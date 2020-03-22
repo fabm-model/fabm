@@ -747,7 +747,13 @@ contains
          if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'task_order.log')
       end if
       call self%job_manager%initialize(self%variable_register, self%schedules, unfulfilled_dependencies, log_unit)
-      if (self%log) close(log_unit)
+      if (self%log) then
+         close(log_unit)
+         open(unit=log_unit, file=log_prefix // 'graph.gv', action='write', status='replace', iostat=ios)
+         if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'graph.gv')
+         call self%job_manager%write_graph(log_unit)
+         close(log_unit)
+      end if
 
       ! Create persistent store. This provides memory for all variables to be stored there.
       call create_store(self)

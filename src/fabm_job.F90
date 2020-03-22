@@ -130,8 +130,9 @@ module fabm_job
    type, extends(type_job_set) :: type_job_manager
    contains
       procedure :: create     => job_manager_create
-      procedure :: initialize => job_manager_initialize
-      procedure :: print      => job_manager_print
+      procedure :: initialize   => job_manager_initialize
+      procedure :: print       => job_manager_print
+      procedure :: write_graph => job_manager_write_graph
    end type
 
    type type_variable_register
@@ -1359,16 +1360,6 @@ contains
          node => node%next
       end do
 
-      open(newunit=graph_unit,file='graph.gv',action='write',status='replace',iostat=ios)
-      write (graph_unit,'(A)') 'digraph {'
-      node => self%first
-      do while (associated(node))
-         call node%p%graph%save_as_dot(graph_unit, node%p%name)
-         node => node%next
-      end do
-      write (graph_unit,'(A)') '}'
-      close(graph_unit)
-
 #ifndef NDEBUG
       ! Ensure each call appears exactly once in the superset of all graphs
       call check_graph_duplicates(self)
@@ -1457,6 +1448,21 @@ contains
          node => node%next
       end do
    end subroutine job_manager_print
+
+   subroutine job_manager_write_graph(self, unit)
+      class (type_job_manager), intent(in) :: self
+      integer,                  intent(in) :: unit
+
+      type (type_job_node), pointer :: node
+
+      write (unit,'(A)') 'digraph {'
+      node => self%first
+      do while (associated(node))
+         call node%p%graph%save_as_dot(unit, node%p%name)
+         node => node%next
+      end do
+      write (unit,'(A)') '}'
+   end subroutine
 
    subroutine job_connect(self, next)
       class (type_job), intent(inout), target :: self
