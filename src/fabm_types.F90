@@ -833,10 +833,14 @@ contains
 
    subroutine register_implemented_routines(self, sources)
       class (type_base_model), intent(inout) :: self
-      integer,                 intent(in)    :: sources(:)
+      integer, optional,       intent(in)    :: sources(:)
       if (allocated(self%implemented)) deallocate(self%implemented)
-      allocate(self%implemented(size(sources)))
-      self%implemented(:) = sources
+      if (present(sources)) then
+         allocate(self%implemented(size(sources)))
+         self%implemented(:) = sources
+      else
+         allocate(self%implemented(0))
+      end if
    end subroutine
 
    recursive subroutine add_child(self, model, name, long_name, configunit)

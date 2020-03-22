@@ -871,6 +871,7 @@ module fabm_builtin_models
       character(len=attribute_length) :: standard_name
       real(rk)                        :: value
 
+      call self%register_implemented_routines()
       call self%get_parameter(standard_name,'standard_name','','standard name',default='')
       call self%get_parameter(value,'value','','value')
       if (standard_name/='') then
@@ -889,6 +890,7 @@ module fabm_builtin_models
       character(len=attribute_length) :: standard_name
       real(rk)                        :: value
 
+      call self%register_implemented_routines()
       call self%get_parameter(standard_name,'standard_name','','standard name',default='')
       call self%get_parameter(value,'value','','value')
       if (standard_name/='') then
