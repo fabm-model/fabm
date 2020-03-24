@@ -97,6 +97,7 @@ module fabm_graph
       type (type_output_variable_set)  :: outputs              ! output variables that a later called model requires
    contains
       procedure :: as_string => node_as_string
+      procedure :: as_dot    => node_as_dot
    end type
 
    type type_graph_set_member
@@ -655,8 +656,6 @@ subroutine graph_save_as_dot(self, unit, subgraph)
 
    type (type_node_list_member),pointer :: node
    type (type_node_set_member), pointer :: pnode
-   character(len=attribute_length)      :: path
-   character(len=20)                    :: color
 
    ! Nodes
    if (present(subgraph)) write (unit,'(A)') 'subgraph "cluster' // trim(subgraph) // '" {'
@@ -665,16 +664,7 @@ subroutine graph_save_as_dot(self, unit, subgraph)
    write (unit,'(A)') '  node [color=black,style=filled];'
    node => self%first
    do while (associated(node))
-      select case (node%p%source)
-         case (source_do);            color = 'white'
-         case (source_do_bottom);     color = 'yellow'
-         case (source_do_horizontal); color = 'green'
-         case (source_do_surface);    color = 'blue'
-         case (source_do_column);     color = 'red'
-         case default;                color = 'grey'
-      end select
-      path = node%p%model%get_path()
-      write (unit,'(A)') '  "' // trim(node%p%as_string()) // '" [label="'//trim(path(2:))//'",fillcolor=' // trim(color) // '];'
+      write (unit,'(A)') '  ' // trim(node%p%as_dot()) // ';'
       node => node%next
    end do
    if (present(subgraph))  write (unit,'(A)') '}'
@@ -694,6 +684,25 @@ subroutine graph_save_as_dot(self, unit, subgraph)
       node => node%next
    end do
 end subroutine graph_save_as_dot
+
+function node_as_dot(node) result(string)
+   class (type_node), intent(in)   :: node
+   character(len=attribute_length) :: string
+
+   character(len=10)               :: color
+   character(len=attribute_length) :: path
+
+   select case (node%source)
+      case (source_do);            color = 'white'
+      case (source_do_bottom);     color = 'yellow'
+      case (source_do_horizontal); color = 'green'
+      case (source_do_surface);    color = 'blue'
+      case (source_do_column);     color = 'red'
+      case default;                color = 'grey'
+   end select
+   path = node%model%get_path()
+   string = '"' // trim(node%as_string()) // '" [label="'//trim(path(2:))//'",fillcolor=' // trim(color) // ']'
+end function node_as_dot
 
 function node_as_string(node) result(string)
    class (type_node), intent(in) :: node

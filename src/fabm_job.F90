@@ -1458,10 +1458,91 @@ contains
       write (unit,'(A)') 'digraph {'
       node => self%first
       do while (associated(node))
-         call node%p%graph%save_as_dot(unit, node%p%name)
+         if (.true.) then
+            call job_write_graph(node%p)
+         else
+            call node%p%graph%save_as_dot(unit, node%p%name)
+         end if
          node => node%next
       end do
       write (unit,'(A)') '}'
+
+   contains
+
+      subroutine job_write_graph(job)
+         type (type_job), intent(in) :: job
+
+         type (type_task),     pointer :: task, previous_task
+         integer                       :: itask, icall
+         character(len=8)              :: index
+         type (type_job_node), pointer :: node
+
+         itask = 0
+         previous_task => null()
+         write (unit,'(A)') '  subgraph "cluster' // trim(job%name) // '" {'
+         write (unit,'(A)') '    label="' // trim(job%name) // '";'
+         task => job%first_task
+         do while (associated(task))
+            itask = itask + 1
+            write (index,'(i0)') itask
+            write (unit,'(A)') '  subgraph "cluster' // trim(job%name) // ':' // trim(index) // '" {'
+            write (unit,'(A)') '    label="' // trim(source2string(task%operation)) // '";style=filled;'
+            write (unit,'(A)') '    node [color=black,style=filled];'
+            do icall = 1, size(task%calls)
+               write (unit,'(A)') '    ' // trim(task%calls(icall)%graph_node%as_dot()) // ';'
+            end do
+            if (size(task%calls) == 0) write (unit,'(A)') '    "' // trim(job%name) // ':' // index // ':dummy" [style=invis];'
+            do icall = 2, size(task%calls)
+               write (unit,'(A)') '    "' // trim(task%calls(icall - 1)%graph_node%as_string()) // '" -> "' // trim(task%calls(icall)%graph_node%as_string()) // '";'
+            end do
+            write (unit,'(A)') '  }'
+            if (associated(previous_task)) write (unit,'(A)') '    ' // trim(get_endpoint_name(previous_task, .false.)) // ' -> ' // trim(get_endpoint_name(task, .true.)) // ';'
+            previous_task => task
+            task => task%next
+         end do
+         write (unit,'(A)') '  }'
+
+         node => job%previous%first
+         do while (associated(node))
+            task => node%p%first_task
+            do while (associated(task%next))
+               task => task%next
+            end do
+            write (index,'(i0)') itask
+            write (unit,'(A)') '    ' // trim(get_endpoint_name(task, .false.)) // ' -> ' // trim(get_endpoint_name(job%first_task, .true.)) // ';'
+            node => node%next
+         end do
+      end subroutine
+
+      function get_endpoint_name(task, first) result(name)
+         type (type_task), target, intent(in) :: task
+         logical,                  intent(in) :: first
+         character(len=attribute_length)      :: name
+
+         type (type_task), pointer :: ptask
+         integer                   :: itask
+         character(len=8)          :: index
+
+         if (size(task%calls) == 0) then
+            ! No calls in this task - we need to use a dummy node name.
+            ! First find the index of the task within the job (that's part of dummy name)
+            ptask => task%job%first_task
+            itask = 1
+            do while (.not. associated(ptask, task))
+               itask = itask + 1
+               ptask => ptask%next
+            end do
+            write (index,'(i0)') itask
+            name = '"' // trim(task%job%name) // ':' // index // ':dummy"'
+         elseif (first) then
+            ! First call
+            name = '"' // trim(task%calls(1)%graph_node%as_string()) // '"'
+         else
+            ! Last call
+            name = '"' // trim(task%calls(size(task%calls))%graph_node%as_string()) // '"'
+         end if
+      end function
+
    end subroutine
 
    subroutine job_connect(self, next)
