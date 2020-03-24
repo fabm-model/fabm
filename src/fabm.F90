@@ -163,18 +163,18 @@ module fabm
       character(len=attribute_length), allocatable, dimension(:) :: dependencies_scalar
 
       ! Individual jobs
-      type (type_job) :: do_interior_job
-      type (type_job) :: do_bottom_job
-      type (type_job) :: do_surface_job
+      type (type_job) :: get_interior_sources_job
+      type (type_job) :: get_bottom_sources_job
+      type (type_job) :: get_surface_sources_job
       type (type_job) :: get_vertical_movement_job
-      type (type_job) :: get_conserved_quantities_job
+      type (type_job) :: get_interior_conserved_quantities_job
       type (type_job) :: get_horizontal_conserved_quantities_job
-      type (type_job) :: get_diagnostics_job
-      type (type_job) :: prepare_job
-      type (type_job) :: check_state_job
+      type (type_job) :: finalize_outputs_job
+      type (type_job) :: prepare_inputs_job
+      type (type_job) :: check_interior_state_job
       type (type_job) :: check_bottom_state_job
       type (type_job) :: check_surface_state_job
-      type (type_job) :: initialize_state_job
+      type (type_job) :: initialize_interior_state_job
       type (type_job) :: initialize_bottom_state_job
       type (type_job) :: initialize_surface_state_job
 
@@ -422,42 +422,42 @@ contains
 
       ! Create built-in jobs, which can then be chained by the host/user by calling job%set_next.
       ! (the reason for chaining is to allow later jobs to use results of earlier ones, thus reducing the number of calls needed)
-      call self%job_manager%create(self%prepare_job, 'prepare')
-      call self%job_manager%create(self%do_interior_job, 'do_interior', source=source_do, previous=self%do_surface_job)
-      call self%job_manager%create(self%do_surface_job, 'do_surface', source=source_do_surface, previous=self%do_bottom_job)
-      call self%job_manager%create(self%do_bottom_job, 'do_bottom', source=source_do_bottom, previous=self%prepare_job)
-      call self%job_manager%create(self%get_conserved_quantities_job, 'get_conserved_quantities', source=source_do, previous=self%prepare_job)
-      call self%job_manager%create(self%get_horizontal_conserved_quantities_job, 'get_horizontal_conserved_quantities', source=source_do_horizontal, previous=self%prepare_job)
-      call self%job_manager%create(self%get_diagnostics_job, 'get_diagnostics_job', outsource_tasks=.true.)
-      call self%do_interior_job%connect(self%get_diagnostics_job)
-      !call self%do_surface_job%connect(self%get_diagnostics_job)
-      !call self%do_bottom_job%connect(self%get_diagnostics_job)
-      !call self%get_conserved_quantities_job%connect(self%get_diagnostics_job)
-      !call self%get_horizontal_conserved_quantities_job%connect(self%get_diagnostics_job)
-      call self%job_manager%create(self%get_vertical_movement_job, 'get_vertical_movement', source=source_get_vertical_movement, previous=self%get_diagnostics_job)
-      call self%job_manager%create(self%initialize_state_job,'initialize_state', source=source_initialize_state, previous=self%get_diagnostics_job)
-      call self%job_manager%create(self%initialize_bottom_state_job,'initialize_bottom_state', source=source_initialize_bottom_state, previous=self%get_diagnostics_job)
-      call self%job_manager%create(self%initialize_surface_state_job,'initialize_surface_state', source=source_initialize_surface_state, previous=self%get_diagnostics_job)
-      call self%job_manager%create(self%check_state_job,'check_state', source=source_check_state, previous=self%get_diagnostics_job)
-      call self%job_manager%create(self%check_bottom_state_job,'check_bottom_state', source=source_check_bottom_state, previous=self%get_diagnostics_job)
-      call self%job_manager%create(self%check_surface_state_job,'check_surface_state', source=source_check_surface_state, previous=self%get_diagnostics_job)
+      call self%job_manager%create(self%prepare_inputs_job, 'prepare_inputs')
+      call self%job_manager%create(self%get_interior_sources_job, 'get_interior_sources', source=source_do, previous=self%prepare_inputs_job)
+      call self%job_manager%create(self%get_surface_sources_job, 'get_surface_sources', source=source_do_surface, previous=self%prepare_inputs_job)
+      call self%job_manager%create(self%get_bottom_sources_job, 'get_bottom_sources', source=source_do_bottom, previous=self%prepare_inputs_job)
+      call self%job_manager%create(self%get_interior_conserved_quantities_job, 'get_interior_conserved_quantities', source=source_do, previous=self%prepare_inputs_job)
+      call self%job_manager%create(self%get_horizontal_conserved_quantities_job, 'get_horizontal_conserved_quantities', source=source_do_horizontal, previous=self%prepare_inputs_job)
+      call self%job_manager%create(self%finalize_outputs_job, 'finalize_outputs', outsource_tasks=.true.)
+      call self%get_interior_sources_job%connect(self%finalize_outputs_job)
+      call self%get_surface_sources_job%connect(self%finalize_outputs_job)
+      call self%get_bottom_sources_job%connect(self%finalize_outputs_job)
+      !call self%get_interior_conserved_quantities_job%connect(self%finalize_outputs_job)
+      !call self%get_horizontal_conserved_quantities_job%connect(self%finalize_outputs_job)
+      call self%job_manager%create(self%get_vertical_movement_job, 'get_vertical_movement', source=source_get_vertical_movement, previous=self%finalize_outputs_job)
+      call self%job_manager%create(self%initialize_interior_state_job, 'initialize_interior_state', source=source_initialize_state, previous=self%finalize_outputs_job)
+      call self%job_manager%create(self%initialize_bottom_state_job, 'initialize_bottom_state', source=source_initialize_bottom_state, previous=self%finalize_outputs_job)
+      call self%job_manager%create(self%initialize_surface_state_job, 'initialize_surface_state', source=source_initialize_surface_state, previous=self%finalize_outputs_job)
+      call self%job_manager%create(self%check_interior_state_job, 'check_interior_state', source=source_check_state, previous=self%finalize_outputs_job)
+      call self%job_manager%create(self%check_bottom_state_job, 'check_bottom_state', source=source_check_bottom_state, previous=self%finalize_outputs_job)
+      call self%job_manager%create(self%check_surface_state_job, 'check_surface_state', source=source_check_surface_state, previous=self%finalize_outputs_job)
 
-      call require_flux_computation(self%do_bottom_job, self%links_postcoupling, domain_bottom)
-      call require_flux_computation(self%do_surface_job, self%links_postcoupling, domain_surface)
-      call require_flux_computation(self%do_interior_job, self%links_postcoupling, domain_interior)
+      call require_flux_computation(self%get_bottom_sources_job, self%links_postcoupling, domain_bottom)
+      call require_flux_computation(self%get_surface_sources_job, self%links_postcoupling, domain_surface)
+      call require_flux_computation(self%get_interior_sources_job, self%links_postcoupling, domain_interior)
       call require_flux_computation(self%get_vertical_movement_job, self%links_postcoupling, domain_interior + 999)
 
-      call require_call_all_with_state(self%initialize_state_job, self%root%links, domain_interior, source_initialize_state)
+      call require_call_all_with_state(self%initialize_interior_state_job, self%root%links, domain_interior, source_initialize_state)
       call require_call_all_with_state(self%initialize_bottom_state_job, self%root%links, domain_bottom, source_initialize_bottom_state)
       call require_call_all_with_state(self%initialize_surface_state_job, self%root%links, domain_surface, source_initialize_surface_state)
-      call require_call_all_with_state(self%check_state_job, self%root%links, domain_interior, source_check_state)
+      call require_call_all_with_state(self%check_interior_state_job, self%root%links, domain_interior, source_check_state)
       call require_call_all_with_state(self%check_bottom_state_job, self%root%links, domain_bottom, source_check_bottom_state)
       call require_call_all_with_state(self%check_bottom_state_job, self%root%links, domain_interior, source_check_bottom_state)
       call require_call_all_with_state(self%check_surface_state_job, self%root%links, domain_surface, source_check_surface_state)
       call require_call_all_with_state(self%check_surface_state_job, self%root%links, domain_interior, source_check_surface_state)
 
       do ivar = 1, size(self%state_variables)
-         call self%check_state_job%read_cache_loads%add(self%state_variables(ivar)%target)
+         call self%check_interior_state_job%read_cache_loads%add(self%state_variables(ivar)%target)
       end do
       do ivar = 1, size(self%bottom_state_variables)
          call self%check_bottom_state_job%read_cache_loads%add(self%bottom_state_variables(ivar)%target)
@@ -467,7 +467,7 @@ contains
       end do
 
       do ivar = 1, size(self%conserved_quantities)
-         call self%get_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target)
+         call self%get_interior_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target)
          call self%get_horizontal_conserved_quantities_job%request_variable(self%conserved_quantities(ivar)%target_hz)
          call self%conserved_quantities(ivar)%target%write_indices%append(self%conserved_quantities(ivar)%index)
          call self%conserved_quantities(ivar)%target_hz%write_indices%append(self%conserved_quantities(ivar)%horizontal_index)
@@ -713,17 +713,17 @@ contains
          if (self%diagnostic_variables(ivar)%save) then
             select case (self%diagnostic_variables(ivar)%target%source)
             case (source_check_state)
-               call self%check_state_job%request_variable(self%diagnostic_variables(ivar)%target, store=.true.)
+               call self%check_interior_state_job%request_variable(self%diagnostic_variables(ivar)%target, store=.true.)
             case (source_get_vertical_movement)
                call self%get_vertical_movement_job%request_variable(self%diagnostic_variables(ivar)%target, store=.true.)
             case default
-               call self%get_diagnostics_job%request_variable(self%diagnostic_variables(ivar)%target, store=.true.)
+               call self%finalize_outputs_job%request_variable(self%diagnostic_variables(ivar)%target, store=.true.)
             end select
          end if
       end do
       do ivar = 1, size(self%horizontal_diagnostic_variables)
          if (self%horizontal_diagnostic_variables(ivar)%save) &
-            call self%get_diagnostics_job%request_variable(self%horizontal_diagnostic_variables(ivar)%target, store=.true.)
+            call self%finalize_outputs_job%request_variable(self%horizontal_diagnostic_variables(ivar)%target, store=.true.)
       end do
 
       log_unit = -1
@@ -1123,7 +1123,7 @@ contains
       id = self%get_interior_variable_id(standard_variable)
       if (.not. associated(id%variable)) &
          call fatal_error('require_interior_data', 'Model does not contain requested variable ' // trim(standard_variable%name))
-      call self%get_diagnostics_job%request_variable(id%variable, store=.true.)
+      call self%finalize_outputs_job%request_variable(id%variable, store=.true.)
    end subroutine require_interior_data
 
    subroutine require_horizontal_data(self, standard_variable, domain)
@@ -1141,7 +1141,7 @@ contains
       id = self%get_horizontal_variable_id(standard_variable)
       if (.not. associated(id%variable)) &
          call fatal_error('require_horizontal_data', 'Model does not contain requested variable ' // trim(standard_variable%name))
-      call self%get_diagnostics_job%request_variable(id%variable, store=.true.)
+      call self%finalize_outputs_job%request_variable(id%variable, store=.true.)
    end subroutine require_horizontal_data
 
    subroutine link_interior_data_by_variable(self, variable, dat, source)
@@ -1422,7 +1422,7 @@ contains
       call check_interior_location(self%domain%size _POSTARG_INTERIOR_IN_, 'initialize_interior_state')
 #endif
 
-      call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%initialize_state_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
+      call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%initialize_interior_state_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
 
       ! Default initialization for interior state variables
       do ivar = 1, size(self%state_variables)
@@ -1433,8 +1433,8 @@ contains
       end do
 
       ! Allow biogeochemical models to initialize their interior state.
-      do icall = 1, size(self%initialize_state_job%first_task%calls)
-         if (self%initialize_state_job%first_task%calls(icall)%source == source_initialize_state) call self%initialize_state_job%first_task%calls(icall)%model%initialize_state(self%cache_int)
+      do icall = 1, size(self%initialize_interior_state_job%first_task%calls)
+         if (self%initialize_interior_state_job%first_task%calls(icall)%source == source_initialize_state) call self%initialize_interior_state_job%first_task%calls(icall)%model%initialize_state(self%cache_int)
       end do
 
       ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
@@ -1445,7 +1445,7 @@ contains
          end if
       end do
 
-      call cache_unpack(self%initialize_state_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
+      call cache_unpack(self%initialize_interior_state_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
    end subroutine initialize_interior_state
 
    subroutine initialize_bottom_state(self _POSTARG_HORIZONTAL_IN_)
@@ -1539,7 +1539,7 @@ contains
 #  endif
 #endif
 
-      call process_interior_slice(self%do_interior_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
+      call process_interior_slice(self%get_interior_sources_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
 
       ! Compose total sources-sinks for each state variable, combining model-specific contributions.
       do i = 1, size(self%state_variables)
@@ -1567,24 +1567,24 @@ contains
 #  endif
 #endif
 
-      call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%do_interior_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
+      call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%get_interior_sources_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
 
       ncopy = 0
-      do icall = 1, size(self%do_interior_job%first_task%calls)
-         call self%do_interior_job%first_task%calls(icall)%model%do_ppdd(self%cache_int, pp, dd)
+      do icall = 1, size(self%get_interior_sources_job%first_task%calls)
+         call self%get_interior_sources_job%first_task%calls(icall)%model%do_ppdd(self%cache_int, pp, dd)
 
          ! Copy outputs of interest to read cache so consecutive models can use it.
-         _DO_CONCURRENT_(i,1 + ncopy,self%do_interior_job%first_task%calls(icall)%ncopy_int + ncopy)
-            j = self%do_interior_job%first_task%copy_commands_int(i)%read_index
-            k = self%do_interior_job%first_task%copy_commands_int(i)%write_index
+         _DO_CONCURRENT_(i,1 + ncopy,self%get_interior_sources_job%first_task%calls(icall)%ncopy_int + ncopy)
+            j = self%get_interior_sources_job%first_task%copy_commands_int(i)%read_index
+            k = self%get_interior_sources_job%first_task%copy_commands_int(i)%write_index
             _CONCURRENT_LOOP_BEGIN_EX_(self%cache_int)
                self%cache_int%read _INDEX_SLICE_PLUS_1_(j) = self%cache_int%write _INDEX_SLICE_PLUS_1_(k)
             _LOOP_END_
          end do
-         ncopy = ncopy + self%do_interior_job%first_task%calls(icall)%ncopy_int
+         ncopy = ncopy + self%get_interior_sources_job%first_task%calls(icall)%ncopy_int
       end do
 
-      call cache_unpack(self%do_interior_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
+      call cache_unpack(self%get_interior_sources_job%first_task, self%cache_int, self%store _POSTARG_INTERIOR_IN_)
    end subroutine get_interior_sources_ppdd
 
    subroutine check_interior_state(self _POSTARG_INTERIOR_IN_, repair, valid)
@@ -1606,7 +1606,7 @@ contains
       self%cache_int%valid = .true.
       self%cache_int%set_interior = .false.
 
-      call process_interior_slice(self%check_state_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
+      call process_interior_slice(self%check_interior_state_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
 
       valid = self%cache_int%valid
       if (.not. (valid .or. repair)) return
@@ -1843,7 +1843,7 @@ contains
 #  endif
 #endif
 
-      call process_horizontal_slice(self%do_surface_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_) 
+      call process_horizontal_slice(self%get_surface_sources_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_) 
 
       ! Compose surface fluxes for each interior state variable, combining model-specific contributions.
       flux_pel = 0.0_rke
@@ -1881,7 +1881,7 @@ contains
 #  endif
 #endif
 
-      call process_horizontal_slice(self%do_bottom_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_) 
+      call process_horizontal_slice(self%get_bottom_sources_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_) 
 
       ! Compose bottom fluxes for each interior state variable, combining model-specific contributions.
       do i = 1, size(self%state_variables)
@@ -1909,24 +1909,24 @@ contains
       call check_horizontal_location(self%domain%size _POSTARG_HORIZONTAL_IN_, 'get_bottom_sources_ppdd')
 #endif
 
-      call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%do_bottom_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
+      call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%get_bottom_sources_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
       ncopy = 0
-      do icall = 1, size(self%do_bottom_job%first_task%calls)
-         if (self%do_bottom_job%first_task%calls(icall)%source == source_do_bottom) call self%do_bottom_job%first_task%calls(icall)%model%do_bottom_ppdd(self%cache_hz, pp, dd, benthos_offset)
+      do icall = 1, size(self%get_bottom_sources_job%first_task%calls)
+         if (self%get_bottom_sources_job%first_task%calls(icall)%source == source_do_bottom) call self%get_bottom_sources_job%first_task%calls(icall)%model%do_bottom_ppdd(self%cache_hz, pp, dd, benthos_offset)
 
          ! Copy outputs of interest to read cache so consecutive models can use it.
-         _DO_CONCURRENT_(i,1 + ncopy,self%do_bottom_job%first_task%calls(icall)%ncopy_hz + ncopy)
-            j = self%do_bottom_job%first_task%copy_commands_hz(i)%read_index
-            k = self%do_bottom_job%first_task%copy_commands_hz(i)%write_index
+         _DO_CONCURRENT_(i,1 + ncopy,self%get_bottom_sources_job%first_task%calls(icall)%ncopy_hz + ncopy)
+            j = self%get_bottom_sources_job%first_task%copy_commands_hz(i)%read_index
+            k = self%get_bottom_sources_job%first_task%copy_commands_hz(i)%write_index
             _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
                self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = self%cache_hz%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
             _HORIZONTAL_LOOP_END_
          end do
-         ncopy = ncopy + self%do_bottom_job%first_task%calls(icall)%ncopy_hz
+         ncopy = ncopy + self%get_bottom_sources_job%first_task%calls(icall)%ncopy_hz
       end do
 
-      call cache_unpack(self%do_bottom_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
+      call cache_unpack(self%get_bottom_sources_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
    end subroutine get_bottom_sources_ppdd
 
    subroutine get_vertical_movement(self _POSTARG_INTERIOR_IN_, velocity)
@@ -1972,7 +1972,7 @@ contains
 #  endif
 #endif
 
-      call process_interior_slice(self%get_conserved_quantities_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
+      call process_interior_slice(self%get_interior_conserved_quantities_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
 
       do i = 1, size(self%conserved_quantities)
          _UNPACK_TO_PLUS_1_(self%cache_int%write, self%conserved_quantities(i)%index, sums, i, self%cache_int, 0.0_rke)
@@ -2094,7 +2094,7 @@ contains
 
       class (type_expression), pointer :: expression
 
-      call self%process(self%prepare_job)
+      call self%process(self%prepare_inputs_job)
 
       if (.not. present(t)) return
 
@@ -2239,7 +2239,7 @@ contains
    subroutine finalize_outputs(self)
       class (type_fabm_model),  intent(inout) :: self
 
-      call self%process(self%get_diagnostics_job)
+      call self%process(self%finalize_outputs_job)
    end subroutine finalize_outputs
 
    subroutine classify_variables(self)

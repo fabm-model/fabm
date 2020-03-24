@@ -98,9 +98,9 @@ contains
 
       call self%type_fabm_model%initialize()
 
-      call self%job_manager%create(self%get_light_extinction_job, 'get_light_extinction', source=source_get_light_extinction, previous=self%get_diagnostics_job)
-      call self%job_manager%create(self%get_albedo_job,'get_albedo', source=source_get_albedo, previous=self%get_diagnostics_job)
-      call self%job_manager%create(self%get_drag_job,'get_drag', source=source_get_drag, previous=self%get_diagnostics_job)
+      call self%job_manager%create(self%get_light_extinction_job, 'get_light_extinction', source=source_get_light_extinction, previous=self%finalize_outputs_job)
+      call self%job_manager%create(self%get_albedo_job,'get_albedo', source=source_get_albedo, previous=self%finalize_outputs_job)
+      call self%job_manager%create(self%get_drag_job,'get_drag', source=source_get_drag, previous=self%finalize_outputs_job)
       call require_call_all(self%get_albedo_job,self%root, source_get_albedo)
       call require_call_all(self%get_drag_job,self%root, source_get_drag)
       self%extinction_id = self%get_interior_variable_id(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
