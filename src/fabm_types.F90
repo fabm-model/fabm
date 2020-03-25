@@ -493,12 +493,14 @@ module fabm_types
       procedure :: add_surface_state_variable_to_aggregate_variable
       procedure :: add_interior_diagnostic_variable_to_aggregate_variable
       procedure :: add_horizontal_diagnostic_variable_to_aggregate_variable
+      procedure :: add_constant_to_aggregate_variable
       generic :: add_to_aggregate_variable => add_interior_state_variable_to_aggregate_variable, &
                                               add_bottom_state_variable_to_aggregate_variable, &
                                               add_surface_state_variable_to_aggregate_variable, &
                                               add_interior_diagnostic_variable_to_aggregate_variable, &
                                               add_horizontal_diagnostic_variable_to_aggregate_variable, &
-                                              add_interior_source_to_aggregate_variable
+                                              add_interior_source_to_aggregate_variable, &
+                                              add_constant_to_aggregate_variable
 
       ! Procedures that may be used to register model variables and dependencies during initialization.
       procedure :: register_source
@@ -1020,6 +1022,31 @@ contains
          'horizontal diagnostic variable added to ' // trim(target%name) // ' has not been registered')
       call variable_id%link%target%contributions%add(target, scale_factor)
    end subroutine add_horizontal_diagnostic_variable_to_aggregate_variable
+
+   subroutine add_constant_to_aggregate_variable(self, target, value, domain)
+      class (type_base_model),                intent(inout) :: self
+      type (type_interior_standard_variable), intent(in)    :: target
+      real(rk),                               intent(in)    :: value
+      integer, optional,                      intent(in)    :: domain
+
+      integer                   :: domain_
+      type (type_link), pointer :: link
+
+      domain_ = domain_interior
+      if (present(domain)) domain_ = domain
+      select case (domain_)
+      case (domain_interior)
+         call self%add_interior_variable('_constant_*', target%units, target%name, source=source_constant, &
+            fill_value=value, output=output_none, link=link)
+      case (domain_surface, domain_bottom)
+         call self%add_horizontal_variable('_constant_*', trim(target%units) // '*m', target%name, source=source_constant, &
+            fill_value=value, domain=domain_, output=output_none, link=link)
+      case default
+         call self%fatal_error('add_constant_to_aggregate_variable', &
+            'domain has to be one of: domain_interior, domain_surface, domain_bottom')
+      end select
+      call link%target%contributions%add(target)
+   end subroutine add_constant_to_aggregate_variable
 
    subroutine contribution_list_add(self, target, scale_factor, include_background)
       class (type_contribution_list),         intent(inout) :: self
@@ -1653,32 +1680,45 @@ contains
       real(rk),                      target,            optional :: background
       type (type_link),              pointer,           optional :: link
 
+      integer                   :: length, i
       character(len=256)        :: text
       type (type_link), pointer :: link_
 
       ! Check whether the model information may be written to (only during initialization)
       if (self%frozen) call self%fatal_error('add_variable', &
          'Cannot register variable "' // trim(name) // '" because the model initialization phase has already completed &
-         &(fabm_initialize has been called).')
-
-      if (len_trim(name) > len(variable%name)) call self%fatal_error('add_variable', &
-         'Variable name "' // trim(name) // '" exceeds maximum length.')
+         &(initialize has been called).')
 
       ! Ascertain whether the provided name is valid.
-      if (name == '' .or. name /= get_safe_name(name)) call self%fatal_error('add_variable', &
-         'Cannot register variable "' // trim(name) // '" because its name is not valid. &
-         &Variable names should not be empty, and can contain letters, digits and underscores only.')
+      length = len_trim(name)
+      if (length > len(variable%name)) then
+         call self%fatal_error('add_variable', 'Variable name "' // trim(name) // '" exceeds maximum length.')
+      elseif (length == 0) then
+         call self%fatal_error('add_variable', 'Cannot register variable with empty name "".')
+      elseif (name(length:length) == '*') then
+         ! Last character is an asterisk (*) that needs to be replaced with an integer than makes the name unique.
+         i = 1
+         do
+            write (variable%name,'(A,I0)') name(:length - 1), i
+            if (.not. associated(self%links%find(variable%name))) exit
+            i = i + 1
+         end do
+      elseif (name /= get_safe_name(name)) then
+         call self%fatal_error('add_variable', 'Cannot register variable "' // trim(name) // '" because its name is not valid. &
+            &Variable names can contain letters, digits and underscores only.')
+      else
+         variable%name = name
+      end if
 
       if (present(write_index) .and. .not. present(source)) call self%fatal_error('add_variable', &
          'Cannot register writable variable "' // trim(name) // '" because "source" argument is not provided.')
 
-      variable%name = name
       variable%owner => self
-      if (present(units))         variable%units         = units
+      if (present(units)) variable%units = units
       if (present(long_name)) then
          variable%long_name = long_name
       else
-         variable%long_name = name
+         variable%long_name = variable%name
       end if
       if (present(minimum))       variable%minimum       = minimum
       if (present(maximum))       variable%maximum       = maximum
@@ -1706,7 +1746,6 @@ contains
          call variable%state_indices%append(state_index)
       end if
 
-
       if (present(background)) then
          ! Store a pointer to the variable that should hold the background value.
          ! If the background value itself is also prescribed, use it.
@@ -1726,7 +1765,7 @@ contains
       variable%can_be_slave = .not. present(write_index)
 
       ! Create a class pointer and use that to create a link.
-      link_ => add_object(self,variable)
+      link_ => add_object(self, variable)
       if (present(link)) link => link_
    end subroutine add_variable
 
