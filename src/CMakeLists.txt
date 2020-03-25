@@ -28,15 +28,6 @@ set(DEFAULT_INSTITUTES
     akvaplan     # Akvaplan-niva, Norway
 )
 
-# List of institutes that use manual edits to fabm_library.F90.
-# This is DEPRECATED. Please use the new conventions described on
-# this wiki and add your institute to the above FABM_INSTITUTES instead.
-set(FABM_INSTITUTES_OLD
-    hzg          # Helmholtz-Zentrum Geesthacht, Germany
-    klimacampus  # KlimaCampus Hamburg, Germany
-    metu         # Middle East Technical University, Turkey
-   )
-
 # Ensure FABM_INSTITUTES tracks the up-to-date DEFAULT_INSTITUTES list unless the user manually customized FABM_INSTITUTES.
 if(NOT FABM_DEFAULT_INSTITUTES OR NOT FABM_INSTITUTES)
   set(FABM_DEFAULT_INSTITUTES "${DEFAULT_INSTITUTES}" CACHE INTERNAL "Default institutes at the time FABM_INSTITUTES was initialized or updated automatically.")
@@ -55,7 +46,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # and set final paths to institute source directories (FABM_${INSTITUTE_UC}_DIR)
 set(FABM_LIBRARY_USE "")
 set(FABM_LIBRARY_ADD "")
-set(ACTIVE_INSTITUTES ${FABM_INSTITUTES_OLD})
+set(ACTIVE_INSTITUTES "")
 foreach(institute ${FABM_INSTITUTES})
   # First retrieve the effective source directory
   set(DEFAULT_INSTITUTE_BASE "${CMAKE_CURRENT_LIST_DIR}/models/${institute}")
