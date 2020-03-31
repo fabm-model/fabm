@@ -229,8 +229,8 @@
 #define _ARGUMENTS_DO_BOTTOM_PPDD_ _ARGUMENTS_HORIZONTAL_,pp,dd,benthos_offset
 #define _ARGUMENTS_GET_VERTICAL_MOVEMENT_ _ARGUMENTS_INTERIOR_
 #define _ARGUMENTS_GET_EXTINCTION_ _ARGUMENTS_INTERIOR_
-#define _ARGUMENTS_GET_DRAG_ _ARGUMENTS_HORIZONTAL_,drag
-#define _ARGUMENTS_GET_ALBEDO_ _ARGUMENTS_HORIZONTAL_,albedo
+#define _ARGUMENTS_GET_DRAG_ _ARGUMENTS_HORIZONTAL_
+#define _ARGUMENTS_GET_ALBEDO_ _ARGUMENTS_HORIZONTAL_
 #define _ARGUMENTS_CHECK_STATE_ _ARGUMENTS_INTERIOR_
 #define _ARGUMENTS_CHECK_SURFACE_STATE_ _ARGUMENTS_HORIZONTAL_
 #define _ARGUMENTS_CHECK_BOTTOM_STATE_ _ARGUMENTS_HORIZONTAL_
@@ -245,8 +245,8 @@
 #define _DECLARE_ARGUMENTS_DO_SURFACE_ _DECLARE_ARGUMENTS_HORIZONTAL_
 #define _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_ _DECLARE_ARGUMENTS_INTERIOR_
 #define _DECLARE_ARGUMENTS_GET_EXTINCTION_ _DECLARE_ARGUMENTS_INTERIOR_
-#define _DECLARE_ARGUMENTS_GET_DRAG_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rke) _DIMENSION_HORIZONTAL_SLICE_,intent(inout) :: drag
-#define _DECLARE_ARGUMENTS_GET_ALBEDO_ _DECLARE_ARGUMENTS_HORIZONTAL_;real(rke) _DIMENSION_HORIZONTAL_SLICE_,intent(inout) :: albedo
+#define _DECLARE_ARGUMENTS_GET_DRAG_ _DECLARE_ARGUMENTS_HORIZONTAL_
+#define _DECLARE_ARGUMENTS_GET_ALBEDO_ _DECLARE_ARGUMENTS_HORIZONTAL_
 #define _DECLARE_ARGUMENTS_CHECK_STATE_ _DECLARE_ARGUMENTS_INTERIOR_
 #define _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_
 #define _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_ _DECLARE_ARGUMENTS_HORIZONTAL_
@@ -265,8 +265,8 @@
 #define _SET_DD_(variable1,variable2,value) dd _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = dd _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)*self%rdt_
 #define _SET_PP_(variable1,variable2,value) pp _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = pp _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)*self%rdt_
 #define _SET_EXTINCTION_(value) _ADD_(self%extinction_id,value)
-#define _SCALE_DRAG_(value) drag _INDEX_HORIZONTAL_SLICE_ = drag _INDEX_HORIZONTAL_SLICE_ * (value)
-#define _SET_ALBEDO_(value) albedo _INDEX_HORIZONTAL_SLICE_ = albedo _INDEX_HORIZONTAL_SLICE_ + (value)
+#define _SCALE_DRAG_(value) _ADD_HORIZONTAL_(self%surface_drag_id,(value)-1.0_rk)
+#define _SET_ALBEDO_(value) _ADD_HORIZONTAL_(self%albedo_id,(value))
 #define _SET_VERTICAL_MOVEMENT_(variable,value) cache%write _INDEX_SLICE_PLUS_1_(variable%movement%sum_index) = cache%write _INDEX_SLICE_PLUS_1_(variable%movement%sum_index) + value*self%rdt_
 #define _INVALIDATE_STATE_ cache%valid = .false.
 #define _REPAIR_STATE_ cache%repair
@@ -289,7 +289,7 @@
 #define _GET_GLOBAL_(variable,target) target = cache%read_scalar(variable%global_index)
 #define _SET_(variable,value) cache%set_interior=.true.;cache%read _INDEX_SLICE_PLUS_1_(variable%index) = value
 #define _SET_HORIZONTAL_(variable,value) cache%set_horizontal=.true.;cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index) = value
-#define _SET_DIAGNOSTIC_(variable,value) cache%write _INDEX_SLICE_PLUS_1_(variable%diag_index) = value
-#define _SET_HORIZONTAL_DIAGNOSTIC_(variable,value) cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_diag_index) = value
+#define _SET_DIAGNOSTIC_(variable,value) cache%write _INDEX_SLICE_PLUS_1_(variable%write_index) = value
+#define _SET_HORIZONTAL_DIAGNOSTIC_(variable,value) cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_write_index) = value
 
 #define _ASSERT_(condition, routine, message) if (.not.(condition)) call driver%fatal_error(routine, message)

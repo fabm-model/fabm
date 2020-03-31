@@ -6,7 +6,7 @@ module fabm_v0_compatibility
    use fabm, type_bulk_variable_id => type_fabm_interior_variable_id, type_horizontal_variable_id => type_fabm_horizontal_variable_id, type_scalar_variable_id => type_fabm_scalar_variable_id, type_external_variable => type_fabm_variable, type_horizontal_state_variable_info => type_fabm_horizontal_state_variable
    use fabm_config, only: fabm_configure_model
    use fabm_properties, only: type_property_dictionary
-   use fabm_types, only: rke, attribute_length, source_get_light_extinction, source_get_albedo, source_get_drag, type_base_model, type_model_list_node, type_bulk_standard_variable, standard_variables
+   use fabm_types, only: rke, attribute_length, source_get_light_extinction, source_get_albedo, source_get_drag, type_base_model, type_model_list_node, type_bulk_standard_variable, type_interior_standard_variable, standard_variables
    use fabm_debug
    use fabm_job, only: type_job, type_call
    use fabm_driver, only: driver
@@ -42,9 +42,11 @@ module fabm_v0_compatibility
 
    type, extends(type_fabm_model) :: type_model
       type (type_job) :: get_light_extinction_job
-      type (type_job) :: get_drag_job
       type (type_job) :: get_albedo_job
-      type (type_bulk_variable_id) :: extinction_id
+      type (type_job) :: get_drag_job
+      type (type_bulk_variable_id)       :: extinction_id
+      type (type_horizontal_variable_id) :: albedo_id
+      type (type_horizontal_variable_id) :: surface_drag_id
    contains
       procedure :: initialize => fabm_initialize
       procedure :: get_bulk_variable_id_by_name => fabm_get_bulk_variable_id_by_name
@@ -101,26 +103,15 @@ contains
       call self%job_manager%create(self%get_light_extinction_job, 'get_light_extinction', source=source_get_light_extinction, previous=self%finalize_outputs_job)
       call self%job_manager%create(self%get_albedo_job,'get_albedo', source=source_get_albedo, previous=self%finalize_outputs_job)
       call self%job_manager%create(self%get_drag_job,'get_drag', source=source_get_drag, previous=self%finalize_outputs_job)
-      call require_call_all(self%get_albedo_job,self%root, source_get_albedo)
-      call require_call_all(self%get_drag_job,self%root, source_get_drag)
       self%extinction_id = self%get_interior_variable_id(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
+      self%albedo_id = self%get_horizontal_variable_id(standard_variables%surface_albedo)
+      self%surface_drag_id = self%get_horizontal_variable_id(standard_variables%surface_drag_coefficient_in_air)
       _ASSERT_(associated(self%extinction_id%variable), 'fabm_initialize', 'BUG: variable attenuation_coefficient_of_photosynthetic_radiative_flux not found')
+      _ASSERT_(associated(self%albedo_id%variable), 'fabm_initialize', 'BUG: variable surface_albedo not found')
+      _ASSERT_(associated(self%surface_drag_id%variable), 'fabm_initialize', 'BUG: variable surface_drag_coefficient_in_air not found')
       call self%get_light_extinction_job%request_variable(self%extinction_id%variable)
-   end subroutine
-
-   recursive subroutine require_call_all(self, model, source)
-      type (type_job),         intent(inout) :: self
-      class (type_base_model), intent(in)    :: model
-      integer,                 intent(in)    :: source
-
-      type (type_model_list_node), pointer :: node
-
-      node => model%children%first
-      do while (associated(node))
-         call require_call_all(self, node%model, source)
-         call self%request_call(node%model, source)
-         node => node%next
-      end do
+      call self%get_albedo_job%request_variable(self%albedo_id%variable)
+      call self%get_drag_job%request_variable(self%surface_drag_id%variable)
    end subroutine
 
    subroutine fabm_finalize(self)
@@ -315,7 +306,6 @@ contains
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
       real(rke) _DIMENSION_HORIZONTAL_SLICE_, intent(out)   :: drag
 
-      integer :: icall
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
@@ -325,15 +315,9 @@ contains
 #  endif
 #endif
 
-      drag = 1.0_rke
+      call process_horizontal_slice(self%get_drag_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
-      call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%get_drag_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
-
-      do icall = 1,  size(self%get_drag_job%first_task%calls)
-         if (self%get_drag_job%first_task%calls(icall)%source == source_get_drag) call self%get_drag_job%first_task%calls(icall)%model%get_drag(self%cache_hz, drag)
-      end do
-
-      call cache_unpack(self%get_drag_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
+      _HORIZONTAL_UNPACK_(self%cache_hz%write_hz, self%surface_drag_id%variable%write_indices%value, drag, self%cache_hz, 1.0_rke)
    end subroutine fabm_get_drag
 
    subroutine fabm_get_albedo(self _POSTARG_HORIZONTAL_IN_, albedo)
@@ -341,7 +325,6 @@ contains
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
       real(rke) _DIMENSION_HORIZONTAL_SLICE_, intent(out)   :: albedo
 
-      integer :: icall
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
@@ -351,15 +334,9 @@ contains
 #  endif
 #endif
 
-      albedo = 0.0_rke
+      call process_horizontal_slice(self%get_albedo_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
-      call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%get_albedo_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
-
-      do icall = 1,  size(self%get_albedo_job%first_task%calls)
-         if (self%get_albedo_job%first_task%calls(icall)%source == source_get_albedo) call self%get_albedo_job%first_task%calls(icall)%model%get_albedo(self%cache_hz, albedo)
-      end do
-
-      call cache_unpack(self%get_albedo_job%first_task, self%cache_hz, self%store _POSTARG_HORIZONTAL_IN_)
+      _HORIZONTAL_UNPACK_(self%cache_hz%write_hz, self%albedo_id%variable%write_indices%value, albedo, self%cache_hz, 0.0_rke)
    end subroutine fabm_get_albedo
 
    subroutine fabm_update_time1(self, t)
@@ -384,9 +361,9 @@ contains
    end function
    
    function fabm_get_bulk_variable_id_sn(self, standard_variable) result(id)
-      class (type_model),                 intent(in) :: self
-      type (type_bulk_standard_variable), intent(in) :: standard_variable
-      type (type_bulk_variable_id)                   :: id
+      class (type_model),                     intent(in) :: self
+      type (type_interior_standard_variable), intent(in) :: standard_variable
+      type (type_bulk_variable_id)                       :: id
       id = self%get_interior_variable_id(standard_variable)
    end function
 end module

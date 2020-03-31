@@ -130,6 +130,11 @@ standard_variables%surface_air_pressure%name = 'surface_air_pressure'
 standard_variables%surface_air_pressure%units = 'Pa'
 standard_variables%surface_air_pressure%cf_names = 'surface_air_pressure'
 
+standard_variables%surface_albedo%name = 'surface_albedo'
+standard_variables%surface_albedo%units = '1'
+standard_variables%surface_albedo%cf_names = 'surface_albedo'
+standard_variables%surface_albedo%aggregate_variable = .true.
+
 standard_variables%surface_downwelling_photosynthetic_radiative_flux%name = 'surface_downwelling_photosynthetic_radiative_flux'
 standard_variables%surface_downwelling_photosynthetic_radiative_flux%units = 'W m-2'
 standard_variables%surface_downwelling_photosynthetic_radiative_flux%cf_names = 'surface_downwelling_photosynthetic_radiative_flux_in_sea_water'
@@ -144,6 +149,11 @@ standard_variables%surface_downwelling_shortwave_flux%units = 'W m-2'
 standard_variables%surface_downwelling_shortwave_flux_in_air%name = 'surface_downwelling_shortwave_flux_in_air'
 standard_variables%surface_downwelling_shortwave_flux_in_air%units = 'W m-2'
 standard_variables%surface_downwelling_shortwave_flux_in_air%cf_names = 'surface_downwelling_shortwave_flux_in_air,surface_downwelling_shortwave_flux'
+
+standard_variables%surface_drag_coefficient_in_air%name = 'surface_drag_coefficient_in_air'
+standard_variables%surface_drag_coefficient_in_air%units = '1'
+standard_variables%surface_drag_coefficient_in_air%cf_names = 'surface_drag_coefficient_in_air,atmosphere_surface_drag_coefficient'
+standard_variables%surface_drag_coefficient_in_air%aggregate_variable = .true.
 
 standard_variables%surface_specific_humidity%name = 'surface_specific_humidity'
 standard_variables%surface_specific_humidity%units = '1'

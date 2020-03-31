@@ -51,8 +51,8 @@ module fabm_builtin_models
       real(rk)                        :: missing_value = 0.0_rk
       integer                         :: access        = access_read
       type (type_interior_standard_variable), pointer :: standard_variable => null()
-      type (type_aggregate_variable_id) :: id_output
-      type (type_component),pointer   :: first => null()
+      type (type_add_id)              :: id_output
+      type (type_component), pointer  :: first => null()
       type (type_sum_term), allocatable :: sources(:)
    contains
       procedure :: initialize     => weighted_sum_initialize
@@ -90,7 +90,7 @@ module fabm_builtin_models
       real(rk)                        :: missing_value = 0.0_rk
       integer                         :: access        = access_read
       integer                         :: domain        = domain_horizontal
-      type (type_horizontal_aggregate_variable_id) :: id_output
+      type (type_horizontal_add_id)   :: id_output
       type (type_horizontal_component), pointer   :: first => null()
       type (type_horizontal_sum_term), allocatable :: sources(:)
    contains
@@ -172,10 +172,10 @@ module fabm_builtin_models
    end type
 
    type,extends(type_base_model) :: type_horizontal_flux
-      type (type_link), pointer                    :: target
-      type (type_horizontal_aggregate_variable_id) :: id_target_flux
-      type (type_horizontal_dependency_id)         :: id_flux
-      real(rk)                                     :: scale_factor = 1.0_rk
+      type (type_link), pointer            :: target
+      type (type_horizontal_add_id)        :: id_target_flux
+      type (type_horizontal_dependency_id) :: id_flux
+      real(rk)                             :: scale_factor = 1.0_rk
    contains
       procedure :: do_horizontal => horizontal_flux_do_horizontal
    end type
@@ -191,10 +191,10 @@ module fabm_builtin_models
    end type
 
    type,extends(type_base_model) :: type_interior_source
-      type (type_link), pointer         :: target
-      type (type_aggregate_variable_id) :: id_target_sms
-      type (type_dependency_id)         :: id_source
-      real(rk)                          :: scale_factor = 1.0_rk
+      type (type_link), pointer :: target
+      type (type_add_id)        :: id_target_sms
+      type (type_dependency_id) :: id_source
+      real(rk)                  :: scale_factor = 1.0_rk
    contains
       procedure :: initialize => interior_source_initialize
       procedure :: do         => interior_source_do
@@ -320,7 +320,7 @@ module fabm_builtin_models
       end if
    end function weighted_sum_add_to_parent
 
-   subroutine weighted_sum_initialize(self,configunit)
+   subroutine weighted_sum_initialize(self, configunit)
       class (type_weighted_sum), intent(inout), target :: self
       integer,                   intent(in)            :: configunit
 
@@ -646,13 +646,13 @@ module fabm_builtin_models
       end if
    end subroutine scaled_horizontal_variable_after_coupling
 
-   function horizontal_weighted_sum_add_to_parent(self,parent,name,create_for_one,aggregate_variable,link) result(sum_used)
-      class (type_horizontal_weighted_sum), intent(inout), target :: self
-      class (type_base_model),              intent(inout), target :: parent
-      character(len=*),                     intent(in)            :: name
-      logical,optional,                     intent(in)            :: create_for_one
-      type (type_interior_standard_variable), optional, intent(in) :: aggregate_variable
-      type (type_link), pointer, optional                         :: link
+   function horizontal_weighted_sum_add_to_parent(self, parent, name, create_for_one, aggregate_variable, link) result(sum_used)
+      class (type_horizontal_weighted_sum),      intent(inout), target :: self
+      class (type_base_model),                   intent(inout), target :: parent
+      character(len=*),                          intent(in)            :: name
+      logical,optional,                          intent(in)            :: create_for_one
+      class (type_horizontal_standard_variable), intent(in), optional  :: aggregate_variable
+      type (type_link), pointer,                             optional  :: link
 
       logical :: sum_used, create_for_one_
       type (type_link), pointer :: link_
@@ -686,7 +686,7 @@ module fabm_builtin_models
          scaled_variable%include_background = self%first%include_background
          scaled_variable%offset = self%offset
          call parent%request_coupling(link_, trim(name)//'_calculator/result')
-         if (iand(self%access,access_set_source) /= 0) then
+         if (iand(self%access, access_set_source) /= 0) then
             call copy_horizontal_fluxes(scaled_variable, scaled_variable%id_result, self%first%name, scale_factor=1.0_rk / scaled_variable%weight)
             if (present(aggregate_variable)) call scaled_variable%add_to_aggregate_variable(aggregate_variable, scaled_variable%id_result)
          end if

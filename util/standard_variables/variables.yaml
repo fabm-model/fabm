@@ -89,10 +89,16 @@ horizontal:
     units: degree_Celsius
   - name: ice_area_fraction
     units: 1
+  - name: surface_albedo
+    units: 1
+    aggregate_variable: true
+  - name: surface_drag_coefficient_in_air
+    units: 1
+    aggregate_variable: true
 global:
   - name: number_of_days_since_start_of_the_year
     units: d
-conserved:
+universal:
   - name: total_carbon
     units: mmol m-3
   - name: total_nitrogen

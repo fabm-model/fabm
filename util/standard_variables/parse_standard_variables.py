@@ -20,10 +20,10 @@ output_F90 = '../../include/standard_variables.h'
 output_F90_assignments = '../../include/standard_variable_assignments.h'
 output_wiki = 'standard_variables.wiki'
 
-domain2type = {'interior':'type_interior_standard_variable',
-               'horizontal':'type_horizontal_standard_variable',
-               'global':'type_global_standard_variable',
-               'conserved':'type_interior_standard_variable'}
+domain2type = {'interior': 'type_interior_standard_variable',
+               'horizontal': 'type_horizontal_standard_variable',
+               'global': 'type_global_standard_variable',
+               'universal': 'type_universal_standard_variable'}
 
 print('Parsing %s...' % variablespath)
 with io.open(variablespath, 'r', encoding='utf-8') as stream:
@@ -95,7 +95,7 @@ fout.write(msg)
 fout_assignments = open(output_F90_assignments,'w')
 fout_assignments.write(msg)
 fwiki = open(output_wiki,'w')
-for domain,items in selection.items():
+for domain, items in selection.items():
     fwiki.write('## %s variables\n' % (domain[0].upper()+domain[1:]))
     fwiki.write('|Variable|Units|Corresponding name in [CF convention](%s)|\n' % html)
     fwiki.write('|---|---|---|\n')
@@ -104,8 +104,11 @@ for domain,items in selection.items():
         # Collect variable attribute]
         data = [('name',"'%s'" % item['name']),('units',"'%s'" % item['units'])]
         if 'cf_names' in item: data.append(('cf_names',"'%s'" % ','.join(item['cf_names'])))
-        if item.get('aggregate_variable',domain=='conserved'): data.append(('aggregate_variable','.true.'))
-        if domain=='conserved': data.append(('conserved','.true.'))
+        conserved = item.get('conserved', domain == 'universal')
+        if item.get('aggregate_variable', conserved):
+            data.append(('aggregate_variable','.true.'))
+        if conserved:
+            data.append(('conserved','.true.'))
 
         # Declare standard variable in Fortran.
         fout.write('type (%s) :: %s\n' % (domain2type[domain],item['name']))

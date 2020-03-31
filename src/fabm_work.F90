@@ -9,7 +9,7 @@ module fabm_work
 
    use fabm_types, only: rki => rk, rke, type_interior_cache, type_horizontal_cache, type_vertical_cache, &
       prefill_none, prefill_constant, source_do, source_do_horizontal, source_do_surface, source_do_bottom, &
-      source_get_light_extinction, source_get_vertical_movement, source2string, &
+      source_get_light_extinction, source_get_vertical_movement, source_get_albedo, source_get_drag, source2string, &
       source_check_state, source_check_bottom_state, source_check_surface_state, &
       domain_interior, domain_surface, domain_bottom, domain_horizontal
    use fabm_job, only: type_task, type_call
@@ -690,6 +690,8 @@ end subroutine end_vertical_task
             case (source_do_horizontal);       call task%calls(icall)%model%do_horizontal(cache)
             case (source_check_bottom_state);  call task%calls(icall)%model%check_bottom_state(cache)
             case (source_check_surface_state); call task%calls(icall)%model%check_surface_state(cache)
+            case (source_get_albedo);          call task%calls(icall)%model%get_albedo(cache)
+            case (source_get_drag);            call task%calls(icall)%model%get_drag(cache)
             end select
 
 #ifndef NDEBUG

@@ -137,10 +137,10 @@ module fabm
 
    ! Derived type for conserved quantity metadata
    type, extends(type_fabm_variable) :: type_fabm_conserved_quantity
-      type (type_interior_standard_variable) :: standard_variable
-      integer                                :: index              = -1
-      integer                                :: horizontal_index   = -1
-      type (type_internal_variable), pointer :: target_hz => null()
+      class (type_base_standard_variable), pointer :: standard_variable => null()
+      integer                                      :: index             = -1
+      integer                                      :: horizontal_index  = -1
+      type (type_internal_variable),       pointer :: target_hz => null()
    end type
 
    ! --------------------------------------------------------------------------
@@ -920,17 +920,8 @@ contains
       type (type_interior_standard_variable), intent(in) :: standard_variable
       type (type_fabm_interior_variable_id)              :: id
 
-      type (type_link), pointer :: link
-
-      link => self%root%links%first
-      do while (associated(link))
-         if (link%target%standard_variables%contains(standard_variable)) then
-            id%variable => link%target
-            return
-         end if
-         link => link%next
-      end do
-      if (standard_variable%aggregate_variable) id%variable => self%root%find_object('zero')
+      id%variable => get_variable_by_standard_variable(self, standard_variable)
+      if (standard_variable%aggregate_variable .and. .not. associated(id%variable)) id%variable => self%root%find_object('zero')
    end function get_interior_variable_id_sn
 
    ! --------------------------------------------------------------------------
@@ -950,21 +941,12 @@ contains
    ! given standard variable
    ! --------------------------------------------------------------------------
    function get_horizontal_variable_id_sn(self, standard_variable) result(id)
-      class (type_fabm_model),                  intent(in) :: self
-      type (type_horizontal_standard_variable), intent(in) :: standard_variable
-      type (type_fabm_horizontal_variable_id)              :: id
+      class (type_fabm_model),                   intent(in) :: self
+      class (type_horizontal_standard_variable), intent(in) :: standard_variable
+      type (type_fabm_horizontal_variable_id)               :: id
 
-      type (type_link), pointer :: link
-
-      link => self%root%links%first
-      do while (associated(link))
-         if (link%target%standard_variables%contains(standard_variable)) then
-            id%variable => link%target
-            return
-         end if
-         link => link%next
-      end do
-      if (standard_variable%aggregate_variable) id%variable => self%root%find_object('zero_hz')
+      id%variable => get_variable_by_standard_variable(self, standard_variable)
+      if (standard_variable%aggregate_variable .and. .not. associated(id%variable)) id%variable => self%root%find_object('zero_hz')
    end function get_horizontal_variable_id_sn
 
    ! --------------------------------------------------------------------------
@@ -988,16 +970,7 @@ contains
       type (type_global_standard_variable), intent(in) :: standard_variable
       type (type_fabm_scalar_variable_id)              :: id
 
-      type (type_link), pointer :: link
-
-      link => self%root%links%first
-      do while (associated(link))
-         if (link%target%standard_variables%contains(standard_variable)) then
-            id%variable => link%target
-            return
-         end if
-         link => link%next
-      end do
+      id%variable => get_variable_by_standard_variable(self, standard_variable)
    end function get_scalar_variable_id_sn
 
    ! --------------------------------------------------------------------------
@@ -2257,7 +2230,8 @@ contains
       type (type_aggregate_variable_list)         :: aggregate_variable_list
       type (type_aggregate_variable),     pointer :: aggregate_variable
       type (type_set)                             :: dependencies, dependencies_hz, dependencies_scalar
-      type (type_standard_variable_node), pointer :: standard_variables_node
+      type (type_standard_variable_set)           :: standard_variable_set
+      type (type_standard_variable_node), pointer :: standard_variable_node
 
       ! Build a list of all master variables (those that not have been coupled)
       link => self%root%links%first
@@ -2267,13 +2241,26 @@ contains
          link => link%next
       end do
 
-      ! Count number of conserved quantities and allocate associated array.
+      ! Get list of conserved quantities (map to universal=domain-independent variables where possible)
       aggregate_variable_list = collect_aggregate_variables(self%root)
-      ncons = 0
       aggregate_variable => aggregate_variable_list%first
       do while (associated(aggregate_variable))
-         if (aggregate_variable%standard_variable%conserved) ncons = ncons + 1
+         if (aggregate_variable%standard_variable%conserved) then
+            if (associated(aggregate_variable%standard_variable%universal)) then
+               call standard_variable_set%add(aggregate_variable%standard_variable%universal)
+            else
+               call standard_variable_set%add(aggregate_variable%standard_variable)
+            end if
+         end if
          aggregate_variable => aggregate_variable%next
+      end do
+
+      ! Count number of conserved quantities and allocate an array for them.
+      ncons = 0
+      standard_variable_node => standard_variable_set%first
+      do while (associated(standard_variable_node))
+         ncons = ncons + 1
+         standard_variable_node => standard_variable_node%next
       end do
       allocate(self%conserved_quantities(ncons))
 
@@ -2282,22 +2269,23 @@ contains
       ! as the calls to append_data_pointer affect the global identifier of diagnostic variables
       ! by adding another pointer that must be set.
       ncons = 0
-      aggregate_variable => aggregate_variable_list%first
-      do while (associated(aggregate_variable))
-         if (aggregate_variable%standard_variable%conserved) then
-            ncons = ncons + 1
-            consvar => self%conserved_quantities(ncons)
-            consvar%standard_variable = aggregate_variable%standard_variable
-            consvar%name = trim(consvar%standard_variable%name)
-            consvar%units = trim(consvar%standard_variable%units)
-            consvar%long_name = trim(consvar%standard_variable%name)
-            consvar%path = trim(consvar%standard_variable%name)
-            consvar%target => self%root%find_object(trim(aggregate_variable%standard_variable%name))
-            _ASSERT_(associated(consvar%target), 'classify_variables', 'Conserved quantity ' // trim(aggregate_variable%standard_variable%name) // ' was not created')
-            consvar%target_hz => self%root%find_object(trim(aggregate_variable%standard_variable%name) // '_at_interfaces')
-            _ASSERT_(associated(consvar%target_hz), 'classify_variables', 'Conserved quantity ' // trim(aggregate_variable%standard_variable%name) // '_at_interfaces was not created')
-         end if
-         aggregate_variable => aggregate_variable%next
+      standard_variable_node => standard_variable_set%first
+      do while (associated(standard_variable_node))
+         ncons = ncons + 1
+         consvar => self%conserved_quantities(ncons)
+         consvar%standard_variable => standard_variable_node%p
+         consvar%name = trim(consvar%standard_variable%name)
+         consvar%units = trim(consvar%standard_variable%units)
+         consvar%long_name = trim(consvar%standard_variable%name)
+         consvar%path = trim(consvar%standard_variable%name)
+         select type (standard_variable => consvar%standard_variable)
+         class is (type_universal_standard_variable)
+            consvar%target => self%root%find_object(trim(standard_variable%name))
+            _ASSERT_(associated(consvar%target), 'classify_variables', 'Conserved quantity ' // trim(standard_variable%name) // ' was not created')
+            consvar%target_hz => self%root%find_object(trim(standard_variable%name) // '_at_interfaces')
+            _ASSERT_(associated(consvar%target_hz), 'classify_variables', 'Conserved quantity ' // trim(standard_variable%name) // '_at_interfaces was not created')
+         end select
+         standard_variable_node => standard_variable_node%next
       end do
 
       ! From this point on, variables will stay as they are.
@@ -2380,7 +2368,7 @@ contains
                   statevar => self%state_variables(nstate)
                   call copy_variable_metadata(object, statevar)
                   if (associated(object%standard_variables%first)) then
-                     select type (standard_variable=>object%standard_variables%first%p)
+                     select type (standard_variable => object%standard_variables%first%p)
                         type is (type_interior_standard_variable)
                            statevar%standard_variable = standard_variable
                      end select
@@ -2398,7 +2386,7 @@ contains
                diagvar => self%diagnostic_variables(ndiag)
                call copy_variable_metadata(object,diagvar)
                if (associated(object%standard_variables%first)) then
-                  select type (standard_variable=>object%standard_variables%first%p)
+                  select type (standard_variable => object%standard_variables%first%p)
                      type is (type_interior_standard_variable)
                         diagvar%standard_variable = standard_variable
                   end select
@@ -2462,16 +2450,16 @@ contains
                case (domain_scalar);                                    call dependencies_scalar%add(link%name)
             end select
 
-            standard_variables_node => object%standard_variables%first
-            do while (associated(standard_variables_node))
-               if (standard_variables_node%p%name /= '') then
+            standard_variable_node => object%standard_variables%first
+            do while (associated(standard_variable_node))
+               if (standard_variable_node%p%name /= '') then
                   select case (object%domain)
-                     case (domain_interior);                                  call dependencies%add(standard_variables_node%p%name)
-                     case (domain_horizontal, domain_surface, domain_bottom); call dependencies_hz%add(standard_variables_node%p%name)
-                     case (domain_scalar);                                    call dependencies_scalar%add(standard_variables_node%p%name)
+                     case (domain_interior);                                  call dependencies%add(standard_variable_node%p%name)
+                     case (domain_horizontal, domain_surface, domain_bottom); call dependencies_hz%add(standard_variable_node%p%name)
+                     case (domain_scalar);                                    call dependencies_scalar%add(standard_variable_node%p%name)
                   end select
                end if
-               standard_variables_node => standard_variables_node%next
+               standard_variable_node => standard_variable_node%next
             end do
          end if
          link => link%next
@@ -2767,10 +2755,10 @@ contains
    end subroutine
 
    function get_variable_by_name(self, name, domain) result(variable)
-      class (type_fabm_model), intent(in)         :: self
-      character(len=*),        intent(in)         :: name
-      integer,                 intent(in)         :: domain
-      type (type_internal_variable), pointer      :: variable
+      class (type_fabm_model), intent(in)    :: self
+      character(len=*),        intent(in)    :: name
+      integer,                 intent(in)    :: domain
+      type (type_internal_variable), pointer :: variable
 
       type (type_link), pointer :: link
 
@@ -2797,6 +2785,26 @@ contains
          link => link%next
       end do
    end function get_variable_by_name
+
+   function get_variable_by_standard_variable(self, standard_variable) result(variable)
+      class (type_fabm_model), intent(in)         :: self
+      class (type_base_standard_variable), target :: standard_variable
+      type (type_internal_variable), pointer :: variable
+
+      class (type_base_standard_variable), pointer :: pstandard_variable
+      type (type_link),                    pointer :: link
+
+      pstandard_variable => standard_variable%resolve()
+      variable => null()
+      link => self%root%links%first
+      do while (associated(link))
+         if (link%target%standard_variables%contains(pstandard_variable)) then
+            variable => link%target
+            return
+         end if
+         link => link%next
+      end do
+   end function get_variable_by_standard_variable
 
 end module fabm
 

@@ -33,7 +33,7 @@ module fabm_standard_variables
    private
 
    public type_base_standard_variable
-   public type_interior_standard_variable, type_horizontal_standard_variable, type_global_standard_variable
+   public type_universal_standard_variable, type_domain_specific_standard_variable, type_interior_standard_variable, type_horizontal_standard_variable, type_surface_standard_variable, type_bottom_standard_variable, type_global_standard_variable
    public type_standard_variable_node, type_standard_variable_set
    public standard_variables, initialize_standard_variables
 
@@ -41,26 +41,52 @@ module fabm_standard_variables
    ! Data types that contain all metadata needed to describe standard variables.
    ! ====================================================================================================
 
-   type type_base_standard_variable
+   type, abstract :: type_base_standard_variable
       character(len=256) :: name  = ''    ! Name
       character(len=64)  :: units = ''    ! Units
       character(len=512) :: cf_names = '' ! Comma-separated list of standard names defined in the NetCDF CF convention
                                           ! (http://cfconventions.org/standard-names.html)
       logical            :: aggregate_variable = .false. ! Whether biogeochemical models can contribute (add to) this variable.
                                                          ! If .true., this variable is always available with a default value of 0.
-      logical            :: conserved = .false.          ! Whether this variable shoudl be included in lists of conserved quantities.
+      logical            :: conserved = .false.          ! Whether this variable should be included in lists of conserved quantities.
+      logical            :: resolved = .false.
    contains
-      procedure :: is_null => standard_variable_is_null
-      procedure :: compare => standard_variable_compare
+      procedure :: resolve         => base_standard_variable_resolve
+      procedure :: assert_resolved => base_standard_variable_assert_resolved
    end type
 
-   type,extends(type_base_standard_variable) :: type_interior_standard_variable
+   type, extends(type_base_standard_variable), abstract :: type_domain_specific_standard_variable
+      class (type_base_standard_variable), pointer :: universal => null()
+   contains
+      procedure :: typed_resolve => domain_specific_standard_variable_typed_resolve
    end type
 
-   type,extends(type_base_standard_variable) :: type_horizontal_standard_variable
+   type, extends(type_domain_specific_standard_variable) :: type_interior_standard_variable
    end type
 
-   type,extends(type_base_standard_variable) :: type_global_standard_variable
+   type, extends(type_domain_specific_standard_variable) :: type_horizontal_standard_variable
+   end type
+
+   type, extends(type_horizontal_standard_variable) :: type_surface_standard_variable
+   end type
+
+   type, extends(type_horizontal_standard_variable) :: type_bottom_standard_variable
+   end type
+
+   type, extends(type_domain_specific_standard_variable) :: type_global_standard_variable
+   end type
+
+   type, extends(type_base_standard_variable) :: type_universal_standard_variable
+      class (type_interior_standard_variable),   pointer, private :: pin_interior   => null()
+      class (type_horizontal_standard_variable), pointer, private :: pat_interfaces => null()
+      class (type_surface_standard_variable),    pointer, private :: pat_surface    => null()
+      class (type_bottom_standard_variable),     pointer, private :: pat_bottom     => null()
+   contains
+      procedure :: typed_resolve => universal_standard_variable_typed_resolve
+      procedure :: in_interior   => universal_standard_variable_in_interior
+      procedure :: at_interfaces => universal_standard_variable_at_interfaces
+      procedure :: at_surface    => universal_standard_variable_at_surface
+      procedure :: at_bottom     => universal_standard_variable_at_bottom
    end type
 
    type type_standard_variable_node
@@ -80,64 +106,174 @@ module fabm_standard_variables
    end type
 
    type type_standard_variable_collection
+      type (type_standard_variable_node), pointer :: first => null()
 #include "standard_variables.h"
    end type
 
    ! Single instance of the collection that contains all standard variables.
-   type (type_standard_variable_collection),save :: standard_variables
+   type (type_standard_variable_collection), save :: standard_variables
 
 contains
+
+   function base_standard_variable_resolve(self) result(p)
+      class (type_base_standard_variable), intent(in), target :: self
+      class (type_base_standard_variable), pointer            :: p
+
+      type (type_standard_variable_node), pointer :: node
+
+      if (self%resolved) then
+         p => self
+         return
+      end if
+
+      node => standard_variables%first
+      do while (associated(node))
+         if (compare(self, node%p)) then
+            p => node%p
+            return
+         end if
+         node => node%next
+      end do
+
+      allocate(p, source=self)
+      call add(p)
+      select type (p)
+      class is (type_universal_standard_variable)
+         allocate(p%pin_interior, p%pat_surface, p%pat_bottom, p%pat_interfaces)
+         call add_child(p%pin_interior,   trim(p%name),                     p%units, p)
+         call add_child(p%pat_surface,    trim(p%name) // '_at_surface',    trim(p%units) // '*m', p)
+         call add_child(p%pat_bottom,     trim(p%name) // '_at_bottom',     trim(p%units) // '*m', p)
+         call add_child(p%pat_interfaces, trim(p%name) // '_at_interfaces', trim(p%units) // '*m', p)
+      end select
+
+   contains
+
+      logical function compare(variable1, variable2)
+         class (type_base_standard_variable), intent(in) :: variable1, variable2
+
+         ! Compare the type of the standard variables.
+         compare = same_type_as(variable1, variable2)
+
+         ! Compare the metadata of the standard variables.
+         if (compare) compare = (variable1%name  == '' .or. variable2%name  == '' .or. variable1%name  == variable2%name ) &
+                          .and. (variable1%units == '' .or. variable2%units == '' .or. variable1%units == variable2%units)
+      end function
+
+      subroutine add_child(standard_variable, name, units, universal)
+         class (type_domain_specific_standard_variable), target :: standard_variable
+         character(len=*), intent(in)                           :: name, units
+         class (type_universal_standard_variable),       target :: universal
+         standard_variable%name = name
+         standard_variable%units = units
+         standard_variable%aggregate_variable = universal%aggregate_variable
+         standard_variable%universal => universal
+         call add(standard_variable)
+      end subroutine
+
+      subroutine add(standard_variable)
+         class (type_base_standard_variable), target :: standard_variable
+         type (type_standard_variable_node), pointer :: node
+         allocate(node)
+         node%p => standard_variable
+         node%next => standard_variables%first
+         standard_variables%first => node
+         standard_variable%resolved = .true.
+      end subroutine
+
+   end function base_standard_variable_resolve
+
+   function universal_standard_variable_typed_resolve(self) result(p)
+      class (type_universal_standard_variable), target  :: self
+      class (type_universal_standard_variable), pointer :: p
+      class (type_base_standard_variable), pointer :: presolved
+      presolved => self%resolve()
+      select type (presolved)
+      class is (type_universal_standard_variable)
+         p => presolved
+#ifndef NDEBUG
+      class default
+         write (*,*) 'universal_standard_variable_typed_resolve: BUG wrong type returned'
+         stop 1
+#endif
+      end select
+   end function
+
+   function universal_standard_variable_in_interior(self) result(p)
+      class (type_universal_standard_variable), target  :: self
+      class (type_interior_standard_variable), pointer :: p
+      class (type_universal_standard_variable), pointer  :: presolved
+      presolved => self%typed_resolve()
+      p => presolved%pin_interior
+   end function
+
+   function universal_standard_variable_at_surface(self) result(p)
+      class (type_universal_standard_variable), target  :: self
+      class (type_surface_standard_variable), pointer :: p
+      class (type_universal_standard_variable), pointer  :: presolved
+      presolved => self%typed_resolve()
+      p => presolved%pat_surface
+   end function
+
+   function universal_standard_variable_at_bottom(self) result(p)
+      class (type_universal_standard_variable), target  :: self
+      class (type_bottom_standard_variable), pointer :: p
+      class (type_universal_standard_variable), pointer  :: presolved
+      presolved => self%typed_resolve()
+      p => presolved%pat_bottom
+   end function
+
+   function universal_standard_variable_at_interfaces(self) result(p)
+      class (type_universal_standard_variable), target  :: self
+      class (type_horizontal_standard_variable), pointer :: p
+      class (type_universal_standard_variable), pointer  :: presolved
+      presolved => self%typed_resolve()
+      p => presolved%pat_interfaces
+   end function
+
+   function domain_specific_standard_variable_typed_resolve(self) result(p)
+      class (type_domain_specific_standard_variable), target  :: self
+      class (type_domain_specific_standard_variable), pointer :: p
+      class (type_base_standard_variable), pointer :: pbase
+      pbase => self%resolve()
+      select type (pbase)
+      class is (type_domain_specific_standard_variable)
+         p => pbase
+#ifndef NDEBUG
+      class default
+         write (*,*) 'domain_specific_standard_variable_typed_resolve: BUG wrong type returned'
+         stop 1
+#endif
+      end select
+   end function
+
+   subroutine base_standard_variable_assert_resolved(self)
+      class (type_base_standard_variable), intent(in) :: self
+
+      if (self%resolved) return
+      write (*,*) 'FATAL ERROR: standard_variable_collection_assert_contains: "' // trim(self%name) // '" not in standard variable collection."'
+      stop 1
+   end subroutine
 
    subroutine initialize_standard_variables()
 #include "standard_variable_assignments.h"
    end subroutine
 
-   logical function standard_variable_is_null(variable)
-      class (type_base_standard_variable), intent(in) :: variable
-      standard_variable_is_null = (variable%name == '' .and. variable%units == '')
-   end function
-
-   logical function standard_variable_compare(variable1, variable2)
-      class (type_base_standard_variable), intent(in) :: variable1, variable2
-      standard_variable_compare = .false.
-
-      ! First test whether the types match.
-      select type (variable1)
-      class is (type_interior_standard_variable)
-         select type (variable2)
-            class is (type_interior_standard_variable)
-               standard_variable_compare = .true.
-         end select
-      class is (type_horizontal_standard_variable)
-         select type (variable2)
-            class is (type_horizontal_standard_variable)
-               standard_variable_compare = .true.
-         end select
-      class is (type_global_standard_variable)
-         select type (variable2)
-            class is (type_global_standard_variable)
-               standard_variable_compare = .true.
-         end select
-      end select
-
-      ! If types do not match, the standard variables are not equal - we're done.
-      if (.not. standard_variable_compare) return
-
-      ! Compare the metadata of the standard variables.
-      standard_variable_compare = (variable1%name  == '' .or. variable2%name  == '' .or. variable1%name  == variable2%name ) &
-                            .and. (variable1%units == '' .or. variable2%units == '' .or. variable1%units == variable2%units)
-   end function standard_variable_compare
-
    logical function standard_variable_set_contains_variable(self, standard_variable)
       class (type_standard_variable_set),  intent(in) :: self
-      class (type_base_standard_variable), intent(in) :: standard_variable
+      class (type_base_standard_variable), target     :: standard_variable
 
       type (type_standard_variable_node), pointer :: node
 
+#ifndef NDEBUG
+      call standard_variable%assert_resolved()
+#endif
       standard_variable_set_contains_variable = .true.
       node => self%first
       do while (associated(node))
-         if (standard_variable%compare(node%p)) return
+#ifndef NDEBUG
+         call node%p%assert_resolved()
+#endif
+         if (associated(node%p, standard_variable)) return
          node => node%next
       end do
       standard_variable_set_contains_variable = .false.
@@ -160,9 +296,13 @@ contains
 
    subroutine standard_variable_set_add(self, standard_variable)
       class (type_standard_variable_set),  intent(inout) :: self
-      class (type_base_standard_variable), intent(in)    :: standard_variable
+      class (type_base_standard_variable), target        :: standard_variable
 
       type (type_standard_variable_node), pointer :: node
+
+#ifndef NDEBUG
+      call standard_variable%assert_resolved()
+#endif
 
       if (self%contains(standard_variable)) return
 
@@ -177,7 +317,7 @@ contains
          allocate(node%next)
          node => node%next
       end if
-      allocate(node%p, source=standard_variable)
+      node%p => standard_variable
    end subroutine standard_variable_set_add
 
    subroutine standard_variable_set_update(self, other)
@@ -201,7 +341,6 @@ contains
       node => self%first
       do while (associated(node))
          next_node => node%next
-         deallocate(node%p)
          deallocate(node)
          node => next_node
       end do
