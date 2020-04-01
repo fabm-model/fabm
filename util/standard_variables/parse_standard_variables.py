@@ -114,8 +114,9 @@ for domain, items in selection.items():
         fout.write('type (%s) :: %s\n' % (domain2type[domain],item['name']))
 
         # Assign variable attributes in Fortran.
-        for k,v in data: fout_assignments.write('standard_variables%%%s%%%s = %s\n' % (item['name'],k,v))
-        fout_assignments.write('\n')
+        for k, v in data:
+            fout_assignments.write('standard_variables%%%s%%%s = %s\n' % (item['name'],k,v))
+        fout_assignments.write('call add(standard_variables%%%s)\n\n' % item['name'])
 
         # Create wiki entry for this variable.
         fwiki.write('|%s|%s|%s|\n' % (item['name'],item['units'],item.get('cf_names',('',))[0]))

@@ -137,14 +137,6 @@ contains
 
       allocate(p, source=self)
       call add(p)
-      select type (p)
-      class is (type_universal_standard_variable)
-         allocate(p%pin_interior, p%pat_surface, p%pat_bottom, p%pat_interfaces)
-         call add_child(p%pin_interior,   trim(p%name),                     p%units, p)
-         call add_child(p%pat_surface,    trim(p%name) // '_at_surface',    trim(p%units) // '*m', p)
-         call add_child(p%pat_bottom,     trim(p%name) // '_at_bottom',     trim(p%units) // '*m', p)
-         call add_child(p%pat_interfaces, trim(p%name) // '_at_interfaces', trim(p%units) // '*m', p)
-      end select
 
    contains
 
@@ -159,28 +151,40 @@ contains
                           .and. (variable1%units == '' .or. variable2%units == '' .or. variable1%units == variable2%units)
       end function
 
-      subroutine add_child(standard_variable, name, units, universal)
-         class (type_domain_specific_standard_variable), target :: standard_variable
-         character(len=*), intent(in)                           :: name, units
-         class (type_universal_standard_variable),       target :: universal
-         standard_variable%name = name
-         standard_variable%units = units
-         standard_variable%aggregate_variable = universal%aggregate_variable
-         standard_variable%universal => universal
-         call add(standard_variable)
-      end subroutine
-
-      subroutine add(standard_variable)
-         class (type_base_standard_variable), target :: standard_variable
-         type (type_standard_variable_node), pointer :: node
-         allocate(node)
-         node%p => standard_variable
-         node%next => standard_variables%first
-         standard_variables%first => node
-         standard_variable%resolved = .true.
-      end subroutine
-
    end function base_standard_variable_resolve
+
+   subroutine add_child(standard_variable, name, units, universal)
+      class (type_domain_specific_standard_variable), target :: standard_variable
+      character(len=*), intent(in)                           :: name, units
+      class (type_universal_standard_variable),       target :: universal
+      standard_variable%name = name
+      standard_variable%units = units
+      standard_variable%aggregate_variable = universal%aggregate_variable
+      standard_variable%conserved = universal%conserved
+      standard_variable%universal => universal
+      call add(standard_variable)
+   end subroutine
+
+   recursive subroutine add(standard_variable)
+      class (type_base_standard_variable), target, intent(inout) :: standard_variable
+
+      type (type_standard_variable_node), pointer :: node
+
+      select type (standard_variable)
+      class is (type_universal_standard_variable)
+         allocate(standard_variable%pin_interior, standard_variable%pat_surface, standard_variable%pat_bottom, standard_variable%pat_interfaces)
+         call add_child(standard_variable%pin_interior,   trim(standard_variable%name),                     standard_variable%units, standard_variable)
+         call add_child(standard_variable%pat_surface,    trim(standard_variable%name) // '_at_surface',    trim(standard_variable%units) // '*m', standard_variable)
+         call add_child(standard_variable%pat_bottom,     trim(standard_variable%name) // '_at_bottom',     trim(standard_variable%units) // '*m', standard_variable)
+         call add_child(standard_variable%pat_interfaces, trim(standard_variable%name) // '_at_interfaces', trim(standard_variable%units) // '*m', standard_variable)
+      end select
+
+      allocate(node)
+      node%p => standard_variable
+      node%next => standard_variables%first
+      standard_variables%first => node
+      standard_variable%resolved = .true.
+   end subroutine
 
    function universal_standard_variable_typed_resolve(self) result(p)
       class (type_universal_standard_variable), target  :: self
