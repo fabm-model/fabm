@@ -541,7 +541,11 @@ contains
          class is (type_horizontal_standard_variable)
             horizontal_sum%units = trim(standard_variable%units)
             horizontal_sum%access = aggregate_variable_access%access
-            if (associated(self%parent)) horizontal_sum%result_output = output_none
+            if (associated(self%parent)) then
+               horizontal_sum%result_output = output_none
+            else
+               horizontal_sum%standard_variable => standard_variable
+            end if
             if (.not. horizontal_sum%add_to_parent(self, trim(standard_variable%name), aggregate_variable=standard_variable)) deallocate(horizontal_sum)
          end select
          aggregate_variable_access => aggregate_variable_access%next

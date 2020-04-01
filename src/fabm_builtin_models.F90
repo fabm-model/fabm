@@ -50,7 +50,7 @@ module fabm_builtin_models
       real(rk)                        :: offset        = 0.0_rk
       real(rk)                        :: missing_value = 0.0_rk
       integer                         :: access        = access_read
-      type (type_interior_standard_variable), pointer :: standard_variable => null()
+      class (type_interior_standard_variable), pointer :: standard_variable => null()
       type (type_add_id)              :: id_output
       type (type_component), pointer  :: first => null()
       type (type_sum_term), allocatable :: sources(:)
@@ -90,6 +90,7 @@ module fabm_builtin_models
       real(rk)                        :: missing_value = 0.0_rk
       integer                         :: access        = access_read
       integer                         :: domain        = domain_horizontal
+      class (type_horizontal_standard_variable), pointer :: standard_variable => null()
       type (type_horizontal_add_id)   :: id_output
       type (type_horizontal_component), pointer   :: first => null()
       type (type_horizontal_sum_term), allocatable :: sources(:)
@@ -662,7 +663,11 @@ module fabm_builtin_models
       if (present(create_for_one)) create_for_one_ = create_for_one
 
       sum_used = .false.
-      call parent%add_horizontal_variable(name, self%units, name, link=link_, act_as_state_variable=iand(self%access, access_set_source) /= 0)
+      if (associated(self%standard_variable)) then
+         call parent%add_horizontal_variable(name, self%units, name, link=link_, act_as_state_variable=iand(self%access, access_set_source) /= 0, standard_variable=self%standard_variable)
+      else
+         call parent%add_horizontal_variable(name, self%units, name, link=link_, act_as_state_variable=iand(self%access, access_set_source) /= 0)
+      end if
       if (present(link)) link => link_
       if (.not.associated(self%first)) then
          ! No components - add link to zero field to parent.
