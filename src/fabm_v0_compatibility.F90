@@ -317,7 +317,8 @@ contains
 
       call process_horizontal_slice(self%get_drag_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
-      _HORIZONTAL_UNPACK_(self%cache_hz%write_hz, self%surface_drag_id%variable%write_indices%value, drag, self%cache_hz, 1.0_rke)
+      _HORIZONTAL_UNPACK_(self%cache_hz%write_hz, self%surface_drag_id%variable%write_indices%value, drag, self%cache_hz, 0.0_rke)
+      drag = drag + 1.0_rke
    end subroutine fabm_get_drag
 
    subroutine fabm_get_albedo(self _POSTARG_HORIZONTAL_IN_, albedo)
