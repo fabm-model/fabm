@@ -328,7 +328,6 @@ module fabm_builtin_models
       type (type_component), pointer :: component
       integer           :: ncomponents, i
       character(len=10) :: temp
-      real(rk)          :: weight
       class (type_weighted_sum_sms_distributor), pointer :: sms_distributor
 
       call self%register_implemented_routines((/source_do/))
@@ -710,7 +709,6 @@ module fabm_builtin_models
       type (type_horizontal_component),pointer :: component
       integer           :: i,n
       character(len=10) :: temp
-      real(rk)          :: weight
 
       call self%register_implemented_routines((/source_do_horizontal/))
 

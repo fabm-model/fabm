@@ -96,7 +96,7 @@ module fabm
       real(rke)                       :: minimum       = -1.e20_rke
       real(rke)                       :: maximum       =  1.e20_rke
       real(rke)                       :: missing_value = -2.e20_rke
-      integer                         :: output        = output_instantaneous ! See output_* parameters above
+      integer                         :: output        = output_instantaneous ! See output_* parameters defined in fabm_types
       type (type_property_dictionary) :: properties
       integer                         :: externalid    = 0                    ! Identifier to be used freely by host
       type (type_internal_variable), pointer :: target => null()
@@ -104,35 +104,35 @@ module fabm
 
    ! Derived type for interior state variable metadata
    type, extends(type_fabm_variable) :: type_fabm_state_variable
-      type (type_interior_standard_variable) :: standard_variable
-      real(rke)                          :: initial_value             = 0.0_rke
-      logical                            :: no_precipitation_dilution = .false.
-      logical                            :: no_river_dilution         = .false.
-      integer                            :: sms_index          = -1
-      integer                            :: surface_flux_index = -1
-      integer                            :: bottom_flux_index  = -1
-      integer                            :: movement_index     = -1
+      class (type_interior_standard_variable), pointer :: standard_variable => null()
+      real(rke)                                        :: initial_value             = 0.0_rke
+      logical                                          :: no_precipitation_dilution = .false.
+      logical                                          :: no_river_dilution         = .false.
+      integer                                          :: sms_index          = -1
+      integer                                          :: surface_flux_index = -1
+      integer                                          :: bottom_flux_index  = -1
+      integer                                          :: movement_index     = -1
    end type
 
    ! Derived type for horizontal (bottom/surface) state variable metadata
    type, extends(type_fabm_variable) :: type_fabm_horizontal_state_variable
-      type (type_horizontal_standard_variable) :: standard_variable
-      real(rke)                                :: initial_value = 0.0_rke
-      integer                                  :: sms_index = -1
+      class (type_horizontal_standard_variable), pointer :: standard_variable => null()
+      real(rke)                                          :: initial_value = 0.0_rke
+      integer                                            :: sms_index = -1
    end type
 
    ! Derived type for interior diagnostic variable metadata
    type, extends(type_fabm_variable) :: type_fabm_diagnostic_variable
-      type (type_interior_standard_variable) :: standard_variable
-      logical                                :: save = .false.
-      integer                                :: source
+      class (type_interior_standard_variable), pointer :: standard_variable => null()
+      logical                                          :: save = .false.
+      integer                                          :: source
    end type
 
    ! Derived type for horizontal diagnostic variable metadata
    type, extends(type_fabm_variable) :: type_fabm_horizontal_diagnostic_variable
-      type (type_horizontal_standard_variable) :: standard_variable
-      logical                                  :: save = .false.
-      integer                                  :: source
+      class (type_horizontal_standard_variable), pointer :: standard_variable => null()
+      logical                                            :: save = .false.
+      integer                                            :: source
    end type
 
    ! Derived type for conserved quantity metadata
@@ -191,8 +191,7 @@ module fabm
       type (type_catalog)                  :: catalog
       type (type_store)                    :: store
       type (type_schedules)                :: schedules
-
-      type (type_domain) :: domain
+      type (type_domain)                   :: domain
 
       ! Memory caches for exchanging information with individual biogeochemical modules
       type (type_interior_cache)   :: cache_int
@@ -315,6 +314,7 @@ contains
    ! fabm_initialize_library: initialize FABM library
    ! --------------------------------------------------------------------------
    ! This will be called automatically when creating new models.
+   ! For instance, from fabm_create_model.
    ! --------------------------------------------------------------------------
    subroutine fabm_initialize_library()
       use fabm_library, only: fabm_model_factory
@@ -598,7 +598,7 @@ contains
 #  elif _FABM_BOTTOM_INDEX_==-1
 
    ! --------------------------------------------------------------------------
-   ! set_bottom_index: provide bottom indices for very horizontal point
+   ! set_bottom_index: provide bottom indices for every horizontal point
    ! --------------------------------------------------------------------------
    ! As FABM will keep a pointer to the array with indices, it needs to remain
    ! valid for the lifetime of the model object.
@@ -645,7 +645,7 @@ contains
    ! --------------------------------------------------------------------------
    ! start: prepare for simulation start
    ! --------------------------------------------------------------------------
-   ! This tells FABM that the user/host have finish providing (or overriding)
+   ! This tells FABM that the user/host have finished providing (or overriding)
    ! data (link_data procedures) and have finished flagging diagnostics for
    ! output (by setting the "save" flag that is part of the variable metadata)
    ! --------------------------------------------------------------------------
@@ -900,8 +900,8 @@ contains
    end subroutine start
 
    ! --------------------------------------------------------------------------
-   ! get_interior_variable_id_by_name: get interior variable identifier for given 
-   ! variable name
+   ! get_interior_variable_id_by_name: get interior variable identifier for
+   ! given variable name
    ! --------------------------------------------------------------------------
    function get_interior_variable_id_by_name(self, name) result(id)
       class (type_fabm_model), intent(in)   :: self
@@ -974,7 +974,8 @@ contains
    end function get_scalar_variable_id_sn
 
    ! --------------------------------------------------------------------------
-   ! get_variable_name: get output name associated with given variable id
+   ! get_variable_name: get output name associated with given variable id.
+   ! The name consists of alphanumeric characters and underscores only.
    ! --------------------------------------------------------------------------
    function get_variable_name(self, id) result(name)
       class (type_fabm_model),       intent(in) :: self
@@ -1031,9 +1032,9 @@ contains
    ! Unless these values are provided, a call to "start" will fail.
    ! --------------------------------------------------------------------------
    function horizontal_variable_needs_values(self, id) result(required)
-      class (type_fabm_model),                intent(in) :: self
-      type(type_fabm_horizontal_variable_id), intent(in) :: id
-      logical                                            :: required
+      class (type_fabm_model),                 intent(in) :: self
+      type (type_fabm_horizontal_variable_id), intent(in) :: id
+      logical                                             :: required
 
       required = associated(id%variable)
       if (required) required = .not. id%variable%read_indices%is_empty()
@@ -1046,9 +1047,9 @@ contains
    ! Unless these values are provided, a call to "start" will fail.
    ! --------------------------------------------------------------------------
    function horizontal_variable_needs_values_sn(self, standard_variable) result(required)
-      class (type_fabm_model),                  intent(in) :: self
-      type (type_horizontal_standard_variable), intent(in) :: standard_variable
-      logical                                              :: required
+      class (type_fabm_model),                   intent(in) :: self
+      class (type_horizontal_standard_variable), intent(in) :: standard_variable
+      logical                                               :: required
 
       required = horizontal_variable_needs_values(self, get_horizontal_variable_id_sn(self, standard_variable))
    end function horizontal_variable_needs_values_sn
@@ -1059,9 +1060,9 @@ contains
    ! Unless this value is provided, a call to "start" will fail.
    ! --------------------------------------------------------------------------
    function scalar_variable_needs_values(self, id) result(required)
-      class (type_fabm_model),            intent(in) :: self
-      type(type_fabm_scalar_variable_id), intent(in) :: id
-      logical                                        :: required
+      class (type_fabm_model),             intent(in) :: self
+      type (type_fabm_scalar_variable_id), intent(in) :: id
+      logical                                         :: required
 
       required = associated(id%variable)
       if (required) required = .not. id%variable%read_indices%is_empty()
@@ -1081,10 +1082,9 @@ contains
       required = scalar_variable_needs_values(self, get_scalar_variable_id_sn(self, standard_variable))
    end function scalar_variable_needs_values_sn
 
-   subroutine require_interior_data(self, standard_variable, domain)
+   subroutine require_interior_data(self, standard_variable)
       class (type_fabm_model),                intent(inout) :: self
       type (type_interior_standard_variable), intent(in)    :: standard_variable
-      integer, optional,                      intent(in)    :: domain
 
       type (type_fabm_interior_variable_id) :: id
 
@@ -1099,10 +1099,9 @@ contains
       call self%finalize_outputs_job%request_variable(id%variable, store=.true.)
    end subroutine require_interior_data
 
-   subroutine require_horizontal_data(self, standard_variable, domain)
-      class (type_fabm_model),                 intent(inout) :: self
-      type(type_horizontal_standard_variable), intent(in)    :: standard_variable
-      integer, optional,                       intent(in)    :: domain
+   subroutine require_horizontal_data(self, standard_variable)
+      class (type_fabm_model),                   intent(inout) :: self
+      class (type_horizontal_standard_variable), intent(in)    :: standard_variable
 
       type (type_fabm_horizontal_variable_id) :: id
 
@@ -1119,7 +1118,7 @@ contains
 
    subroutine link_interior_data_by_variable(self, variable, dat, source)
       class (type_fabm_model),              intent(inout) :: self
-      type(type_internal_variable),         intent(in)    :: variable
+      type (type_internal_variable),        intent(in)    :: variable
       real(rke) _DIMENSION_GLOBAL_, target, intent(in)    :: dat
       integer, optional,                    intent(in)    :: source
 
@@ -1156,9 +1155,9 @@ contains
    end subroutine link_interior_data_by_id
 
    subroutine link_interior_data_by_sn(model, standard_variable, dat)
-      class (type_fabm_model),               intent(inout) :: model
-      type(type_interior_standard_variable), intent(in)    :: standard_variable
-      real(rke) _DIMENSION_GLOBAL_, target,  intent(in)    :: dat
+      class (type_fabm_model),                intent(inout) :: model
+      type (type_interior_standard_variable), intent(in)    :: standard_variable
+      real(rke) _DIMENSION_GLOBAL_, target,   intent(in)    :: dat
 
       call link_interior_data_by_id(model, get_interior_variable_id_sn(model, standard_variable), dat)
    end subroutine link_interior_data_by_sn
@@ -1211,7 +1210,7 @@ contains
 
    subroutine link_horizontal_data_by_sn(model, standard_variable, dat)
       class (type_fabm_model),                         intent(inout) :: model
-      type(type_horizontal_standard_variable),         intent(in)    :: standard_variable
+      class (type_horizontal_standard_variable),       intent(in)    :: standard_variable
       real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
 
       call link_horizontal_data_by_id(model, get_horizontal_variable_id_sn(model, standard_variable), dat)
@@ -1338,7 +1337,8 @@ contains
 
       _ASSERT_(self%status >= status_start_done, 'get_interior_diagnostic_data', 'This routine can only be called after model start.')   
       dat => null()
-      if (self%diagnostic_variables(index)%target%catalog_index /= -1) dat => self%catalog%interior(self%diagnostic_variables(index)%target%catalog_index)%p
+      if (self%diagnostic_variables(index)%target%catalog_index /= -1) &
+         dat => self%catalog%interior(self%diagnostic_variables(index)%target%catalog_index)%p
    end function get_interior_diagnostic_data
 
    function get_horizontal_diagnostic_data(self, index) result(dat)
@@ -1348,7 +1348,8 @@ contains
 
       _ASSERT_(self%status >= status_start_done, 'get_horizontal_diagnostic_data', 'This routine can only be called after model start.')
       dat => null()
-      if (self%horizontal_diagnostic_variables(index)%target%catalog_index /= -1) dat => self%catalog%horizontal(self%horizontal_diagnostic_variables(index)%target%catalog_index)%p
+      if (self%horizontal_diagnostic_variables(index)%target%catalog_index /= -1) &
+         dat => self%catalog%horizontal(self%horizontal_diagnostic_variables(index)%target%catalog_index)%p
    end function get_horizontal_diagnostic_data
 
    function get_interior_data(self, id) result(dat)
@@ -1566,7 +1567,7 @@ contains
       logical,                 intent(in)    :: repair
       logical,                 intent(out)   :: valid
 
-      integer            :: icall, ivar, read_index
+      integer            :: ivar, read_index
       real(rki)          :: value, minimum, maximum
       character(len=256) :: err
       _DECLARE_INTERIOR_INDICES_
@@ -1678,7 +1679,7 @@ contains
       logical,                                    intent(in)    :: repair
       logical,                                    intent(out)   :: valid
 
-      integer            :: icall, ivar, read_index
+      integer            :: ivar, read_index
       real(rki)          :: value, minimum, maximum
       character(len=256) :: err
       _DECLARE_HORIZONTAL_INDICES_
@@ -2369,8 +2370,8 @@ contains
                   call copy_variable_metadata(object, statevar)
                   if (associated(object%standard_variables%first)) then
                      select type (standard_variable => object%standard_variables%first%p)
-                        type is (type_interior_standard_variable)
-                           statevar%standard_variable = standard_variable
+                     class is (type_interior_standard_variable)
+                        statevar%standard_variable => standard_variable
                      end select
                   end if
                   statevar%initial_value             = object%initial_value
@@ -2384,11 +2385,11 @@ contains
             case default            ! Interior diagnostic variable
                ndiag = ndiag + 1
                diagvar => self%diagnostic_variables(ndiag)
-               call copy_variable_metadata(object,diagvar)
+               call copy_variable_metadata(object, diagvar)
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable => object%standard_variables%first%p)
-                     type is (type_interior_standard_variable)
-                        diagvar%standard_variable = standard_variable
+                  class is (type_interior_standard_variable)
+                     diagvar%standard_variable => standard_variable
                   end select
                end if
                diagvar%save = diagvar%output /= output_none
@@ -2400,20 +2401,20 @@ contains
             case (source_state)     ! Horizontal state variable
                if (object%presence == presence_internal) then
                   select case (object%domain)
-                     case (domain_bottom)
-                        nstate_bot = nstate_bot + 1
-                        hz_statevar => self%bottom_state_variables(nstate_bot)
-                     case (domain_surface)
-                        nstate_surf = nstate_surf + 1
-                        hz_statevar => self%surface_state_variables(nstate_surf)
-                     case default
-                        hz_statevar => null()
+                  case (domain_bottom)
+                     nstate_bot = nstate_bot + 1
+                     hz_statevar => self%bottom_state_variables(nstate_bot)
+                  case (domain_surface)
+                     nstate_surf = nstate_surf + 1
+                     hz_statevar => self%surface_state_variables(nstate_surf)
+                  case default
+                     hz_statevar => null()
                   end select
                   call copy_variable_metadata(object, hz_statevar)
                   if (associated(object%standard_variables%first)) then
                      select type (standard_variable => object%standard_variables%first%p)
-                        type is (type_horizontal_standard_variable)
-                           hz_statevar%standard_variable = standard_variable
+                     class is (type_horizontal_standard_variable)
+                        hz_statevar%standard_variable => standard_variable
                      end select
                   end if
                   hz_statevar%initial_value = object%initial_value
@@ -2422,11 +2423,11 @@ contains
             case default            ! Horizontal diagnostic variable
                ndiag_hz = ndiag_hz + 1
                hz_diagvar => self%horizontal_diagnostic_variables(ndiag_hz)
-               call copy_variable_metadata(object,hz_diagvar)
+               call copy_variable_metadata(object, hz_diagvar)
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable => object%standard_variables%first%p)
-                     type is (type_horizontal_standard_variable)
-                        hz_diagvar%standard_variable = standard_variable
+                  class is (type_horizontal_standard_variable)
+                     hz_diagvar%standard_variable => standard_variable
                   end select
                end if
                hz_diagvar%save = hz_diagvar%output /= output_none

@@ -1338,7 +1338,6 @@ contains
       integer,                              intent(in)    :: log_unit
 
       type (type_job_node), pointer :: node, first_ordered
-      integer                       :: graph_unit, ios
 
       ! Order jobs according to call order.
       ! This ensures that jobs that are scheduled to run earlier are also initialized earlier.
