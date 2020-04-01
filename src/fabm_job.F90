@@ -636,9 +636,9 @@ contains
    end subroutine task_finalize
 
    subroutine job_request_variable(self, variable, store)
-      class (type_job),target,      intent(inout)        :: self
-      type (type_internal_variable),intent(inout),target :: variable
-      logical, optional,            intent(in)           :: store
+      class (type_job),target,       intent(inout)         :: self
+      type (type_internal_variable), intent(inout), target :: variable
+      logical, optional,             intent(in)            :: store
 
       type (type_variable_request), pointer :: variable_request
 

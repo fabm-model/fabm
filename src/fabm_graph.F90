@@ -378,12 +378,12 @@ recursive function graph_add_call(self, model, source, outer_calls) result(node)
 end function graph_add_call
 
 recursive subroutine graph_add_variable(self, variable, outer_calls, variable_set, copy_to_store, caller)
-   class (type_graph),              intent(inout) :: self
-   type (type_internal_variable),   intent(in)    :: variable
-   type (type_node_list),    target,intent(inout) :: outer_calls
-   type (type_output_variable_set), intent(inout) :: variable_set
-   logical,         optional,       intent(in)    :: copy_to_store
-   type (type_node),optional,target,intent(inout) :: caller
+   class (type_graph),                 intent(inout) :: self
+   type (type_internal_variable),      intent(in)    :: variable
+   type (type_node_list),      target, intent(inout) :: outer_calls
+   type (type_output_variable_set),    intent(inout) :: variable_set
+   logical,          optional,         intent(in)    :: copy_to_store
+   type (type_node), optional, target, intent(inout) :: caller
 
    type (type_variable_node), pointer :: variable_node
 
@@ -407,9 +407,9 @@ contains
       type (type_node),            pointer :: node
       type (type_output_variable), pointer :: output_variable
 
-      _ASSERT_(variable%source /= source_unknown, 'graph_add_variable::add_call', 'Variable registered with source_unknown')
+      _ASSERT_(variable%source /= source_unknown, 'graph_add_variable::add_call', 'Variable "' // trim(variable%name) // '" was registered with source_unknown')
       if (variable%source == source_constant .or. variable%source == source_state .or. variable%source == source_external) return
-      _ASSERT_ (.not. variable%write_indices%is_empty(), 'graph_add_variable::add_call', 'Variable ' // trim(variable%name) // ' with source ' // trim(source2string(variable%source)) // ' does not have a write index')
+      _ASSERT_ (.not. variable%write_indices%is_empty(), 'graph_add_variable::add_call', 'Variable "' // trim(variable%name) // '" with source ' // trim(source2string(variable%source)) // ' does not have a write index')
 
       node => self%add_call(variable%owner, variable%source, outer_calls)
       output_variable => node%outputs%add(variable)

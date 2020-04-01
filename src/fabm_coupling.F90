@@ -182,10 +182,10 @@ contains
       link => self%links%first
       do while (associated(link))
          ! Only process own links (those without slash in the name)
-         if (index(link%name,'/')==0) then
+         if (index(link%name, '/') == 0) then
             master_name => self%couplings%find_in_tree(link%name)
             if (associated(master_name)) then
-               call self%coupling_task_list%add(link,.true.,task)
+               call self%coupling_task_list%add(link, .true., task)
                task%user_specified = .true.
                select type (master_name)
                class is (type_string_property)
@@ -215,6 +215,8 @@ contains
          root => root%parent
       end do
 
+      ! Gather all couplings that were specified by the user as part of the FABM configuration (fabm.yaml)
+      ! This is done only once, as after collection the includes_custom flag will be set to .true.
       if (.not. self%coupling_task_list%includes_custom) call collect_user_specified_couplings(self)
 
       ! For each variable, determine if a coupling command is provided.
@@ -225,7 +227,8 @@ contains
          select case (stage)
             case (couple_explicit, couple_final)
                if (associated(coupling%master_standard_variable)) then
-                  ! Coupling to a standard variable - first try to find the corresponding standard variable.
+                  ! This is a coupling to a standard variable. First try to find the corresponding standard variable.
+                  ! We search within the root model, because there all variables are found together.
                   link => root%links%first
                   do while (associated(link))
                      if (link%target%standard_variables%contains(coupling%master_standard_variable)) exit
@@ -233,7 +236,9 @@ contains
                   end do
 
                   if (stage == couple_final .and. .not. associated(link)) then
-                     ! This is our last chance - create an appropriate variable at the root level.
+                     ! Target variable was not found, but this is our last chance.
+                     ! Therefore, create a placeholder variable at the root level.
+                     ! This variable will still need to be provided by the host.
                      select type (standard_variable => coupling%master_standard_variable)
                      class is (type_interior_standard_variable)
                         call root%add_interior_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
@@ -246,8 +251,11 @@ contains
                            standard_variable=standard_variable, presence=presence_external_optional, link=link)
                      end select
                   end if
+
+                  ! Store link to master variable
                   if (associated(link)) master => link%target
                else
+                  ! This is a coupling by variable name.
                   ! Try to find the master variable among the variables of the requesting model or its parents.
                   if (coupling%slave%name /= coupling%master_name) then
                      ! Master and slave name differ: start master search in current model, then move up tree.
@@ -270,7 +278,7 @@ contains
 
          if (associated(master)) then
             ! Target variable found: perform the coupling.
-            call couple_variables(root,master,coupling%slave%target)
+            call couple_variables(root, master, coupling%slave%target)
 
             ! Remove coupling task from the list
             call self%coupling_task_list%remove(coupling)
@@ -286,7 +294,7 @@ contains
       ! Process coupling tasks registered with child models.
       child => self%children%first
       do while (associated(child))
-         call process_coupling_tasks(child%model,stage)
+         call process_coupling_tasks(child%model, stage)
          child => child%next
       end do
 
@@ -472,7 +480,7 @@ contains
       type (type_aggregate_variable_list)            :: list
       type (type_model_list_node),           pointer :: child
 
-      ! Get a list of all aggregate
+      ! Get a list of all aggregate variables
       list = collect_aggregate_variables(self)
 
       ! Make sure that readable fields for all aggregate variables are created at the root level.
@@ -585,7 +593,7 @@ contains
                end do
 
                ! Process sums now that all contributing terms are known.
-               sum%units = trim(aggregate_variable%standard_variable%units)//'/s'
+               sum%units = trim(aggregate_variable%standard_variable%units) // '/s'
                if (.not. sum%add_to_parent(self,'change_in_' // trim(aggregate_variable%standard_variable%name), create_for_one=.true.)) deallocate(sum)
                surface_sum%units = trim(aggregate_variable%standard_variable%units) // '*m/s'
                if (.not. surface_sum%add_to_parent(self,'change_in_' // trim(aggregate_variable%standard_variable%name) // '_at_surface', create_for_one=.true.)) deallocate(surface_sum)
@@ -625,7 +633,7 @@ contains
             // trim(slave%name) // ' to ' // trim(master%name) // '.')
       if (slave_is_state_variable) then
          ! Extra checks when coupling state variables
-         if (.not. master_is_state_variable) call fatal_error('couple_variables','Attempt to couple state variable ' &
+         if (.not. master_is_state_variable) call fatal_error('couple_variables', 'Attempt to couple state variable ' &
             // trim(slave%name) // ' to non-state variable ' // trim(master%name) // '.')
          if ((slave%domain == domain_bottom .and. master%domain == domain_surface) .or. (slave%domain == domain_surface .and. master%domain == domain_bottom)) &
             call fatal_error('couple_variables', 'Cannot couple ' // trim(slave%name) // ' to '//trim(master%name) // ', because their domains are incompatible.')
