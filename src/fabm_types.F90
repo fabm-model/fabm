@@ -974,49 +974,34 @@ contains
       end select
    end subroutine add_variable_to_aggregate_variable
 
-   subroutine add_constant_to_aggregate_variable(self, target, value, domain)
-      class (type_base_model),             intent(inout) :: self
-      class (type_base_standard_variable), intent(in)    :: target
-      real(rk),                            intent(in)    :: value
-      integer, optional,                   intent(in)    :: domain
+   subroutine add_constant_to_aggregate_variable(self, target, value)
+      class (type_base_model),                        intent(inout) :: self
+      class (type_domain_specific_standard_variable), intent(in)    :: target
+      real(rk),                                       intent(in)    :: value
 
-      class (type_base_standard_variable), pointer :: standard_variable
-      integer                   :: domain_
-      type (type_link), pointer :: link
+      class (type_domain_specific_standard_variable), pointer :: standard_variable
+      type (type_link),                               pointer :: link
 
       if (.not. target%aggregate_variable) call self%fatal_error('add_constant_to_aggregate_variable', &
             'target "' // trim(target%name) // '" is not an aggregate variable.')
-      standard_variable => target%resolve()
-      domain_ = domain_interior
-      if (present(domain)) domain_ = domain
-      select case (domain_)
-      case (domain_interior)
+      standard_variable => target%typed_resolve()
+
+      select type (standard_variable)
+      class is (type_interior_standard_variable)
          call self%add_interior_variable('_constant_*', standard_variable%units, standard_variable%name, source=source_constant, &
             fill_value=value, output=output_none, link=link)
-      case (domain_surface, domain_bottom)
-         call self%add_horizontal_variable('_constant_*', trim(standard_variable%units) // '*m', standard_variable%name, source=source_constant, &
-            fill_value=value, domain=domain_, output=output_none, link=link)
-      case default
-         call self%fatal_error('add_constant_to_aggregate_variable', &
-            'domain has to be one of: domain_interior, domain_surface, domain_bottom')
-      end select
-      select type (standard_variable)
-      class is (type_universal_standard_variable)
-         select case(domain_)
-         case (domain_interior)
-            call link%target%contributions%add(standard_variable%in_interior())
-         case (domain_horizontal)
-            call link%target%contributions%add(standard_variable%at_interfaces())
-         case (domain_surface)
-            call link%target%contributions%add(standard_variable%at_interfaces())
-            call link%target%contributions%add(standard_variable%at_surface())
-         case (domain_bottom)
-            call link%target%contributions%add(standard_variable%at_interfaces())
-            call link%target%contributions%add(standard_variable%at_bottom())
-         end select
-      class is (type_domain_specific_standard_variable)
          call link%target%contributions%add(standard_variable)
+      class is (type_surface_standard_variable)
+         call self%add_horizontal_variable('_constant_*', standard_variable%units, standard_variable%name, source=source_constant, &
+            fill_value=value, domain=domain_surface, output=output_none, link=link)
+      class is (type_bottom_standard_variable)
+         call self%add_horizontal_variable('_constant_*', standard_variable%units, standard_variable%name, source=source_constant, &
+            fill_value=value, domain=domain_bottom, output=output_none, link=link)
+      class is (type_horizontal_standard_variable)
+         call self%add_horizontal_variable('_constant_*', standard_variable%units, standard_variable%name, source=source_constant, &
+            fill_value=value, output=output_none, link=link)
       end select
+      call link%target%contributions%add(standard_variable)
    end subroutine add_constant_to_aggregate_variable
 
    subroutine contribution_list_add(self, standard_variable, scale_factor, include_background)
