@@ -48,7 +48,7 @@ module fabm_standard_variables
                                           ! (http://cfconventions.org/standard-names.html)
       logical            :: aggregate_variable = .false. ! Whether biogeochemical models can contribute (add to) this variable.
                                                          ! If .true., this variable is always available with a default value of 0.
-      logical            :: resolved = .false.
+      logical, private   :: resolved = .false.
    contains
       procedure :: resolve         => base_standard_variable_resolve
       procedure :: assert_resolved => base_standard_variable_assert_resolved
@@ -77,10 +77,10 @@ module fabm_standard_variables
 
    type, extends(type_base_standard_variable) :: type_universal_standard_variable
       logical                                                     :: conserved = .false.          ! Whether this variable should be included in lists of conserved quantities.
-      class (type_interior_standard_variable),   pointer, private :: pin_interior   => null()
-      class (type_horizontal_standard_variable), pointer, private :: pat_interfaces => null()
-      class (type_surface_standard_variable),    pointer, private :: pat_surface    => null()
-      class (type_bottom_standard_variable),     pointer, private :: pat_bottom     => null()
+      type (type_interior_standard_variable),   pointer, private :: pin_interior   => null()
+      type (type_horizontal_standard_variable), pointer, private :: pat_interfaces => null()
+      type (type_surface_standard_variable),    pointer, private :: pat_surface    => null()
+      type (type_bottom_standard_variable),     pointer, private :: pat_bottom     => null()
    contains
       procedure :: typed_resolve => universal_standard_variable_typed_resolve
       procedure :: in_interior   => universal_standard_variable_in_interior
