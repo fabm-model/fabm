@@ -587,10 +587,9 @@ contains
       ! Get list of conserved quantities (map to universal=domain-independent variables where possible)
       aggregate_variable => aggregate_variable_list%first
       do while (associated(aggregate_variable))
-         select type (universal => aggregate_variable%standard_variable%universal)
-         class is (type_universal_standard_variable)
-            if (universal%conserved) call standard_variable_set%add(universal)
-         end select
+         if (associated(aggregate_variable%standard_variable%universal)) then
+            if (aggregate_variable%standard_variable%universal%conserved) call standard_variable_set%add(aggregate_variable%standard_variable%universal)
+         end if
          aggregate_variable => aggregate_variable%next
       end do
 

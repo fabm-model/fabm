@@ -41,7 +41,7 @@ module fabm_standard_variables
    ! Data types that contain all metadata needed to describe standard variables.
    ! ====================================================================================================
 
-   type, abstract :: type_base_standard_variable
+   type type_base_standard_variable
       character(len=256) :: name  = ''    ! Name
       character(len=64)  :: units = ''    ! Units
       character(len=512) :: cf_names = '' ! Comma-separated list of standard names defined in the NetCDF CF convention
@@ -54,8 +54,8 @@ module fabm_standard_variables
       procedure :: assert_resolved => base_standard_variable_assert_resolved
    end type
 
-   type, extends(type_base_standard_variable), abstract :: type_domain_specific_standard_variable
-      class (type_base_standard_variable), pointer :: universal => null()
+   type, extends(type_base_standard_variable) :: type_domain_specific_standard_variable
+      type (type_universal_standard_variable), pointer :: universal => null()
    contains
       procedure :: typed_resolve => domain_specific_standard_variable_typed_resolve
    end type
@@ -76,7 +76,7 @@ module fabm_standard_variables
    end type
 
    type, extends(type_base_standard_variable) :: type_universal_standard_variable
-      logical                                                     :: conserved = .false.          ! Whether this variable should be included in lists of conserved quantities.
+      logical                                                    :: conserved = .false.          ! Whether this variable should be included in lists of conserved quantities.
       type (type_interior_standard_variable),   pointer, private :: pin_interior   => null()
       type (type_horizontal_standard_variable), pointer, private :: pat_interfaces => null()
       type (type_surface_standard_variable),    pointer, private :: pat_surface    => null()
@@ -156,7 +156,7 @@ contains
    subroutine add_child(standard_variable, name, units, universal)
       class (type_domain_specific_standard_variable), target :: standard_variable
       character(len=*), intent(in)                           :: name, units
-      class (type_universal_standard_variable),       target :: universal
+      type (type_universal_standard_variable),        target :: universal
       standard_variable%name = name
       standard_variable%units = units
       standard_variable%aggregate_variable = universal%aggregate_variable
