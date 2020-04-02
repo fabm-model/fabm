@@ -309,6 +309,7 @@ contains
       type (type_weighted_sum), pointer :: sum
 
       allocate(sum)
+      sum%missing_value = 0
       sum%result_output = output_none
       link => link_list%first
       do while (associated(link))
@@ -327,6 +328,7 @@ contains
       type (type_horizontal_weighted_sum), pointer :: sum
 
       allocate(sum)
+      sum%missing_value = 0
       sum%result_output = output_none
       link => link_list%first
       do while (associated(link))
@@ -647,9 +649,9 @@ contains
       class (type_base_model), intent(inout), target :: self
       type (type_internal_variable), pointer         :: master,slave
 
-      type (type_link_pointer),pointer :: link_pointer, next_link_pointer
-      logical                          :: slave_is_state_variable
-      logical                          :: master_is_state_variable
+      type (type_link_pointer), pointer :: link_pointer, next_link_pointer
+      logical                           :: slave_is_state_variable
+      logical                           :: master_is_state_variable
 
       ! If slave and master are the same, we are done - return.
       if (associated(slave, master)) return

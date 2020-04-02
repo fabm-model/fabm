@@ -48,7 +48,7 @@ module fabm_builtin_models
       character(len=attribute_length) :: units         = ''
       integer                         :: result_output = output_instantaneous
       real(rk)                        :: offset        = 0.0_rk
-      real(rk)                        :: missing_value = 0.0_rk
+      real(rk)                        :: missing_value = -2.e20_rk
       integer                         :: access        = access_read
       class (type_interior_standard_variable), pointer :: standard_variable => null()
       type (type_add_id)              :: id_output
@@ -87,7 +87,7 @@ module fabm_builtin_models
       character(len=attribute_length) :: units         = ''
       integer                         :: result_output = output_instantaneous
       real(rk)                        :: offset        = 0.0_rk
-      real(rk)                        :: missing_value = 0.0_rk
+      real(rk)                        :: missing_value = -2.e20_rk
       integer                         :: access        = access_read
       integer                         :: domain        = domain_horizontal
       class (type_horizontal_standard_variable), pointer :: standard_variable => null()
