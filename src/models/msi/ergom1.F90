@@ -202,7 +202,7 @@
    call self%register_state_variable(self%id_pw,'pw','mmol p/m**3', 'PFe_w', minimum=0.0_rk,vertical_movement=wpo4/secs_per_day,no_river_dilution=.true.)
      
    ! Register link to external DIC pool.
-   if (self%calc_dic) call self%register_state_dependency(self%id_dic,self%dic_variable)
+   if (self%calc_dic) call self%register_state_dependency(self%id_dic,self%dic_variable,'mmol c/m**3','dissolved inorganic carbon')
 
    ! Register diagnostic variables
    call self%register_diagnostic_variable(self%id_NO3,    'Nit',      'mgNO3N/m**3','nitrate conc in mass unit',                output=output_instantaneous)

@@ -103,7 +103,7 @@
 
 
    if ( tracer_age_variable/='' ) then
-      call self%register_dependency(self%id_tracer,trim(tracer_age_variable))
+      call self%register_dependency(self%id_tracer,trim(tracer_age_variable),'',trim(tracer_age_variable))
       self%external_tracer   = .true.
       ! we need an auxillery variable
       call self%register_state_variable(self%id_age_alpha, &

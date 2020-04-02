@@ -63,7 +63,7 @@ contains
       call self%set_variable_property(self%id_consumed_prey, 'disable_transport', .true.)
 
       ! Register link to external pelagic prey.
-      call self%register_state_dependency(self%id_prey, 'prey')
+      call self%register_state_dependency(self%id_prey, 'prey', '', 'prey')
    end subroutine initialize
 
    subroutine do(self,_ARGUMENTS_DO_)
