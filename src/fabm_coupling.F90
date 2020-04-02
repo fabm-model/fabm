@@ -568,51 +568,77 @@ contains
       class (type_horizontal_weighted_sum),pointer :: surface_sum, bottom_sum
       type (type_contributing_variable),   pointer :: contributing_variable
       type (type_model_list_node),         pointer :: child
-
-      if (self%check_conservation) then
-         aggregate_variable_list = collect_aggregate_variables(self)
-
-         aggregate_variable => aggregate_variable_list%first
-         do while (associated(aggregate_variable))
-            if (aggregate_variable%standard_variable%conserved) then
-               ! Allocate objects that will do the summation across the different domains.
-               allocate(sum, surface_sum, bottom_sum)
-
-               ! Enumerate contributions to aggregate variable.
-               contributing_variable => aggregate_variable%first_contributing_variable
-               do while (associated(contributing_variable))
-                  if (index(contributing_variable%link%name, '/') == 0) then
-                     select case (contributing_variable%link%original%domain)
-                        case (domain_interior)
-                           if (associated(contributing_variable%link%original%sms))          call sum%add_component        (contributing_variable%link%original%sms%name,          contributing_variable%scale_factor)
-                           if (associated(contributing_variable%link%original%surface_flux)) call surface_sum%add_component(contributing_variable%link%original%surface_flux%name, contributing_variable%scale_factor)
-                           if (associated(contributing_variable%link%original%bottom_flux))  call bottom_sum%add_component (contributing_variable%link%original%bottom_flux%name,  contributing_variable%scale_factor)
-                        case (domain_surface)
-                           if (associated(contributing_variable%link%original%sms)) call surface_sum%add_component(contributing_variable%link%original%sms%name, contributing_variable%scale_factor)
-                        case (domain_bottom)
-                           if (associated(contributing_variable%link%original%sms)) call bottom_sum%add_component(contributing_variable%link%original%sms%name, contributing_variable%scale_factor)
-                     end select
-                  end if   
-                  contributing_variable => contributing_variable%next
-               end do
-
-               ! Process sums now that all contributing terms are known.
-               sum%units = trim(aggregate_variable%standard_variable%units) // '/s'
-               if (.not. sum%add_to_parent(self,'change_in_' // trim(aggregate_variable%standard_variable%name), create_for_one=.true.)) deallocate(sum)
-               surface_sum%units = trim(aggregate_variable%standard_variable%units) // '*m/s'
-               if (.not. surface_sum%add_to_parent(self,'change_in_' // trim(aggregate_variable%standard_variable%name) // '_at_surface', create_for_one=.true.)) deallocate(surface_sum)
-               bottom_sum%units = trim(aggregate_variable%standard_variable%units) // '*m/s'
-               if (.not. bottom_sum%add_to_parent(self,'change_in_' // trim(aggregate_variable%standard_variable%name) // '_at_bottom', create_for_one=.true.)) deallocate(bottom_sum)
-            end if
-            aggregate_variable => aggregate_variable%next
-         end do
-      end if
+      type (type_standard_variable_set)           :: standard_variable_set
+      type (type_standard_variable_node), pointer :: standard_variable_node
 
       ! Process child models
       child => self%children%first
       do while (associated(child))
          call create_conservation_checks(child%model)
          child => child%next
+      end do
+
+      if (.not. self%check_conservation) return
+
+      aggregate_variable_list = collect_aggregate_variables(self)
+
+      ! Get list of conserved quantities (map to universal=domain-independent variables where possible)
+      aggregate_variable => aggregate_variable_list%first
+      do while (associated(aggregate_variable))
+         select type (universal => aggregate_variable%standard_variable%universal)
+         class is (type_universal_standard_variable)
+            if (universal%conserved) call standard_variable_set%add(universal)
+         end select
+         aggregate_variable => aggregate_variable%next
+      end do
+
+      standard_variable_node => standard_variable_set%first
+      do while (associated(standard_variable_node))
+         select type (standard_variable => standard_variable_node%p)
+         class is (type_universal_standard_variable)
+            ! Allocate objects that will sum fluxes for each of the different domains (interior, surface, bottom).
+            allocate(sum, surface_sum, bottom_sum)
+
+            ! Enumerate contributions to interior field.
+            aggregate_variable => aggregate_variable_list%get(standard_variable%in_interior())
+            contributing_variable => aggregate_variable%first_contributing_variable
+            do while (associated(contributing_variable))
+               if (index(contributing_variable%link%name, '/') == 0) then
+                  if (associated(contributing_variable%link%original%sms))          call sum%add_component        (contributing_variable%link%original%sms%name,          contributing_variable%scale_factor)
+                  if (associated(contributing_variable%link%original%surface_flux)) call surface_sum%add_component(contributing_variable%link%original%surface_flux%name, contributing_variable%scale_factor)
+                  if (associated(contributing_variable%link%original%bottom_flux))  call bottom_sum%add_component (contributing_variable%link%original%bottom_flux%name,  contributing_variable%scale_factor)
+               end if
+               contributing_variable => contributing_variable%next
+            end do
+
+            ! Enumerate contributions to surface field.
+            aggregate_variable => aggregate_variable_list%get(standard_variable%at_surface())
+            contributing_variable => aggregate_variable%first_contributing_variable
+            do while (associated(contributing_variable))
+               if (index(contributing_variable%link%name, '/') == 0 .and. associated(contributing_variable%link%original%sms)) &
+                  call surface_sum%add_component(contributing_variable%link%original%sms%name, contributing_variable%scale_factor)
+               contributing_variable => contributing_variable%next
+            end do
+
+            ! Enumerate contributions to bottom field.
+            aggregate_variable => aggregate_variable_list%get(standard_variable%at_bottom())
+            contributing_variable => aggregate_variable%first_contributing_variable
+            do while (associated(contributing_variable))
+               if (index(contributing_variable%link%name, '/') == 0 .and. associated(contributing_variable%link%original%sms)) &
+                  call bottom_sum%add_component(contributing_variable%link%original%sms%name, contributing_variable%scale_factor)
+               contributing_variable => contributing_variable%next
+            end do
+
+            ! Process sums now that all contributing terms are known.
+            sum%units = trim(standard_variable%units) // '/s'
+            if (.not. sum%add_to_parent(self,'change_in_' // trim(standard_variable%name), create_for_one=.true.)) deallocate(sum)
+            surface_sum%units = trim(standard_variable%units) // '*m/s'
+            if (.not. surface_sum%add_to_parent(self,'change_in_' // trim(standard_variable%name) // '_at_surface', create_for_one=.true.)) deallocate(surface_sum)
+            bottom_sum%units = trim(standard_variable%units) // '*m/s'
+            if (.not. bottom_sum%add_to_parent(self,'change_in_' // trim(standard_variable%name) // '_at_bottom', create_for_one=.true.)) deallocate(bottom_sum)
+         end select
+
+         standard_variable_node => standard_variable_node%next
       end do
 
    end subroutine create_conservation_checks

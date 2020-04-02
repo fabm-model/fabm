@@ -2246,12 +2246,11 @@ contains
       aggregate_variable_list = collect_aggregate_variables(self%root)
       aggregate_variable => aggregate_variable_list%first
       do while (associated(aggregate_variable))
-         if (aggregate_variable%standard_variable%conserved) then
-            if (associated(aggregate_variable%standard_variable%universal)) then
-               call standard_variable_set%add(aggregate_variable%standard_variable%universal)
-            else
-               call standard_variable_set%add(aggregate_variable%standard_variable)
-            end if
+         if (associated(aggregate_variable%standard_variable%universal)) then
+            select type (universal => aggregate_variable%standard_variable%universal)
+            class is (type_universal_standard_variable)
+               if (universal%conserved) call standard_variable_set%add(universal)
+            end select
          end if
          aggregate_variable => aggregate_variable%next
       end do
