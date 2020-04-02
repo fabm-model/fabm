@@ -91,6 +91,10 @@
 !EOP
 !-----------------------------------------------------------------------
 
+   type (type_bottom_standard_variable), parameter :: total_bedpool   = type_bottom_standard_variable(name='total_bedpool',  units='kg/m**2',aggregate_variable=.true.)
+   type (type_bottom_standard_variable), parameter :: total_fluffpool = type_bottom_standard_variable(name='total_fluffpool',units='kg/m**2',aggregate_variable=.true.)
+   type (type_bottom_standard_variable), parameter :: total_mudpool   = type_bottom_standard_variable(name='total_fluffpool',units='kg/m**2',aggregate_variable=.true.)
+
    contains
 
 !-----------------------------------------------------------------------
@@ -268,9 +272,8 @@
       call self%register_state_variable(self%id_pmpool,'pmpool','kg/m**2', &
          'mass/m**2 of PM in bottom pool',self%rho*self%thickness_L1)
       ! compute the total mass in the bottom pool
-      call self%register_dependency(self%id_total_pmpool,'total_bedpool_at_interfaces')
-      call self%add_to_aggregate_variable(type_bulk_standard_variable(name='total_bedpool'), &
-            self%id_pmpool)
+      call self%register_dependency(self%id_total_pmpool,total_bedpool)
+      call self%add_to_aggregate_variable(total_bedpool,self%id_pmpool)
       ! now figure out, which resuspension model is used
       select case (self%resuspension_model )
          case ( 0,1 )
@@ -284,13 +287,11 @@
             call self%register_state_variable(self%id_flufflayer,'flufflayer','kg/m**2', &
                'mass/m**2 of sediment in fluff layer',self%rho*self%thickness_fluff)
             ! compute the total mass in the fluff layer
-            call self%register_dependency(self%id_total_fluffpool,'total_fluffpool_at_interfaces')
-            call self%add_to_aggregate_variable(type_bulk_standard_variable(name='total_fluffpool'), &
-               self%id_flufflayer)
+            call self%register_dependency(self%id_total_fluffpool,total_fluffpool)
+            call self%add_to_aggregate_variable(total_fluffpool,self%id_flufflayer)
             if ( self%sand_mud_interaction ) then
                ! compute the total mass of mud in the sand bed
-               call self%add_to_aggregate_variable(type_bulk_standard_variable(name='total_mudpool'), &
-                  self%id_pmpool)
+               call self%add_to_aggregate_variable(total_mudpool,self%id_pmpool)
             endif
       end select
    endif
@@ -308,7 +309,7 @@
       ! check for valid range
       self%crit_mud = max(min(self%crit_mud,0.99_rk),0.0_rk)
       ! register link to the mudpool
-      call self%register_dependency(self%id_total_mudpool,'total_mudpool_at_interfaces')
+      call self%register_dependency(self%id_total_mudpool,total_mudpool)
       ! check if the diameter is larger than 63 mikron (limit for mud)
       if (self%diameter .gt. 63.0_rk/1e6_rk ) then
          LEVEL2 'This is the mud fraction'
