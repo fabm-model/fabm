@@ -65,8 +65,8 @@ module fabm_job
       type (type_cache_copy_command), allocatable :: copy_commands_int(:) ! interior variables to copy from write to read cache after call completes
       type (type_cache_copy_command), allocatable :: copy_commands_hz(:)  ! horizontal variables to copy from write to read cache after call completes
 
-      type (type_task), pointer :: next => null()
-      type (type_job),  pointer :: job =>  null()
+      type (type_task),  pointer :: next => null()
+      class (type_job),  pointer :: job =>  null()
 
       type (type_variable_set), private :: read_cache_preload
       type (type_variable_set), private :: write_cache_preload
@@ -1024,7 +1024,7 @@ contains
          integer                                       :: n
          type (type_variable_and_task), allocatable    :: variable_and_tasks(:)
          type (type_job_set)                           :: job_set
-         type (type_job),                      pointer :: first_job
+         class (type_job),                     pointer :: first_job
          type (type_task),                     pointer :: first_task
 
          if (.not. associated(output_variable_set%first)) return
@@ -1133,7 +1133,7 @@ contains
 
    subroutine job_set_add(self, job)
       class (type_job_set), intent(inout) :: self
-      type (type_job), target             :: job
+      class (type_job), target            :: job
 
       type (type_job_node), pointer :: job_node
 
@@ -1150,7 +1150,7 @@ contains
 
    function job_set_find_first(job_set) result(first)
       class (type_job_set), intent(in) :: job_set
-      type (type_job), pointer :: first
+      class (type_job), pointer :: first
 
       type (type_job_node), pointer :: job_node
 
@@ -1188,7 +1188,7 @@ contains
    contains
 
       recursive function has_flagged_ancestor(job) result(found)
-         type (type_job), intent(in) :: job
+         class (type_job), intent(in) :: job
          logical :: found
 
          type (type_job_node), pointer :: job_node
@@ -1284,11 +1284,11 @@ contains
 
    subroutine job_manager_create(self, job, name, source, outsource_tasks, previous)
       class (type_job_manager), intent(inout) :: self
-      type (type_job),target,   intent(inout) :: job
+      class (type_job), target, intent(inout) :: job
       character(len=*),         intent(in)    :: name
       integer, optional,        intent(in)    :: source
       logical, optional,        intent(in)    :: outsource_tasks
-      type (type_job), target, optional       :: previous
+      class (type_job), target, optional      :: previous
 
       type (type_job_node), pointer :: node
 
@@ -1400,7 +1400,7 @@ contains
    contains
 
       recursive subroutine add_to_order(job)
-         type (type_job), target :: job
+         class (type_job), target :: job
 
          type (type_job_node), pointer :: node
 
@@ -1439,7 +1439,7 @@ contains
       integer,                                         intent(in) :: unit
       type (type_internal_variable), target, optional, intent(in) :: specific_variable
 
-      type (type_job_node),pointer :: node
+      type (type_job_node), pointer :: node
 
       node => self%first
       do while (associated(node))
@@ -1469,7 +1469,7 @@ contains
    contains
 
       subroutine job_write_graph(job)
-         type (type_job), intent(in) :: job
+         class (type_job), intent(in) :: job
 
          type (type_task),     pointer :: task, previous_task
          integer                       :: itask, icall
