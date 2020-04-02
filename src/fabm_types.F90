@@ -31,7 +31,8 @@ module fabm_types
 
    ! Collection with standard variables (e.g., temperature, practical_salinity)
    public standard_variables
-   public type_interior_standard_variable, type_horizontal_standard_variable, type_global_standard_variable, type_universal_standard_variable, &
+   public type_interior_standard_variable, type_horizontal_standard_variable, type_global_standard_variable, &
+      type_universal_standard_variable, type_bottom_standard_variable, type_surface_standard_variable, &
       initialize_standard_variables, type_standard_variable_node, type_base_standard_variable, type_standard_variable_set
 
    ! Variable identifier types used by biogeochemical models
@@ -2036,10 +2037,14 @@ contains
       class (type_base_model),                  intent(inout)         :: self
       type (type_horizontal_dependency_id),     intent(inout), target :: id
       class (type_universal_standard_variable), intent(in)            :: standard_variable
-      integer,                                  intent(in)            :: domain
+      integer, optional,                        intent(in)            :: domain
       logical, optional,                        intent(in)            :: required
 
-      select case (domain)
+      integer :: domain_
+
+      domain_ = domain_horizontal
+      if (present(domain)) domain_ = domain
+      select case (domain_)
       case (domain_surface);    call register_standard_horizontal_dependency(self, id, standard_variable%at_surface(), required)
       case (domain_bottom);     call register_standard_horizontal_dependency(self, id, standard_variable%at_bottom(), required)
       case (domain_horizontal); call register_standard_horizontal_dependency(self, id, standard_variable%at_interfaces(), required)
