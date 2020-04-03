@@ -281,6 +281,7 @@ module fabm_builtin_models
       if (present(create_for_one)) create_for_one_ = create_for_one
 
       sum_used = .false.
+      link_ => null()
       if (associated(self%standard_variable)) then
          call parent%add_interior_variable(name, self%units, name, link=link_, act_as_state_variable=iand(self%access,access_set_source) /= 0, standard_variable=self%standard_variable)
       else
@@ -662,6 +663,7 @@ module fabm_builtin_models
       if (present(create_for_one)) create_for_one_ = create_for_one
 
       sum_used = .false.
+      link_ => null()
       if (associated(self%standard_variable)) then
          call parent%add_horizontal_variable(name, self%units, name, link=link_, act_as_state_variable=iand(self%access, access_set_source) /= 0, standard_variable=self%standard_variable)
       else
@@ -702,9 +704,9 @@ module fabm_builtin_models
       end if
    end function horizontal_weighted_sum_add_to_parent
 
-   subroutine horizontal_weighted_sum_initialize(self,configunit)
-      class (type_horizontal_weighted_sum),intent(inout),target :: self
-      integer,                             intent(in)           :: configunit
+   subroutine horizontal_weighted_sum_initialize(self, configunit)
+      class (type_horizontal_weighted_sum), intent(inout), target :: self
+      integer,                              intent(in)            :: configunit
 
       type (type_horizontal_component),pointer :: component
       integer           :: i,n

@@ -29,7 +29,7 @@ module fabm_types
    ! Base data type for biogeochemical models.
    public type_base_model
 
-   ! Collection with standard variables (e.g., temperature, practical_salinity)
+   ! Expose symbols defined in fabm_standard_variables module
    public standard_variables
    public type_interior_standard_variable, type_horizontal_standard_variable, type_global_standard_variable, &
       type_universal_standard_variable, type_bottom_standard_variable, type_surface_standard_variable, &
@@ -37,22 +37,17 @@ module fabm_types
 
    ! Variable identifier types used by biogeochemical models
    public type_variable_id
-   public type_diagnostic_variable_id
-   public type_horizontal_diagnostic_variable_id
-   public type_state_variable_id
-   public type_surface_state_variable_id
-   public type_bottom_state_variable_id
-   public type_dependency_id
-   public type_horizontal_dependency_id
-   public type_global_dependency_id
+   public type_diagnostic_variable_id, type_horizontal_diagnostic_variable_id, &
+      type_surface_diagnostic_variable_id, type_bottom_diagnostic_variable_id
+   public type_state_variable_id, type_surface_state_variable_id, type_bottom_state_variable_id
+   public type_dependency_id, type_horizontal_dependency_id, type_global_dependency_id
    public type_add_id, type_horizontal_add_id
 
    ! Data types and procedures for variable management - used by FABM internally only.
    public type_link, type_link_list, type_link_pointer, type_variable_node, type_variable_set, type_variable_list
    public type_internal_variable
    public type_cache, type_interior_cache, type_horizontal_cache, type_vertical_cache
-
-   public type_model_list,type_model_list_node
+   public type_model_list, type_model_list_node
 
    public get_free_unit
    public get_safe_name
@@ -227,6 +222,14 @@ module fabm_types
 
    type, extends(type_variable_id) :: type_diagnostic_variable_id
       integer :: write_index = -1
+   end type
+
+   type, extends(type_variable_id) :: type_surface_diagnostic_variable_id
+      integer :: surface_write_index = -1
+   end type
+
+   type, extends(type_variable_id) :: type_bottom_diagnostic_variable_id
+      integer :: bottom_write_index = -1
    end type
 
    type, extends(type_variable_id) :: type_horizontal_diagnostic_variable_id
@@ -497,6 +500,8 @@ module fabm_types
       procedure :: register_surface_state_variable
 
       procedure :: register_interior_diagnostic_variable
+      procedure :: register_surface_diagnostic_variable
+      procedure :: register_bottom_diagnostic_variable
       procedure :: register_horizontal_diagnostic_variable
 
       procedure :: register_named_interior_dependency
@@ -527,7 +532,8 @@ module fabm_types
 
       generic :: register_state_variable      => register_interior_state_variable, register_bottom_state_variable, &
                                                  register_surface_state_variable
-      generic :: register_diagnostic_variable => register_interior_diagnostic_variable, register_horizontal_diagnostic_variable
+      generic :: register_diagnostic_variable => register_interior_diagnostic_variable, register_horizontal_diagnostic_variable, &
+                                                 register_surface_diagnostic_variable, register_bottom_diagnostic_variable
       generic :: register_dependency          => register_named_interior_dependency, register_standard_interior_dependency, &
                                                  register_universal_interior_dependency, &
                                                  register_named_horizontal_dependency, register_standard_horizontal_dependency, &
@@ -987,6 +993,7 @@ contains
             'target "' // trim(target%name) // '" is not an aggregate variable.')
       standard_variable => target%typed_resolve()
 
+      link => null()
       select type (standard_variable)
       class is (type_interior_standard_variable)
          call self%add_interior_variable('_constant_*', standard_variable%units, standard_variable%name, source=source_constant, &
@@ -1432,9 +1439,6 @@ contains
       class (type_base_standard_variable), intent(in), optional  :: standard_variable
       integer,                             intent(in), optional  :: presence
 
-      if (associated(id%link)) call self%fatal_error('register_interior_state_variable', &
-         'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(id%link%name) // '.')
-
       call self%add_interior_variable(name, units, long_name, missing_value, minimum, maximum, &
                                       initial_value=initial_value, background_value=background_value, &
                                       specific_light_extinction=specific_light_extinction, &
@@ -1447,7 +1451,6 @@ contains
       call register_surface_flux(self, id%link, id%surface_flux)
       call register_bottom_flux(self, id%link, id%bottom_flux)
       call register_movement(self, id%link, id%movement, vertical_movement)
-
    end subroutine register_interior_state_variable
 
    subroutine register_source(self, link, sms_id, source)
@@ -1586,9 +1589,6 @@ contains
       class (type_base_standard_variable),  intent(in), optional  :: standard_variable
       integer,                              intent(in), optional  :: presence
 
-      if (associated(id%link)) call self%fatal_error('register_bottom_state_variable', &
-         'Identifier supplied for ' // trim(name)//' is already associated with ' // trim(id%link%name)//'.')
-
       call self%add_horizontal_variable(name, units, long_name, missing_value, minimum, maximum, &
                                         initial_value=initial_value, background_value=background_value, &
                                         standard_variable=standard_variable, presence=presence, domain=domain_bottom, &
@@ -1607,9 +1607,6 @@ contains
       real(rk),                              intent(in), optional  :: minimum, maximum, missing_value, background_value
       class (type_base_standard_variable),   intent(in), optional  :: standard_variable
       integer,                               intent(in), optional  :: presence
-
-      if (associated(id%link)) call self%fatal_error('register_surface_state_variable', &
-         'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(id%link%name) // '.')
 
       call self%add_horizontal_variable(name, units, long_name, missing_value, minimum, maximum, &
                                         initial_value=initial_value, background_value=background_value, &
@@ -1736,7 +1733,10 @@ contains
 
       ! Create a class pointer and use that to create a link.
       link_ => add_object(self, variable)
-      if (present(link)) link => link_
+      if (present(link)) then
+         if (associated(link)) call self%fatal_error('add_variable', 'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(link%name) // '.')
+         link => link_
+      end if
    end subroutine add_variable
 
    subroutine add_interior_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
@@ -1881,9 +1881,8 @@ contains
       end if
    end function add_object
 
-   subroutine register_interior_diagnostic_variable(self, id, name, units, long_name, &
-                                                missing_value, standard_variable, output, source, &
-                                                act_as_state_variable, prefill_value)
+   subroutine register_interior_diagnostic_variable(self, id, name, units, long_name, missing_value, standard_variable, output, &
+                                                    source, act_as_state_variable, prefill_value)
       class (type_base_model),             intent(inout), target :: self
       type (type_diagnostic_variable_id),  intent(inout), target :: id
       character(len=*),                    intent(in)           :: name, long_name, units
@@ -1894,9 +1893,6 @@ contains
 
       integer :: source_
 
-      if (associated(id%link)) call self%fatal_error('register_interior_diagnostic_variable', &
-         'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(id%link%name) // '.')
-
       source_ = source_do
       if (present(source)) source_ = source
       call self%add_interior_variable(name, units, long_name, missing_value, fill_value=prefill_value, &
@@ -1904,9 +1900,8 @@ contains
          act_as_state_variable=act_as_state_variable)
    end subroutine register_interior_diagnostic_variable
 
-   subroutine register_horizontal_diagnostic_variable(self, id, name, units, long_name, &
-                                                      missing_value, standard_variable, output, source, &
-                                                      act_as_state_variable, domain)
+   subroutine register_horizontal_diagnostic_variable(self, id, name, units, long_name, missing_value, standard_variable, output, &
+                                                      source, act_as_state_variable, domain)
       class (type_base_model),                       intent(inout), target :: self
       type (type_horizontal_diagnostic_variable_id), intent(inout), target :: id
       character(len=*),                              intent(in)            :: name, units, long_name
@@ -1915,14 +1910,51 @@ contains
       class (type_base_standard_variable),           intent(in), optional  :: standard_variable
       logical,                                       intent(in), optional  :: act_as_state_variable
 
-      if (associated(id%link)) call self%fatal_error('register_horizontal_diagnostic_variable', &
-         'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(id%link%name) // '.')
-
       call self%add_horizontal_variable(name, units, long_name, missing_value, &
                                         standard_variable=standard_variable, output=output, &
                                         source=source, write_index=id%horizontal_write_index, link=id%link, &
                                         act_as_state_variable=act_as_state_variable, domain=domain)
    end subroutine register_horizontal_diagnostic_variable
+
+   subroutine register_surface_diagnostic_variable(self, id, name, units, long_name, missing_value, standard_variable, &
+                                                   output, source, act_as_state_variable)
+      class (type_base_model),                    intent(inout), target :: self
+      type (type_surface_diagnostic_variable_id), intent(inout), target :: id
+      character(len=*),                           intent(in)            :: name, units, long_name
+      integer,                                    intent(in), optional  :: output, source
+      real(rk),                                   intent(in), optional  :: missing_value
+      class (type_base_standard_variable),        intent(in), optional  :: standard_variable
+      logical,                                    intent(in), optional  :: act_as_state_variable
+
+      integer :: source_
+
+      source_ = source_do_surface
+      if (present(source)) source_ = source
+      call self%add_horizontal_variable(name, units, long_name, missing_value, &
+                                        standard_variable=standard_variable, output=output, &
+                                        source=source_, write_index=id%surface_write_index, link=id%link, &
+                                        act_as_state_variable=act_as_state_variable, domain=domain_surface)
+   end subroutine register_surface_diagnostic_variable
+
+   subroutine register_bottom_diagnostic_variable(self, id, name, units, long_name, missing_value, standard_variable, &
+                                                  output, source, act_as_state_variable)
+      class (type_base_model),                   intent(inout), target :: self
+      type (type_bottom_diagnostic_variable_id), intent(inout), target :: id
+      character(len=*),                          intent(in)            :: name, units, long_name
+      integer,                                   intent(in), optional  :: output, source
+      real(rk),                                  intent(in), optional  :: missing_value
+      class (type_base_standard_variable),       intent(in), optional  :: standard_variable
+      logical,                                   intent(in), optional  :: act_as_state_variable
+
+      integer :: source_
+
+      source_ = source_do_bottom
+      if (present(source)) source_ = source
+      call self%add_horizontal_variable(name, units, long_name, missing_value, &
+                                        standard_variable=standard_variable, output=output, &
+                                        source=source_, write_index=id%bottom_write_index, link=id%link, &
+                                        act_as_state_variable=act_as_state_variable, domain=domain_bottom)
+   end subroutine register_bottom_diagnostic_variable
 
    subroutine register_interior_state_dependency(self, id, name, units, long_name, required)
       class (type_base_model),                intent(inout)         :: self
@@ -2072,9 +2104,6 @@ contains
 
       integer :: presence
 
-      if (associated(id%link)) call self%fatal_error('register_named_interior_dependency', &
-         'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(id%link%name) // '.')
-
       ! Dependencies MUST be fulfilled, unless explicitly specified that this is not so (required=.false.)
       presence = presence_external_required
       if (present(required)) then
@@ -2093,9 +2122,6 @@ contains
 
       integer :: presence
 
-      if (associated(id%link)) call self%fatal_error('register_named_horizontal_dependency', &
-         'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(id%link%name) // '.')
-
       ! Dependencies MUST be fulfilled, unless explicitly specified that this is not so (required=.false.)
       presence = presence_external_required
       if (present(required)) then
@@ -2113,9 +2139,6 @@ contains
       logical,                          intent(in), optional  :: required
 
       integer :: presence
-
-      if (associated(id%link)) call self%fatal_error('register_named_global_dependency', &
-         'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(id%link%name) // '.')
 
       ! Dependencies MUST be fulfilled, unless explicitly specified that this is not so (required=.false.)
       presence = presence_external_required

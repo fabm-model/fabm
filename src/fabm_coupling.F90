@@ -361,6 +361,7 @@ contains
                end select
             else
                ! We do not own this variable. Link to summations for sources-sinks and surface/bottom fluxes.
+               link1 => null()
                select case (link%target%domain)
                case (domain_interior)
                   call self%add_interior_variable(trim(link%name) // '_sms_tot', link=link1)
