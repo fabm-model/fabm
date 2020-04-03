@@ -56,7 +56,8 @@
       type (type_dependency_id)            :: id_par,id_temp,id_salt
       type (type_horizontal_dependency_id) :: id_I_0,id_taub,id_wind
       type (type_diagnostic_variable_id)   :: id_dPAR,id_GPP,id_NCP,id_PPR,id_NPR,id_NFX,id_DNP,id_NO3,id_NH4,id_TN,id_PO4,id_TP,id_O2_mg,id_pp_chla,id_ff_chla,id_bb_chla,id_tot_chla
-      type (type_horizontal_diagnostic_variable_id) :: id_DNB,id_SBR,id_PBR,id_OFL
+      type (type_bottom_diagnostic_variable_id) :: id_DNB,id_SBR,id_PBR
+      type (type_surface_diagnostic_variable_id) :: id_OFL
 
       ! Model parameters
       real(rk) :: nb,deltao,nue,sigma_b,dn,dn_sed,sfl_po,sfl_aa,sfl_nn
@@ -205,27 +206,27 @@
    if (self%calc_dic) call self%register_state_dependency(self%id_dic,self%dic_variable,'mmol c/m**3','dissolved inorganic carbon')
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_NO3,    'Nit',      'mgNO3N/m**3','nitrate conc in mass unit',                output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_NH4,    'Amm',      'mgNH4N/m**3','ammonium  conc in nitrogen mass unit',     output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_TN,     'TN',       'mgTN/m**3',  'total nitrogen conc in nitrogen mass unit',output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_PO4,    'Pho',      'mgPO4P/m**3','phosphate conc in phosphorus mass unit',   output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_TP,     'TP',       'mgTP/m**3',  'total phosphorus in phosphorus mass unit', output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_O2_mg,  'DO_mg',    'mgO2/m**3',  'oxygen in O2 mass unit',                   output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_pp_chla,'pp_chla',  'mgchla/m**3','diatoms conc in chla unit',                output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_ff_chla,'ff_chla',  'mgchla/m**3','flagellates conc in chla unit',            output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_bb_chla,'bb_chla',  'mgchla/m**3','cyanobacteria conc in chla unit',          output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_tot_chla,'tot_chla','mgchla/m**3','total chlorophyll a',                      output=output_instantaneous)
-   call self%register_diagnostic_variable(self%id_dPAR,    'PAR',     'W/m**2',     'photosynthetically active radiation',      output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_GPP,     'GPP',     'mmol/m**3',  'gross primary production',                 output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_NCP,     'NCP',     'mmol/m**3',  'net community production',                 output=output_time_step_integrated)
-   call self%register_diagnostic_variable(self%id_PPR,     'PPR',     'mmol/m**3/d','gross primary production rate',            output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_NPR,     'NPR',     'mmol/m**3/d','net community production rate',            output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_NFX,     'NFX',     'mmol/m**3/d','nitrogen fixation rate',                   output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_DNP,     'DNP',     'mmol/m**3/d','denitrification pelagic',                  output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_DNB,     'DNB',     'mmol/m**2/d','denitrification benthic',                  output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_SBR,     'SBR',     'mmol/m**2',  'sediment burial',                          output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_PBR,     'PBR',     'mmol/m**2/d','phosphorus burial',                        output=output_time_step_averaged)
-   call self%register_diagnostic_variable(self%id_OFL,     'OFL',     'mmol/m**2/d','oxygen surface flux',                      output=output_time_step_averaged)
+   call self%register_diagnostic_variable(self%id_NO3,    'Nit',      'mgNO3N/m**3','nitrate conc in mass unit')
+   call self%register_diagnostic_variable(self%id_NH4,    'Amm',      'mgNH4N/m**3','ammonium  conc in nitrogen mass unit')
+   call self%register_diagnostic_variable(self%id_TN,     'TN',       'mgTN/m**3',  'total nitrogen conc in nitrogen mass unit')
+   call self%register_diagnostic_variable(self%id_PO4,    'Pho',      'mgPO4P/m**3','phosphate conc in phosphorus mass unit')
+   call self%register_diagnostic_variable(self%id_TP,     'TP',       'mgTP/m**3',  'total phosphorus in phosphorus mass unit')
+   call self%register_diagnostic_variable(self%id_O2_mg,  'DO_mg',    'mgO2/m**3',  'oxygen in O2 mass unit')
+   call self%register_diagnostic_variable(self%id_pp_chla,'pp_chla',  'mgchla/m**3','diatoms conc in chla unit')
+   call self%register_diagnostic_variable(self%id_ff_chla,'ff_chla',  'mgchla/m**3','flagellates conc in chla unit')
+   call self%register_diagnostic_variable(self%id_bb_chla,'bb_chla',  'mgchla/m**3','cyanobacteria conc in chla unit')
+   call self%register_diagnostic_variable(self%id_tot_chla,'tot_chla','mgchla/m**3','total chlorophyll a')
+   call self%register_diagnostic_variable(self%id_dPAR,    'PAR',     'W/m**2',     'photosynthetically active radiation')
+   call self%register_diagnostic_variable(self%id_GPP,     'GPP',     'mmol/m**3',  'gross primary production')
+   call self%register_diagnostic_variable(self%id_NCP,     'NCP',     'mmol/m**3',  'net community production')
+   call self%register_diagnostic_variable(self%id_PPR,     'PPR',     'mmol/m**3/d','gross primary production rate')
+   call self%register_diagnostic_variable(self%id_NPR,     'NPR',     'mmol/m**3/d','net community production rate')
+   call self%register_diagnostic_variable(self%id_NFX,     'NFX',     'mmol/m**3/d','nitrogen fixation rate')
+   call self%register_diagnostic_variable(self%id_DNP,     'DNP',     'mmol/m**3/d','denitrification pelagic')
+   call self%register_diagnostic_variable(self%id_DNB,     'DNB',     'mmol/m**2/d','denitrification benthic')
+   call self%register_diagnostic_variable(self%id_SBR,     'SBR',     'mmol/m**2',  'sediment burial')
+   call self%register_diagnostic_variable(self%id_PBR,     'PBR',     'mmol/m**2/d','phosphorus burial')
+   call self%register_diagnostic_variable(self%id_OFL,     'OFL',     'mmol/m**2/d','oxygen surface flux')
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_par,  standard_variables%downwelling_photosynthetic_radiative_flux)
@@ -580,9 +581,9 @@
    if (_AVAILABLE_(self%id_dic)) _SET_BOTTOM_EXCHANGE_(self%id_dic, self%rfc*recs * fl)
 
    ! BENTHIC DIAGNOSTIC VARIABLES
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_DNB,(ldn_N * recs * fl + fracdenitsed * recs * fl) * secs_per_day)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_SBR,(fl * self%fl_burialrate * fl/self%maxsed) * secs_per_day)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_PBR,(pbr * self%pburialrate * fl/self%maxsed) * secs_per_day)
+   _SET_BOTTOM_DIAGNOSTIC_(self%id_DNB,(ldn_N * recs * fl + fracdenitsed * recs * fl) * secs_per_day)
+   _SET_BOTTOM_DIAGNOSTIC_(self%id_SBR,(fl * self%fl_burialrate * fl/self%maxsed) * secs_per_day)
+   _SET_BOTTOM_DIAGNOSTIC_(self%id_PBR,(pbr * self%pburialrate * fl/self%maxsed) * secs_per_day)
 
    ! Leave spatial loops over the horizontal domain (if any).
    _HORIZONTAL_LOOP_END_
@@ -697,7 +698,7 @@
       _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
    end if
 
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_OFL,flo2 * secs_per_day)
+   _SET_SURFACE_DIAGNOSTIC_(self%id_OFL,flo2 * secs_per_day)
 
    _SET_SURFACE_EXCHANGE_(self%id_nn,self%sfl_nn/secs_per_day)
    _SET_SURFACE_EXCHANGE_(self%id_aa,self%sfl_aa/secs_per_day)
