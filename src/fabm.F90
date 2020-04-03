@@ -108,17 +108,12 @@ module fabm
       real(rke)                                        :: initial_value             = 0.0_rke
       logical                                          :: no_precipitation_dilution = .false.
       logical                                          :: no_river_dilution         = .false.
-      integer                                          :: sms_index          = -1
-      integer                                          :: surface_flux_index = -1
-      integer                                          :: bottom_flux_index  = -1
-      integer                                          :: movement_index     = -1
    end type
 
    ! Derived type for horizontal (bottom/surface) state variable metadata
    type, extends(type_fabm_variable) :: type_fabm_horizontal_state_variable
       class (type_horizontal_standard_variable), pointer :: standard_variable => null()
       real(rke)                                          :: initial_value = 0.0_rke
-      integer                                            :: sms_index = -1
    end type
 
    ! Derived type for interior diagnostic variable metadata
@@ -799,13 +794,6 @@ contains
          call self%job_manager%print(log_unit)
          close(log_unit)
       end if
-
-      _ASSERT_(all(self%state_variables(:)%sms_index > 0), 'start', 'BUG: sms_index invalid for one or more interior state variables.')
-      _ASSERT_(all(self%state_variables(:)%surface_flux_index > 0), 'start', 'BUG: surface_flux_index invalid for one or more interior state variables.')
-      _ASSERT_(all(self%state_variables(:)%bottom_flux_index > 0), 'start', 'BUG: bottom_flux_index invalid for one or more interior state variables.')
-      _ASSERT_(all(self%state_variables(:)%movement_index > 0), 'start', 'BUG: movement_index invalid for one or more interior state variables.')
-      _ASSERT_(all(self%surface_state_variables(:)%sms_index > 0), 'start', 'BUG: sms_index invalid for one or more surface state variables.')
-      _ASSERT_(all(self%bottom_state_variables(:)%sms_index > 0), 'start', 'BUG: sms_index invalid for one or more bottom state variables.')
 
       ! Report all unfulfilled dependencies.
       variable_node => unfulfilled_dependencies%first
@@ -1516,8 +1504,8 @@ contains
       call process_interior_slice(self%get_interior_sources_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
 
       ! Compose total sources-sinks for each state variable, combining model-specific contributions.
-      do i = 1, size(self%state_variables)
-         k = self%state_variables(i)%sms_index
+      do i = 1, size(self%get_interior_sources_job%arg1_sources)
+         k = self%get_interior_sources_job%arg1_sources(i)
          _UNPACK_AND_ADD_TO_PLUS_1_(self%cache_int%write, k, dy, i, self%cache_int)
       end do
    end subroutine get_interior_sources_rhs
@@ -1821,16 +1809,16 @@ contains
 
       ! Compose surface fluxes for each interior state variable, combining model-specific contributions.
       flux_pel = 0.0_rke
-      do i = 1, size(self%state_variables)
-         k = self%state_variables(i)%surface_flux_index
+      do i = 1, size(self%get_surface_sources_job%arg1_sources)
+         k = self%get_surface_sources_job%arg1_sources(i)
          _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(self%cache_hz%write_hz, k, flux_pel, i, self%cache_hz)
       end do
 
       ! Compose total sources-sinks for each surface-bound state variable, combining model-specific contributions.
       if (present(flux_sf)) then
          flux_sf = 0.0_rke
-         do i = 1, size(self%surface_state_variables)
-            k = self%surface_state_variables(i)%sms_index
+         do i = 1, size(self%get_surface_sources_job%arg2_sources)
+            k = self%get_surface_sources_job%arg2_sources(i)
             _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(self%cache_hz%write_hz, k, flux_sf, i, self%cache_hz)
          end do
       end if
@@ -1858,14 +1846,14 @@ contains
       call process_horizontal_slice(self%get_bottom_sources_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_) 
 
       ! Compose bottom fluxes for each interior state variable, combining model-specific contributions.
-      do i = 1, size(self%state_variables)
-         k = self%state_variables(i)%bottom_flux_index
+      do i = 1, size(self%get_bottom_sources_job%arg1_sources)
+         k = self%get_bottom_sources_job%arg1_sources(i)
          _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(self%cache_hz%write_hz, k, flux_pel, i, self%cache_hz)
       end do
 
       ! Compose total sources-sinks for each bottom-bound state variable, combining model-specific contributions.
-      do i = 1, size(self%bottom_state_variables)
-         k = self%bottom_state_variables(i)%sms_index
+      do i = 1, size(self%get_bottom_sources_job%arg2_sources)
+         k = self%get_bottom_sources_job%arg2_sources(i)
          _HORIZONTAL_UNPACK_AND_ADD_TO_PLUS_1_(self%cache_hz%write_hz, k, flux_ben, i, self%cache_hz)
       end do
    end subroutine get_bottom_sources_rhs
@@ -1923,8 +1911,8 @@ contains
       call process_interior_slice(self%get_vertical_movement_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
 
       ! Copy vertical velocities from write cache to output array provided by host
-      do i = 1, size(self%state_variables)
-         k = self%state_variables(i)%movement_index
+      do i = 1, size(self%get_vertical_movement_job%arg1_sources)
+         k = self%get_vertical_movement_job%arg1_sources(i)
          _UNPACK_TO_PLUS_1_(self%cache_int%write, k, velocity, i, self%cache_int, 0.0_rke)
       end do
    end subroutine get_vertical_movement
@@ -2346,6 +2334,11 @@ contains
       allocate(self%diagnostic_variables           (ndiag))
       allocate(self%horizontal_diagnostic_variables(ndiag_hz))
 
+      allocate(self%get_interior_sources_job%arg1_sources(nstate))
+      allocate(self%get_surface_sources_job%arg1_sources(nstate), self%get_surface_sources_job%arg2_sources(nstate_surf))
+      allocate(self%get_bottom_sources_job%arg1_sources(nstate), self%get_bottom_sources_job%arg2_sources(nstate_bot))
+      allocate(self%get_vertical_movement_job%arg1_sources(nstate))
+
       ! Build lists of state variable and diagnostic variables.
       nstate = 0
       ndiag  = 0
@@ -2373,10 +2366,10 @@ contains
                   statevar%initial_value             = object%initial_value
                   statevar%no_precipitation_dilution = object%no_precipitation_dilution
                   statevar%no_river_dilution         = object%no_river_dilution
-                  call object%sms_sum%target%write_indices%append(statevar%sms_index)
-                  call object%surface_flux_sum%target%write_indices%append(statevar%surface_flux_index)
-                  call object%bottom_flux_sum%target%write_indices%append(statevar%bottom_flux_index)
-                  call object%movement_sum%target%write_indices%append(statevar%movement_index)
+                  call object%sms_sum%target%write_indices%append(self%get_interior_sources_job%arg1_sources(nstate))
+                  call object%surface_flux_sum%target%write_indices%append(self%get_surface_sources_job%arg1_sources(nstate))
+                  call object%bottom_flux_sum%target%write_indices%append(self%get_bottom_sources_job%arg1_sources(nstate))
+                  call object%movement_sum%target%write_indices%append(self%get_vertical_movement_job%arg1_sources(nstate))
                end if
             case default            ! Interior diagnostic variable
                ndiag = ndiag + 1
@@ -2400,9 +2393,11 @@ contains
                   case (domain_bottom)
                      nstate_bot = nstate_bot + 1
                      hz_statevar => self%bottom_state_variables(nstate_bot)
+                     call object%sms_sum%target%write_indices%append(self%get_bottom_sources_job%arg2_sources(nstate_bot))
                   case (domain_surface)
                      nstate_surf = nstate_surf + 1
                      hz_statevar => self%surface_state_variables(nstate_surf)
+                     call object%sms_sum%target%write_indices%append(self%get_surface_sources_job%arg2_sources(nstate_surf))
                   case default
                      hz_statevar => null()
                   end select
@@ -2414,7 +2409,6 @@ contains
                      end select
                   end if
                   hz_statevar%initial_value = object%initial_value
-                  call object%sms_sum%target%write_indices%append(hz_statevar%sms_index)
                end if
             case default            ! Horizontal diagnostic variable
                ndiag_hz = ndiag_hz + 1

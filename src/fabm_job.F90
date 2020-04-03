@@ -106,6 +106,9 @@ module fabm_job
       logical, allocatable, public :: interior_store_prefill(:)
       logical, allocatable, public :: horizontal_store_prefill(:)
 
+      integer, allocatable, public :: arg1_sources(:)
+      integer, allocatable, public :: arg2_sources(:)
+
       character(len=attribute_length) :: name = ''
       integer                         :: state = job_state_none
       logical                         :: outsource_tasks     = .false.
@@ -1245,8 +1248,15 @@ contains
       class (type_job),target, intent(inout) :: self
       type (type_variable_set),intent(inout) :: unfulfilled_dependencies
 
-      type (type_task),          pointer :: task
+      type (type_task), pointer :: task
 
+      if (allocated(self%arg1_sources)) then
+         _ASSERT_(all(self%arg1_sources > 0), 'job_process_indices', 'BUG: one or  more source indices for argument 1 of job ' // trim(self%name) // ' are invalid.')
+      end if
+      if (allocated(self%arg2_sources)) then
+         _ASSERT_(all(self%arg2_sources > 0), 'job_process_indices', 'BUG: one or  more source indices for argument 2 of job ' // trim(self%name) // ' are invalid.')
+      end if
+      
       task => self%first_task
       do while (associated(task))
          call task_process_indices(task, unfulfilled_dependencies)
