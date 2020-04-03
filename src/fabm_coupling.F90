@@ -361,18 +361,22 @@ contains
                end select
             else
                ! We do not own this variable. Link to summations for sources-sinks and surface/bottom fluxes.
-               link1 => null()
                select case (link%target%domain)
                case (domain_interior)
+                  link1 => null()
                   call self%add_interior_variable(trim(link%name) // '_sms_tot', link=link1)
                   call self%request_coupling(link1, trim(link%target%name) // '_sms_tot')
+                  link1 => null()
                   call self%add_horizontal_variable(trim(link%name) // '_sfl_tot', link=link1)
                   call self%request_coupling(link1, trim(link%target%name) // '_sfl_tot')
+                  link1 => null()
                   call self%add_horizontal_variable(trim(link%name) // '_bfl_tot', link=link1)
                   call self%request_coupling(link1, trim(link%target%name) // '_bfl_tot')
+                  link1 => null()
                   call self%add_interior_variable(trim(link%name) // '_w_tot', link=link1)
                   call self%request_coupling(link1, trim(link%target%name) // '_w_tot')
                case (domain_horizontal, domain_surface, domain_bottom)
+                  link1 => null()
                   call self%add_horizontal_variable(trim(link%name) // '_sms_tot', link=link1)
                   call self%request_coupling(link1, trim(link%target%name) // '_sms_tot')
                end select
