@@ -1805,18 +1805,18 @@ contains
    end subroutine add_horizontal_variable
 
    subroutine add_scalar_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
-                                            background_value, fill_value, standard_variable, presence, output, &
-                                            read_index, state_index, write_index, sms_index, background, link)
-      class (type_base_model),target,       intent(inout)        :: self
-      character(len=*),                     intent(in)           :: name
-      character(len=*),                     intent(in), optional :: units, long_name
-      real(rk),                             intent(in), optional :: minimum, maximum, missing_value
-      real(rk),                             intent(in), optional :: initial_value, background_value, fill_value
-      type (type_global_standard_variable), intent(in), optional :: standard_variable
-      integer,                              intent(in), optional :: presence, output
-      integer,  target,                                 optional :: read_index, state_index, write_index, sms_index
-      real(rk), target,                                 optional :: background
-      type (type_link), pointer,                        optional :: link
+                                  background_value, fill_value, standard_variable, presence, output, &
+                                  read_index, state_index, write_index, sms_index, background, link)
+      class (type_base_model),target,      intent(inout)        :: self
+      character(len=*),                    intent(in)           :: name
+      character(len=*),                    intent(in), optional :: units, long_name
+      real(rk),                            intent(in), optional :: minimum, maximum, missing_value
+      real(rk),                            intent(in), optional :: initial_value, background_value, fill_value
+      class (type_base_standard_variable), intent(in), optional :: standard_variable
+      integer,                             intent(in), optional :: presence, output
+      integer,  target,                                optional :: read_index, state_index, write_index, sms_index
+      real(rk), target,                                optional :: background
+      type (type_link), pointer,                       optional :: link
 
       type (type_internal_variable), pointer :: variable
 
