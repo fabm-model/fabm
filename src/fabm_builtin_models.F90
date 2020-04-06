@@ -333,20 +333,20 @@ module fabm_builtin_models
 
       call self%register_implemented_routines((/source_do/))
 
-      call self%get_parameter(ncomponents,'n','','number of terms in summation',default=0,minimum=0)
-      do i=1,ncomponents
+      call self%get_parameter(ncomponents, 'n', '', 'number of terms in summation', default=0, minimum=0)
+      do i = 1, ncomponents
          call self%add_component('')
       end do
-      call self%get_parameter(self%units,'units','','units',default=trim(self%units))
+      call self%get_parameter(self%units, 'units', '', 'units', default=trim(self%units))
 
       ncomponents = 0
       component => self%first
       do while (associated(component))
          ncomponents = ncomponents + 1
          write (temp,'(i0)') ncomponents
-         call self%get_parameter(component%weight,'weight'//trim(temp),'-','weight for term '//trim(temp),default=component%weight)
-         call self%register_dependency(component%id,'term'//trim(temp),self%units,'term '//trim(temp))
-         if (component%name/='') call self%request_coupling(component%id,trim(component%name))
+         call self%get_parameter(component%weight, 'weight' // trim(temp), '-', 'weight for term ' // trim(temp), default=component%weight)
+         call self%register_dependency(component%id, 'term' // trim(temp), self%units, 'term ' // trim(temp))
+         if (component%name /= '') call self%request_coupling(component%id, trim(component%name))
          component => component%next
       end do
 
@@ -354,7 +354,7 @@ module fabm_builtin_models
       call self%add_interior_variable('result', self%units, 'result', fill_value=0.0_rk, missing_value=self%missing_value, &
          output=self%result_output, write_index=self%id_output%sum_index, link=self%id_output%link, source=source_do)
 
-      if (iand(self%access,access_set_source)/=0) then
+      if (iand(self%access, access_set_source) /= 0) then
          ! NB this does not function yet (hence the commented out act_as_state_variable above)
          ! Auto-generation of result_sms_tot fails and the do routine of type_weighted_sum_sms_distributor is not yet implemented.
 
@@ -379,18 +379,18 @@ module fabm_builtin_models
       end if
    end subroutine
 
-   subroutine weighted_sum_add_component(self,name,weight,include_background)
+   subroutine weighted_sum_add_component(self, name, weight, include_background)
       class (type_weighted_sum),intent(inout) :: self
       character(len=*),         intent(in)    :: name
-      real(rk),optional,        intent(in)    :: weight
-      logical,optional,         intent(in)    :: include_background
+      real(rk), optional,       intent(in)    :: weight
+      logical,  optional,       intent(in)    :: include_background
 
-      type (type_component),pointer :: component
+      type (type_component), pointer :: component
 
       if (_VARIABLE_REGISTERED_(self%id_output)) &
-         call self%fatal_error('weighted_sum_add_component','cannot be called after model initialization')
+         call self%fatal_error('weighted_sum_add_component', 'cannot be called after model initialization')
 
-      if (.not.associated(self%first)) then
+      if (.not. associated(self%first)) then
          allocate(self%first)
          component => self%first
       else
@@ -407,10 +407,10 @@ module fabm_builtin_models
    end subroutine
 
    subroutine weighted_sum_after_coupling(self)
-      class (type_weighted_sum),intent(inout) :: self
+      class (type_weighted_sum), intent(inout) :: self
 
-      type (type_component),pointer :: component
-      real(rk) :: background
+      type (type_component), pointer :: component
+      real(rk)                       :: background
 
       ! At this stage, the background values for all variables (if any) are fixed. We can therefore
       ! compute background contributions already, and add those to the space- and time-invariant offset.
@@ -418,9 +418,9 @@ module fabm_builtin_models
       component => self%first
       do while (associated(component))
          if (component%include_background) then
-            self%offset = self%offset + component%weight*component%id%background
+            self%offset = self%offset + component%weight * component%id%background
          else
-            background = background + component%weight*component%id%background
+            background = background + component%weight * component%id%background
          end if
          component => component%next
       end do
@@ -575,7 +575,7 @@ module fabm_builtin_models
       end do
    end subroutine horizontal_weighted_sum_reindex
 
-   subroutine weighted_sum_do(self,_ARGUMENTS_DO_)
+   subroutine weighted_sum_do(self, _ARGUMENTS_DO_)
       class (type_weighted_sum), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
 

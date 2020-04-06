@@ -53,7 +53,7 @@ module fabm_types
    public get_safe_name
    public source2string
 
-   public type_expression, type_bulk_expression, type_horizontal_expression
+   public type_expression, type_interior_expression, type_horizontal_expression
 
    public get_aggregate_variable_access, type_aggregate_variable_access, type_contribution
 
@@ -374,7 +374,7 @@ module fabm_types
       integer, pointer :: out => null()
    end type
 
-   type, abstract, extends(type_expression) :: type_bulk_expression
+   type, abstract, extends(type_expression) :: type_interior_expression
       !type (type_interior_data_pointer), pointer :: out => null()
    end type
 
@@ -1872,7 +1872,7 @@ contains
 
       ! Forward to parent
       if (associated(self%parent)) then
-         if (len_trim(self%name)+1+len_trim(object%name) > len(object%name)) call self%fatal_error('add_object', &
+         if (len_trim(self%name) + 1 + len_trim(object%name) > len(object%name)) call self%fatal_error('add_object', &
             'Variable path "' // trim(self%name) // '/' // trim(object%name) // '" exceeds maximum allowed length.')
          object%name = trim(self%name) // '/' // trim(object%name)
 
@@ -2151,11 +2151,11 @@ contains
    end subroutine register_named_global_dependency
 
    subroutine register_interior_expression_dependency(self, id, expression)
-      class (type_base_model),      intent(inout)         :: self
-      type (type_dependency_id),    intent(inout), target :: id
-      class (type_bulk_expression), intent(in)            :: expression
+      class (type_base_model),           intent(inout) :: self
+      type (type_dependency_id), target, intent(inout) :: id
+      class (type_interior_expression),  intent(in)    :: expression
 
-      class (type_bulk_expression), allocatable :: copy
+      class (type_interior_expression), allocatable :: copy
 
       allocate(copy, source=expression)
       copy%out => id%index

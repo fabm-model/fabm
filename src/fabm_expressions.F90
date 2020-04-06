@@ -15,7 +15,7 @@ module fabm_expressions
    public temporal_mean, vertical_mean, vertical_integral
    public type_interior_temporal_mean, type_horizontal_temporal_mean, type_vertical_integral
 
-   type, extends(type_bulk_expression) :: type_interior_temporal_mean
+   type, extends(type_interior_expression) :: type_interior_temporal_mean
       real(rk) :: period   ! Time period to average over (s)
       integer  :: n
       real(rk) :: last_time, next_save_time
@@ -139,7 +139,7 @@ contains
 
       character(len=attribute_length) :: prefix, postfix
 
-      if (.not.associated(input%link)) call fatal_error('fabm_expressions::bulk_temporal_mean', &
+      if (.not.associated(input%link)) call fatal_error('fabm_expressions::interior_temporal_mean', &
          'Input variable has not been registered yet.')
 
       ! Create a name for the expression
