@@ -4,6 +4,8 @@
 
 #define _FABM_VERTICAL_BOTTOM_TO_SURFACE_
 
+#define _FABM_CONTIGUOUS_
+
 ! Include FABM preprocessor definitions.
 ! This *must* be done after the host-specific variables are defined (above),
 ! because these are used in fabm.h.

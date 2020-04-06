@@ -538,11 +538,11 @@ contains
 #  else
    subroutine set_mask(self, mask, mask_hz)
 #  endif
-      class (type_fabm_model), target, intent(inout)                     :: self
+      class (type_fabm_model), target, intent(inout)                      :: self
 #  ifndef _FABM_HORIZONTAL_MASK_
-      _FABM_MASK_TYPE_, target, intent(in) _DIMENSION_GLOBAL_            :: mask
+      _FABM_MASK_TYPE_, target, intent(in) _ATTRIBUTES_GLOBAL_            :: mask
 #  endif
-      _FABM_MASK_TYPE_, target, intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: mask_hz
+      _FABM_MASK_TYPE_, target, intent(in) _ATTRIBUTES_GLOBAL_HORIZONTAL_ :: mask_hz
 
       integer :: i
 
@@ -599,8 +599,8 @@ contains
    ! valid for the lifetime of the model object.
    ! --------------------------------------------------------------------------
    subroutine set_bottom_index(self, indices)
-      class (type_fabm_model), intent(inout)                            :: self
-      integer, target,         intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: indices
+      class (type_fabm_model), intent(inout)                             :: self
+      integer, target,         intent(in) _ATTRIBUTES_GLOBAL_HORIZONTAL_ :: indices
 
       integer :: i
 
@@ -1105,10 +1105,10 @@ contains
    end subroutine require_horizontal_data
 
    subroutine link_interior_data_by_variable(self, variable, dat, source)
-      class (type_fabm_model),              intent(inout) :: self
-      type (type_internal_variable),        intent(in)    :: variable
-      real(rke) _DIMENSION_GLOBAL_, target, intent(in)    :: dat
-      integer, optional,                    intent(in)    :: source
+      class (type_fabm_model),               intent(inout) :: self
+      type (type_internal_variable),         intent(in)    :: variable
+      real(rke) _ATTRIBUTES_GLOBAL_, target, intent(in)    :: dat
+      integer, optional,                     intent(in)    :: source
 
       integer :: i
       integer :: source_
@@ -1136,7 +1136,7 @@ contains
    subroutine link_interior_data_by_id(self, id, dat, source)
       class (type_fabm_model),               intent(inout) :: self
       type(type_fabm_interior_variable_id),  intent(in)    :: id
-      real(rke) _DIMENSION_GLOBAL_, target,  intent(in)    :: dat
+      real(rke) _ATTRIBUTES_GLOBAL_, target, intent(in)    :: dat
       integer,optional,                      intent(in)    :: source
 
       if (associated(id%variable)) call link_interior_data_by_variable(self, id%variable, dat, source)
@@ -1145,24 +1145,24 @@ contains
    subroutine link_interior_data_by_sn(model, standard_variable, dat)
       class (type_fabm_model),                intent(inout) :: model
       type (type_interior_standard_variable), intent(in)    :: standard_variable
-      real(rke) _DIMENSION_GLOBAL_, target,   intent(in)    :: dat
+      real(rke) _ATTRIBUTES_GLOBAL_, target,  intent(in)    :: dat
 
       call link_interior_data_by_id(model, get_interior_variable_id_sn(model, standard_variable), dat)
    end subroutine link_interior_data_by_sn
 
    subroutine link_interior_data_by_name(model, name, dat)
-      class (type_fabm_model), target,      intent(inout) :: model
-      character(len=*),                     intent(in)    :: name
-      real(rke) _DIMENSION_GLOBAL_, target, intent(in)    :: dat
+      class (type_fabm_model),       target, intent(inout) :: model
+      character(len=*),                      intent(in)    :: name
+      real(rke) _ATTRIBUTES_GLOBAL_, target, intent(in)    :: dat
 
       call link_interior_data_by_id(model, get_interior_variable_id_by_name(model, name), dat)
    end subroutine link_interior_data_by_name
 
    subroutine link_horizontal_data_by_variable(self, variable, dat, source)
-      class (type_fabm_model),                         intent(inout) :: self
-      type (type_internal_variable),                   intent(in)    :: variable
-      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
-      integer, optional,                               intent(in)    :: source
+      class (type_fabm_model),                          intent(inout) :: self
+      type (type_internal_variable),                    intent(in)    :: variable
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
+      integer, optional,                                intent(in)    :: source
 
       integer :: i
       integer :: source_
@@ -1188,26 +1188,26 @@ contains
    end subroutine link_horizontal_data_by_variable
 
    subroutine link_horizontal_data_by_id(self, id, dat, source)
-      class (type_fabm_model),                         intent(inout) :: self
-      type (type_fabm_horizontal_variable_id),         intent(in)    :: id
-      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
-      integer, optional,                               intent(in)    :: source
+      class (type_fabm_model),                          intent(inout) :: self
+      type (type_fabm_horizontal_variable_id),          intent(in)    :: id
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
+      integer, optional,                                intent(in)    :: source
 
       if (associated(id%variable)) call link_horizontal_data_by_variable(self, id%variable, dat, source)
    end subroutine link_horizontal_data_by_id
 
    subroutine link_horizontal_data_by_sn(model, standard_variable, dat)
-      class (type_fabm_model),                         intent(inout) :: model
-      class (type_horizontal_standard_variable),       intent(in)    :: standard_variable
-      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
+      class (type_fabm_model),                          intent(inout) :: model
+      class (type_horizontal_standard_variable),        intent(in)    :: standard_variable
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
 
       call link_horizontal_data_by_id(model, get_horizontal_variable_id_sn(model, standard_variable), dat)
    end subroutine link_horizontal_data_by_sn
 
    subroutine link_horizontal_data_by_name(model, name, dat)
-      class (type_fabm_model),                         intent(inout) :: model
-      character(len=*),                                intent(in)    :: name
-      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
+      class (type_fabm_model),                          intent(inout) :: model
+      character(len=*),                                 intent(in)    :: name
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
 
       call link_horizontal_data_by_id(model, get_horizontal_variable_id_by_name(model, name), dat)
    end subroutine link_horizontal_data_by_name
@@ -1250,25 +1250,25 @@ contains
    end subroutine link_scalar_by_name
 
    subroutine link_interior_state_data(self, index, dat)
-      class (type_fabm_model),              intent(inout) :: self
-      integer,                              intent(in)    :: index
-      real(rke) _DIMENSION_GLOBAL_, target, intent(in)    :: dat
+      class (type_fabm_model),               intent(inout) :: self
+      integer,                               intent(in)    :: index
+      real(rke) _ATTRIBUTES_GLOBAL_, target, intent(in)    :: dat
 
       call link_interior_data_by_variable(self, self%state_variables(index)%target, dat, source=data_source_fabm)
    end subroutine link_interior_state_data
 
    subroutine link_bottom_state_data(self, index, dat)
-      class (type_fabm_model),                         intent(inout) :: self
-      integer,                                         intent(in)    :: index
-      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
+      class (type_fabm_model),                          intent(inout) :: self
+      integer,                                          intent(in)    :: index
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
 
       call link_horizontal_data_by_variable(self, self%bottom_state_variables(index)%target, dat, source=data_source_fabm)
    end subroutine link_bottom_state_data
 
    subroutine link_surface_state_data(self, index, dat)
-      class (type_fabm_model),                         intent(inout) :: self
-      integer,                                         intent(in)    :: index
-      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
+      class (type_fabm_model),                          intent(inout) :: self
+      integer,                                          intent(in)    :: index
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
 
       call link_horizontal_data_by_variable(self, self%surface_state_variables(index)%target, dat, source=data_source_fabm)
    end subroutine link_surface_state_data
@@ -1319,9 +1319,9 @@ contains
    end subroutine link_all_surface_state_data
 
    function get_interior_diagnostic_data(self, index) result(dat)
-      class (type_fabm_model), intent(in)   :: self
-      integer,                 intent(in)   :: index
-      real(rke) _DIMENSION_GLOBAL_, pointer :: dat
+      class (type_fabm_model), intent(in)    :: self
+      integer,                 intent(in)    :: index
+      real(rke) _ATTRIBUTES_GLOBAL_, pointer :: dat
 
       _ASSERT_(self%status >= status_start_done, 'get_interior_diagnostic_data', 'This routine can only be called after model start.')   
       dat => null()
@@ -1330,9 +1330,9 @@ contains
    end function get_interior_diagnostic_data
 
    function get_horizontal_diagnostic_data(self, index) result(dat)
-      class (type_fabm_model), intent(in)              :: self
-      integer,                 intent(in)              :: index
-      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, pointer :: dat
+      class (type_fabm_model), intent(in)               :: self
+      integer,                 intent(in)               :: index
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: dat
 
       _ASSERT_(self%status >= status_start_done, 'get_horizontal_diagnostic_data', 'This routine can only be called after model start.')
       dat => null()
@@ -1343,7 +1343,7 @@ contains
    function get_interior_data(self, id) result(dat)
       class (type_fabm_model), target,       intent(in) :: self
       type (type_fabm_interior_variable_id), intent(in) :: id
-      real(rke) _DIMENSION_GLOBAL_, pointer             :: dat
+      real(rke) _ATTRIBUTES_GLOBAL_, pointer            :: dat
 
       _ASSERT_(self%status >= status_start_done, 'get_interior_data', 'This routine can only be called after model start.')
       dat => null()
@@ -1352,9 +1352,9 @@ contains
    end function get_interior_data
 
    function get_horizontal_data(self, id) result(dat)
-      class (type_fabm_model), target,         intent(in) :: self
-      type(type_fabm_horizontal_variable_id),  intent(in) :: id
-      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, pointer    :: dat
+      class (type_fabm_model), target,        intent(in) :: self
+      type(type_fabm_horizontal_variable_id), intent(in) :: id
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer  :: dat
 
       _ASSERT_(self%status >= status_start_done, 'get_horizontal_data', 'This routine can only be called after model start.')
       dat => null()

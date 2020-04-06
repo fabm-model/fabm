@@ -129,15 +129,15 @@ contains
 #ifdef _HAS_MASK_
 #  ifdef _FABM_HORIZONTAL_MASK_
    subroutine fabm_set_mask(self, mask_hz)
-      class (type_model), target, intent(inout)                            :: self
-      _FABM_MASK_TYPE_,   target, intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: mask_hz
+      class (type_model), target, intent(inout)                             :: self
+      _FABM_MASK_TYPE_,   target, intent(in) _ATTRIBUTES_GLOBAL_HORIZONTAL_ :: mask_hz
       call self%set_mask(mask_hz)
    end subroutine
 #  else
    subroutine fabm_set_mask(self, mask, mask_hz)
-      class (type_model), target, intent(inout)                            :: self
-      _FABM_MASK_TYPE_,   target, intent(in) _DIMENSION_GLOBAL_            :: mask
-      _FABM_MASK_TYPE_,   target, intent(in) _DIMENSION_GLOBAL_HORIZONTAL_ :: mask_hz
+      class (type_model), target, intent(inout)                             :: self
+      _FABM_MASK_TYPE_,   target, intent(in) _ATTRIBUTES_GLOBAL_            :: mask
+      _FABM_MASK_TYPE_,   target, intent(in) _ATTRIBUTES_GLOBAL_HORIZONTAL_ :: mask_hz
       call self%set_mask(mask, mask_hz)
    end subroutine
 #  endif
@@ -249,16 +249,16 @@ contains
    end subroutine
 
    function fabm_get_interior_diagnostic_data(self, index) result(dat)
-      class (type_model), intent(in)        :: self
-      integer,            intent(in)        :: index
-      real(rke) _DIMENSION_GLOBAL_, pointer :: dat
+      class (type_model), intent(in)         :: self
+      integer,            intent(in)         :: index
+      real(rke) _ATTRIBUTES_GLOBAL_, pointer :: dat
       dat => self%get_interior_diagnostic_data(index)
    end function
 
    function fabm_get_horizontal_diagnostic_data(self, index) result(dat)
-      class (type_model), intent(in)                   :: self
-      integer,            intent(in)                   :: index
-      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_, pointer :: dat
+      class (type_model), intent(in)                    :: self
+      integer,            intent(in)                    :: index
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: dat
       dat => self%get_horizontal_diagnostic_data(index)
    end function
 

@@ -30,16 +30,16 @@ module fabm_work
 
 #ifdef _HAS_MASK_
 #  ifndef _FABM_HORIZONTAL_MASK_
-      _FABM_MASK_TYPE_, pointer _DIMENSION_GLOBAL_ :: mask => null()
+      _FABM_MASK_TYPE_, pointer _ATTRIBUTES_GLOBAL_ :: mask => null()
 #  endif
-      _FABM_MASK_TYPE_, pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: mask_hz => null()
+      _FABM_MASK_TYPE_, pointer _ATTRIBUTES_GLOBAL_HORIZONTAL_ :: mask_hz => null()
 #endif
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  if _FABM_BOTTOM_INDEX_==0
       integer :: bottom_index = -1
 #  elif _FABM_BOTTOM_INDEX_==-1
-      integer, pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: bottom_indices => null()
+      integer, pointer _ATTRIBUTES_GLOBAL_HORIZONTAL_ :: bottom_indices => null()
 #  endif
       integer :: surface_index = -1
 #endif
@@ -50,11 +50,11 @@ module fabm_work
    ! --------------------------------------------------------------------------
 
    type type_interior_data_pointer
-      real(rke), pointer _DIMENSION_GLOBAL_ :: p => null()
+      real(rke), pointer _ATTRIBUTES_GLOBAL_ :: p => null()
    end type
 
    type type_horizontal_data_pointer
-      real(rke), pointer _DIMENSION_GLOBAL_HORIZONTAL_ :: p => null()
+      real(rke), pointer _ATTRIBUTES_GLOBAL_HORIZONTAL_ :: p => null()
    end type
 
    type type_scalar_data_pointer

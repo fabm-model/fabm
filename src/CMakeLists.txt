@@ -26,6 +26,7 @@ set(DEFAULT_INSTITUTES
     su           # Swansea University, United Kingdom
     niva         # Norsk Institutt for Vannforskning, Norway
     akvaplan     # Akvaplan-niva, Norway
+#    uhh          # University of Hamburg, Germany
 )
 
 # Ensure FABM_INSTITUTES tracks the up-to-date DEFAULT_INSTITUTES list unless the user manually customized FABM_INSTITUTES.
