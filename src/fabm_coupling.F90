@@ -651,7 +651,7 @@ contains
 
    recursive subroutine couple_variables(self,master,slave)
       class (type_base_model), intent(inout), target :: self
-      type (type_internal_variable), pointer         :: master,slave
+      type (type_internal_variable), pointer         :: master, slave
 
       type (type_link_pointer), pointer :: link_pointer, next_link_pointer
       logical                           :: slave_is_state_variable
@@ -664,13 +664,16 @@ contains
       master_is_state_variable = master%source == source_state .or. master%fake_state_variable
 
       if (associated(self%parent)) call self%fatal_error('couple_variables', 'BUG: must be called on root node.')
-      if (.not. slave%can_be_slave) &
+      if (associated(slave%write_index)) &
          call fatal_error('couple_variables', 'Attempt to couple write-only variable ' &
             // trim(slave%name) // ' to ' // trim(master%name) // '.')
       if (slave_is_state_variable) then
          ! Extra checks when coupling state variables
-         if (.not. master_is_state_variable) call fatal_error('couple_variables', 'Attempt to couple state variable ' &
-            // trim(slave%name) // ' to non-state variable ' // trim(master%name) // '.')
+         if (.not. master_is_state_variable) then
+            if (slave%presence == presence_external_optional) return
+            call fatal_error('couple_variables', 'Attempt to couple state variable ' &
+               // trim(slave%name) // ' to non-state variable ' // trim(master%name) // '.')
+         end if
          if ((slave%domain == domain_bottom .and. master%domain == domain_surface) .or. (slave%domain == domain_surface .and. master%domain == domain_bottom)) &
             call fatal_error('couple_variables', 'Cannot couple ' // trim(slave%name) // ' to '//trim(master%name) // ', because their domains are incompatible.')
       end if

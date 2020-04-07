@@ -327,7 +327,6 @@ module fabm_types
       type (type_standard_variable_set) :: standard_variables
 
       logical :: fake_state_variable = .false.
-      logical :: can_be_slave = .false.
 
       ! Only used for interior state variables:
       logical :: no_precipitation_dilution = .false.
@@ -1729,7 +1728,6 @@ contains
          _ASSERT_(variable%source /= source_state, 'add_variable', 'Variable ' // trim(name) // ' being registered with source_state and write index.')
          call variable%write_indices%append(write_index)
       end if
-      variable%can_be_slave = .not. present(write_index)
 
       ! Create a class pointer and use that to create a link.
       link_ => add_object(self, variable)
