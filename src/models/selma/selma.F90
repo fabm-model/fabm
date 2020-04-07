@@ -58,12 +58,13 @@
 ! !PUBLIC_DERIVED_TYPES:
   type,extends(type_base_model),public :: type_selma
       ! Variable identifiers
-      type (type_state_variable_id)        :: id_dd,id_aa,id_nn,id_po,id_o2,id_pw,id_dic
-      type (type_bottom_state_variable_id) :: id_fl,id_pb
-      type (type_dependency_id)            :: id_temp,id_salt
-      type (type_horizontal_dependency_id) :: id_taub,id_wind
-      type (type_diagnostic_variable_id)   :: id_DNP,id_NO3,id_NH4,id_PO4,id_O2_mg
-      type (type_horizontal_diagnostic_variable_id) :: id_DNB,id_SBR,id_PBR,id_OFL
+      type (type_state_variable_id)              :: id_dd,id_aa,id_nn,id_po,id_o2,id_pw,id_dic
+      type (type_bottom_state_variable_id)       :: id_fl,id_pb
+      type (type_dependency_id)                  :: id_temp,id_salt
+      type (type_horizontal_dependency_id)       :: id_taub,id_wind
+      type (type_diagnostic_variable_id)         :: id_DNP,id_NO3,id_NH4,id_PO4,id_O2_mg
+      type (type_bottom_diagnostic_variable_id)  :: id_DNB,id_SBR,id_PBR
+      type (type_surface_diagnostic_variable_id) :: id_OFL
 
       ! Model parameters
       real(rk) :: nb,deltao,nue,sigma_b,dn,dn_sed
@@ -95,8 +96,8 @@
 !   Here, parameter values are read read and the variables exported by the model are registered with FABM
 !
 ! !INPUT PARAMETERS:
-   class(type_selma),intent(inout),target :: self
-   integer,               intent(in)           :: configunit
+   class (type_selma), intent(inout), target :: self
+   integer,            intent(in)            :: configunit
    real(rk),parameter :: secs_per_day = 86400._rk
    real(rk) :: wdz,wpo4,kc
    
@@ -361,9 +362,9 @@
    if (_AVAILABLE_(self%id_dic)) _SET_BOTTOM_EXCHANGE_(self%id_dic, self%rfc*recs * fl)
 
    ! BENTHIC DIAGNOSTIC VARIABLES
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_DNB,(ldn_N * recs * fl + fracdenitsed * recs * fl) * secs_per_day)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_SBR,(fl * self%fl_burialrate * fl/self%maxsed) * secs_per_day)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_PBR,(pbr * self%pburialrate * fl/self%maxsed) * secs_per_day)
+   _SET_BOTTOM_DIAGNOSTIC_(self%id_DNB,(ldn_N * recs * fl + fracdenitsed * recs * fl) * secs_per_day)
+   _SET_BOTTOM_DIAGNOSTIC_(self%id_SBR,(fl * self%fl_burialrate * fl/self%maxsed) * secs_per_day)
+   _SET_BOTTOM_DIAGNOSTIC_(self%id_PBR,(pbr * self%pburialrate * fl/self%maxsed) * secs_per_day)
 
    ! Leave spatial loops over the horizontal domain (if any).
    _HORIZONTAL_LOOP_END_
@@ -475,7 +476,7 @@
       _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
    end if
 
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_OFL,flo2 * secs_per_day)
+   _SET_SURFACE_DIAGNOSTIC_(self%id_OFL,flo2 * secs_per_day)
 
    _HORIZONTAL_LOOP_END_
 
