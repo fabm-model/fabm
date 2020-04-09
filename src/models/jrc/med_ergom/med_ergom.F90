@@ -57,7 +57,8 @@
       type (type_dependency_id)            :: id_par,id_temp,id_salt
       type (type_horizontal_dependency_id) :: id_I_0,id_taub,id_wind
       type (type_diagnostic_variable_id)   :: id_dPAR,id_GPP,id_NCP,id_PPR,id_NPR,id_NFX,id_DNP,id_NO3,id_NH4,id_TN,id_PO4,id_TP,id_O2_mg,id_pp_chla,id_ff_chla,id_bb_chla,id_tot_chla
-      type (type_horizontal_diagnostic_variable_id) :: id_DNB,id_SBR,id_PBR,id_OFL
+      type (type_bottom_diagnostic_variable_id)  :: id_DNB,id_SBR,id_PBR
+      type (type_surface_diagnostic_variable_id) :: id_OFL
 
       ! Model parameters
       real(rk) :: nb,deltao,nue,sigma_b,dn,dn_sed,sfl_po,sfl_aa,sfl_nn
@@ -490,7 +491,7 @@
       _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
    end if
 
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_OFL,flo2 * secs_per_day)
+   _SET_SURFACE_DIAGNOSTIC_(self%id_OFL,flo2 * secs_per_day)
    _SET_SURFACE_EXCHANGE_(self%id_nn,self%sfl_nn/secs_per_day)
    _SET_SURFACE_EXCHANGE_(self%id_aa,self%sfl_aa/secs_per_day)
    _SET_SURFACE_EXCHANGE_(self%id_po,self%sfl_po/secs_per_day)
@@ -608,9 +609,9 @@
    if (_AVAILABLE_(self%id_dic)) _SET_BOTTOM_EXCHANGE_(self%id_dic, self%rfc*recs * fl)
 
    ! BENTHIC DIAGNOSTIC VARIABLES
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_DNB,(ldn_N * recs * fl + fracdenitsed * recs * fl) * secs_per_day)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_SBR,(fl * self%fl_burialrate * fl/self%maxsed) * secs_per_day)
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_PBR,(pbr * self%pburialrate * fl/self%maxsed) * secs_per_day)
+   _SET_BOTTOM_DIAGNOSTIC_(self%id_DNB,(ldn_N * recs * fl + fracdenitsed * recs * fl) * secs_per_day)
+   _SET_BOTTOM_DIAGNOSTIC_(self%id_SBR,(fl * self%fl_burialrate * fl/self%maxsed) * secs_per_day)
+   _SET_BOTTOM_DIAGNOSTIC_(self%id_PBR,(pbr * self%pburialrate * fl/self%maxsed) * secs_per_day)
 
    ! Leave spatial loops over the horizontal domain (if any).
    _HORIZONTAL_LOOP_END_
