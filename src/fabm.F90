@@ -2267,8 +2267,10 @@ contains
          select type (standard_variable => consvar%standard_variable)
          class is (type_universal_standard_variable)
             consvar%target => self%root%find_object(trim(standard_variable%name))
+            if (.not. associated(consvar%target)) consvar%target => self%root%find_object('zero')
             _ASSERT_(associated(consvar%target), 'classify_variables', 'Conserved quantity ' // trim(standard_variable%name) // ' was not created')
             consvar%target_hz => self%root%find_object(trim(standard_variable%name) // '_at_interfaces')
+            if (.not. associated(consvar%target_hz)) consvar%target_hz => self%root%find_object('zero_hz')
             _ASSERT_(associated(consvar%target_hz), 'classify_variables', 'Conserved quantity ' // trim(standard_variable%name) // '_at_interfaces was not created')
          end select
          standard_variable_node => standard_variable_node%next
