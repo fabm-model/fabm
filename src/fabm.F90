@@ -2239,6 +2239,7 @@ contains
          end if
          aggregate_variable => aggregate_variable%next
       end do
+      call aggregate_variable_list%finalize()
 
       ! Count number of conserved quantities and allocate an array for them.
       ncons = 0

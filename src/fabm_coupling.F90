@@ -34,8 +34,9 @@ module fabm_coupling
    type type_aggregate_variable_list
       type (type_aggregate_variable), pointer :: first => null()
    contains
-      procedure :: get   => aggregate_variable_list_get
-      procedure :: print => aggregate_variable_list_print
+      procedure :: get      => aggregate_variable_list_get
+      procedure :: print    => aggregate_variable_list_print
+      procedure :: finalize => aggregate_variable_list_finalize
    end type
 
 contains
@@ -448,6 +449,19 @@ contains
       self%first => aggregate_variable
    end function
 
+   subroutine aggregate_variable_list_finalize(self)
+      class (type_aggregate_variable_list), intent(inout) :: self
+
+      type (type_aggregate_variable), pointer :: current, next
+
+      current => self%first
+      do while (associated(current))
+         next => current%next
+         deallocate(current)
+         current => next
+      end do
+   end subroutine
+
    function collect_aggregate_variables(self) result(list)
       class (type_base_model), intent(in), target :: self
       type (type_aggregate_variable_list)         :: list
@@ -557,6 +571,8 @@ contains
          end select
          aggregate_variable_access => aggregate_variable_access%next
       end do
+
+      call list%finalize()
 
       ! Process child models
       child => self%children%first
