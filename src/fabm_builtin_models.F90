@@ -289,31 +289,35 @@ module fabm_builtin_models
       end if
       if (present(link)) link => link_
       if (.not. associated(self%first)) then
-         ! No components - add link to zero field to parent.
+         ! No components - link to constant field with offset (typically 0)
          link_%target%source = source_constant
-         link_%target%prefill_value = 0
+         link_%target%prefill_value = self%offset
          link_%target%missing_value = self%missing_value
          link_%target%output = self%result_output
-      elseif (.not. associated(self%first%next) .and. self%first%weight == 1.0_rk .and. .not. create_for_one_) then
-         ! One component with scale factor 1 - add link to component to parent.
-         call parent%request_coupling(link_, self%first%name)
       elseif (.not. associated(self%first%next)) then
-         ! One component with scale factor other than 1 (or a user-specified requirement NOT to make a direct link to the source variable)
-         allocate(scaled_variable)
-         call parent%add_child(scaled_variable, trim(name) // '_calculator', configunit=-1)
-         call scaled_variable%register_dependency(scaled_variable%id_source, 'source', self%units, 'source variable')
-         call scaled_variable%request_coupling(scaled_variable%id_source, self%first%name)
-         call scaled_variable%register_diagnostic_variable(scaled_variable%id_result, 'result', self%units, 'result', &
-            missing_value=self%missing_value, output=self%result_output, act_as_state_variable=iand(self%access, access_set_source) /= 0)
-         scaled_variable%weight = self%first%weight
-         scaled_variable%include_background = self%first%include_background
-         scaled_variable%offset = self%offset
-         call parent%request_coupling(link_, trim(name)//'_calculator/result')
-         if (iand(self%access, access_set_source) /= 0) then
-            ! This scaled variable acts as a state variable. Create a child model to distribute source terms to the original source variable.
-            call copy_fluxes(scaled_variable, scaled_variable%id_result, self%first%name, scale_factor=1.0_rk / scaled_variable%weight)
-            if (present(aggregate_variable)) call scaled_variable%add_to_aggregate_variable(aggregate_variable, scaled_variable%id_result)
+         ! One component only.
+         if (self%first%weight == 1.0_rk .and. .not. create_for_one_) then
+            ! One component with scale factor 1 - directly link to the component's source variable.
+            call parent%request_coupling(link_, self%first%name)
+         else
+            ! One component with scale factor other than 1 (or a user-specified requirement NOT to make a direct link to the source variable)
+            allocate(scaled_variable)
+            call parent%add_child(scaled_variable, trim(name) // '_calculator', configunit=-1)
+            call scaled_variable%register_dependency(scaled_variable%id_source, 'source', self%units, 'source variable')
+            call scaled_variable%request_coupling(scaled_variable%id_source, self%first%name)
+            call scaled_variable%register_diagnostic_variable(scaled_variable%id_result, 'result', self%units, 'result', &
+               missing_value=self%missing_value, output=self%result_output, act_as_state_variable=iand(self%access, access_set_source) /= 0)
+            scaled_variable%weight = self%first%weight
+            scaled_variable%include_background = self%first%include_background
+            scaled_variable%offset = self%offset
+            call parent%request_coupling(link_, trim(name)//'_calculator/result')
+            if (iand(self%access, access_set_source) /= 0) then
+               ! This scaled variable acts as a state variable. Create a child model to distribute source terms to the original source variable.
+               call copy_fluxes(scaled_variable, scaled_variable%id_result, self%first%name, scale_factor=1.0_rk / scaled_variable%weight)
+               if (present(aggregate_variable)) call scaled_variable%add_to_aggregate_variable(aggregate_variable, scaled_variable%id_result)
+            end if
          end if
+         deallocate(self%first)
       else
          ! Multiple components. Create the sum.
          call parent%add_child(self, trim(name) // '_calculator', configunit=-1)
@@ -671,31 +675,35 @@ module fabm_builtin_models
       end if
       if (present(link)) link => link_
       if (.not.associated(self%first)) then
-         ! No components - add link to zero field to parent.
+         ! No components - link to constant field with offset (typically 0)
          link_%target%source = source_constant
-         link_%target%prefill_value = 0
+         link_%target%prefill_value = self%offset
          link_%target%missing_value = self%missing_value
          link_%target%output = self%result_output
-      elseif (.not. associated(self%first%next) .and. self%first%weight == 1.0_rk .and. .not. create_for_one_) then
-         ! One component with scale factor 1 - add link to component to parent.
-         call parent%request_coupling(link_, self%first%name)
-      elseif (.not.associated(self%first%next)) then
-         ! One component with scale factor other than 1 (or a user-specified requirement NOT to make a direct link to the source variable)
-         allocate(scaled_variable)
-         call parent%add_child(scaled_variable, trim(name) // '_calculator', configunit=-1)
-         call scaled_variable%register_dependency(scaled_variable%id_source, 'source', self%units, 'source variable')
-         call scaled_variable%request_coupling(scaled_variable%id_source, self%first%name)
-         call scaled_variable%register_diagnostic_variable(scaled_variable%id_result, 'result', self%units, 'result', &
-            missing_value=self%missing_value, output=self%result_output, act_as_state_variable= &
-            iand(self%access, access_set_source) /= 0, source=source_do_horizontal, domain=self%domain)
-         scaled_variable%weight = self%first%weight
-         scaled_variable%include_background = self%first%include_background
-         scaled_variable%offset = self%offset
-         call parent%request_coupling(link_, trim(name)//'_calculator/result')
-         if (iand(self%access, access_set_source) /= 0) then
-            call copy_horizontal_fluxes(scaled_variable, scaled_variable%id_result, self%first%name, scale_factor=1.0_rk / scaled_variable%weight)
-            if (present(aggregate_variable)) call scaled_variable%add_to_aggregate_variable(aggregate_variable, scaled_variable%id_result)
+      elseif (.not. associated(self%first%next)) then
+         ! One component only.
+         if (self%first%weight == 1.0_rk .and. .not. create_for_one_) then
+            ! One component with scale factor 1 - directly link to the component's source variable.
+            call parent%request_coupling(link_, self%first%name)
+         else
+            ! One component with scale factor other than 1 (or a user-specified requirement NOT to make a direct link to the source variable)
+            allocate(scaled_variable)
+            call parent%add_child(scaled_variable, trim(name) // '_calculator', configunit=-1)
+            call scaled_variable%register_dependency(scaled_variable%id_source, 'source', self%units, 'source variable')
+            call scaled_variable%request_coupling(scaled_variable%id_source, self%first%name)
+            call scaled_variable%register_diagnostic_variable(scaled_variable%id_result, 'result', self%units, 'result', &
+               missing_value=self%missing_value, output=self%result_output, act_as_state_variable= &
+               iand(self%access, access_set_source) /= 0, source=source_do_horizontal, domain=self%domain)
+            scaled_variable%weight = self%first%weight
+            scaled_variable%include_background = self%first%include_background
+            scaled_variable%offset = self%offset
+            call parent%request_coupling(link_, trim(name)//'_calculator/result')
+            if (iand(self%access, access_set_source) /= 0) then
+               call copy_horizontal_fluxes(scaled_variable, scaled_variable%id_result, self%first%name, scale_factor=1.0_rk / scaled_variable%weight)
+               if (present(aggregate_variable)) call scaled_variable%add_to_aggregate_variable(aggregate_variable, scaled_variable%id_result)
+            end if
          end if
+         deallocate(self%first)
       else
          ! One component with scale factor unequal to 1, or multiple components. Create the sum.
          call parent%add_child(self, trim(name) // '_calculator', configunit=-1)
