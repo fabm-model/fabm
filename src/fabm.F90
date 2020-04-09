@@ -2273,6 +2273,7 @@ contains
          end select
          standard_variable_node => standard_variable_node%next
       end do
+      call standard_variable_set%finalize()
 
       ! From this point on, variables will stay as they are.
       ! Coupling is done, and the framework will not add further read indices.
@@ -2459,6 +2460,9 @@ contains
       call dependencies%to_array(self%dependencies)
       call dependencies_hz%to_array(self%dependencies_hz)
       call dependencies_scalar%to_array(self%dependencies_scalar)
+      call dependencies%finalize()
+      call dependencies_hz%finalize()
+      call dependencies_scalar%finalize()
    contains
       subroutine copy_variable_metadata(internal_variable, external_variable)
          class (type_fabm_variable),    intent(inout)      :: external_variable
