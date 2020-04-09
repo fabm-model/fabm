@@ -2693,10 +2693,8 @@ contains
       type (type_model_list_node), pointer :: child
 
       select type (model)
-      class is (type_weighted_sum)
-         call model%reindex(log_unit)
-      class is (type_horizontal_weighted_sum)
-         call model%reindex(log_unit)
+      class is (type_reduction_operator)
+         call model%merge_components(log_unit)
       end select
 
       ! Process children

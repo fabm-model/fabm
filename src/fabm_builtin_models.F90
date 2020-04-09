@@ -8,7 +8,9 @@ module fabm_builtin_models
 
    private
 
-   public type_weighted_sum,type_horizontal_weighted_sum,type_depth_integral,type_bounded_depth_integral,copy_fluxes,copy_horizontal_fluxes
+   public type_reduction_operator, type_weighted_sum, type_horizontal_weighted_sum
+   public type_depth_integral, type_bounded_depth_integral
+   public copy_fluxes, copy_horizontal_fluxes
    public type_surface_source
 
    type,extends(type_base_model_factory) :: type_factory
@@ -16,7 +18,7 @@ module fabm_builtin_models
       procedure :: create
    end type
 
-   type (type_factory),save,target,public :: builtin_factory
+   type (type_factory), save, target, public :: builtin_factory
 
    type type_sum_term
       type (type_dependency_id) :: id
@@ -44,7 +46,12 @@ module fabm_builtin_models
       type (type_horizontal_component),pointer :: next   => null()
    end type
 
-   type,extends(type_base_model) :: type_weighted_sum
+   type, extends(type_base_model) :: type_reduction_operator
+   contains
+      procedure :: merge_components => reduction_operator_merge_components
+   end type
+
+   type, extends(type_reduction_operator) :: type_weighted_sum
       character(len=attribute_length) :: units         = ''
       integer                         :: result_output = output_instantaneous
       real(rk)                        :: offset        = 0.0_rk
@@ -55,23 +62,23 @@ module fabm_builtin_models
       type (type_component), pointer  :: first => null()
       type (type_sum_term), allocatable :: sources(:)
    contains
-      procedure :: initialize     => weighted_sum_initialize
-      procedure :: add_component  => weighted_sum_add_component
-      procedure :: do             => weighted_sum_do
-      procedure :: after_coupling => weighted_sum_after_coupling
-      procedure :: add_to_parent  => weighted_sum_add_to_parent
-      procedure :: reindex        => weighted_sum_reindex
+      procedure :: initialize       => weighted_sum_initialize
+      procedure :: add_component    => weighted_sum_add_component
+      procedure :: do               => weighted_sum_do
+      procedure :: after_coupling   => weighted_sum_after_coupling
+      procedure :: add_to_parent    => weighted_sum_add_to_parent
+      procedure :: merge_components => weighted_sum_merge_components
    end type
 
-   type,extends(type_base_model) :: type_weighted_sum_sms_distributor
-      type (type_dependency_id)                 :: id_total_sms
-      type (type_state_variable_id),allocatable :: id_targets(:)
-      real(rk),allocatable                      :: weights(:)
+   type, extends(type_base_model) :: type_weighted_sum_sms_distributor
+      type (type_dependency_id)                  :: id_total_sms
+      type (type_state_variable_id), allocatable :: id_targets(:)
+      real(rk),allocatable                       :: weights(:)
    contains
       !procedure :: do => weighted_sum_sms_distributor_do
    end type
 
-   type,extends(type_base_model) :: type_scaled_interior_variable
+   type, extends(type_base_model) :: type_scaled_interior_variable
       type (type_dependency_id)          :: id_source
       type (type_diagnostic_variable_id) :: id_result
       real(rk)                           :: weight = 1.0_rk
@@ -83,7 +90,7 @@ module fabm_builtin_models
       procedure :: after_coupling => scaled_interior_variable_after_coupling
    end type
 
-   type,extends(type_base_model) :: type_horizontal_weighted_sum
+   type, extends(type_reduction_operator) :: type_horizontal_weighted_sum
       character(len=attribute_length) :: units         = ''
       integer                         :: result_output = output_instantaneous
       real(rk)                        :: offset        = 0.0_rk
@@ -95,15 +102,15 @@ module fabm_builtin_models
       type (type_horizontal_component), pointer   :: first => null()
       type (type_horizontal_sum_term), allocatable :: sources(:)
    contains
-      procedure :: add_component  => horizontal_weighted_sum_add_component
-      procedure :: initialize     => horizontal_weighted_sum_initialize
-      procedure :: do_horizontal  => horizontal_weighted_sum_do_horizontal
-      procedure :: after_coupling => horizontal_weighted_sum_after_coupling
-      procedure :: add_to_parent  => horizontal_weighted_sum_add_to_parent
-      procedure :: reindex        => horizontal_weighted_sum_reindex
+      procedure :: add_component    => horizontal_weighted_sum_add_component
+      procedure :: initialize       => horizontal_weighted_sum_initialize
+      procedure :: do_horizontal    => horizontal_weighted_sum_do_horizontal
+      procedure :: after_coupling   => horizontal_weighted_sum_after_coupling
+      procedure :: add_to_parent    => horizontal_weighted_sum_add_to_parent
+      procedure :: merge_components => horizontal_weighted_sum_merge_components
    end type
 
-   type,extends(type_base_model) :: type_scaled_horizontal_variable
+   type, extends(type_base_model) :: type_scaled_horizontal_variable
       type (type_horizontal_dependency_id)          :: id_source
       type (type_horizontal_diagnostic_variable_id) :: id_result
       real(rk)                                      :: weight = 1.0_rk
@@ -115,7 +122,7 @@ module fabm_builtin_models
       procedure :: after_coupling => scaled_horizontal_variable_after_coupling
    end type
 
-   type,extends(type_base_model) :: type_depth_integral
+   type, extends(type_base_model) :: type_depth_integral
       type (type_dependency_id)                     :: id_input
       type (type_dependency_id)                     :: id_thickness
       type (type_horizontal_diagnostic_variable_id) :: id_output
@@ -126,26 +133,26 @@ module fabm_builtin_models
       procedure :: after_coupling => depth_integral_after_coupling
    end type
 
-   type,extends(type_depth_integral) :: type_bounded_depth_integral
+   type, extends(type_depth_integral) :: type_bounded_depth_integral
       real(rk) :: minimum_depth = 0.0_rk
       real(rk) :: maximum_depth = huge(1.0_rk)
    contains
       procedure :: get_light  => bounded_depth_integral_do_column
    end type
 
-   type,extends(type_base_model) :: type_interior_constant
+   type, extends(type_base_model) :: type_interior_constant
       type (type_diagnostic_variable_id) :: id_constant
    contains
       procedure :: initialize => interior_constant_initialize
    end type
 
-   type,extends(type_base_model) :: type_horizontal_constant
+   type, extends(type_base_model) :: type_horizontal_constant
       type (type_horizontal_diagnostic_variable_id) :: id_constant
    contains
       procedure :: initialize => horizontal_constant_initialize
    end type
 
-   type,extends(type_base_model) :: type_horizontal_layer
+   type, extends(type_base_model) :: type_horizontal_layer
       type (type_dependency_id)                     :: id_source
       type (type_horizontal_diagnostic_variable_id) :: id_result
    contains
@@ -158,13 +165,13 @@ module fabm_builtin_models
       procedure :: do_bottom  => bottom_field_do_bottom
    end type
 
-   type,extends(type_horizontal_layer) :: type_surface_field
+   type, extends(type_horizontal_layer) :: type_surface_field
    contains
       procedure :: initialize => surface_field_initialize
       procedure :: do_surface => surface_field_do_surface
    end type
 
-   type,extends(type_base_model) :: type_constant_surface_flux
+   type, extends(type_base_model) :: type_constant_surface_flux
       type (type_state_variable_id) :: id_target
       real(rk) :: flux
    contains
@@ -172,7 +179,7 @@ module fabm_builtin_models
       procedure :: do_surface => constant_surface_flux_do_surface
    end type
 
-   type,extends(type_base_model) :: type_horizontal_flux
+   type, extends(type_base_model) :: type_horizontal_flux
       type (type_link), pointer            :: target
       type (type_horizontal_add_id)        :: id_target_flux
       type (type_horizontal_dependency_id) :: id_flux
@@ -181,17 +188,17 @@ module fabm_builtin_models
       procedure :: do_horizontal => horizontal_flux_do_horizontal
    end type
 
-   type,extends(type_horizontal_flux) :: type_external_surface_flux
+   type, extends(type_horizontal_flux) :: type_external_surface_flux
    contains
       procedure :: initialize => external_surface_flux_initialize
    end type
 
-   type,extends(type_horizontal_flux) :: type_external_bottom_flux
+   type, extends(type_horizontal_flux) :: type_external_bottom_flux
    contains
       procedure :: initialize => external_bottom_flux_initialize
    end type
 
-   type,extends(type_base_model) :: type_interior_source
+   type, extends(type_base_model) :: type_interior_source
       type (type_link), pointer :: target
       type (type_add_id)        :: id_target_sms
       type (type_dependency_id) :: id_source
@@ -201,17 +208,17 @@ module fabm_builtin_models
       procedure :: do         => interior_source_do
    end type
 
-   type,extends(type_horizontal_flux) :: type_bottom_source
+   type, extends(type_horizontal_flux) :: type_bottom_source
    contains
       procedure :: initialize => bottom_source_initialize
    end type
 
-   type,extends(type_horizontal_flux) :: type_surface_source
+   type, extends(type_horizontal_flux) :: type_surface_source
    contains
       procedure :: initialize => surface_source_initialize
    end type
 
-   type,extends(type_base_model) :: type_interior_relaxation
+   type, extends(type_base_model) :: type_interior_relaxation
       type (type_state_variable_id) :: id_original
       type (type_dependency_id)     :: id_target
       type (type_dependency_id)     :: id_rate
@@ -222,7 +229,7 @@ module fabm_builtin_models
       procedure :: do         => interior_relaxation_do
    end type
 
-   type,extends(type_base_model) :: type_column_projection
+   type, extends(type_base_model) :: type_column_projection
       type (type_horizontal_dependency_id) :: id_source
       type (type_diagnostic_variable_id)   :: id_result
    contains
@@ -263,6 +270,11 @@ module fabm_builtin_models
          ! Add new examples models here
       end select
 
+   end subroutine
+
+   subroutine reduction_operator_merge_components(self, log_unit)
+      class (type_reduction_operator), intent(inout) :: self
+      integer, optional,               intent(in)    :: log_unit
    end subroutine
 
    function weighted_sum_add_to_parent(self, parent, name, create_for_one, aggregate_variable, link) result(sum_used)
@@ -431,7 +443,7 @@ module fabm_builtin_models
       call self%id_output%link%target%background_values%set_value(background)
    end subroutine
 
-   subroutine weighted_sum_reindex(self, log_unit)
+   subroutine weighted_sum_merge_components(self, log_unit)
       class (type_weighted_sum), intent(inout) :: self
       integer, optional,         intent(in)    :: log_unit
 
@@ -484,7 +496,7 @@ module fabm_builtin_models
          call component%id%link%target%read_indices%append(self%sources(i)%id%index)
          component => component%next
       end do
-   end subroutine weighted_sum_reindex
+   end subroutine weighted_sum_merge_components
 
    logical function merge_component(component_link, weight, target_variable, log_unit)
       type (type_link),              intent(inout)         :: component_link
@@ -524,7 +536,7 @@ module fabm_builtin_models
       end if
    end function
 
-   subroutine horizontal_weighted_sum_reindex(self, log_unit)
+   subroutine horizontal_weighted_sum_merge_components(self, log_unit)
       class (type_horizontal_weighted_sum), intent(inout) :: self
       integer, optional,                    intent(in)    :: log_unit
 
@@ -577,7 +589,7 @@ module fabm_builtin_models
          call component%id%link%target%read_indices%append(self%sources(i)%id%horizontal_index)
          component => component%next
       end do
-   end subroutine horizontal_weighted_sum_reindex
+   end subroutine horizontal_weighted_sum_merge_components
 
    subroutine weighted_sum_do(self, _ARGUMENTS_DO_)
       class (type_weighted_sum), intent(in) :: self
