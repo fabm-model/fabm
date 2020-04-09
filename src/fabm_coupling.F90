@@ -452,14 +452,22 @@ contains
    subroutine aggregate_variable_list_finalize(self)
       class (type_aggregate_variable_list), intent(inout) :: self
 
-      type (type_aggregate_variable), pointer :: current, next
+      type (type_aggregate_variable),    pointer :: current, next
+      type (type_contributing_variable), pointer :: contributing_variable, contributing_variable2
 
       current => self%first
       do while (associated(current))
          next => current%next
+         contributing_variable => current%first_contributing_variable
+         do while (associated(contributing_variable))
+            contributing_variable2 => contributing_variable%next
+            deallocate(contributing_variable)
+            contributing_variable => contributing_variable2
+         end do
          deallocate(current)
          current => next
       end do
+      self%first => null()
    end subroutine
 
    function collect_aggregate_variables(self) result(list)

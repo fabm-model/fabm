@@ -42,6 +42,7 @@ module fabm_task_order
       procedure :: to_string         => task_tree_node_to_string
       procedure :: get_minimum_depth => task_tree_node_get_minimum_depth
       procedure :: get_leaf_at_depth => task_tree_node_get_leaf_at_depth
+      procedure :: finalize          => task_tree_node_finalize
    end type
 
    type, extends(type_graph_subset_node_set) :: type_step
@@ -85,6 +86,7 @@ contains
          steps(itask)%operation = leaf%operation
          leaf => leaf%parent
       end do
+      call root%finalize()
       do itask = ntasks, 1, -1
          call subset%collect(steps(itask)%operation, steps(itask))
       end do
@@ -299,6 +301,21 @@ contains
          child => child%next_sibling
       end do
    end function
+
+   recursive subroutine task_tree_node_finalize(self)
+      class (type_task_tree_node), intent(inout) :: self
+
+      type (type_task_tree_node), pointer :: child, child2
+
+      child => self%first_child
+      do while (associated(child))
+         child2 => child%next_sibling
+         call child%finalize()
+         deallocate(child)
+         child => child2
+      end do
+      self%first_child => null()
+   end subroutine
 
    recursive subroutine graph_subset_node_set_branch(self, parent)
       class (type_graph_subset_node_set), intent(inout) :: self

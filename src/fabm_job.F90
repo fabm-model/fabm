@@ -1338,6 +1338,7 @@ contains
          end do
          node => node%next
       end do
+      call global_call_list%finalize()
    end subroutine check_graph_duplicates
 
    subroutine job_manager_initialize(self, variable_register, schedules, unfulfilled_dependencies, log_unit)
