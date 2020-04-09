@@ -27,12 +27,12 @@ module fabm_pml_carbonate
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_pml_carbonate
 !     Variable identifiers
-      type (type_state_variable_id)                 :: id_dic, id_alk
-      type (type_dependency_id)                     :: id_temp, id_salt, id_pres, id_dens
-      type (type_horizontal_dependency_id)          :: id_wind, id_pco2_surf
-      type (type_diagnostic_variable_id)            :: id_ph, id_pco2, id_CarbA, id_Bicarb, &
-                                                       id_Carb, id_Om_cal, id_Om_arg, id_alk_diag
-      type (type_horizontal_diagnostic_variable_id) :: id_co2_flux
+      type (type_state_variable_id)              :: id_dic, id_alk
+      type (type_dependency_id)                  :: id_temp, id_salt, id_pres, id_dens
+      type (type_horizontal_dependency_id)       :: id_wind, id_pco2_surf
+      type (type_diagnostic_variable_id)         :: id_ph, id_pco2, id_CarbA, id_Bicarb, &
+                                                    id_Carb, id_Om_cal, id_Om_arg, id_alk_diag
+      type (type_surface_diagnostic_variable_id) :: id_co2_flux
 
 !     Model parameters
       real(rk) :: TA_offset, TA_slope, pCO2a
@@ -207,7 +207,7 @@ contains
    real(rk) :: PCO2WATER, pH, HENRY, ca, bc, cb, fl, pCO2a
 
    ! Parameters
-   real(rk), parameter :: secs_pr_day = 86400.0_rk
+   real(rk), parameter :: days_per_sec = 1.0_rk / 86400.0_rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -243,10 +243,10 @@ contains
    call Air_sea_exchange(temp, wnd, PCO2WATER*1.0e6_rk, pCO2a, Henry, dens/1.0e3_rk, fl)
 
    ! Transfer surface exchange value to FABM.
-   _SET_SURFACE_EXCHANGE_(self%id_dic,fl/secs_pr_day)
+   _SET_SURFACE_EXCHANGE_(self%id_dic,fl * days_per_sec)
 
    ! Store surface flux as diagnostic variable.
-   _SET_HORIZONTAL_DIAGNOSTIC_(self%id_co2_flux,fl/secs_pr_day)
+   _SET_SURFACE_DIAGNOSTIC_(self%id_co2_flux,fl * days_per_sec)
 
    ! Leave spatial loops (if any)
    _HORIZONTAL_LOOP_END_
