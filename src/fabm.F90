@@ -898,7 +898,7 @@ contains
 
       id%variable => get_variable_by_name(self, name, domain_interior)
    end function get_interior_variable_id_by_name
-   
+
    ! --------------------------------------------------------------------------
    ! get_interior_variable_id_sn: get interior variable identifier for given 
    ! standard variable
@@ -908,8 +908,7 @@ contains
       type (type_interior_standard_variable), intent(in) :: standard_variable
       type (type_fabm_interior_variable_id)              :: id
 
-      id%variable => get_variable_by_standard_variable(self, standard_variable)
-      if (standard_variable%aggregate_variable .and. .not. associated(id%variable)) id%variable => self%root%find_object('zero')
+      id%variable => get_variable_by_standard_variable(self, standard_variable%resolve())
    end function get_interior_variable_id_sn
 
    ! --------------------------------------------------------------------------
@@ -933,8 +932,7 @@ contains
       class (type_horizontal_standard_variable), intent(in) :: standard_variable
       type (type_fabm_horizontal_variable_id)               :: id
 
-      id%variable => get_variable_by_standard_variable(self, standard_variable)
-      if (standard_variable%aggregate_variable .and. .not. associated(id%variable)) id%variable => self%root%find_object('zero_hz')
+      id%variable => get_variable_by_standard_variable(self, standard_variable%resolve())
    end function get_horizontal_variable_id_sn
 
    ! --------------------------------------------------------------------------
@@ -958,7 +956,7 @@ contains
       type (type_global_standard_variable), intent(in) :: standard_variable
       type (type_fabm_scalar_variable_id)              :: id
 
-      id%variable => get_variable_by_standard_variable(self, standard_variable)
+      id%variable => get_variable_by_standard_variable(self, standard_variable%resolve())
    end function get_scalar_variable_id_sn
 
    ! --------------------------------------------------------------------------
@@ -2267,10 +2265,8 @@ contains
          select type (standard_variable => consvar%standard_variable)
          class is (type_universal_standard_variable)
             consvar%target => get_variable_by_standard_variable(self, standard_variable%in_interior())
-            if (.not. associated(consvar%target)) consvar%target => self%root%find_object('zero')
             _ASSERT_(associated(consvar%target), 'classify_variables', 'Conserved quantity ' // trim(standard_variable%name) // ' not found in interior.')
             consvar%target_hz => get_variable_by_standard_variable(self, standard_variable%at_interfaces())
-            if (.not. associated(consvar%target_hz)) consvar%target_hz => self%root%find_object('zero_hz')
             _ASSERT_(associated(consvar%target_hz), 'classify_variables', 'Conserved quantity ' // trim(standard_variable%name) // ' not found at interfaces.')
          end select
          standard_variable_node => standard_variable_node%next
@@ -2787,19 +2783,25 @@ contains
       class (type_base_standard_variable), target :: standard_variable
       type (type_internal_variable), pointer :: variable
 
-      class (type_base_standard_variable), pointer :: pstandard_variable
-      type (type_link),                    pointer :: link
+      type (type_link), pointer :: link
 
-      pstandard_variable => standard_variable%resolve()
       variable => null()
       link => self%root%links%first
       do while (associated(link))
-         if (link%target%standard_variables%contains(pstandard_variable)) then
+         if (link%target%standard_variables%contains(standard_variable)) then
             variable => link%target
             return
          end if
          link => link%next
       end do
+      if (standard_variable%aggregate_variable) then
+         select type (standard_variable)
+         class is (type_interior_standard_variable)
+            variable => self%root%find_object('zero')
+         class is (type_horizontal_standard_variable)
+            variable => self%root%find_object('zero_hz')
+         end select
+      end if
    end function get_variable_by_standard_variable
 
 end module fabm
