@@ -23,6 +23,11 @@ module fabm_work
    public cache_create, cache_pack, cache_unpack
    public process_interior_slice, process_horizontal_slice, process_vertical_slice
 
+   ! --------------------------------------------------------------------------
+   ! Derived type for model domain
+   ! (spatial extent, masks, indices of surface and bottom layers)
+   ! --------------------------------------------------------------------------
+
    type type_domain
       ! Information about the model domain
       integer :: size(_FABM_DIMENSION_COUNT_)
@@ -71,7 +76,7 @@ module fabm_work
    end type
 
    ! --------------------------------------------------------------------------
-   ! Derived types for variable store
+   ! Derived type for variable store
    ! (spatially explicit model outputs needed by other BGC modules or host)
    ! --------------------------------------------------------------------------
 
@@ -84,6 +89,10 @@ module fabm_work
       real(rke), allocatable                                      :: horizontal_missing_value(:)
    end type
 
+   ! --------------------------------------------------------------------------
+   ! Derived type for fill/missing values of cache entries
+   ! --------------------------------------------------------------------------
+
    type type_cache_fill_values
       real(rki), allocatable :: read(:)
       real(rki), allocatable :: read_hz(:)
@@ -94,10 +103,9 @@ module fabm_work
       real(rki), allocatable :: write_hz_missing(:)
    end type
 
-   interface allocate_and_fill
-      module procedure allocate_and_fill_0d
-      module procedure allocate_and_fill_1d
-   end interface
+   ! --------------------------------------------------------------------------
+   ! Interfaces for cache creation, packing, unpacking
+   ! --------------------------------------------------------------------------
 
    interface cache_create
       module procedure create_interior_cache
@@ -117,8 +125,16 @@ module fabm_work
       module procedure end_vertical_task
    end interface
 
-   integer, parameter :: array_block_size = 8
+   ! --------------------------------------------------------------------------
+   ! Interfaces and parameters for inernal use
+   ! --------------------------------------------------------------------------
 
+   interface allocate_and_fill
+      module procedure allocate_and_fill_0d
+      module procedure allocate_and_fill_1d
+   end interface
+
+   integer,   parameter :: array_block_size = 8
    real(rki), parameter :: not_written = huge(1.0_rki)
 
 contains
