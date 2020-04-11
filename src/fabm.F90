@@ -2577,26 +2577,6 @@ contains
       self%catalog%scalar_sources = data_source_none
    end subroutine create_catalog
 
-   subroutine collect_fill_values(variable_list, values, use_missing)
-      type (type_variable_list), intent(in)  :: variable_list
-      real(rke), allocatable,    intent(out) :: values(:)
-      logical,                   intent(in)  :: use_missing
-
-      integer                            :: i
-      type (type_variable_node), pointer :: variable_node
-
-      allocate(values(variable_list%count))
-      variable_node => variable_list%first
-      do i = 1, size(values)
-         if (use_missing) then
-            values(i) = variable_node%target%missing_value
-         else
-            values(i) = variable_node%target%prefill_value
-         end if
-         variable_node => variable_node%next
-      end do
-   end subroutine
-
    function get_cache_fill_values(variable_register) result(cache_fill_values)
       type (type_global_variable_register), intent(in) :: variable_register
       type (type_cache_fill_values)                    :: cache_fill_values
@@ -2648,9 +2628,9 @@ contains
 #endif
 
       ! Collect missing values in array for faster access. These will be used to fill masked parts of outputs.
-      call collect_fill_values(self%variable_register%store%interior, self%store%interior_fill_value, use_missing=.false.)
-      call collect_fill_values(self%variable_register%store%horizontal, self%store%horizontal_fill_value, use_missing=.false.)
-      call collect_fill_values(self%variable_register%store%interior, self%store%interior_missing_value, use_missing=.true.)
+      call collect_fill_values(self%variable_register%store%interior,   self%store%interior_fill_value,      use_missing=.false.)
+      call collect_fill_values(self%variable_register%store%horizontal, self%store%horizontal_fill_value,    use_missing=.false.)
+      call collect_fill_values(self%variable_register%store%interior,   self%store%interior_missing_value,   use_missing=.true.)
       call collect_fill_values(self%variable_register%store%horizontal, self%store%horizontal_missing_value, use_missing=.true.)
 
       ! Initialize persistent store entries to fill value.
@@ -2682,6 +2662,26 @@ contains
          _DECLARE_ARGUMENTS_LOCATION_
          allocate(self%store%interior(_PREARG_LOCATION_ 0:self%variable_register%store%interior%count))
          allocate(self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_ 0:self%variable_register%store%horizontal%count))
+      end subroutine
+
+      subroutine collect_fill_values(variable_list, values, use_missing)
+         type (type_variable_list), intent(in)  :: variable_list
+         real(rke), allocatable,    intent(out) :: values(:)
+         logical,                   intent(in)  :: use_missing
+
+         integer                            :: i
+         type (type_variable_node), pointer :: variable_node
+
+         allocate(values(variable_list%count))
+         variable_node => variable_list%first
+         do i = 1, size(values)
+            if (use_missing) then
+               values(i) = variable_node%target%missing_value
+            else
+               values(i) = variable_node%target%prefill_value
+            end if
+            variable_node => variable_node%next
+         end do
       end subroutine
 
    end subroutine create_store
@@ -2748,7 +2748,7 @@ contains
          end if
          current => next
       end do
-   end subroutine
+   end subroutine filter_expressions
 
    function get_variable_by_name(self, name, domain) result(variable)
       class (type_fabm_model), intent(in)    :: self
