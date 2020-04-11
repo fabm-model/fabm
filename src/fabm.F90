@@ -753,16 +753,11 @@ contains
       ! Create persistent store. This provides memory for all variables to be stored there.
       call create_store(self)
 
-      call collect_internal_fill_values(self%variable_register%read_cache%interior, self%cache_fill_values%read, use_missing=.false.)
-      call collect_internal_fill_values(self%variable_register%read_cache%horizontal, self%cache_fill_values%read_hz, use_missing=.false.)
-      call collect_internal_fill_values(self%variable_register%read_cache%scalar, self%cache_fill_values%read_scalar, use_missing=.false.)
-      call collect_internal_fill_values(self%variable_register%write_cache%interior, self%cache_fill_values%write, use_missing=.false.)
-      call collect_internal_fill_values(self%variable_register%write_cache%horizontal, self%cache_fill_values%write_hz, use_missing=.false.)
-      call collect_internal_fill_values(self%variable_register%write_cache%interior, self%cache_fill_values%write_missing, use_missing=.true.)
-      call collect_internal_fill_values(self%variable_register%write_cache%horizontal, self%cache_fill_values%write_hz_missing, use_missing=.true.)
+      ! Collect fill values and missing values for cache entries.
+      self%cache_fill_values = get_cache_fill_values(self%variable_register)
 
       ! Create global caches for exchanging information with BGC models.
-      ! This can only be done after collect_fill_values calls complete, because they specify what values to prefill te cache with.
+      ! This can only be done after get_cache_fill_values completes, because that determines what values to prefill the cache with.
       call cache_create(self%domain, self%cache_fill_values, self%cache_int)
       call cache_create(self%domain, self%cache_fill_values, self%cache_hz)
       call cache_create(self%domain, self%cache_fill_values, self%cache_vert)
@@ -2591,10 +2586,8 @@ contains
       type (type_variable_node), pointer :: variable_node
 
       allocate(values(variable_list%count))
-      i = 0
       variable_node => variable_list%first
-      do while (associated(variable_node))
-         i = i + 1
+      do i = 1, size(values)
          if (use_missing) then
             values(i) = variable_node%target%missing_value
          else
@@ -2604,27 +2597,38 @@ contains
       end do
    end subroutine
 
-   subroutine collect_internal_fill_values(variable_list, values, use_missing)
-      type (type_variable_list), intent(in)  :: variable_list
-      real(rki), allocatable,    intent(out) :: values(:)
-      logical,                   intent(in)  :: use_missing
+   function get_cache_fill_values(variable_register) result(cache_fill_values)
+      type (type_global_variable_register), intent(in) :: variable_register
+      type (type_cache_fill_values)                    :: cache_fill_values
 
-      integer                            :: i
-      type (type_variable_node), pointer :: variable_node
+      call collect(variable_register%read_cache%interior,    cache_fill_values%read,             use_missing=.false.)
+      call collect(variable_register%read_cache%horizontal,  cache_fill_values%read_hz,          use_missing=.false.)
+      call collect(variable_register%read_cache%scalar,      cache_fill_values%read_scalar,      use_missing=.false.)
+      call collect(variable_register%write_cache%interior,   cache_fill_values%write,            use_missing=.false.)
+      call collect(variable_register%write_cache%horizontal, cache_fill_values%write_hz,         use_missing=.false.)
+      call collect(variable_register%write_cache%interior,   cache_fill_values%write_missing,    use_missing=.true.)
+      call collect(variable_register%write_cache%horizontal, cache_fill_values%write_hz_missing, use_missing=.true.)
+   contains
+      subroutine collect(variable_list, values, use_missing)
+         type (type_variable_list), intent(in)  :: variable_list
+         real(rki), allocatable,    intent(out) :: values(:)
+         logical,                   intent(in)  :: use_missing
 
-      allocate(values(variable_list%count))
-      i = 0
-      variable_node => variable_list%first
-      do while (associated(variable_node))
-         i = i + 1
-         if (use_missing) then
-            values(i) = variable_node%target%missing_value
-         else
-            values(i) = variable_node%target%prefill_value
-         end if
-         variable_node => variable_node%next
-      end do
-   end subroutine
+         integer                            :: i
+         type (type_variable_node), pointer :: variable_node
+
+         allocate(values(variable_list%count))
+         variable_node => variable_list%first
+         do i = 1, size(values)
+            if (use_missing) then
+               values(i) = variable_node%target%missing_value
+            else
+               values(i) = variable_node%target%prefill_value
+            end if
+            variable_node => variable_node%next
+         end do
+      end subroutine
+   end function
 
    subroutine create_store(self)
       class (type_fabm_model), intent(inout) :: self
