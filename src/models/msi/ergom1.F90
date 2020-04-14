@@ -133,7 +133,7 @@
    call self%get_parameter(self%cyanotll,'cyanotll','deg C', 'Cyanobacteria lower temperature limit', default=13.5_rk)
    call self%get_parameter(self%cyanosll,'cyanosll','PSU', 'Cyanobacteria lower salinity limit', default=1.0_rk)
    call self%get_parameter(self%cyanosul,'cyanosul','PSU', 'Cyanobacteria upper salinity limit', default=10.0_rk)
-   call self%get_parameter(self%flagtll, 'flagtll', 'deg C', 'Flagellates half-saturation temp, squared', default=100.0_rk)
+   call self%get_parameter(self%flagtll, 'flagtll', '(deg C)2', 'Flagellates half-saturation temp, squared', default=100.0_rk)
    call self%get_parameter(self%alphap,  'alphap',  'mmol n/m3', 'Half-saturation const, diatoms', default=0.25_rk)
    call self%get_parameter(self%alphaf,  'alphaf',  'mmol n/m3', 'Half-saturation const, flagellates', default=0.10_rk)
    call self%get_parameter(self%alphab,  'alphab',  'mmol n/m3', 'Half-saturation const, cyanobacteria', default=0.4_rk)
