@@ -25,7 +25,7 @@ instances:
       cyanotll: 13.5            # Cyanobacteria lower temperature limit (deg C), default = 13.5
       cyanosll: 1.0             # Cyanobacteria lower salinity limit (PSU), default = 1.0
       cyanosul: 10.0            # Cyanobacteria upper salinity limit (PSU), default = 10.0
-      flagtll: 100.0            # Flagellates half-saturation temp, squared (deg C), default = 100.0
+      flagtll: 100.0            # Flagellates half-saturation temp, squared ((deg C)2), default = 100.0
       alphap: 0.25              # Half-saturation const, diatoms (mmol n/m3), default = 0.25
       alphaf: 0.1               # Half-saturation const, flagellates (mmol n/m3), default = 0.1
       alphab: 0.4               # Half-saturation const, cyanobacteria (mmol n/m3), default = 0.4
@@ -37,7 +37,7 @@ instances:
       toptz: 20.0               # Optimal temperature for grazing (deg C), default = 20.0
       zcl1: 50.0                # Zooplankton closure parameter (-), default = 50.0
       p0: 0.001                 # Diatoms       background value (mmol n/m3), default = 0.001
-      f0: 0.001                 # Flagellates   backgorund value (mmol n/m3), default = 0.001
+      f0: 0.001                 # Flagellates   background value (mmol n/m3), default = 0.001
       b0: 0.001                 # Cyanobacteria background value (mmol n/m3), default = 0.001
       z0: 0.001                 # Zooplankton   background value (mmol n/m3), default = 0.001
       imin_di: 35.0             # minimal optimal light radiation, diatoms (W/m2), default = 35.0

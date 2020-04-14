@@ -2,53 +2,53 @@ instances:
   npzd:
     model: gotm/npzd
     parameters:
-      p0: 0.0225
-      z0: 0.0225
-      w_p: -1.0
-      w_d: -5.0
-      kc: 0.03
-      I_min: 25.0
-      rmax: 1.0
-      gmax: 0.2
-      Iv: 1.1
-      alpha: 1.35
-      rpn: 0.01
-      rzn: 0.01
-      rdn: 0.003
-      rpdu: 0.02
-      rpdl: 0.1
-      rzd: 0.02
+      p0: 0.0225                            # background phytoplankton concentration (mmol m-3), default = 0.0225
+      z0: 0.0225                            # background zooplankton concentration (mmol m-3), default = 0.0225
+      kc: 0.03                              # specific light extinction of phytoplankton and detritus (m2 mmol-1), default = 0.03
+      i_min: 25.0                           # minimum light intensity in euphotic zone (W m-2), default = 25.0
+      rmax: 1.0                             # maximum specific growth rate of phytoplankton (d-1), default = 1.0
+      gmax: 0.2                             # maximum specific grazing rate of zooplankton (d-1), default = 0.5
+      iv: 1.1                               # Ivlev grazing constant (m3 mmol-1), default = 1.1
+      alpha: 1.35                           # half-saturation nutrient concentration for phytoplankton (mmol m-3), default = 0.3
+      rpn: 0.01                             # loss rate of phytoplankton to nutrients (d-1), default = 0.01
+      rzn: 0.01                             # loss rate of zooplankton to nutrients (d-1), default = 0.01
+      rdn: 0.003                            # detritus remineralization rate (d-1), default = 0.003
+      rpdu: 0.02                            # phytoplankton mortality in euphotic zone (d-1), default = 0.02
+      rpdl: 0.1                             # phytoplankton mortality below euphotic zone (d-1), default = 0.1
+      rzd: 0.02                             # zooplankton mortality (d-1), default = 0.02
+      w_p: -1.0                             # vertical velocity of phytoplankton (<0 for sinking) (m d-1), default = -1.0
+      w_d: -5.0                             # vertical velocity of detritus  (<0 for sinking) (m d-1), default = -5.0
     initialization:
-      nut: 4.5
-      phy: 1e-15
-      zoo: 1e-15
-      det: 4.5
+      nut: 4.5                              # nutrients (mmol m-3)
+      phy: 1e-15                            # phytoplankton (mmol m-3)
+      zoo: 1e-15                            # zooplankton (mmol m-3)
+      det: 4.5                              # detritus (mmol m-3)
   predator:
     model: examples/benthic_predator
     parameters:
-      g_max: 0.7
-      K: 0.5
-      h: 0.05
-      interact_with_pelagic: false
+      interact_with_pelagic: false          # food and waste are pelagic (not benthic), default = true
+      g_max: 0.7                            # maximum population growth rate (d-1), default = 1.0
+      K: 0.5                                # prey half-saturation (mmol m-2), default = 1.0
+      h: 0.05                               # mortality (d-1), default = 0.05
     initialization:
-      bm: 1.
+      bm: 1.0                               # predator density (mmol m-2)
     coupling:
-      prey: predator_food/result
-      waste: predator_waste/result
+      prey: predator_food/result            # prey (mmol m-2)
+      waste: predator_waste/result          # waste (mmol m-2)
   predator_habitat:
     model: examples/vertical_distribution
     parameters:
-      z_top: 10.
-      z_bot: 20.
-      w_top: 1
-      w_bot: 1
+      z_top: 10.0                           # upper limit of vertical distribution (m)
+      z_bot: 20.0                           # lower limit of vertical distribution (m)
+      w_top: 1.0                            # weight at upper limit of vertical distribution (-)
+      w_bot: 1.0                            # weight at lower limit of vertical distribution (-)
   predator_food:
     model: examples/depth_integral
     coupling:
-      target: npzd/zoo
-      weights: predator_habitat/weights
+      target: npzd/zoo                      # variable to depth-integrate
+      weights: predator_habitat/weights     # weights for vertical integration (-)
   predator_waste:
     model: examples/depth_integral
     coupling:
-      target: npzd/nut
-      weights: predator_habitat/weights
+      target: npzd/nut                      # variable to depth-integrate
+      weights: predator_habitat/weights     # weights for vertical integration (-)

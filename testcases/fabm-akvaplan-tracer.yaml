@@ -6,6 +6,6 @@ instances:
       k: 1.0                      # decay rate (half-life = ln(2)/k) (d-1), default = 0.0
       temperature_dependence: 1   # temperature dependence of decay (0: none, 1: Q10, 2: Arrhenius), default = 0
       T_ref: 10.0                 # temperature for which decay rate k is given (degree_C)
-      Q10: 2.0                    # Q10 temperature coefficient (1: no temperature dependence) (-), default = 1.0
+      Q10: 2.0                    # Q10 temperature coefficient (1: no temperature dependence) (-)
     initialization:
-      c: 1.0                      # concentration
+      c: 1.0                      # concentration (quantity m-3)

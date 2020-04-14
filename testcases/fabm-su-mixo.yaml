@@ -2,127 +2,127 @@ instances:
   ammonium:
     model: su/pools
     parameters:
-      has_nitrogen: true
+      has_nitrogen: true       # whether this pool contains nitrogen, default = false
     initialization:
-      N: 14
+      N: 14.0                  # nitrogen (ugN L-1)
   nitrate:
     model: su/pools
     parameters:
-      has_nitrogen: true
+      has_nitrogen: true       # whether this pool contains nitrogen, default = false
     initialization:
-      N: 140
+      N: 140.0                 # nitrogen (ugN L-1)
   phosphate:
     model: su/pools
     parameters:
-      has_phosphorus: true
+      has_phosphorus: true     # whether this pool contains phosphorus, default = false
     initialization:
-      P: 3.1
+      P: 3.1                   # phosphorus (ugP L-1)
   DIC:
     model: su/pools
     parameters:
-      has_carbon: true
+      has_carbon: true         # whether this pool contains carbon, default = false
     initialization:
-      C: 240
+      C: 240.0                 # carbon (ugC L-1)
   DOC:
     model: su/pools
     parameters:
-      has_carbon: true
+      has_carbon: true         # whether this pool contains carbon, default = false
     initialization:
-      C: 240
+      C: 240.0                 # carbon (ugC L-1)
   sDOM:
     model: su/pools
     parameters:
-       has_carbon: true
-       has_nitrogen: true
-       has_phosphorus: true
+      has_nitrogen: true       # whether this pool contains nitrogen, default = false
+      has_phosphorus: true     # whether this pool contains phosphorus, default = false
+      has_carbon: true         # whether this pool contains carbon, default = false
     initialization:
-      C: 12
-      N: 1.4
-      P: 0.31
+      C: 12.0                  # carbon (ugC L-1)
+      N: 1.4                   # nitrogen (ugN L-1)
+      P: 0.31                  # phosphorus (ugP L-1)
   cDOM:
     model: su/pools
     parameters:
-       has_carbon: true
-       has_nitrogen: true
-       has_phosphorus: true
+      has_nitrogen: true       # whether this pool contains nitrogen, default = false
+      has_phosphorus: true     # whether this pool contains phosphorus, default = false
+      has_carbon: true         # whether this pool contains carbon, default = false
     initialization:
-      C: 0
-      N: 0
-      P: 0
+      C: 0.0                   # carbon (ugC L-1)
+      N: 0.0                   # nitrogen (ugN L-1)
+      P: 0.0                   # phosphorus (ugP L-1)
   POM:
     model: su/pools
     parameters:
-      has_silicate: true
+      has_silicate: true       # whether this pool contains silicate, default = false
     initialization:
-      S: 10
+      S: 10.0                  # silicate (ugSi L-1)
   algae:
     model: su/algae
-    initialization:            
-      aC: 1
-      aN: 0.25
-      aP: 0.02
-      aChl: 0.06
+    initialization:
+      aC: 1.0                  # core algae C-biomass (ugC L-1)
+      aN: 0.25                 # core algae N-biomass (ugN L-1)
+      aP: 0.02                 # core algae P-biomass (ugP L-1)
+      aChl: 0.06               # core algae Chl-biomass (ugChl L-1)
     coupling:
-      NH4:   ammonium/N
-      NO3:   nitrate/N
-      DIP:   phosphate/P
-      DIC:   DIC/C
-      sDOMC: sDOM/C
-      sDOMN: sDOM/N
-      sDOMP: sDOM/P
-      DOC:   DOC/C
+      NH4: ammonium/N          # ammonium (ugN L-1)
+      NO3: nitrate/N           # nitrate (ugN L-1)
+      DIP: phosphate/P         # dissolved inorganic phosphorus (ugP L-1)
+      DIC: DIC/C               # dissolved inorganic carbon (ugC L-1)
+      sDOMC: sDOM/C            # semi-labile dissolved organic material-carbon (ugC L-1)
+      sDOMN: sDOM/N            # semi-labile dissolved organic material-nitrogen (ugN L-1)
+      sDOMP: sDOM/P            # semi-labile dissolved organic material-phosphorus (ugP L-1)
+      DOC: DOC/C               # dissolved organic carbon (ugC L-1)
   bacteria:
     model: su/bacteria
-    initialization:            
-      bC: 1
+    initialization:
+      bC: 1.0                  # core bacterial C-biomass (ugC L-1)
     coupling:
-      NH4:   ammonium/N
-      NO3:   nitrate/N
-      DIP:   phosphate/P
-      DIC:   DIC/C
-      DOC:   DOC/C
-      sDOMC: sDOM/C
-      sDOMN: sDOM/N
-      sDOMP: sDOM/P
-      cDOMC: cDOM/C
-      cDOMN: cDOM/N
-      cDOMP: cDOM/P
+      NH4: ammonium/N          # ammonium (ugN L-1)
+      NO3: nitrate/N           # nitrate (ugN L-1)
+      DIP: phosphate/P         # dissolved inorganic phosphorus (ugP L-1)
+      DIC: DIC/C               # dissolved inorganic carbon (ugC L-1)
+      DOC: DOC/C               # dissolved organic carbon (ugC L-1)
+      sDOMC: sDOM/C            # semi-labile dissolved organic material-carbon (ugC L-1)
+      sDOMN: sDOM/N            # semi-labile dissolved organic material-nitrogen (ugN L-1)
+      sDOMP: sDOM/P            # semi-labile dissolved organic material-phosphorus (ugP L-1)
+      cDOMC: cDOM/C            # combined dissolved organic material-carbon (ugC L-1)
+      cDOMN: cDOM/N            # combined dissolved organic material-nitrogen (ugN L-1)
+      cDOMP: cDOM/P            # combined dissolved organic material-phosphorus (ugP L-1)
   PB:
-    long_name: Perfect Beast  
+    long_name: Perfect Beast
     model: su/mixo
     parameters:
-      mUm: 0.7             
-      mUphot: 0.35         
-      Smix: 0              
-      Svol: 1              
-      mChlCabs: 0.03       
-      nprey: 2
-      preyESD1: 10.50
-      preyESD2: 1
-      pref1: 1
-      pref2: 1
-      steal1: 1
-      steal2: 0
-      kpmax: 1.852
-      SSi: false
+      mChlCabs: 0.03           #  absolute maximum Chl:C (gChl (gC)-1), default = 0.03
+      Smix: 0                  # switch to mix C input; 0 if substitutional; 1 if additive mixotrophic interaction (dl), default = 0
+      Svol: 1                  # switch to share cell volume; 0 if feeding vacuole does not compromise ChlCmax (dl), default = 0
+      mUm: 0.7                 #  maximum possible growth rate (day-1), default = 0.7
+      mUphot: 0.35             #  maximum phototrophic growth rate (day-1), default = 0.35
+      kpmax: 1.852             # kleptochloroplast photosynthetic rate (gC/gC/day), default = 0.0
+      SSi: false               # switch to activate silicate limitation, default = false
+      nprey: 2                 # number of prey types, default = 0
+      preyESD1: 10.5           # size in ESD1 (um)
+      pref1: 1.0               # prey preference1 (dl)
+      steal1: 1                # steal or not chloroplasts from prey1
+      preyESD2: 1.0            # size in ESD2 (um)
+      pref2: 1.0               # prey preference2 (dl)
+      steal2: 0                # steal or not chloroplasts from prey2
     initialization:
-      mC: 1
-      mN: 0.2
-      mP: 0.02
-      mChl: 0.01
-      mF: 1e-12
-      mFN: 0
-      mFP: 0
-      mFChl: 1e-18
+      mC: 1.0                  # core  C-biomass (ugC L-1)
+      mN: 0.2                  # core  N-biomass (ugN L-1)
+      mP: 0.02                 # core  P-biomass (ugP L-1)
+      mChl: 0.01               # core  Chl-biomass (ugChl L-1)
+      mF: 1e-12                # food vacuole C-biomass (ugC L-1)
+      mFN: 0.0                 # food vacuole N-biomass (ugN L-1)
+      mFP: 0.0                 # food vacuole P-biomass (ugP L-1)
+      mFChl: 1e-18             # food vacuole Chl-biomass (ugChl L-1)
     coupling:
       prey1: algae
       prey2: bacteria
-      NH4:   ammonium
-      NO3:   nitrate
-      DIP:   phosphate
-      DIC:   DIC
+      NH4: ammonium
+      NO3: nitrate
+      DIP: phosphate
+      DIC: DIC
       sDOMC: sDOM
       sDOMN: sDOM
       sDOMP: sDOM
-      DOC:   DOC
-      RPs:   POM
+      DOC: DOC
+      RPs: POM
