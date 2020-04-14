@@ -321,10 +321,10 @@
                 output=output_time_step_integrated)
     call self%register_diagnostic_variable(self%id_DcDM_Fe,'DcDM_Fe','mmol/m**3',  'DOM with Fe(III) mineralization  ',           &
                 output=output_time_step_integrated)
-    call self%register_diagnostic_variable(self%id_DcPM_CH4,'DcPM_CH4','mmol/m**3',  'CH4 production from PON',           &
-                output=output_time_step_integrated)
-    call self%register_diagnostic_variable(self%id_DcDM_CH4,'DcDM_CH4','mmol/m**3',  'CH4 production from DON',           &
-                output=output_time_step_integrated)
+    !call self%register_diagnostic_variable(self%id_DcPM_CH4,'DcPM_CH4','mmol/m**3',  'CH4 production from PON',           &
+    !            output=output_time_step_integrated)
+    !call self%register_diagnostic_variable(self%id_DcDM_CH4,'DcDM_CH4','mmol/m**3',  'CH4 production from DON',           &
+    !            output=output_time_step_integrated)
     call self%register_diagnostic_variable(self%id_ChemBaae,'ChemBaae','mmol/m**3',  'Growth of  Aerobic Autotrophic Bacteria',           &
                 output=output_time_step_integrated)
     call self%register_diagnostic_variable(self%id_HetBhae,'HetBhae','mmol/m**3',  'Growth of  Aerobic Heterotrophic Bacteria',           &
@@ -413,10 +413,10 @@
                 output=output_time_step_integrated)
     call self%register_diagnostic_variable(self%id_so4_rd_DM,'so4_rd_DM','mmol/m**3',  'DOM sulfatereduction 1st stage',           &
                 output=output_time_step_integrated)
-    call self%register_diagnostic_variable(self%id_ch4_o2,'ch4_o2','mmol/m**3',  'CH4 with O2 oxidation',           &
-                output=output_time_step_integrated)
-    call self%register_diagnostic_variable(self%id_ch4_so4,'ch4_so4','mmol/m**3',  'CH4 with SO4 oxidation',           &
-                output=output_time_step_integrated)
+    !call self%register_diagnostic_variable(self%id_ch4_o2,'ch4_o2','mmol/m**3',  'CH4 with O2 oxidation',           &
+    !            output=output_time_step_integrated)
+    !call self%register_diagnostic_variable(self%id_ch4_so4,'ch4_so4','mmol/m**3',  'CH4 with SO4 oxidation',           &
+    !            output=output_time_step_integrated)
     call self%register_diagnostic_variable(self%id_fe_p_compl,'fe_p_compl','mmol/m**3',  'complexation of P with Fe(III)',  &
                 output=output_time_step_integrated)
     call self%register_diagnostic_variable(self%id_mn_p_compl,'mn_p_compl','mmol/m**3',  'complexation of P with Mn(III)',  &
