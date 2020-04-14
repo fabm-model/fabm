@@ -6,8 +6,7 @@ module fabm_python
 
    !DIR$ ATTRIBUTES DLLEXPORT :: STATE_VARIABLE,DIAGNOSTIC_VARIABLE,CONSERVED_QUANTITY
 
-   use fabm, only: type_fabm_model, type_fabm_variable, fabm_get_version, status_start_done
-   use fabm_config
+   use fabm, only: type_fabm_model, type_fabm_variable, fabm_get_version, status_start_done, fabm_create_model
    use fabm_types, only:rk => rke,attribute_length,type_model_list_node,type_base_model, &
                         factory,type_link,type_link_list,type_internal_variable
    use fabm_driver, only: type_base_driver, driver, fatal_error

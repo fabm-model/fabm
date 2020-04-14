@@ -28,7 +28,7 @@ def processFile(infile,outfile,subtract_background=False,add_missing=False):
 
    # Load the old configuration
    with open(infile,'rU') as f:
-      config = yaml.load(f)
+      config = yaml.safe_load(f)
 
    def findMaximumDepth(d):
       n = 0

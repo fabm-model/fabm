@@ -43,12 +43,12 @@
                case (domain_interior)
                   if (.not. associated(model%catalog%interior(link%target%catalog_index)%p)) n = n + 1
                   if (index_column_depth == -1 .and. associated(link%target%standard_variables%first)) then
-                     if (link%target%standard_variables%first%p%compare(standard_variables%cell_thickness)) index_column_depth = n
+                     if (link%target%standard_variables%contains(standard_variables%cell_thickness)) index_column_depth = n
                   end if
                case (domain_bottom, domain_surface, domain_horizontal)
                   if (.not. associated(model%catalog%horizontal(link%target%catalog_index)%p)) n = n + 1
                   if (index_column_depth==-1 .and. associated(link%target%standard_variables%first)) then
-                     if (link%target%standard_variables%first%p%compare(standard_variables%bottom_depth)) index_column_depth = n
+                     if (link%target%standard_variables%contains(standard_variables%bottom_depth)) index_column_depth = n
                   end if
                case (domain_scalar)
                   if (.not. associated(model%catalog%scalar(link%target%catalog_index)%p)) n = n + 1
