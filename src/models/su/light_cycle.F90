@@ -9,8 +9,8 @@ module su_light_cycle
    private
 
    type,extends(type_base_model),public :: type_su_light_cycle
-      type (type_global_dependency_id)              :: id_yearday
-      type (type_horizontal_diagnostic_variable_id) :: id_swr_sf
+      type (type_global_dependency_id)           :: id_yearday
+      type (type_surface_diagnostic_variable_id) :: id_swr_sf
 
       real(rk) :: light_period
       real(rk) :: offset
@@ -27,7 +27,7 @@ contains
       integer,                           intent(in)            :: configunit
 
       call self%register_dependency(self%id_yearday, standard_variables%number_of_days_since_start_of_the_year)
-      call self%register_diagnostic_variable(self%id_swr_sf, 'swr_sf', 'W m-2', 'surface downward shortwave radiation', standard_variable=standard_variables%surface_downwelling_shortwave_flux, source=source_do_surface, domain=domain_surface)
+      call self%register_diagnostic_variable(self%id_swr_sf, 'swr_sf', 'W m-2', 'surface downward shortwave radiation', standard_variable=standard_variables%surface_downwelling_shortwave_flux)
       call self%get_parameter(self%swr,          'swr',          'W m-2', 'surface downward shortwave radiation during light phase', minimum=0.0_rk)
       call self%get_parameter(self%light_period, 'light_period', 'h',     'duration of light phase',                                 minimum=0.0_rk,   maximum=24._rk, scale_factor=1._rk/24._rk)
       call self%get_parameter(self%offset,       'offset',       'h',     'start of light period (relative to midnight)',            minimum=-24.0_rk, maximum=24._rk, scale_factor=1._rk/24._rk, default=self%light_period*12)
@@ -42,9 +42,9 @@ contains
       _HORIZONTAL_LOOP_BEGIN_
          _GET_GLOBAL_(self%id_yearday,yearday)
          if (mod(yearday-self%offset, 1.0_rk) < self%light_period) then
-            _SET_HORIZONTAL_DIAGNOSTIC_(self%id_swr_sf, self%swr)
+            _SET_SURFACE_DIAGNOSTIC_(self%id_swr_sf, self%swr)
          else
-            _SET_HORIZONTAL_DIAGNOSTIC_(self%id_swr_sf, 0.0_rk)
+            _SET_SURFACE_DIAGNOSTIC_(self%id_swr_sf, 0.0_rk)
          end if
       _HORIZONTAL_LOOP_END_
    end subroutine do_surface

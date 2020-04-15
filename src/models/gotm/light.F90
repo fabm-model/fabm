@@ -15,9 +15,9 @@ module gotm_light
       type (type_dependency_id)                     :: id_ext  ! Attentuation coefficient for PAR
 
       ! Identifiers for diagnostic variables [model outputs]
-      type (type_diagnostic_variable_id)            :: id_par  ! Photosynthetically active radiation
-      type (type_diagnostic_variable_id)            :: id_swr  ! Shortwave radiation
-      type (type_horizontal_diagnostic_variable_id) :: id_par0 ! Surface photosynthetically active radiation
+      type (type_diagnostic_variable_id)         :: id_par  ! Photosynthetically active radiation
+      type (type_diagnostic_variable_id)         :: id_swr  ! Shortwave radiation
+      type (type_surface_diagnostic_variable_id) :: id_par0 ! Surface photosynthetically active radiation
 
       ! Parameters
       real(rk) :: a,g1,g2
@@ -65,7 +65,7 @@ contains
       real(rk) :: swr0,dz,swr,par,z,ext,bioext
 
       _GET_HORIZONTAL_(self%id_swr0,swr0)
-      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_par0,swr0*(1-self%a))
+      _SET_SURFACE_DIAGNOSTIC_(self%id_par0,swr0*(1-self%a))
       z = 0
       bioext = 0
       _VERTICAL_LOOP_BEGIN_
