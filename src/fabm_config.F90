@@ -208,20 +208,26 @@ contains
       call log_message('Initializing ' // trim(instancename) // '...')
       call log_message('   model type: ' // trim(modelname))
       call parent%add_child(model, instancename, long_name, configunit=-1)
-      call log_message('   initialization succeeded.')
 
       ! Check for parameters requested by the model, but not present in the configuration file.
-      if (require_all_parameters .and. associated(model%parameters%missing%first)) &
+      if (require_all_parameters .and. associated(model%parameters%missing%first)) then
          call fatal_error('create_model_from_dictionary', 'Value for parameter "'// &
             trim(model%parameters%missing%first%string) // '" of model "' // trim(instancename) // '" is not provided.')
+         return
+      end if
 
       ! Check for parameters present in configuration file, but not interpreted by the models.
       property => model%parameters%first
       do while (associated(property))
-         if (.not.model%parameters%retrieved%contains(property%name)) call fatal_error('create_model_from_dictionary', &
-            'Unrecognized parameter "' // trim(property%name) // '" found below ' // trim(childmap%path) // '.')
+         if (.not. model%parameters%retrieved%contains(property%name)) then
+            call fatal_error('create_model_from_dictionary', &
+               'Unrecognized parameter "' // trim(property%name) // '" found below ' // trim(childmap%path) // '.')
+            return
+         end if
          property => property%next
       end do
+
+      call log_message('   initialization succeeded.')
 
       ! Interpret coupling links specified in configuration file.
       ! These override any couplings requested by the models during initialization.
