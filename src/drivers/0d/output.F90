@@ -121,7 +121,7 @@
 !-----------------------------------------------------------------------
 !BOC
    do i=1,size(model%state_variables)
-      pdata => model%get_data(model%get_bulk_variable_id(model%state_variables(i)%name))
+      pdata => model%get_data(model%get_interior_variable_id(model%state_variables(i)%name))
       call fm%send_data(model%state_variables(i)%name, pdata)
    end do
    do i=1,size(model%bottom_state_variables)
@@ -255,8 +255,8 @@
    contains
 
    function register(variable) result(used)
-      class (type_external_variable),intent(in) :: variable
-      logical                                   :: used
+      class (type_fabm_variable), intent(in) :: variable
+      logical                                :: used
 
       integer                        :: output_level
       type (type_field),     pointer :: field

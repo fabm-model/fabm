@@ -1,13 +1,13 @@
 module shared
-   use fabm,only: type_model
-   use fabm_types,only: attribute_length,rk
+   use fabm, only: type_fabm_model
+   use fabm_types, only: attribute_length, rk
    use input, only: type_scalar_input, type_scalar_input_list
 
    implicit none
 
    public
 
-   class (type_model), save, pointer :: model => null()
+   class (type_fabm_model), save, pointer :: model => null()
 
    real(rk), allocatable, target :: cc(:)
 

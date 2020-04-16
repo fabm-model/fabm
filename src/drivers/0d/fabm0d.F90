@@ -18,9 +18,7 @@
 
    use fabm
    use fabm_driver
-   use fabm_types
    use fabm_expressions
-   use fabm_config
 
    use shared
    use output
@@ -59,6 +57,8 @@
    integer  :: model_type
    real(rk),allocatable :: current_rhs(:)
 
+   real(rk), pointer :: bio_albedo, bio_extinction
+
    ! Shortcuts to number of state variables (interior, surface, bottom)
    integer :: n_int, n_sf, n_bt
 
@@ -75,8 +75,8 @@
    real(rk),allocatable,target :: w(:)
    integer(timestepkind), save :: itime
 
-   type (type_bulk_variable_id), save :: id_dens, id_par
-   logical                            :: compute_density
+   type (type_fabm_interior_variable_id), save :: id_dens, id_par
+   logical                                     :: compute_density
 
    type,extends(type_base_driver) :: type_fabm0d_driver
    contains
@@ -152,12 +152,8 @@
       print '(a)', 'fabm0d options:'
       print '(a)', ''
       print '(a)', '  -h, --help        print usage information and exit'
-      print '(a)', '  -r, --run_nml     namelist file with run time options - default run.nml' 
-#if 0
-      print '(a)', '  -n, --nml         namelist file with FABM configuration - default fabm.nml' 
-#endif
-      print '(a)', '  -y, --yaml file   yaml formatted file FABM configuration - default fabm.yaml'
-      print '(a)', '                    a yaml configuration file overrides fabm.nml'
+      print '(a)', '  -r, --run_nml     namelist file with simualtion settings - default run.nml' 
+      print '(a)', '  -y, --yaml file   yaml-formatted file FABM configuration - default fabm.yaml'
       print '(a)', ''
    end subroutine print_help
 
@@ -354,34 +350,42 @@
    call model%link_all_bottom_state_data  (cc(n_int+1:n_int+n_bt))
    call model%link_all_surface_state_data (cc(n_int+n_bt+1:n_int+n_bt+n_sf))
 
-   id_dens = model%get_bulk_variable_id(standard_variables%density)
+   id_dens = model%get_interior_variable_id(fabm_standard_variables%density)
    compute_density = model%variable_needs_values(id_dens)
    if (compute_density) call model%link_interior_data(id_dens,dens)
 
-   id_par = model%get_bulk_variable_id(standard_variables%downwelling_photosynthetic_radiative_flux)
+   id_par = model%get_interior_variable_id(fabm_standard_variables%downwelling_photosynthetic_radiative_flux)
 
    ! Link environmental data to FABM
-   call model%link_interior_data(standard_variables%temperature,temp%value)
-   call model%link_interior_data(standard_variables%practical_salinity,salt%value)
+   call model%link_interior_data(fabm_standard_variables%temperature,temp%value)
+   call model%link_interior_data(fabm_standard_variables%practical_salinity,salt%value)
    if (model%variable_needs_values(id_par)) call model%link_interior_data(id_par,par)
-   call model%link_interior_data(standard_variables%pressure,current_depth)
-   call model%link_interior_data(standard_variables%cell_thickness,column_depth)
-   call model%link_interior_data(standard_variables%depth,current_depth)
-   call model%link_interior_data(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,extinction)
-   call model%link_horizontal_data(standard_variables%surface_downwelling_photosynthetic_radiative_flux,par_sf)
-   call model%link_horizontal_data(standard_variables%surface_downwelling_shortwave_flux,swr_sf)
-   call model%link_horizontal_data(standard_variables%cloud_area_fraction,cloud)
-   call model%link_horizontal_data(standard_variables%bottom_depth,column_depth)
-   call model%link_horizontal_data(standard_variables%bottom_depth_below_geoid,column_depth)
-   if (latitude /=invalid_latitude ) call model%link_horizontal_data(standard_variables%latitude,latitude)
-   if (longitude/=invalid_longitude) call model%link_horizontal_data(standard_variables%longitude,longitude)
-   call model%link_scalar(standard_variables%number_of_days_since_start_of_the_year,decimal_yearday)
+   call model%link_interior_data(fabm_standard_variables%pressure,current_depth)
+   call model%link_interior_data(fabm_standard_variables%cell_thickness,column_depth)
+   call model%link_interior_data(fabm_standard_variables%depth,current_depth)
+   call model%link_interior_data(fabm_standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux,extinction)
+   call model%link_horizontal_data(fabm_standard_variables%surface_downwelling_photosynthetic_radiative_flux,par_sf)
+   call model%link_horizontal_data(fabm_standard_variables%surface_downwelling_shortwave_flux,swr_sf)
+   call model%link_horizontal_data(fabm_standard_variables%cloud_area_fraction,cloud)
+   call model%link_horizontal_data(fabm_standard_variables%bottom_depth,column_depth)
+   call model%link_horizontal_data(fabm_standard_variables%bottom_depth_below_geoid,column_depth)
+   if (latitude /=invalid_latitude ) call model%link_horizontal_data(fabm_standard_variables%latitude,latitude)
+   if (longitude/=invalid_longitude) call model%link_horizontal_data(fabm_standard_variables%longitude,longitude)
+   call model%link_scalar(fabm_standard_variables%number_of_days_since_start_of_the_year,decimal_yearday)
 
    ! Read forcing data specified in input.yaml.
    call init_input_from_file('input.yaml')
 
+   ! Request computation of contributions by BGC models to surface albedo and light attenuation
+   call model%require_interior_data(fabm_standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
+   call model%require_horizontal_data(fabm_standard_variables%surface_albedo)
+
    ! Check whether all dependencies of biogeochemical models have now been fulfilled.
    call model%start()
+
+   ! Get pointers to contributions by BGC models to surface albedo and light attenuation
+   bio_extinction => model%get_interior_data(model%get_interior_variable_id(fabm_standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux))
+   bio_albedo => model%get_horizontal_data(model%get_horizontal_variable_id(fabm_standard_variables%surface_albedo))
 
    ! Update time and all time-dependent inputs.
    call update_environment(0_timestepkind)
@@ -494,9 +498,9 @@
       real(rk)                           :: relaxation_time
       logical                            :: is_state_variable
       type (type_key_value_pair),pointer :: pair
-      type (type_bulk_variable_id)       :: interior_id
-      type (type_horizontal_variable_id) :: horizontal_id
-      type (type_scalar_variable_id)     :: scalar_id
+      type (type_fabm_interior_variable_id)   :: interior_id
+      type (type_fabm_horizontal_variable_id) :: horizontal_id
+      type (type_fabm_scalar_variable_id)     :: scalar_id
       type (type_scalar_input), pointer  :: input
 
       select type (value_node)
@@ -514,16 +518,16 @@
          call extra_inputs%add(input)
 
          ! Try to locate the forced variable among interior, horizontal, and global variables in the active biogeochemical models.
-         interior_id = model%get_bulk_variable_id(variable_name)
-         if (fabm_is_variable_used(interior_id)) then
+         interior_id = model%get_interior_variable_id(variable_name)
+         if (model%is_variable_used(interior_id)) then
             is_state_variable = interior_id%variable%state_indices%value/=-1
          else
             horizontal_id = model%get_horizontal_variable_id(variable_name)
-            if (fabm_is_variable_used(horizontal_id)) then
+            if (model%is_variable_used(horizontal_id)) then
                is_state_variable = horizontal_id%variable%state_indices%value/=-1
             else
                scalar_id = model%get_scalar_variable_id(variable_name)
-               if (.not.fabm_is_variable_used(scalar_id)) call log_message('WARNING! input.yaml: &
+               if (.not. model%is_variable_used(scalar_id)) call log_message('WARNING! input.yaml: &
                   &Variable "'//trim(variable_name)//'" is not present in any biogeochemical model.')
             end if
          end if
@@ -587,9 +591,9 @@
       if (present(input_)) return
 
       ! Link forced data to target variable.
-      if (fabm_is_variable_used(interior_id)) then
+      if (model%is_variable_used(interior_id)) then
          call model%link_interior_data(interior_id, input%value, source=data_source_user)
-      elseif (fabm_is_variable_used(horizontal_id)) then
+      elseif (model%is_variable_used(horizontal_id)) then
          call model%link_horizontal_data(horizontal_id, input%value, source=data_source_user)
       else
          call model%link_scalar(scalar_id, input%value, source=data_source_user)
@@ -616,17 +620,14 @@
    end subroutine update_environment
 
    subroutine update_light()
-      real(rk)                         :: zenith_angle,solar_zenith_angle
-      real(rk)                         :: shortwave_radiation
-      real(rk)                         :: albedo,albedo_water,bio_albedo
-      real(rk)                         :: hh
-
-      bio_albedo = 0._rk
+      real(rk) :: zenith_angle,solar_zenith_angle
+      real(rk) :: shortwave_radiation
+      real(rk) :: albedo,albedo_water
+      real(rk) :: hh
 
       ! Calculate photosynthetically active radiation at surface, if it is not provided in the input file.
       if (swr_method==0) then
          ! Calculate photosynthetically active radiation from geographic location, time, cloud cover.
-         call fabm_get_albedo(model, bio_albedo)
          hh = secondsofday*(1._rk/3600)
          zenith_angle = solar_zenith_angle(yearday,hh,longitude,latitude)
          swr_sf = shortwave_radiation(zenith_angle,yearday,longitude,latitude,cloud)
@@ -645,7 +646,7 @@
       if (swr_method/=2) then
          ! Calculate light extinction
          extinction = 0.0_rk
-         if (apply_self_shading) call fabm_get_light_extinction(model, extinction)
+         if (apply_self_shading) extinction = bio_extinction
          extinction = extinction + par_background_extinction
 
          ! Either we calculate surface PAR, or surface PAR is provided.
