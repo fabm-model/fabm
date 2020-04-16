@@ -30,7 +30,7 @@ contains
       class (type_base_driver), intent(inout) :: self
       character(len=*),         intent(in)    :: location, message
 
-      write (*,*) trim(location) // ': ' // trim(message)
+      write (*,'(a,": ",a)') trim(location), trim(message)
       stop 1
    end subroutine
 
@@ -38,7 +38,7 @@ contains
       class (type_base_driver), intent(inout) :: self
       character(len=*),         intent(in)    :: message
 
-      write (*,*) trim(message)
+      write (*,'(a)') trim(message)
    end subroutine
 
    subroutine fatal_error(location, message)
