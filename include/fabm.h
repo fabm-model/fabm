@@ -95,20 +95,20 @@
 !    Horizontal slices are 1D arrays
 !    For instance, model with i,j,k [MOM,NEMO] or i,j or i,k [FVCOM], or i; vectorized along i or j
 #    define _DECLARE_INTERIOR_INDICES_ integer :: _I_,_J_
-#    define _LOOP_BEGIN_EX_(env) do _I_=1,env%n;_J_=_I_
-#    define _CONCURRENT_LOOP_BEGIN_EX_(env) _DO_CONCURRENT_(_I_,1,env%n);_J_=_I_
+#    define _LOOP_BEGIN_EX_(cache) do _I_=1,cache%n;_J_=_I_
+#    define _CONCURRENT_LOOP_BEGIN_EX_(cache) _DO_CONCURRENT_(_I_,1,cache%n);_J_=_I_
 #  else
 !    Horizontal slices are scalars
 !    For instance model with k [GOTM] or i,k, i,j,k, vectorized along k
 #    define _DECLARE_INTERIOR_INDICES_ integer :: _I_
-#    define _LOOP_BEGIN_EX_(env) do _I_=1,env%n
-#    define _CONCURRENT_LOOP_BEGIN_EX_(env) _DO_CONCURRENT_(_I_,1,env%n)
+#    define _LOOP_BEGIN_EX_(cache) do _I_=1,cache%n
+#    define _CONCURRENT_LOOP_BEGIN_EX_(cache) _DO_CONCURRENT_(_I_,1,cache%n)
 #  endif
 #else
 !  Interior procedures operate in 0D
 !  Interior slices may be 0D scalars or 1D arrays [the latter if the model has a vertical dimension]
-#  define _LOOP_BEGIN_EX_(env)
-#  define _CONCURRENT_LOOP_BEGIN_EX_(env)
+#  define _LOOP_BEGIN_EX_(cache)
+#  define _CONCURRENT_LOOP_BEGIN_EX_(cache)
 #  define _LOOP_END_
 #  ifdef _INTERIOR_IS_VECTORIZED_
 !    Interior slices are 1D arrays - we will operate on their first element (_I_=1)
@@ -128,14 +128,14 @@
 !  Horizontal procedures operate in 1D
 !  Horizontal and interior slices MUST be 1D. Use same index for horizontal and interior (_I_=_J_)
 #  define _DECLARE_HORIZONTAL_INDICES_ integer :: _I_,_J_
-#  define _HORIZONTAL_LOOP_BEGIN_EX_(env) do _J_=1,env%n;_I_=_J_
-#  define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(env) _DO_CONCURRENT_(_J_,1,env%n);_I_=_J_
+#  define _HORIZONTAL_LOOP_BEGIN_EX_(cache) do _J_=1,cache%n;_I_=_J_
+#  define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(cache) _DO_CONCURRENT_(_J_,1,cache%n);_I_=_J_
 #  define _HORIZONTAL_LOOP_END_ end do
 #else
 !  Horizontal procedures operate in 0D
 !  Horizontal slices MUST be scalars; interior slices can be scalars or 1D arrays
-#  define _HORIZONTAL_LOOP_BEGIN_EX_(env)
-#  define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(env)
+#  define _HORIZONTAL_LOOP_BEGIN_EX_(cache)
+#  define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(cache)
 #  define _HORIZONTAL_LOOP_END_
 #  ifdef _INTERIOR_IS_VECTORIZED_
 !    Interior slices are 1D arrays - we will operate on their first element (_I_=1)
@@ -168,7 +168,7 @@
 #    define _MOVE_TO_SURFACE_ _I_=1
 #    define _MOVE_TO_BOTTOM_ _I_=_N_
 #  endif
-#  define _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(env) _DO_CONCURRENT_(_I_,1,env%n)
+#  define _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(cache) _DO_CONCURRENT_(_I_,1,cache%n)
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
 !    Horizontal slices are 1D arrays - we will operate on their first element (_J_=1)
 !    For instance, model with i,j,k [MOM,NEMO] or i,k [FVCOM]; vectorized along i or j
@@ -182,7 +182,7 @@
 !  Vertical procedures operate in 0D
 !  Interior slices may scalars or 1D arrays [the latter if the model is vectorized over a horizontal dimension]
 !  Applies to all models without depth dimension; for instance, 0D box or model with i,j or i
-#  define _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(env)
+#  define _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(cache)
 #  define _VERTICAL_LOOP_END_
 #  define _VERTICAL_LOOP_EXIT_
 #  define _DOWNWARD_LOOP_BEGIN_
