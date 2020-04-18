@@ -40,11 +40,11 @@
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_gotm_npzd
 !     Variable identifiers
-      type (type_state_variable_id)        :: id_n,id_p,id_z,id_d
-      type (type_state_variable_id)        :: id_dic
-      type (type_dependency_id)            :: id_par
-      type (type_horizontal_dependency_id) :: id_I_0
-      type (type_diagnostic_variable_id)   :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
+      type (type_state_variable_id)      :: id_n,id_p,id_z,id_d
+      type (type_state_variable_id)      :: id_dic
+      type (type_dependency_id)          :: id_par
+      type (type_surface_dependency_id)  :: id_I_0
+      type (type_diagnostic_variable_id) :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
 
 !     Model parameters
       real(rk) :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
@@ -53,7 +53,6 @@
       procedure :: initialize
       procedure :: do
       procedure :: do_ppdd
-      procedure :: get_light_extinction
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -66,7 +65,7 @@
 ! !IROUTINE: Initialise the NPZD model
 !
 ! !INTERFACE:
-   subroutine initialize(self,configunit)
+   subroutine initialize(self, configunit)
 !
 ! !DESCRIPTION:
 !  Here, parameter values are read and variables exported
@@ -107,31 +106,34 @@
    call self%get_parameter(w_d,'w_d','m d-1','vertical velocity of detritus  (<0 for sinking)',default=-5.0_rk,scale_factor=d_per_s)
 
    ! Register state variables
-   call self%register_state_variable(self%id_n,'nut','mmol m-3','nutrients',    4.5_rk,minimum=0.0_rk,no_river_dilution=.true.)
-   call self%register_state_variable(self%id_p,'phy','mmol m-3','phytoplankton',0.0_rk,minimum=0.0_rk,vertical_movement=w_p)
-   call self%register_state_variable(self%id_z,'zoo','mmol m-3','zooplankton',  0.0_rk,minimum=0.0_rk)
-   call self%register_state_variable(self%id_d,'det','mmol m-3','detritus',     4.5_rk,minimum=0.0_rk,vertical_movement=w_d)
+   call self%register_state_variable(self%id_n, 'nut', 'mmol m-3', 'nutrients',    4.5_rk, minimum=0.0_rk, no_river_dilution=.true.)
+   call self%register_state_variable(self%id_p, 'phy', 'mmol m-3', 'phytoplankton',0.0_rk, minimum=0.0_rk, vertical_movement=w_p)
+   call self%register_state_variable(self%id_z, 'zoo', 'mmol m-3', 'zooplankton',  0.0_rk, minimum=0.0_rk)
+   call self%register_state_variable(self%id_d, 'det', 'mmol m-3', 'detritus',     4.5_rk, minimum=0.0_rk, vertical_movement=w_d)
 
    ! Register the contribution of all state variables to total nitrogen
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_n)
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_p)
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_z)
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_d)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen, self%id_n)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen, self%id_p)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen, self%id_z)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen, self%id_d)
 
    ! Register optional link to external DIC pool
-   call self%register_state_dependency(self%id_dic,'dic','mmol m-3','total dissolved inorganic carbon',required=.false.)
+   call self%register_state_dependency(self%id_dic, 'dic', 'mmol m-3', 'total dissolved inorganic carbon', required=.false.)
 
    ! Register diagnostic variables
-   call self%register_diagnostic_variable(self%id_GPP,'GPP','mmol m-3',  'gross primary production')
-   call self%register_diagnostic_variable(self%id_NCP,'NCP','mmol m-3',  'net community production')
-   call self%register_diagnostic_variable(self%id_PPR,'PPR','mmol m-3 d-1','gross primary production rate')
-   call self%register_diagnostic_variable(self%id_NPR,'NPR','mmol m-3 d-1','net community production rate')
-   call self%register_diagnostic_variable(self%id_dPAR,'PAR','W m-2',    'photosynthetically active radiation')
+   call self%register_diagnostic_variable(self%id_PPR,  'PPR', 'mmol m-3 d-1', 'gross primary production rate')
+   call self%register_diagnostic_variable(self%id_NPR,  'NPR', 'mmol m-3 d-1', 'net community production rate')
+   call self%register_diagnostic_variable(self%id_dPAR, 'PAR', 'W m-2',        'photosynthetically active radiation')
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
    call self%register_dependency(self%id_I_0, standard_variables%surface_downwelling_photosynthetic_radiative_flux)
 
+   ! Let phytoplankton (including background concentration) and detritus contribute to light attentuation
+   call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, self%id_p, scale_factor=self%kc)
+   call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, self%id_d, scale_factor=self%kc)
+   call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, self%p0 * self%kc)
+   
    end subroutine initialize
 !EOC
 
@@ -214,8 +216,8 @@
    _GET_(self%id_d,d) ! detritus
 
    ! Retrieve current environmental conditions.
-   _GET_(self%id_par,par)             ! local photosynthetically active radiation
-   _GET_HORIZONTAL_(self%id_I_0,I_0)  ! surface short wave radiation
+   _GET_(self%id_par,par)          ! local photosynthetically active radiation
+   _GET_SURFACE_(self%id_I_0,I_0)  ! surface photosynthetically active radiation
 
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)
@@ -252,44 +254,6 @@
    _LOOP_END_
 
    end subroutine do
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the light extinction coefficient due to biogeochemical
-! variables
-!
-! !INTERFACE:
-   subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
-!
-! !INPUT PARAMETERS:
-   class (type_gotm_npzd), intent(in) :: self
-   _DECLARE_ARGUMENTS_GET_EXTINCTION_
-!
-! !REVISION HISTORY:
-!  Original author(s): Jorn Bruggeman
-!
-! !LOCAL VARIABLES:
-   real(rk)                     :: p,d
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Enter spatial loops (if any)
-   _LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_(self%id_p,p) ! phytoplankton
-   _GET_(self%id_d,d) ! detritus
-
-   ! Self-shading with explicit contribution from background phytoplankton concentration.
-   _SET_EXTINCTION_(self%kc*(self%p0+p+d))
-
-   ! Leave spatial loops (if any)
-   _LOOP_END_
-
-   end subroutine get_light_extinction
 !EOC
 
 !-----------------------------------------------------------------------
@@ -371,8 +335,8 @@
    _GET_(self%id_d,d) ! detritus
 
    ! Retrieve current environmental conditions.
-   _GET_(self%id_par,par)  ! local photosynthetically active radiation
-   _GET_HORIZONTAL_(self%id_I_0,I_0)  ! surface short wave radiation
+   _GET_(self%id_par,par)          ! local photosynthetically active radiation
+   _GET_SURFACE_(self%id_I_0,I_0)  ! surface photosynthetically active radiation
 
    ! Light acclimation formulation based on surface light intensity.
    iopt = max(0.25*I_0,self%I_min)

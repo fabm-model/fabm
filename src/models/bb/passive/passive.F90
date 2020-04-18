@@ -50,8 +50,8 @@ contains
       if (conserved) then
          ! User has activated conservation checking.
          ! We create a "conserved quantity" for this tracer, which should induce the host model to compute and save the integral across the domain.
-         standard_name = get_safe_name(trim(self%get_path())//'_total')
-         call self%add_to_aggregate_variable(type_bulk_standard_variable(name=standard_name(2:), units=units, aggregate_variable=.true.,conserved=.true.), self%id_tracer)
+         standard_name = get_safe_name(trim(self%get_path()) // '_total')
+         call self%add_to_aggregate_variable(type_universal_standard_variable(name=standard_name(2:), units=units, aggregate_variable=.true., conserved=.true.), self%id_tracer)
       end if
    end subroutine initialize
 
