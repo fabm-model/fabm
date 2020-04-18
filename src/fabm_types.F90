@@ -436,7 +436,7 @@ module fabm_types
       type (type_coupling_task_list) :: coupling_task_list
 
       real(rk) :: dt = 1.0_rk
-      real(rk) :: rdt_ = 1.0_rk
+      real(rk) :: rdt__ = 1.0_rk
 
       logical :: check_conservation = .false.
 
@@ -889,7 +889,7 @@ contains
       call self%couplings%add_child(model%couplings, trim(model%name))
       call self%children%append(model)
       call model%initialize(configunit)
-      model%rdt_ = 1._rk / model%dt
+      model%rdt__ = 1._rk / model%dt
 
       if (model%implements(source_get_light_extinction)) then
          call model%add_interior_variable('_attenuation_coefficient_of_photosynthetic_radiative_flux', 'm-1', &
