@@ -286,6 +286,8 @@
 ! For BGC models: read/write variable access.
 #define _GET_(variable,target) target = cache%read _INDEX_SLICE_PLUS_1_(variable%index)
 #define _GET_HORIZONTAL_(variable,target) target = cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index)
+#define _GET_SURFACE_(variable,target) _GET_HORIZONTAL_(variable,target)
+#define _GET_BOTTOM_(variable,target) _GET_HORIZONTAL_(variable,target)
 #define _GET_GLOBAL_(variable,target) target = cache%read_scalar(variable%global_index)
 #define _SET_(variable,value) cache%set_interior=.true.;cache%read _INDEX_SLICE_PLUS_1_(variable%index) = value
 #define _SET_HORIZONTAL_(variable,value) cache%set_horizontal=.true.;cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_index) = value
