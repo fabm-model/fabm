@@ -1135,20 +1135,20 @@ contains
       if (associated(id%variable)) call link_interior_data_by_variable(self, id%variable, dat, source)
    end subroutine link_interior_data_by_id
 
-   subroutine link_interior_data_by_sn(model, standard_variable, dat)
-      class (type_fabm_model),                intent(inout) :: model
+   subroutine link_interior_data_by_sn(self, standard_variable, dat)
+      class (type_fabm_model),                intent(inout) :: self
       type (type_interior_standard_variable), intent(in)    :: standard_variable
       real(rke) _ATTRIBUTES_GLOBAL_, target,  intent(in)    :: dat
 
-      call link_interior_data_by_id(model, get_interior_variable_id_sn(model, standard_variable), dat)
+      call link_interior_data_by_id(self, get_interior_variable_id_sn(self, standard_variable), dat)
    end subroutine link_interior_data_by_sn
 
-   subroutine link_interior_data_by_name(model, name, dat)
-      class (type_fabm_model),       target, intent(inout) :: model
+   subroutine link_interior_data_by_name(self, name, dat)
+      class (type_fabm_model),       target, intent(inout) :: self
       character(len=*),                      intent(in)    :: name
       real(rke) _ATTRIBUTES_GLOBAL_, target, intent(in)    :: dat
 
-      call link_interior_data_by_id(model, get_interior_variable_id_by_name(model, name), dat)
+      call link_interior_data_by_id(self, get_interior_variable_id_by_name(self, name), dat)
    end subroutine link_interior_data_by_name
 
    subroutine link_horizontal_data_by_variable(self, variable, dat, source)
@@ -1189,20 +1189,20 @@ contains
       if (associated(id%variable)) call link_horizontal_data_by_variable(self, id%variable, dat, source)
    end subroutine link_horizontal_data_by_id
 
-   subroutine link_horizontal_data_by_sn(model, standard_variable, dat)
-      class (type_fabm_model),                          intent(inout) :: model
+   subroutine link_horizontal_data_by_sn(self, standard_variable, dat)
+      class (type_fabm_model),                          intent(inout) :: self
       class (type_horizontal_standard_variable),        intent(in)    :: standard_variable
       real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
 
-      call link_horizontal_data_by_id(model, get_horizontal_variable_id_sn(model, standard_variable), dat)
+      call link_horizontal_data_by_id(self, get_horizontal_variable_id_sn(self, standard_variable), dat)
    end subroutine link_horizontal_data_by_sn
 
-   subroutine link_horizontal_data_by_name(model, name, dat)
-      class (type_fabm_model),                          intent(inout) :: model
+   subroutine link_horizontal_data_by_name(self, name, dat)
+      class (type_fabm_model),                          intent(inout) :: self
       character(len=*),                                 intent(in)    :: name
       real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat
 
-      call link_horizontal_data_by_id(model, get_horizontal_variable_id_by_name(model, name), dat)
+      call link_horizontal_data_by_id(self, get_horizontal_variable_id_by_name(self, name), dat)
    end subroutine link_horizontal_data_by_name
 
    subroutine link_scalar_by_id(self, id, dat, source)
@@ -1226,20 +1226,20 @@ contains
       end if
    end subroutine link_scalar_by_id
 
-   subroutine link_scalar_by_sn(model, standard_variable, dat)
-      class (type_fabm_model),             intent(inout) :: model
+   subroutine link_scalar_by_sn(self, standard_variable, dat)
+      class (type_fabm_model),             intent(inout) :: self
       type(type_global_standard_variable), intent(in)    :: standard_variable
       real(rke), target,                   intent(in)    :: dat
 
-      call link_scalar_by_id(model, get_scalar_variable_id_sn(model, standard_variable), dat)
+      call link_scalar_by_id(self, get_scalar_variable_id_sn(self, standard_variable), dat)
    end subroutine link_scalar_by_sn
 
-   subroutine link_scalar_by_name(model, name, dat)
-      class (type_fabm_model), intent(inout) :: model
+   subroutine link_scalar_by_name(self, name, dat)
+      class (type_fabm_model), intent(inout) :: self
       character(len=*),        intent(in)    :: name
       real(rke), target,       intent(in)    :: dat
 
-      call link_scalar_by_id(model, get_scalar_variable_id_by_name(model, name), dat)
+      call link_scalar_by_id(self, get_scalar_variable_id_by_name(self, name), dat)
    end subroutine link_scalar_by_name
 
    subroutine link_interior_state_data(self, index, dat)
