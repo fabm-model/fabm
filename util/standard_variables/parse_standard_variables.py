@@ -21,6 +21,8 @@ output_F90_assignments = '../../include/standard_variable_assignments.h'
 output_wiki = 'standard_variables.wiki'
 
 domain2type = {'interior': 'type_interior_standard_variable',
+               'surface': 'type_surface_standard_variable',
+               'bottom': 'type_bottom_standard_variable',
                'horizontal': 'type_horizontal_standard_variable',
                'global': 'type_global_standard_variable',
                'universal': 'type_universal_standard_variable'}

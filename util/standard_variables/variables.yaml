@@ -52,7 +52,7 @@ interior:
     units: m
   - name: net_rate_of_absorption_of_shortwave_energy_in_layer
     units: W m-2
-horizontal:
+bottom:
   - name: bottom_depth_below_geoid
     units: m
   - name: bottom_depth
@@ -61,6 +61,7 @@ horizontal:
     units: m
   - name: bottom_stress
     units: Pa
+surface:
   - name: cloud_area_fraction
     units: 1
   - name: surface_downwelling_photosynthetic_radiative_flux
@@ -73,10 +74,6 @@ horizontal:
   - name: surface_downwelling_shortwave_flux_in_air
     units: W m-2
     synonyms: [downwelling_shortwave_flux_in_air]
-  - name: latitude
-    units: degree_north
-  - name: longitude
-    units: degree_east
   - name: mole_fraction_of_carbon_dioxide_in_air
     units: 1e-6
   - name: wind_speed
@@ -95,6 +92,11 @@ horizontal:
   - name: surface_drag_coefficient_in_air
     units: 1
     aggregate_variable: true
+horizontal:
+  - name: latitude
+    units: degree_north
+  - name: longitude
+    units: degree_east
 global:
   - name: number_of_days_since_start_of_the_year
     units: d

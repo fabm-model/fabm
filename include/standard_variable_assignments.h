@@ -143,16 +143,6 @@ standard_variables%ice_area_fraction%units = '1'
 standard_variables%ice_area_fraction%cf_names = 'sea_ice_area_fraction'
 call add(standard_variables%ice_area_fraction)
 
-standard_variables%latitude%name = 'latitude'
-standard_variables%latitude%units = 'degree_north'
-standard_variables%latitude%cf_names = 'latitude'
-call add(standard_variables%latitude)
-
-standard_variables%longitude%name = 'longitude'
-standard_variables%longitude%units = 'degree_east'
-standard_variables%longitude%cf_names = 'longitude'
-call add(standard_variables%longitude)
-
 standard_variables%mole_fraction_of_carbon_dioxide_in_air%name = 'mole_fraction_of_carbon_dioxide_in_air'
 standard_variables%mole_fraction_of_carbon_dioxide_in_air%units = '1e-6'
 standard_variables%mole_fraction_of_carbon_dioxide_in_air%cf_names = 'mole_fraction_of_carbon_dioxide_in_air'
@@ -208,6 +198,16 @@ standard_variables%wind_speed%name = 'wind_speed'
 standard_variables%wind_speed%units = 'm s-1'
 standard_variables%wind_speed%cf_names = 'wind_speed'
 call add(standard_variables%wind_speed)
+
+standard_variables%latitude%name = 'latitude'
+standard_variables%latitude%units = 'degree_north'
+standard_variables%latitude%cf_names = 'latitude'
+call add(standard_variables%latitude)
+
+standard_variables%longitude%name = 'longitude'
+standard_variables%longitude%units = 'degree_east'
+standard_variables%longitude%cf_names = 'longitude'
+call add(standard_variables%longitude)
 
 standard_variables%number_of_days_since_start_of_the_year%name = 'number_of_days_since_start_of_the_year'
 standard_variables%number_of_days_since_start_of_the_year%units = 'd'

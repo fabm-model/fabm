@@ -26,26 +26,30 @@ type (type_interior_standard_variable) :: pressure
 type (type_interior_standard_variable) :: secchi_depth
 type (type_interior_standard_variable) :: temperature
 
+! Bottom variables
+type (type_bottom_standard_variable) :: bottom_depth
+type (type_bottom_standard_variable) :: bottom_depth_below_geoid
+type (type_bottom_standard_variable) :: bottom_roughness_length
+type (type_bottom_standard_variable) :: bottom_stress
+
+! Surface variables
+type (type_surface_standard_variable) :: cloud_area_fraction
+type (type_surface_standard_variable) :: ice_area_fraction
+type (type_surface_standard_variable) :: mole_fraction_of_carbon_dioxide_in_air
+type (type_surface_standard_variable) :: surface_air_pressure
+type (type_surface_standard_variable) :: surface_albedo
+type (type_surface_standard_variable) :: surface_downwelling_photosynthetic_radiative_flux
+type (type_surface_standard_variable) :: surface_downwelling_photosynthetic_radiative_flux_in_air
+type (type_surface_standard_variable) :: surface_downwelling_shortwave_flux
+type (type_surface_standard_variable) :: surface_downwelling_shortwave_flux_in_air
+type (type_surface_standard_variable) :: surface_drag_coefficient_in_air
+type (type_surface_standard_variable) :: surface_specific_humidity
+type (type_surface_standard_variable) :: surface_temperature
+type (type_surface_standard_variable) :: wind_speed
+
 ! Horizontal variables
-type (type_horizontal_standard_variable) :: bottom_depth
-type (type_horizontal_standard_variable) :: bottom_depth_below_geoid
-type (type_horizontal_standard_variable) :: bottom_roughness_length
-type (type_horizontal_standard_variable) :: bottom_stress
-type (type_horizontal_standard_variable) :: cloud_area_fraction
-type (type_horizontal_standard_variable) :: ice_area_fraction
 type (type_horizontal_standard_variable) :: latitude
 type (type_horizontal_standard_variable) :: longitude
-type (type_horizontal_standard_variable) :: mole_fraction_of_carbon_dioxide_in_air
-type (type_horizontal_standard_variable) :: surface_air_pressure
-type (type_horizontal_standard_variable) :: surface_albedo
-type (type_horizontal_standard_variable) :: surface_downwelling_photosynthetic_radiative_flux
-type (type_horizontal_standard_variable) :: surface_downwelling_photosynthetic_radiative_flux_in_air
-type (type_horizontal_standard_variable) :: surface_downwelling_shortwave_flux
-type (type_horizontal_standard_variable) :: surface_downwelling_shortwave_flux_in_air
-type (type_horizontal_standard_variable) :: surface_drag_coefficient_in_air
-type (type_horizontal_standard_variable) :: surface_specific_humidity
-type (type_horizontal_standard_variable) :: surface_temperature
-type (type_horizontal_standard_variable) :: wind_speed
 
 ! Global variables
 type (type_global_standard_variable) :: number_of_days_since_start_of_the_year
