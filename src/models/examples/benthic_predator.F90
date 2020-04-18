@@ -67,14 +67,14 @@ contains
       _HORIZONTAL_LOOP_BEGIN_
 
          ! Retrieve current predator density (bottom-bound state variable)
-         _GET_HORIZONTAL_(self%id_biomass,biomass)
+         _GET_BOTTOM_(self%id_biomass,biomass)
 
          if (self%interact_with_pelagic) then
             ! Retrieve current prey density (pelagic state variable)
             _GET_(self%id_prey, prey)
          else
             ! Retrieve current prey density (bottom-bound state variable)
-            _GET_HORIZONTAL_(self%id_bottom_prey, prey)
+            _GET_BOTTOM_(self%id_bottom_prey, prey)
          end if
 
          ! Calculate grazing rate (mmol m-2 s-1)

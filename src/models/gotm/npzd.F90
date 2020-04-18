@@ -77,14 +77,14 @@ module gotm_npzd
 
    type, extends(type_base_model), public :: type_gotm_npzd
       ! Variable identifiers
-      type (type_state_variable_id)      :: id_n,id_p,id_z,id_d
+      type (type_state_variable_id)      :: id_n, id_p, id_z, id_d
       type (type_state_variable_id)      :: id_dic
       type (type_dependency_id)          :: id_par
       type (type_surface_dependency_id)  :: id_I_0
-      type (type_diagnostic_variable_id) :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
+      type (type_diagnostic_variable_id) :: id_PPR, id_NPR, id_dPAR
 
       ! Model parameters
-      real(rk) :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rzn,rdn,rpdu,rpdl,rzd
+      real(rk) :: p0, z0, kc, i_min, rmax, gmax, iv, alpha, rpn, rzn, rdn, rpdu, rpdl, rzd
       real(rk) :: dic_per_n
    contains
       procedure :: initialize
@@ -200,8 +200,6 @@ contains
 
          ! Export diagnostic variables
          _SET_DIAGNOSTIC_(self%id_dPAR,par)
-         _SET_DIAGNOSTIC_(self%id_GPP ,primprod)
-         _SET_DIAGNOSTIC_(self%id_NCP ,primprod - self%rpn*p)
          _SET_DIAGNOSTIC_(self%id_PPR ,primprod*secs_pr_day)
          _SET_DIAGNOSTIC_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
 
@@ -261,8 +259,6 @@ contains
 
          ! Export diagnostic variables
          _SET_DIAGNOSTIC_(self%id_dPAR,par)
-         _SET_DIAGNOSTIC_(self%id_GPP,primprod)
-         _SET_DIAGNOSTIC_(self%id_NCP,primprod-self%rpn*p)
          _SET_DIAGNOSTIC_(self%id_PPR,primprod*secs_pr_day)
          _SET_DIAGNOSTIC_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
 

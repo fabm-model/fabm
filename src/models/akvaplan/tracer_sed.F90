@@ -19,7 +19,7 @@ module akvaplan_tracer_sed
 
       ! Environmental dependencies
       type (type_dependency_id) :: id_T ! temperature
-      type (type_horizontal_dependency_id) :: id_shear !Bottom shear
+      type (type_bottom_dependency_id) :: id_shear !Bottom shear
       type (type_dependency_id) :: id_h ! layer thicknesis
 
       ! Parameters
@@ -169,8 +169,8 @@ contains
           ! Environment
           _GET_(self%id_c,c)
           _GET_(self%id_h,h)
-          _GET_HORIZONTAL_(self%id_c_bot,c_bot)
-          _GET_HORIZONTAL_(self%id_shear,shear)
+          _GET_BOTTOM_(self%id_c_bot,c_bot)
+          _GET_BOTTOM_(self%id_shear,shear)
 
           ! Sedimentation
           if (self%do_sed) then

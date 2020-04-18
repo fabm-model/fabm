@@ -53,7 +53,7 @@
       type (type_bottom_state_variable_id) :: id_fl
       type (type_dependency_id) :: id_par
       type (type_dependency_id) :: id_temp
-      type (type_horizontal_dependency_id) :: id_taub
+      type (type_bottom_dependency_id) :: id_taub
       type (type_diagnostic_variable_id) :: id_chla
       type (type_diagnostic_variable_id) :: id_GPP
       type (type_diagnostic_variable_id) :: id_NPP
@@ -283,7 +283,7 @@
    ! Retrieve current (local) state variable values.
  !   if (self%fluff) then
    _GET_(self%id_c,c)
-   _GET_HORIZONTAL_(self%id_taub,taub)
+   _GET_BOTTOM_(self%id_taub,taub)
 
    ! Resuspension-sedimentation rate are computed as in GOTM-BIO
    ! Phytoplankton is assumed to become detritus/fluff as soon as it settles to bottom sediments,

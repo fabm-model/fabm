@@ -56,12 +56,13 @@
    private
 !
 ! !PUBLIC_DERIVED_TYPES:
-  type,extends(type_base_model),public :: type_selma
+   type,extends(type_base_model),public :: type_selma
       ! Variable identifiers
       type (type_state_variable_id)              :: id_dd,id_aa,id_nn,id_po,id_o2,id_pw,id_dic
       type (type_bottom_state_variable_id)       :: id_fl,id_pb
       type (type_dependency_id)                  :: id_temp,id_salt
-      type (type_horizontal_dependency_id)       :: id_taub,id_wind
+      type (type_bottom_dependency_id)           :: id_taub
+      type (type_surface_dependency_id)          :: id_wind
       type (type_diagnostic_variable_id)         :: id_DNP,id_NO3,id_NH4,id_PO4,id_O2_mg
       type (type_bottom_diagnostic_variable_id)  :: id_DNB,id_SBR,id_PBR
       type (type_surface_diagnostic_variable_id) :: id_OFL
@@ -82,7 +83,7 @@
 !EOP
 !-----------------------------------------------------------------------
 
-   CONTAINS
+   contains
 
 !-----------------------------------------------------------------------
 !BOP
@@ -175,7 +176,7 @@
    call self%register_dependency(self%id_wind, standard_variables%wind_speed)
    call self%register_dependency(self%id_taub, standard_variables%bottom_stress)
 
-   END subroutine initialize
+   end subroutine initialize
 !EOC
 
 
@@ -283,10 +284,10 @@
    _GET_(self%id_nn,nnb)
    _GET_(self%id_o2,oxb)
    _GET_(self%id_pw,pwb)
-   _GET_HORIZONTAL_(self%id_fl,fl)
-   _GET_HORIZONTAL_(self%id_pb,pb)
+   _GET_BOTTOM_(self%id_fl,fl)
+   _GET_BOTTOM_(self%id_pb,pb)
 
-   _GET_HORIZONTAL_(self%id_taub,taub)
+   _GET_BOTTOM_(self%id_taub,taub)
    _GET_(self%id_temp,temp)
 
    !increased phosphorus burial
@@ -438,7 +439,7 @@
 
    _GET_(self%id_temp,temp)
    _GET_(self%id_salt,salt)
-   _GET_HORIZONTAL_(self%id_wind,wnd)
+   _GET_SURFACE_(self%id_wind,wnd)
 
    _GET_(self%id_o2,o2)
 

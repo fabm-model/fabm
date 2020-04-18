@@ -15,7 +15,7 @@ module examples_npzd_phy
       type (type_state_variable_id)      :: id_exctarget,id_morttarget,id_upttarget
       type (type_dependency_id)          :: id_par
       type (type_surface_dependency_id)  :: id_I_0
-      type (type_diagnostic_variable_id) :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
+      type (type_diagnostic_variable_id) :: id_PPR,id_NPR,id_dPAR
 
       ! Model parameters
       real(rk) :: p0,z0,kc,i_min,rmax,gmax,iv,alpha,rpn,rpdu,rpdl
@@ -59,8 +59,6 @@ contains
       call self%register_state_dependency(self%id_morttarget, 'mortality_target', 'mmol m-3', 'sink for dead matter')
 
       ! Register diagnostic variables
-      call self%register_diagnostic_variable(self%id_GPP,  'GPP', 'mmol m-3',     'gross primary production')
-      call self%register_diagnostic_variable(self%id_NCP,  'NCP', 'mmol m-3',     'net community production')
       call self%register_diagnostic_variable(self%id_PPR,  'PPR', 'mmol m-3 d-1', 'gross primary production rate')
       call self%register_diagnostic_variable(self%id_NPR,  'NPR', 'mmol m-3 d-1', 'net community production rate')
       call self%register_diagnostic_variable(self%id_dPAR, 'PAR', 'W m-2',        'photosynthetically active radiation')
@@ -116,8 +114,6 @@ contains
 
          ! Export diagnostic variables
          _SET_DIAGNOSTIC_(self%id_dPAR,par)
-         _SET_DIAGNOSTIC_(self%id_GPP ,primprod)
-         _SET_DIAGNOSTIC_(self%id_NCP ,primprod - self%rpn*p)
          _SET_DIAGNOSTIC_(self%id_PPR ,primprod*secs_pr_day)
          _SET_DIAGNOSTIC_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
 
@@ -166,8 +162,6 @@ contains
 
          ! Export diagnostic variables
          _SET_DIAGNOSTIC_(self%id_dPAR,par)
-         _SET_DIAGNOSTIC_(self%id_GPP,primprod)
-         _SET_DIAGNOSTIC_(self%id_NCP,primprod-self%rpn*p)
          _SET_DIAGNOSTIC_(self%id_PPR,primprod*secs_pr_day)
          _SET_DIAGNOSTIC_(self%id_NPR,(primprod-self%rpn*p)*secs_pr_day)
 

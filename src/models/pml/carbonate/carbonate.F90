@@ -29,7 +29,7 @@ module fabm_pml_carbonate
 !     Variable identifiers
       type (type_state_variable_id)              :: id_dic, id_alk
       type (type_dependency_id)                  :: id_temp, id_salt, id_pres, id_dens
-      type (type_horizontal_dependency_id)       :: id_wind, id_pco2_surf
+      type (type_surface_dependency_id)          :: id_wind, id_pco2_surf
       type (type_diagnostic_variable_id)         :: id_ph, id_pco2, id_CarbA, id_Bicarb, &
                                                     id_Carb, id_Om_cal, id_Om_arg, id_alk_diag
       type (type_surface_diagnostic_variable_id) :: id_co2_flux
@@ -217,9 +217,9 @@ contains
    _GET_(self%id_temp,temp)
    _GET_(self%id_salt,salt)
    _GET_(self%id_dens,dens)
-   _GET_HORIZONTAL_(self%id_wind,wnd)
+   _GET_SURFACE_(self%id_wind,wnd)
    if (self%pCO2a==0.0_rk) then
-      _GET_HORIZONTAL_(self%id_pco2_surf,pCO2a)
+      _GET_SURFACE_(self%id_pco2_surf,pCO2a)
    else
       pCO2a = self%pCO2a
    end if

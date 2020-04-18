@@ -8,7 +8,7 @@ module gotm_light
 
    private
 
-   type,extends(type_base_model), public :: type_gotm_light
+   type, extends(type_base_model), public :: type_gotm_light
       ! Identifiers for dependencies [model inputs]
       type (type_surface_dependency_id) :: id_swr0 ! Surface shortwave radiation
       type (type_dependency_id)         :: id_dz   ! Cell thickness
