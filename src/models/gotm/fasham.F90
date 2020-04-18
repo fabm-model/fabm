@@ -85,7 +85,6 @@
       procedure :: initialize
       procedure :: do
       procedure :: do_ppdd
-      procedure :: get_light_extinction
    end type
 !EOP
 !-----------------------------------------------------------------------
@@ -174,6 +173,10 @@
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
+
+   ! Let phytoplankton (incldung background concentration) contribute to light attenuation
+   call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, self%id_p, scale_factor=self%kc)
+   call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, self%p0 * self%kc)
    
    end subroutine initialize
 !EOC
@@ -490,40 +493,6 @@
    _LOOP_END_
 
    end subroutine do
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get the light extinction coefficient due to biogeochemical
-! variables
-!
-! !INTERFACE:
-   subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
-!
-! !INPUT PARAMETERS:
-   class (type_gotm_fasham), intent(in) :: self
-   _DECLARE_ARGUMENTS_GET_EXTINCTION_
-!
-! !LOCAL VARIABLES:
-   real(rk) :: p
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Enter spatial loops (if any)
-   _LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_(self%id_p,p) ! phytoplankton
-   
-   ! Self-shading with explicit contribution from background phytoplankton concentration.
-   _SET_EXTINCTION_(self%kc*(self%p0+p))
-
-   ! Leave spatial loops (if any)
-   _LOOP_END_
-   
-   end subroutine get_light_extinction
 !EOC
 
 !-----------------------------------------------------------------------

@@ -80,7 +80,8 @@
       type (type_state_variable_id)        :: id_p1,id_p2,id_p3,id_zo,id_de,id_am,id_ni,id_po,id_o2
       type (type_bottom_state_variable_id) :: id_fl
       type (type_dependency_id)            :: id_par,id_temp,id_salt
-      type (type_horizontal_dependency_id) :: id_I_0,id_wind,id_taub
+      type (type_surface_dependency_id)    :: id_I_0,id_wind
+      type (type_bottom_dependency_id)     :: id_taub
       type (type_diagnostic_variable_id)   :: id_dPAR,id_GPP,id_NCP,id_PPR,id_NPR
 
       ! Model parameters
@@ -93,14 +94,13 @@
       procedure :: initialize
       procedure :: do
       procedure :: do_bottom
-      procedure :: get_light_extinction
       procedure :: do_surface
    end type
 
 !EOP
 !-----------------------------------------------------------------------
 
-   contains
+contains
 
 !-----------------------------------------------------------------------
 !BOP
@@ -108,14 +108,10 @@
 ! !IROUTINE: Initialise the ergom model
 !
 ! !INTERFACE:
-subroutine initialize(self,configunit)
+   subroutine initialize(self, configunit)
 !
 ! !DESCRIPTION:
 !   Here, parameter values are read and the variables exported by the model are registered with FABM
-!
-! !USES
-!   List any modules used by this routine.
-   IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:
    class (type_gotm_ergom), intent(inout), target :: self
@@ -227,6 +223,13 @@ subroutine initialize(self,configunit)
    call self%register_dependency(self%id_wind, standard_variables%wind_speed)
    if (self%fluff) call self%register_dependency(self%id_taub, standard_variables%bottom_stress)
 
+   ! Let phytoplankton (including background concentration) and detritus contribute to light attentuation
+   call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, self%id_p1, scale_factor=self%kc)
+   call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, self%id_p2, scale_factor=self%kc)
+   call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, self%id_p3, scale_factor=self%kc)
+   call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, self%id_de, scale_factor=self%kc)
+   call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, (self%p10 + self%p20 + self%p30) * self%kc)
+
    end subroutine initialize
 !EOC
 
@@ -236,18 +239,18 @@ subroutine initialize(self,configunit)
 ! !IROUTINE: Right hand sides of ergom model
 !
 ! !INTERFACE:
-   subroutine do(self,_ARGUMENTS_DO_)
+   subroutine do(self, _ARGUMENTS_DO_)
 !
 ! !INPUT PARAMETERS:
-   class(type_gotm_ergom), INTENT(IN) :: self
+   class (type_gotm_ergom), intent(in) :: self
   _DECLARE_ARGUMENTS_DO_
 !
 ! !LOCAL VARIABLES:
-    real(rk)        :: p1,p2,p3,zo,am,ni,po,de,o2,par,I_0
-    real(rk)        :: iopt,ppi,temp,psum,llda,llan,lp,r1,r2,r3
-    real(rk)        :: wo=30.0_rk,wn=0.1_rk
-    real(rk)        :: thopnp,thomnp,thomnm,thsum
-    real(rk)        :: secs_pr_day=86400.0_rk
+    real(rk) :: p1,p2,p3,zo,am,ni,po,de,o2,par,I_0
+    real(rk) :: iopt,ppi,temp,psum,llda,llan,lp,r1,r2,r3
+    real(rk) :: wo=30.0_rk,wn=0.1_rk
+    real(rk) :: thopnp,thomnp,thomnm,thsum
+    real(rk) :: secs_pr_day=86400.0_rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -266,9 +269,9 @@ subroutine initialize(self,configunit)
    _GET_(self%id_o2,o2) !oxygen
 
    ! Retrieve current environmental conditions
-   _GET_(self%id_par,par)            ! local photosynthetically active radiation
-   _GET_HORIZONTAL_(self%id_I_0,I_0) ! surface photosynthetically active radiation
-   _GET_(self%id_temp,temp)          ! local water temperature
+   _GET_(self%id_par,par)         ! local photosynthetically active radiation
+   _GET_SURFACE_(self%id_I_0,I_0) ! surface photosynthetically active radiation
+   _GET_(self%id_temp,temp)       ! local water temperature
 
    ! Light acclimation formulation based on surface light intensity
    iopt = max(0.25*I_0,self%i_min)
@@ -321,42 +324,6 @@ subroutine initialize(self,configunit)
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: Get the light extinction coefficient due to biogeochemical
-! variables
-!
-! !INTERFACE:
-   subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
-!
-! !INPUT PARAMETERS:
-   class (type_gotm_ergom), intent(in) :: self
-   _DECLARE_ARGUMENTS_GET_EXTINCTION_
-!
-! !LOCAL VARIABLES:
-   real(rk)                     :: p1,p2,p3,de
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Enter spatial loops (if any)
-   _LOOP_BEGIN_
-
-   ! Retrieve current (local) state variable values.
-   _GET_(self%id_p1,p1) ! diatoms
-   _GET_(self%id_p2,p2) !flagellates
-   _GET_(self%id_p3,p3) !cyanobacteria
-   _GET_(self%id_de,de) ! detritus
-
-   ! Self-shading with explicit contribution from background phytoplankton concentration.
-   _SET_EXTINCTION_(self%kc*(self%p10+self%p20+self%p30+p1+p2+p3+de))
-
-   ! Leave spatial loops (if any)
-   _LOOP_END_
-
-   end subroutine get_light_extinction
-!EOC
-
-!-----------------------------------------------------------------------
-!BOP
-!
 ! !IROUTINE:
 !
 ! !INTERFACE:
@@ -384,9 +351,9 @@ subroutine initialize(self,configunit)
    _GET_(self%id_ni,nib)
    _GET_(self%id_po,pob)
    _GET_(self%id_o2,oxb)
-   _GET_HORIZONTAL_(self%id_fl,fl)
+   _GET_BOTTOM_(self%id_fl,fl)
 
-   _GET_HORIZONTAL_(self%id_taub,taub)
+   _GET_BOTTOM_(self%id_taub,taub)
    _GET_(self%id_temp,temp)
 
    thopnp=th( oxb,wo,0.0_rk,1.0_rk)*yy(wn,nib)
@@ -399,12 +366,15 @@ subroutine initialize(self,configunit)
 
    llsa=self%lsa*exp(self%bsa*temp)*(th(oxb,wo,dot2,1.0_rk))
 
-   if (self%tau_crit .gt. taub) then
+   ! Sedimentation dependent on bottom stress
+   if (self%tau_crit > taub) then
       llds=self%lds*(self%tau_crit-taub)/self%tau_crit
    else
       llds=0.
    end if
-   if (self%tau_crit .lt. taub) then
+
+   ! Resuspension dependent on bottom stress
+   if (self%tau_crit < taub) then
       llsd=self%lsd*(taub-self%tau_crit)/self%tau_crit
    else
       llsd=0.0_rk
@@ -508,7 +478,7 @@ subroutine initialize(self,configunit)
 
    _GET_(self%id_temp,temp)
    _GET_(self%id_salt,salt)
-   _GET_HORIZONTAL_(self%id_wind,wnd)
+   _GET_SURFACE_(self%id_wind,wnd)
 
    _GET_(self%id_o2,o2)
    _GET_(self%id_ni,ni)
