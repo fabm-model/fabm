@@ -310,10 +310,11 @@ recursive function graph_add_call(self, model, source, outer_calls) result(node)
       ! Circular dependency found - report as fatal error.
       chain = ''
       do while (associated(pnode))
-         chain = trim(chain)//' '//trim(pnode%p%as_string())//' ->'
+         chain = trim(chain) // ' ' // trim(pnode%p%as_string()) // ' ->'
          pnode => pnode%next
       end do
-      call driver%fatal_error('graph::add_call','circular dependency found: '//trim(chain(2:))//' '//trim(node%as_string()))
+      call driver%fatal_error('graph::add_call', 'circular dependency found: ' // trim(chain(2:)) &
+         // ' ' // trim(model%get_path()) // ':' // trim(source2string(source)))
    end if
 
    ! By default we add the call to the current graph (but if necessary we will target an ancestor instead)
