@@ -683,7 +683,6 @@ contains
       type (type_global_variable_register), intent(inout) :: variable_register
 
       type (type_job_node),        pointer :: job_node
-      type (type_node_list)                :: outer_calls
       type (type_variable_request),pointer :: variable_request
       type (type_call_request),    pointer :: call_request, next_call_request
       type (type_node),            pointer :: graph_node
@@ -703,7 +702,7 @@ contains
       ! We clean up [deallocate] the variable and call requests at the same time.
       variable_request => self%first_variable_request
       do while (associated(variable_request))
-         call self%graph%add_variable(variable_request%variable, outer_calls, variable_request%output_variable_set, copy_to_store=variable_request%store)
+         call self%graph%add_variable(variable_request%variable, null(), variable_request%output_variable_set, copy_to_store=variable_request%store)
          if (variable_request%store) then
             ! FABM must be able to provide data for this variable across the entire spatial domain.
             ! If this variable is a constant, explicitly request a data field for it in the persistent store.
@@ -719,12 +718,11 @@ contains
       call_request => self%first_call_request
       do while (associated(call_request))
          next_call_request => call_request%next
-         graph_node => self%graph%add_call(call_request%model, call_request%source, outer_calls)
+         graph_node => self%graph%add_call(call_request%model, call_request%source, null())
          deallocate(call_request)
          call_request => next_call_request
       end do
       self%first_call_request => null()
-      call outer_calls%finalize()
 
       !self%graph%frozen = .true.
 

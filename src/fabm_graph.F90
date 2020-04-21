@@ -44,12 +44,18 @@ module fabm_graph
       type (type_node_list_member), pointer :: last  => null()
    contains
       procedure :: append    => node_list_append
-      procedure :: pop       => node_list_pop
       procedure :: remove    => node_list_remove
       procedure :: finalize  => node_list_finalize
       procedure :: find      => node_list_find
       procedure :: find_node => node_list_find_node
       procedure :: check     => node_list_check
+   end type
+
+   type type_call_stack_node
+      class (type_base_model),       pointer :: model               => null()
+      integer                                :: source              = source_unknown
+      type (type_internal_variable), pointer :: requested_variable  => null()
+      type (type_call_stack_node),   pointer :: previous            => null()
    end type
 
    type type_output_variable
@@ -288,14 +294,14 @@ recursive function graph_has_descendant(self, graph) result(has_descendant)
    has_descendant = .false.
 end function
 
-recursive function graph_add_call(self, model, source, outer_calls) result(node)
-   class (type_graph),     target,intent(inout) :: self
-   class (type_base_model),target,intent(in)    :: model
-   integer,                       intent(in)    :: source
-   type (type_node_list),  target,intent(inout) :: outer_calls
+recursive function graph_add_call(self, model, source, stack_top) result(node)
+   class (type_graph),      target, intent(inout) :: self
+   class (type_base_model), target, intent(in)    :: model
+   integer,                         intent(in)    :: source
+   type (type_call_stack_node), pointer           :: stack_top
    type (type_node), pointer :: node
 
-   type (type_node_list_member), pointer :: pnode
+   type (type_call_stack_node),  pointer :: existing_stack_node, stack_node
    character(len=2048)                   :: chain
    class (type_graph),           pointer :: root_graph, owner_graph, target_graph
    integer                               :: operation
@@ -305,16 +311,22 @@ recursive function graph_add_call(self, model, source, outer_calls) result(node)
    ! Circular dependency check:
    ! Search the list of outer model calls, i.e., calls that [indirectly] request the current call.
    ! If the current call is already on this list, it is indirectly calling itself: there is a circular dependency.
-   pnode => outer_calls%find_node(model, source)
-   if (associated(pnode)) then
+   existing_stack_node => stack_top
+   do while (associated(existing_stack_node))
+      if (associated(existing_stack_node%model, model) .and. existing_stack_node%source == source) exit
+      existing_stack_node => existing_stack_node%previous
+   end do
+   if (associated(existing_stack_node)) then
       ! Circular dependency found - report as fatal error.
-      chain = ''
-      do while (associated(pnode))
-         chain = trim(chain) // ' ' // trim(pnode%p%as_string()) // ' ->'
-         pnode => pnode%next
+      chain = trim(model%get_path()) // ':' // trim(source2string(source))
+      stack_node => stack_top
+      do
+         chain = trim(stack_node%model%get_path()) // ':' // trim(source2string(stack_node%source)) &
+            // ' needs ' // trim(stack_node%requested_variable%name) // ' provided by ' // trim(chain)
+         if (associated(stack_node, existing_stack_node)) exit
+         stack_node => stack_node%previous
       end do
-      call driver%fatal_error('graph::add_call', 'circular dependency found: ' // trim(chain(2:)) &
-         // ' ' // trim(model%get_path()) // ':' // trim(source2string(source)))
+      call driver%fatal_error('graph::add_call', 'circular dependency found: ' // trim(chain))
    end if
 
    ! By default we add the call to the current graph (but if necessary we will target an ancestor instead)
@@ -359,7 +371,10 @@ recursive function graph_add_call(self, model, source, outer_calls) result(node)
 
    ! First add this call to the list of requesting calls [a list of all calls higher on the call stack]
    ! This forbids any indirect dependency on this call, as such would be a circular dependency.
-   call outer_calls%append(node)
+   allocate(stack_node)
+   stack_node%model => model
+   stack_node%source = source
+   stack_node%previous => stack_top
 
    link => model%links%first
    do while (associated(link))
@@ -367,21 +382,22 @@ recursive function graph_add_call(self, model, source, outer_calls) result(node)
          ! This is the model's own variable (not inherited from child model) and the model itself originally requested read access to it.
          _ASSERT_(.not. associated(link%target%write_owner), 'graph::add_call', 'BUG: required input variable is co-written.')
          input_variable => node%inputs%add(link%target)
+         stack_node%requested_variable => link%target
          if (.not. (associated(link%target%owner, model) .and. link%target%source == source)) &
-            call target_graph%add_variable(link%target, outer_calls, input_variable%sources, caller=node)
+            call target_graph%add_variable(link%target, stack_node, input_variable%sources, caller=node)
       end if
       link => link%next
    end do
 
    ! Remove node from the list of outer calls and add it to the graph instead.
-   node => outer_calls%pop()
+   deallocate(stack_node)
    call target_graph%append(node)
 end function graph_add_call
 
-recursive subroutine graph_add_variable(self, variable, outer_calls, variable_set, copy_to_store, caller)
+recursive subroutine graph_add_variable(self, variable, stack_top, variable_set, copy_to_store, caller)
    class (type_graph),                 intent(inout) :: self
    type (type_internal_variable),      intent(in)    :: variable
-   type (type_node_list),      target, intent(inout) :: outer_calls
+   type (type_call_stack_node), pointer              :: stack_top
    type (type_output_variable_set),    intent(inout) :: variable_set
    logical,          optional,         intent(in)    :: copy_to_store
    type (type_node), optional, target, intent(inout) :: caller
@@ -411,7 +427,7 @@ contains
       if (variable%source == source_constant .or. variable%source == source_state .or. variable%source == source_external .or. variable%source == source_unknown) return
       _ASSERT_ (.not. variable%write_indices%is_empty(), 'graph_add_variable::add_call', 'Variable "' // trim(variable%name) // '" with source ' // trim(source2string(variable%source)) // ' does not have a write index')
 
-      node => self%add_call(variable%owner, variable%source, outer_calls)
+      node => self%add_call(variable%owner, variable%source, stack_top)
       output_variable => node%outputs%add(variable)
       if (present(copy_to_store)) output_variable%copy_to_store = output_variable%copy_to_store .or. copy_to_store
       if (present(caller)) then
@@ -545,29 +561,6 @@ subroutine node_list_check(self)
       current => current%next
    end do
 end subroutine node_list_check
-
-function node_list_pop(self) result(node)
-   class (type_node_list), intent(inout) :: self
-   type (type_node),pointer              :: node
-
-   type (type_node_list_member), pointer :: previous
-
-   node => null()
-   if (associated(self%last)) then
-      node => self%last%p
-      previous => self%last%previous
-      if (associated(previous)) then
-         ! More than one node in list.
-         previous%next => null()
-      else
-         ! Pop-ed node is only one in list.
-         self%first => null()
-      end if
-      deallocate(self%last)
-      self%last => previous
-   end if
-   !call self%check()
-end function node_list_pop
 
 subroutine node_list_remove(self, node)
    class (type_node_list), intent(inout) :: self
