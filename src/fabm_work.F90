@@ -30,7 +30,9 @@ module fabm_work
 
    type type_domain
       ! Information about the model domain
-      integer :: size(_FABM_DIMENSION_COUNT_)
+      integer :: shape(_FABM_DIMENSION_COUNT_)
+      integer :: start(_FABM_DIMENSION_COUNT_)
+      integer :: stop(_FABM_DIMENSION_COUNT_)
       integer :: horizontal_size(_HORIZONTAL_DIMENSION_COUNT_)
 
 #ifdef _HAS_MASK_
@@ -174,7 +176,7 @@ contains
       integer :: nvalid, n, n_mod, i
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      nvalid = domain%size(_FABM_VECTORIZED_DIMENSION_INDEX_)
+      nvalid = domain%shape(_FABM_VECTORIZED_DIMENSION_INDEX_)
       n = nvalid
 #  ifdef _HAS_MASK_
       allocate(cache%ipack(nvalid))
@@ -202,7 +204,7 @@ contains
       integer :: nvalid, n, n_mod, i
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-      nvalid = domain%size(_FABM_VECTORIZED_DIMENSION_INDEX_)
+      nvalid = domain%shape(_FABM_VECTORIZED_DIMENSION_INDEX_)
       n = nvalid
 #  ifdef _HAS_MASK_
       allocate(cache%ipack(nvalid))
@@ -230,7 +232,7 @@ contains
       integer :: nvalid, n, n_mod, i
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-      nvalid = domain%size(_FABM_DEPTH_DIMENSION_INDEX_)
+      nvalid = domain%shape(_FABM_DEPTH_DIMENSION_INDEX_)
       n = nvalid
 #  ifdef _HAS_MASK_
       allocate(cache%ipack(nvalid))
@@ -275,7 +277,7 @@ subroutine begin_interior_task(domain, catalog, fill_values, task, cache _POSTAR
           cache%ipack(i) = _I_
           cache%iunpack(_I_) = i
       else
-          cache%iunpack(_I_) = domain%size(_FABM_VECTORIZED_DIMENSION_INDEX_) + 1
+          cache%iunpack(_I_) = domain%shape(_FABM_VECTORIZED_DIMENSION_INDEX_) + 1
       end if
    end do
    _N_ = i
@@ -335,7 +337,7 @@ subroutine begin_horizontal_task(domain, catalog, fill_values, task, cache _POST
           cache%ipack(i) = _J_
           cache%iunpack(_J_) = i
       else
-          cache%iunpack(_J_) = domain%size(_FABM_VECTORIZED_DIMENSION_INDEX_) + 1
+          cache%iunpack(_J_) = domain%shape(_FABM_VECTORIZED_DIMENSION_INDEX_) + 1
       end if
    end do
    _N_ = i
@@ -482,7 +484,7 @@ subroutine begin_vertical_task(domain, catalog, fill_values, task, cache _POSTAR
           cache%ipack(i) = _I_
           cache%iunpack(_I_) = i
       else
-          cache%iunpack(_I_) = domain%size(_FABM_DEPTH_DIMENSION_INDEX_) + 1
+          cache%iunpack(_I_) = domain%shape(_FABM_DEPTH_DIMENSION_INDEX_) + 1
       end if
     end do
     _N_ = i
