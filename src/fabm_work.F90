@@ -33,7 +33,7 @@ module fabm_work
       integer :: shape(_FABM_DIMENSION_COUNT_)
       integer :: start(_FABM_DIMENSION_COUNT_)
       integer :: stop(_FABM_DIMENSION_COUNT_)
-      integer :: horizontal_size(_HORIZONTAL_DIMENSION_COUNT_)
+      integer :: horizontal_shape(_HORIZONTAL_DIMENSION_COUNT_)
 
 #ifdef _HAS_MASK_
 #  ifndef _FABM_HORIZONTAL_MASK_
