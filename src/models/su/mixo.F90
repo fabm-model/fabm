@@ -1330,7 +1330,7 @@ contains
       real(rk) :: bc, bn, bp, bsi     
       real(rk) :: mF, mFN, mFP, mFChl, mC, mN, mP, mChl, mSi
 
-      _HORIZONTAL_LOOP_BEGIN_
+      _BOTTOM_LOOP_BEGIN_
 
       ! Retrieve internal state variables values
       _GET_(self%id_mF,    mF)
@@ -1342,9 +1342,9 @@ contains
       _GET_(self%id_mP,    mP)
       _GET_(self%id_mChl,  mChl)
 
-      _GET_HORIZONTAL_(self%id_bc,  bc)
-      _GET_HORIZONTAL_(self%id_bn,  bn)
-      _GET_HORIZONTAL_(self%id_bp,  bp)
+      _GET_BOTTOM_(self%id_bc,  bc)
+      _GET_BOTTOM_(self%id_bn,  bn)
+      _GET_BOTTOM_(self%id_bp,  bp)
 
       ! Account for sinking
       _ADD_BOTTOM_FLUX_(self%id_mC,    -self%sink * mC)
@@ -1362,12 +1362,12 @@ contains
 
       if (self%SSi) then 
       _GET_(self%id_mSi,    mSi)   
-      _GET_HORIZONTAL_(self%id_bsi, bsi)  
+      _GET_BOTTOM_(self%id_bsi, bsi)  
       _ADD_BOTTOM_FLUX_(self%id_mSi,  -self%sink * mSi)
       _ADD_BOTTOM_SOURCE_(self%id_bsi,       self%sink * mSi/28._rk)
       end if  
 
-      _HORIZONTAL_LOOP_END_
+      _BOTTOM_LOOP_END_
   end subroutine
 
 end module su_mixo

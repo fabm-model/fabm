@@ -60,13 +60,13 @@ contains
       _DECLARE_ARGUMENTS_DO_SURFACE_
 
       ! Enter spatial loops (if any)
-      _HORIZONTAL_LOOP_BEGIN_
+      _SURFACE_LOOP_BEGIN_
 
          ! Transfer surface exchange value to FABM.
          _ADD_SURFACE_FLUX_(self%id_tracer, self%surface_flux)
 
       ! Leave spatial loops (if any)
-      _HORIZONTAL_LOOP_END_
+      _SURFACE_LOOP_END_
    end subroutine do_surface
 
 end module bb_passive

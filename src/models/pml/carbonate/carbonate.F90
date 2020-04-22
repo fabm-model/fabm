@@ -212,7 +212,7 @@ contains
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops (if any)
-   _HORIZONTAL_LOOP_BEGIN_
+   _SURFACE_LOOP_BEGIN_
 
    _GET_(self%id_temp,temp)
    _GET_(self%id_salt,salt)
@@ -249,7 +249,7 @@ contains
    _SET_SURFACE_DIAGNOSTIC_(self%id_co2_flux,fl * days_per_sec)
 
    ! Leave spatial loops (if any)
-   _HORIZONTAL_LOOP_END_
+   _SURFACE_LOOP_END_
 
    end subroutine do_surface
 !EOC

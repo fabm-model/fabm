@@ -64,7 +64,7 @@ contains
       real(rk) :: prey, biomass, g
 
       ! Enter spatial loops over the horizontal domain (if any).
-      _HORIZONTAL_LOOP_BEGIN_
+      _BOTTOM_LOOP_BEGIN_
 
          ! Retrieve current predator density (bottom-bound state variable)
          _GET_BOTTOM_(self%id_biomass,biomass)
@@ -93,7 +93,7 @@ contains
          end if
 
       ! Leave spatial loops over the horizontal domain (if any).
-      _HORIZONTAL_LOOP_END_
+      _BOTTOM_LOOP_END_
 
    end subroutine do_bottom
 

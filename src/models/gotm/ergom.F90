@@ -289,7 +289,7 @@ contains
       if (.not. self%fluff) return
 
       ! Enter spatial loops over the horizontal domain (if any).
-      _HORIZONTAL_LOOP_BEGIN_
+      _BOTTOM_LOOP_BEGIN_
 
          ! Retrieve current (local) state variable values.
          _GET_(self%id_am,amb)
@@ -334,7 +334,7 @@ contains
          _ADD_BOTTOM_FLUX_(self%id_o2,-(self%s4+self%s2*(thopnp+thomnm))*llsa*fl)
 
       ! Leave spatial loops over the horizontal domain (if any).
-      _HORIZONTAL_LOOP_END_
+      _BOTTOM_LOOP_END_
    end subroutine do_bottom
 
    ! Weiss formula for the saturation oxygen (osat) \cite{Weiss1970}:
@@ -394,7 +394,7 @@ contains
       real(rk)            :: p_vel,sc,flo2
       integer, parameter  :: newflux=1
 
-      _HORIZONTAL_LOOP_BEGIN_
+      _SURFACE_LOOP_BEGIN_
          _GET_(self%id_temp,temp)
          _GET_(self%id_salt,salt)
          _GET_SURFACE_(self%id_wind,wnd)
@@ -430,7 +430,7 @@ contains
          _ADD_SURFACE_FLUX_(self%id_am,self%sfl_am)
          _ADD_SURFACE_FLUX_(self%id_po,self%sfl_po)
 
-      _HORIZONTAL_LOOP_END_
+      _SURFACE_LOOP_END_
    end subroutine do_surface
 
    ! Step function

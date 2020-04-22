@@ -10,11 +10,11 @@ module examples_mean
    private
 
    type,extends(type_base_model),public :: type_examples_mean
-      type (type_dependency_id)                     :: id_temp
-      type (type_dependency_id)                     :: id_temp_tempmean
-      type (type_horizontal_dependency_id)          :: id_temp_vertmean,id_temp_vertmean_20m,id_temp_vertmean_tempmean
-      type (type_diagnostic_variable_id)            :: id_temp_tempmean_diag
-      type (type_horizontal_diagnostic_variable_id) :: id_temp_vertmean_diag,id_temp_vertmean_20m_diag,id_temp_vertmean_tempmean_diag
+      type (type_dependency_id)                  :: id_temp
+      type (type_dependency_id)                  :: id_temp_tempmean
+      type (type_horizontal_dependency_id)       :: id_temp_vertmean,id_temp_vertmean_20m,id_temp_vertmean_tempmean
+      type (type_diagnostic_variable_id)         :: id_temp_tempmean_diag
+      type (type_surface_diagnostic_variable_id) :: id_temp_vertmean_diag,id_temp_vertmean_20m_diag,id_temp_vertmean_tempmean_diag
    contains
       procedure :: initialize
       procedure :: do
@@ -57,14 +57,14 @@ contains
 
       real(rk) :: temp, temp_20m, temp_tempmean
 
-      _HORIZONTAL_LOOP_BEGIN_
+      _SURFACE_LOOP_BEGIN_
          _GET_HORIZONTAL_(self%id_temp_vertmean, temp)
          _GET_HORIZONTAL_(self%id_temp_vertmean_20m, temp_20m)
          _GET_HORIZONTAL_(self%id_temp_vertmean_tempmean, temp_tempmean)
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_temp_vertmean_diag, temp)
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_temp_vertmean_20m_diag, temp_20m)
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_temp_vertmean_tempmean_diag, temp_tempmean)
-      _HORIZONTAL_LOOP_END_
+         _SET_SURFACE_DIAGNOSTIC_(self%id_temp_vertmean_diag, temp)
+         _SET_SURFACE_DIAGNOSTIC_(self%id_temp_vertmean_20m_diag, temp_20m)
+         _SET_SURFACE_DIAGNOSTIC_(self%id_temp_vertmean_tempmean_diag, temp_tempmean)
+      _SURFACE_LOOP_END_
    end subroutine do_surface
 
 end module

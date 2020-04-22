@@ -3,7 +3,6 @@
 module nonlocal
 
    use fabm_types
-   use fabm_standard_variables
 
    implicit none
 
@@ -16,7 +15,7 @@ module nonlocal
    ! apply at the bottom of the domain (w_bot). Linear interpolation is used to determine weights in between
    ! these levels. In the special case where both weights equal 1, a vertical integral computed using
    ! this presence distribution will in fact be the real vertical integral between z_top and z_bot.
-   type,extends(type_base_model),public :: type_vertical_distribution
+   type, extends(type_base_model), public :: type_vertical_distribution
       type (type_diagnostic_variable_id) :: id_weights
       type (type_dependency_id)          :: id_depth
 
@@ -30,11 +29,11 @@ module nonlocal
    ! Weights are taken from an externally computed variable [id_target below],
    ! which typically is a diagnostic computed by a model of type type_vertical_distribution.
    ! The variable to be integrated is a dependency [id_target below] that must be coupled at run time.
-   ! The resultant integral is a diagnsotic that acts like a state variable, that is to say,
-   ! other models can use it as if it were a state avriable, and provide sources and sinks,
-   ! and thsi model will then automagically distribute those sinks and sources again over their
+   ! The resultant integral is a diagnostic that acts like a state variable, that is to say,
+   ! other models can use it as if it were a state variable, and provide sources and sinks,
+   ! and this model will then automagically distribute those sinks and sources again over their
    ! original depth-explicit source variable, using the appropriate weights.
-   type,extends(type_base_model),public :: type_depth_integral
+   type, extends(type_base_model), public :: type_depth_integral
       type (type_horizontal_diagnostic_variable_id) :: id_integral
       type (type_state_variable_id)                 :: id_target
       type (type_dependency_id)                     :: id_weights
@@ -56,9 +55,9 @@ module nonlocal
    
 contains
 
-   subroutine vertical_distribution_initialize(self,configunit)
-      class (type_vertical_distribution),intent(inout),target :: self
-      integer,                           intent(in)           :: configunit
+   subroutine vertical_distribution_initialize(self, configunit)
+      class (type_vertical_distribution), intent(inout), target :: self
+      integer,                            intent(in)            :: configunit
 
       call self%get_parameter(self%z_top,'z_top','m','upper limit of vertical distribution')
       call self%get_parameter(self%z_bot,'z_bot','m','lower limit of vertical distribution')
@@ -69,11 +68,11 @@ contains
       call self%register_dependency(self%id_depth,standard_variables%depth)
    end subroutine vertical_distribution_initialize
 
-   subroutine vertical_distribution_do(self,_ARGUMENTS_DO_)
-      class (type_vertical_distribution),intent(in) :: self
+   subroutine vertical_distribution_do(self, _ARGUMENTS_DO_)
+      class (type_vertical_distribution), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
 
-      real(rk) :: z,slope
+      real(rk) :: z, slope
 
       _LOOP_BEGIN_
          _GET_(self%id_depth,z)
@@ -91,11 +90,11 @@ contains
       _LOOP_END_
    end subroutine vertical_distribution_do
 
-   subroutine depth_integral_initialize(self,configunit)
-      class (type_depth_integral),intent(inout),target :: self
-      integer,                    intent(in)           :: configunit
+   subroutine depth_integral_initialize(self, configunit)
+      class (type_depth_integral), intent(inout), target :: self
+      integer,                     intent(in)            :: configunit
 
-      class (type_depth_integral_rate_distributor),pointer :: rate_distributor
+      class (type_depth_integral_rate_distributor), pointer :: rate_distributor
 
       call self%register_state_dependency(self%id_target, 'target', '', 'variable to depth-integrate')
       call self%register_dependency(self%id_weights,'weights','-','weights for vertical integration')
@@ -115,10 +114,10 @@ contains
    end subroutine depth_integral_initialize
 
    subroutine depth_integral_do_column(self, _ARGUMENTS_DO_COLUMN_)
-      class (type_depth_integral),intent(in) :: self
+      class (type_depth_integral), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_COLUMN_
 
-      real(rk) :: local,weight,thickness,integral
+      real(rk) :: local, weight, thickness, integral
 
       integral = 0.0_rk
       _VERTICAL_LOOP_BEGIN_
@@ -130,9 +129,9 @@ contains
       _SET_HORIZONTAL_DIAGNOSTIC_(self%id_integral,integral)
    end subroutine depth_integral_do_column
 
-   subroutine depth_integral_rate_distributor_initialize(self,configunit)
-      class (type_depth_integral_rate_distributor),intent(inout),target :: self
-      integer,                                     intent(in)           :: configunit
+   subroutine depth_integral_rate_distributor_initialize(self, configunit)
+      class (type_depth_integral_rate_distributor), intent(inout), target :: self
+      integer,                                      intent(in)            :: configunit
 
       call self%register_state_dependency(self%id_target, 'target', '', 'variable to apply sources and sinks to')
       call self%register_dependency(self%id_weights,'weights','-','weights for vertical distribution')
@@ -140,12 +139,12 @@ contains
       call self%register_dependency(self%id_sms,'sms','','depth-integrated sources-sinks')
    end subroutine depth_integral_rate_distributor_initialize
 
-   subroutine depth_integral_rate_distributor_do(self,_ARGUMENTS_DO_)
-      class (type_depth_integral_rate_distributor),intent(in) :: self
+   subroutine depth_integral_rate_distributor_do(self, _ARGUMENTS_DO_)
+      class (type_depth_integral_rate_distributor), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
 
-      real(rk) :: integral,integrated_sms,relative_change
-      real(rk) :: local,weight
+      real(rk) :: integral, integrated_sms, relative_change
+      real(rk) :: local, weight
 
       _LOOP_BEGIN_
          ! First compute relative rate of change of depth-integrated target variable.

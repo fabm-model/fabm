@@ -278,7 +278,7 @@
    if (self%sedrate == 0.0_rk) return
 
    ! Enter spatial loops over the horizontal domain (if any).
-   _HORIZONTAL_LOOP_BEGIN_
+   _BOTTOM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
  !   if (self%fluff) then
@@ -296,7 +296,7 @@
    _ADD_BOTTOM_FLUX_(self%id_c, -ll * c)
 
    ! Leave spatial loops over the horizontal domain (if any).
-   _HORIZONTAL_LOOP_END_
+   _BOTTOM_LOOP_END_
 
    end subroutine do_bottom
 !EOC

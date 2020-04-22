@@ -39,14 +39,14 @@ contains
 
       real(rk) :: yearday
 
-      _HORIZONTAL_LOOP_BEGIN_
+      _SURFACE_LOOP_BEGIN_
          _GET_GLOBAL_(self%id_yearday,yearday)
          if (modulo(yearday-self%offset, 1.0_rk) < self%light_period) then
             _SET_SURFACE_DIAGNOSTIC_(self%id_swr_sf, self%swr)
          else
             _SET_SURFACE_DIAGNOSTIC_(self%id_swr_sf, 0.0_rk)
          end if
-      _HORIZONTAL_LOOP_END_
+      _SURFACE_LOOP_END_
    end subroutine do_surface
 
 end module

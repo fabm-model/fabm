@@ -200,8 +200,8 @@ contains
 
          ! Export diagnostic variables
          _SET_DIAGNOSTIC_(self%id_dPAR,par)
-         _SET_DIAGNOSTIC_(self%id_PPR ,primprod*secs_pr_day)
-         _SET_DIAGNOSTIC_(self%id_NPR ,(primprod - self%rpn*p)*secs_pr_day)
+         _SET_DIAGNOSTIC_(self%id_PPR,primprod*secs_pr_day)
+         _SET_DIAGNOSTIC_(self%id_NPR,(primprod - self%rpn*p)*secs_pr_day)
 
       ! Leave spatial loops (if any)
       _LOOP_END_

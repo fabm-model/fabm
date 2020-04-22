@@ -276,7 +276,7 @@
 !-----------------------------------------------------------------------
 !BOC
    ! Enter spatial loops over the horizontal domain (if any).
-   _HORIZONTAL_LOOP_BEGIN_
+   _BOTTOM_LOOP_BEGIN_
 
    ! Retrieve current (local) state variable values.
  !   if (self%fluff) then
@@ -368,7 +368,7 @@
    _SET_BOTTOM_DIAGNOSTIC_(self%id_PBR,(pbr * self%pburialrate * fl/self%maxsed) * secs_per_day)
 
    ! Leave spatial loops over the horizontal domain (if any).
-   _HORIZONTAL_LOOP_END_
+   _BOTTOM_LOOP_END_
 
    end subroutine do_bottom
 !EOC
@@ -435,7 +435,7 @@
 !-----------------------------------------------------------------------
 !BOC
 !
-   _HORIZONTAL_LOOP_BEGIN_
+   _SURFACE_LOOP_BEGIN_
 
    _GET_(self%id_temp,temp)
    _GET_(self%id_salt,salt)
@@ -479,7 +479,7 @@
 
    _SET_SURFACE_DIAGNOSTIC_(self%id_OFL,flo2 * secs_per_day)
 
-   _HORIZONTAL_LOOP_END_
+   _SURFACE_LOOP_END_
 
    end subroutine do_surface
 !EOC
