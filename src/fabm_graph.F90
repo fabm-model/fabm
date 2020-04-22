@@ -298,20 +298,22 @@ contains
       class (type_graph),      target, intent(inout) :: self
       class (type_base_model), target, intent(in)    :: model
       integer,                         intent(in)    :: source
-   type (type_call_stack_node), pointer           :: stack_top
+      type (type_call_stack_node), target, optional  :: stack_top
       type (type_node), pointer :: node
 
       type (type_call_stack_node),  pointer :: existing_stack_node, stack_node
       character(len=2048)                   :: chain
       class (type_graph),           pointer :: root_graph, owner_graph, target_graph
       integer                               :: operation
+      type (type_call_stack_node),  target  :: own_stack_node
       type (type_link),             pointer :: link
       type (type_input_variable),   pointer :: input_variable
 
       ! Circular dependency check:
       ! Search the stack, i.e., the list of calls that [indirectly] request the current call.
       ! If the current call is already on the stack, it is indirectly calling itself: there is a circular dependency.
-      existing_stack_node => stack_top
+      existing_stack_node => null()
+      if (present(stack_top)) existing_stack_node => stack_top
       do while (associated(existing_stack_node))
          if (associated(existing_stack_node%model, model) .and. existing_stack_node%source == source) exit
          existing_stack_node => existing_stack_node%previous
@@ -370,10 +372,9 @@ contains
       if (target_graph%frozen) call driver%fatal_error('graph_add_call','Target graph is frozen; no calls can be added.')
 
       ! Push this call onto the stack [the list of requesting calls]. This will be used for circular dependency checking.
-      allocate(stack_node)
-      stack_node%model => model
-      stack_node%source = source
-      stack_node%previous => stack_top
+      own_stack_node%model => model
+      own_stack_node%source = source
+      if (present(stack_top)) own_stack_node%previous => stack_top
 
       link => model%links%first
       do while (associated(link))
@@ -381,23 +382,22 @@ contains
             ! This is the model's own variable (not inherited from child model) and the model itself originally requested read access to it.
             _ASSERT_(.not. associated(link%target%write_owner), 'graph::add_call', 'BUG: required input variable is co-written.')
             input_variable => node%inputs%add(link%target)
-            stack_node%requested_variable => link%target
+            own_stack_node%requested_variable => link%target
             if (.not. (associated(link%target%owner, model) .and. link%target%source == source)) &
-               call target_graph%add_variable(link%target, stack_node, input_variable%sources, caller=node)
+               call target_graph%add_variable(link%target, input_variable%sources, stack_top=own_stack_node, caller=node)
          end if
          link => link%next
       end do
 
-      ! Remove node from the list of outer calls and add it to the graph instead.
-      deallocate(stack_node)
+      ! Add node to the graph.
       call target_graph%append(node)
    end function graph_add_call
 
-   recursive subroutine graph_add_variable(self, variable, stack_top, variable_set, copy_to_store, caller)
+   recursive subroutine graph_add_variable(self, variable, variable_set, stack_top, copy_to_store, caller)
       class (type_graph),                 intent(inout) :: self
       type (type_internal_variable),      intent(in)    :: variable
-      type (type_call_stack_node), pointer              :: stack_top
       type (type_output_variable_set),    intent(inout) :: variable_set
+      type (type_call_stack_node), target, optional     :: stack_top
       logical,          optional,         intent(in)    :: copy_to_store
       type (type_node), optional, target, intent(inout) :: caller
 
