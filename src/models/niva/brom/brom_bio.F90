@@ -358,23 +358,23 @@ call self%register_diagnostic_variable(self%id_N_fixation,'N_fixation','mmol/m**
 
 
 !%! components of temporal derivarives calculated in this module:
-          _SET_ODE_(self%id_Phy,(GrowthPhy-MortPhy-ExcrPhy-GrazPhy))
-          _SET_ODE_(self%id_Het,(self%Uz*Grazing-MortHet-RespHet))
-          _SET_ODE_(self%id_O2,(GrowthPhy-RespHet)*self%r_o_n)
-          _SET_ODE_(self%id_DON,+ExcrPhy+Grazing*(1.-self%Uz)*self%Hz)
-          _SET_ODE_(self%id_PON,MortPhy+MortHet+Grazing*(1.-self%Uz)*(1.-self%Hz)-GrazPOP)
-          _SET_ODE_(self%id_NH4,+RespHet-GrowthPhy*(LimNH4/LimN)+N_fixation)
-          _SET_ODE_(self%id_NO2,-GrowthPhy*(LimNO3/LimN)*(NO2/(0.00001+NO2+NO3)))
-          _SET_ODE_(self%id_NO3,-GrowthPhy*(LimNO3/LimN)*((NO3+0.00001)/(0.00001+NO2+NO3)))
-          _SET_ODE_(self%id_DIC,(-GrowthPhy+RespHet)*self%r_c_n)
-          _SET_ODE_(self%id_PO4,(-GrowthPhy+RespHet)/self%r_n_p)
-          _SET_ODE_(self%id_Si,(-GrowthPhy+ExcrPhy)*self%r_si_n)
-          _SET_ODE_(self%id_Sipart,(MortPhy+GrazPhy)*self%r_si_n)
-          _SET_ODE_(self%id_Alk,dAlk)
-          _SET_ODE_(self%id_Baae,-GrazBaae)
-          _SET_ODE_(self%id_Baan,-GrazBaan)
-          _SET_ODE_(self%id_Bhae,-GrazBhae)
-          _SET_ODE_(self%id_Bhan,-GrazBhan)
+          _ADD_SOURCE_(self%id_Phy,(GrowthPhy-MortPhy-ExcrPhy-GrazPhy))
+          _ADD_SOURCE_(self%id_Het,(self%Uz*Grazing-MortHet-RespHet))
+          _ADD_SOURCE_(self%id_O2,(GrowthPhy-RespHet)*self%r_o_n)
+          _ADD_SOURCE_(self%id_DON,+ExcrPhy+Grazing*(1.-self%Uz)*self%Hz)
+          _ADD_SOURCE_(self%id_PON,MortPhy+MortHet+Grazing*(1.-self%Uz)*(1.-self%Hz)-GrazPOP)
+          _ADD_SOURCE_(self%id_NH4,+RespHet-GrowthPhy*(LimNH4/LimN)+N_fixation)
+          _ADD_SOURCE_(self%id_NO2,-GrowthPhy*(LimNO3/LimN)*(NO2/(0.00001+NO2+NO3)))
+          _ADD_SOURCE_(self%id_NO3,-GrowthPhy*(LimNO3/LimN)*((NO3+0.00001)/(0.00001+NO2+NO3)))
+          _ADD_SOURCE_(self%id_DIC,(-GrowthPhy+RespHet)*self%r_c_n)
+          _ADD_SOURCE_(self%id_PO4,(-GrowthPhy+RespHet)/self%r_n_p)
+          _ADD_SOURCE_(self%id_Si,(-GrowthPhy+ExcrPhy)*self%r_si_n)
+          _ADD_SOURCE_(self%id_Sipart,(MortPhy+GrazPhy)*self%r_si_n)
+          _ADD_SOURCE_(self%id_Alk,dAlk)
+          _ADD_SOURCE_(self%id_Baae,-GrazBaae)
+          _ADD_SOURCE_(self%id_Baan,-GrazBaan)
+          _ADD_SOURCE_(self%id_Bhae,-GrazBhae)
+          _ADD_SOURCE_(self%id_Bhan,-GrazBhan)
 !%!----------------------------------------
 
 _SET_DIAGNOSTIC_(self%id_MortHet,MortHet)
@@ -467,7 +467,7 @@ _LOOP_END_
 !  Q_O2 = Oa*(Obe-O2)*0.24 ! 0.24 is to convert from [cm/h] to [m/day]
   Q_O2 = windspeed*(Obe-O2) !After (Burchard et al., 2005)
 
- _SET_SURFACE_EXCHANGE_(self%id_O2,Q_O2)
+ _ADD_SURFACE_FLUX_(self%id_O2,Q_O2)
 
 _HORIZONTAL_LOOP_END_
 

@@ -257,15 +257,15 @@ contains
          r3=self%r3max*1.0_rk/(1.0_rk+exp(self%beta_bg*(self%tbg-temp)))       &
             *min(yy(self%sr*self%alpha3,po),ppi)*(p3+self%p30)
 
-         _SET_ODE_(self%id_p1,r1-fpz(self%iv,self%g1max,temp,self%topt,psum)*p1/psum*(zo+self%zo0)-lp*p1)
-         _SET_ODE_(self%id_p2,r2-fpz(self%iv,self%g2max,temp,self%topt,psum)*p2/psum*(zo+self%zo0)-lp*p2)
-         _SET_ODE_(self%id_p3,r3-fpz(self%iv,self%g3max,temp,self%topt,psum)*p3/psum*(zo+self%zo0)-lp*p3)
-         _SET_ODE_(self%id_zo,(fpz(self%iv,self%g1max,temp,self%topt,psum)*p1+fpz(self%iv,self%g2max,temp,self%topt,psum)*p2+fpz(self%iv,self%g3max,temp,self%topt,psum)*p3)*(zo+self%zo0)/psum-self%lza*zo*(zo+self%zo0)-self%lzd*zo*(zo+self%zo0))
-         _SET_ODE_(self%id_de,self%lpd*p1+self%lpd*p2+self%lpd*p3+self%lzd*zo*(zo+self%zo0)-llda*de)
-         _SET_ODE_(self%id_am,llda*de-llan*am-am/(am+ni)*r1-am/(am+ni)*r2+self%lpa*(p1+p2+p3)+self%lza*zo*(zo+self%zo0))
-         _SET_ODE_(self%id_ni,llan*am-ni/(am+ni)*r1-ni/(am+ni)*r2-self%s1*llda*de*thomnp)
-         _SET_ODE_(self%id_po,self%sr*(-r1-r2-r3+llda*de+self%lpa*(p1+p2+p3)+self%lza*zo*(zo+self%zo0)))
-         _SET_ODE_(self%id_o2,self%s2*(am/(am+ni)*(r1+r2)+r3)-self%s4*(llan*am)+self%s3*(ni/(am+ni)*(r1+r2))-self%s2*(thopnp+thomnm)*llda*de-self%s2*(self%lpa*(p1+p2+p3)+self%lza*zo*(zo+self%zo0)))
+         _ADD_SOURCE_(self%id_p1,r1-fpz(self%iv,self%g1max,temp,self%topt,psum)*p1/psum*(zo+self%zo0)-lp*p1)
+         _ADD_SOURCE_(self%id_p2,r2-fpz(self%iv,self%g2max,temp,self%topt,psum)*p2/psum*(zo+self%zo0)-lp*p2)
+         _ADD_SOURCE_(self%id_p3,r3-fpz(self%iv,self%g3max,temp,self%topt,psum)*p3/psum*(zo+self%zo0)-lp*p3)
+         _ADD_SOURCE_(self%id_zo,(fpz(self%iv,self%g1max,temp,self%topt,psum)*p1+fpz(self%iv,self%g2max,temp,self%topt,psum)*p2+fpz(self%iv,self%g3max,temp,self%topt,psum)*p3)*(zo+self%zo0)/psum-self%lza*zo*(zo+self%zo0)-self%lzd*zo*(zo+self%zo0))
+         _ADD_SOURCE_(self%id_de,self%lpd*p1+self%lpd*p2+self%lpd*p3+self%lzd*zo*(zo+self%zo0)-llda*de)
+         _ADD_SOURCE_(self%id_am,llda*de-llan*am-am/(am+ni)*r1-am/(am+ni)*r2+self%lpa*(p1+p2+p3)+self%lza*zo*(zo+self%zo0))
+         _ADD_SOURCE_(self%id_ni,llan*am-ni/(am+ni)*r1-ni/(am+ni)*r2-self%s1*llda*de*thomnp)
+         _ADD_SOURCE_(self%id_po,self%sr*(-r1-r2-r3+llda*de+self%lpa*(p1+p2+p3)+self%lza*zo*(zo+self%zo0)))
+         _ADD_SOURCE_(self%id_o2,self%s2*(am/(am+ni)*(r1+r2)+r3)-self%s4*(llan*am)+self%s3*(ni/(am+ni)*(r1+r2))-self%s2*(thopnp+thomnm)*llda*de-self%s2*(self%lpa*(p1+p2+p3)+self%lza*zo*(zo+self%zo0)))
 
          ! Set diagnostic variables
          _SET_DIAGNOSTIC_(self%id_dPAR,par)
@@ -326,12 +326,12 @@ contains
             llsd=0.0_rk
          end if
 
-         _SET_BOTTOM_ODE_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,0.0_rk,1.0_rk)*llsa*fl)
-         _SET_BOTTOM_EXCHANGE_(self%id_de,-llds*deb+llsd*fl)
-         _SET_BOTTOM_EXCHANGE_(self%id_am,llsa*fl)
-         _SET_BOTTOM_EXCHANGE_(self%id_ni,-self%s1*thomnp*llsa*fl)
-         _SET_BOTTOM_EXCHANGE_(self%id_po,self%sr*(1.0_rk-self%ph1*th(oxb,wo,0.0_rk,1.0_rk)*yy(self%ph2,oxb))*llsa*fl)
-         _SET_BOTTOM_EXCHANGE_(self%id_o2,-(self%s4+self%s2*(thopnp+thomnm))*llsa*fl)
+         _ADD_BOTTOM_SOURCE_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,0.0_rk,1.0_rk)*llsa*fl)
+         _ADD_BOTTOM_FLUX_(self%id_de,-llds*deb+llsd*fl)
+         _ADD_BOTTOM_FLUX_(self%id_am,llsa*fl)
+         _ADD_BOTTOM_FLUX_(self%id_ni,-self%s1*thomnp*llsa*fl)
+         _ADD_BOTTOM_FLUX_(self%id_po,self%sr*(1.0_rk-self%ph1*th(oxb,wo,0.0_rk,1.0_rk)*yy(self%ph2,oxb))*llsa*fl)
+         _ADD_BOTTOM_FLUX_(self%id_o2,-(self%s4+self%s2*(thopnp+thomnm))*llsa*fl)
 
       ! Leave spatial loops over the horizontal domain (if any).
       _HORIZONTAL_LOOP_END_
@@ -424,11 +424,11 @@ contains
          else
             flo2 = self%pvel*(self%a0*(self%a1-self%a2*temp)-o2)
          end if
-         _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
+         _ADD_SURFACE_FLUX_(self%id_o2,flo2)
 
-         _SET_SURFACE_EXCHANGE_(self%id_ni,self%sfl_ni)
-         _SET_SURFACE_EXCHANGE_(self%id_am,self%sfl_am)
-         _SET_SURFACE_EXCHANGE_(self%id_po,self%sfl_po)
+         _ADD_SURFACE_FLUX_(self%id_ni,self%sfl_ni)
+         _ADD_SURFACE_FLUX_(self%id_am,self%sfl_am)
+         _ADD_SURFACE_FLUX_(self%id_po,self%sfl_po)
 
       _HORIZONTAL_LOOP_END_
    end subroutine do_surface

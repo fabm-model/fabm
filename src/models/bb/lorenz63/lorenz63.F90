@@ -53,9 +53,9 @@ contains
          _GET_(self%id_z, z)
 
          ! Set temporal derivatives
-         _SET_ODE_(self%id_x, self%sigma*(y-x))
-         _SET_ODE_(self%id_y, x*(self%rho-z)-y)
-         _SET_ODE_(self%id_z, x*y-self%beta*z)
+         _ADD_SOURCE_(self%id_x, self%sigma*(y-x))
+         _ADD_SOURCE_(self%id_y, x*(self%rho-z)-y)
+         _ADD_SOURCE_(self%id_z, x*y-self%beta*z)
       
       _LOOP_END_
    end subroutine do

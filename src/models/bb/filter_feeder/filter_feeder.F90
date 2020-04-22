@@ -84,8 +84,8 @@ contains
          end if
 
          ! Set fluxes of pelagic variables.
-         _SET_ODE_(self%id_prey, -prey * clearance_rate)
-         _SET_ODE_(self%id_consumed_prey, prey * clearance_rate)
+         _ADD_SOURCE_(self%id_prey, -prey * clearance_rate)
+         _ADD_SOURCE_(self%id_consumed_prey, prey * clearance_rate)
 
       ! Leave spatial loops (if any).
       _LOOP_END_

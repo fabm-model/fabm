@@ -160,7 +160,7 @@ contains
          ! Now distribute the same relative change across the column.
          _GET_(self%id_target,local)
          _GET_(self%id_weights,weight)
-         _SET_ODE_(self%id_target,relative_change*local*weight)
+         _ADD_SOURCE_(self%id_target,relative_change*local*weight)
       _LOOP_END_
    end subroutine depth_integral_rate_distributor_do
 

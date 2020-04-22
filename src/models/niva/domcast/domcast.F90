@@ -199,20 +199,20 @@
    R5b = self%k_floc * DOMb * swfz
    
    ! All processes degrade DOM pools
-   _SET_ODE_(self%id_DOMa, -((R11 + R21) * 24.0_rk + R3 + R5a) )
-   _SET_ODE_(self%id_DOMb, -((R12 + R22) * 24.0_rk + R3 + R5b) )
+   _ADD_SOURCE_(self%id_DOMa, -((R11 + R21) * 24.0_rk + R3 + R5a) )
+   _ADD_SOURCE_(self%id_DOMb, -((R12 + R22) * 24.0_rk + R3 + R5b) )
 
    !O2 is consumed for DOM bacteria mineralization of both DOM pools
-   _SET_ODE_(self%id_eo2,  -(R11+R12) )
+   _ADD_SOURCE_(self%id_eo2,  -(R11+R12) )
 
    !Nitrate is consumed for DOM bacteria mineralization of both DOM pools
-   _SET_ODE_(self%id_enn,  -(R21+R22)*0.8_rk)
+   _ADD_SOURCE_(self%id_enn,  -(R21+R22)*0.8_rk)
 
    !Ammonium is created during bacteria mineralization
-   _SET_ODE_(self%id_eaa,  (R21+R22)*0.8_rk)
+   _ADD_SOURCE_(self%id_eaa,  (R21+R22)*0.8_rk)
    
    !POMb is produced during flocculation (add to detritus in selma)
-   _SET_ODE_(self%id_edd,  (R5a / 5.6_rk + R5b / 10.0_rk ))
+   _ADD_SOURCE_(self%id_edd,  (R5a / 5.6_rk + R5b / 10.0_rk ))
    
    ! Export diagnostic variables -> rates included only for debugging purposes
    _SET_DIAGNOSTIC_(self%id_rate11, R11)

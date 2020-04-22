@@ -65,8 +65,8 @@ contains
          _GET_(self%id_d, d) ! detritus
 
          ! Set temporal derivatives
-         _SET_ODE_(self%id_d, -self%rdn*d)
-         _SET_ODE_(self%id_mintarget, self%rdn*d)
+         _ADD_SOURCE_(self%id_d, -self%rdn*d)
+         _ADD_SOURCE_(self%id_mintarget, self%rdn*d)
 
       ! Leave spatial loops (if any)
       _LOOP_END_

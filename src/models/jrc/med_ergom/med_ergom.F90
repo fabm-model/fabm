@@ -389,17 +389,17 @@
       ade = 0.0_rk
    endif
 
-   _SET_ODE_(self%id_o2, part_uptake * (nn * 8.625_rk + aa * 6.625_rk) + rb * bbg * 6.625_rk - ldn_O * ldn * dd - 6.625_rk * (lpn * phyto + lzn * zz0) - 2.0_rk * nf * aa + ade * 0.375_rk)
-   _SET_ODE_(self%id_aa, ldn * dd - (part_uptake + nf) * aa + lpn * phyto + lzn * zz0)
-   _SET_ODE_(self%id_nn, nf * aa - part_uptake * nn - ldn_N * ldn * dd - ade)
-   _SET_ODE_(self%id_po, self%rfr * ( ldn * dd - (part_uptake * (aa + nn) + rb * bbg) + lpn * phyto + lzn * zz0))
-   _SET_ODE_(self%id_pp, uptake_p * (aa + nn) - (graz_z + lp) * pp)
-   _SET_ODE_(self%id_ff, uptake_f * (aa + nn) - (graz_z + lp) * ff)
-   _SET_ODE_(self%id_bb, rb * bbg - (0.5_rk * graz_z + lp) * bb)
-   _SET_ODE_(self%id_zz, graz_z * (pp + ff + 0.5_rk * bb) - lz * zz0)
-   _SET_ODE_(self%id_dd, lpd * phyto + lzd * zz0 - ldn * dd)
+   _ADD_SOURCE_(self%id_o2, part_uptake * (nn * 8.625_rk + aa * 6.625_rk) + rb * bbg * 6.625_rk - ldn_O * ldn * dd - 6.625_rk * (lpn * phyto + lzn * zz0) - 2.0_rk * nf * aa + ade * 0.375_rk)
+   _ADD_SOURCE_(self%id_aa, ldn * dd - (part_uptake + nf) * aa + lpn * phyto + lzn * zz0)
+   _ADD_SOURCE_(self%id_nn, nf * aa - part_uptake * nn - ldn_N * ldn * dd - ade)
+   _ADD_SOURCE_(self%id_po, self%rfr * ( ldn * dd - (part_uptake * (aa + nn) + rb * bbg) + lpn * phyto + lzn * zz0))
+   _ADD_SOURCE_(self%id_pp, uptake_p * (aa + nn) - (graz_z + lp) * pp)
+   _ADD_SOURCE_(self%id_ff, uptake_f * (aa + nn) - (graz_z + lp) * ff)
+   _ADD_SOURCE_(self%id_bb, rb * bbg - (0.5_rk * graz_z + lp) * bb)
+   _ADD_SOURCE_(self%id_zz, graz_z * (pp + ff + 0.5_rk * bb) - lz * zz0)
+   _ADD_SOURCE_(self%id_dd, lpd * phyto + lzd * zz0 - ldn * dd)
 
-   if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic, self%rfc*( lpn * phyto + lzn * zz0 + ldn * dd - rp * ppg - rf * ffg - rb * bbg))
+   if (_AVAILABLE_(self%id_dic)) _ADD_SOURCE_(self%id_dic, self%rfc*( lpn * phyto + lzn * zz0 + ldn * dd - rp * ppg - rf * ffg - rb * bbg))
 
    _SET_DIAGNOSTIC_(self%id_NO3, nn * n_molar_mass)
    _SET_DIAGNOSTIC_(self%id_NH4, aa * n_molar_mass)
@@ -474,7 +474,7 @@
       end if
       p_vel = p_vel/secs_per_day
       flo2 =p_vel*(osat_weiss(temp,salt)-o2)
-      _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
+      _ADD_SURFACE_FLUX_(self%id_o2,flo2)
 
       ! Newflux=2 use polynom approximation
       ! to order S & T ** 3 for oxygen saturation derived from
@@ -485,16 +485,16 @@
            + salt * ((2.2258e-3_rk + (4.39e-7_rk * temp - 4.645e-5_rk) * temp) * temp - 6.33e-2_rk)) &
            * 44.66e0_rk
       flo2 = self%pvel * (osat - o2)
-      _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
+      _ADD_SURFACE_FLUX_(self%id_o2,flo2)
    else
       flo2 = self%pvel * (31.25_rk * (14.603_rk - 0.40215_rk * temp) - o2)
-      _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
+      _ADD_SURFACE_FLUX_(self%id_o2,flo2)
    end if
 
    _SET_SURFACE_DIAGNOSTIC_(self%id_OFL,flo2 * secs_per_day)
-   _SET_SURFACE_EXCHANGE_(self%id_nn,self%sfl_nn/secs_per_day)
-   _SET_SURFACE_EXCHANGE_(self%id_aa,self%sfl_aa/secs_per_day)
-   _SET_SURFACE_EXCHANGE_(self%id_po,self%sfl_po/secs_per_day)
+   _ADD_SURFACE_FLUX_(self%id_nn,self%sfl_nn/secs_per_day)
+   _ADD_SURFACE_FLUX_(self%id_aa,self%sfl_aa/secs_per_day)
+   _ADD_SURFACE_FLUX_(self%id_po,self%sfl_po/secs_per_day)
 
    _HORIZONTAL_LOOP_END_
    end subroutine do_surface
@@ -589,24 +589,24 @@
    oxlim = max (0.0_rk,oxb) * max (0.0_rk,oxb) / (0.01_rk + max(0.0_rk,oxb) * max(0.0_rk,oxb))
 
    ! Sediment resuspension, detritus settling, bio-resuspension, mineralization and burial
-   _SET_BOTTOM_ODE_(self%id_fl,-llsd * fl + llds * ddb - biores * fl - recs * fl - fl * self%fl_burialrate * fl/self%maxsed)
+   _ADD_BOTTOM_SOURCE_(self%id_fl,-llsd * fl + llds * ddb - biores * fl - recs * fl - fl * self%fl_burialrate * fl/self%maxsed)
    ! P-Fe resuspension, sedimentation, bio-resuspension, liberation, retention and burial
-   _SET_BOTTOM_ODE_(self%id_pb,-bpsd * pb + bpds * pwb -biores * pb -plib * pb + self%rfr * recs * fl * pret * oxlim - pbr * self%pburialrate * fl/self%maxsed)
+   _ADD_BOTTOM_SOURCE_(self%id_pb,-bpsd * pb + bpds * pwb -biores * pb -plib * pb + self%rfr * recs * fl * pret * oxlim - pbr * self%pburialrate * fl/self%maxsed)
 
    ! Denitrification in sediments
-   _SET_BOTTOM_EXCHANGE_(self%id_nn,-ldn_N * recs * fl)
+   _ADD_BOTTOM_FLUX_(self%id_nn,-ldn_N * recs * fl)
    ! Oxygen consumption due to mineralization and denitrification
-   _SET_BOTTOM_EXCHANGE_(self%id_o2,-ldn_O * recs * fl - 2.0_rk * fracdenitsed * recs * fl)
+   _ADD_BOTTOM_FLUX_(self%id_o2,-ldn_O * recs * fl - 2.0_rk * fracdenitsed * recs * fl)
    ! Ammonium production due to mineralization (oxic & anoxic)
-   _SET_BOTTOM_EXCHANGE_(self%id_aa,(1.0_rk - fracdenitsed) * recs * fl)
+   _ADD_BOTTOM_FLUX_(self%id_aa,(1.0_rk - fracdenitsed) * recs * fl)
    ! Phosphate production due to mineralization (retention if oxic) and release in anoxic
-   _SET_BOTTOM_EXCHANGE_(self%id_po, (1.0_rk - pret * oxlim) * self%rfr * recs * fl + plib * pb)
+   _ADD_BOTTOM_FLUX_(self%id_po, (1.0_rk - pret * oxlim) * self%rfr * recs * fl + plib * pb)
    ! Sediment resuspension, detritus settling, bio-resuspension
-   _SET_BOTTOM_EXCHANGE_(self%id_dd, llsd * fl -llds * ddb + biores * fl)
+   _ADD_BOTTOM_FLUX_(self%id_dd, llsd * fl -llds * ddb + biores * fl)
    ! P-Fe resuspension, settling and bio-resuspension
-   _SET_BOTTOM_EXCHANGE_(self%id_pw, bpsd * pb -bpds * pwb + biores * pb)
+   _ADD_BOTTOM_FLUX_(self%id_pw, bpsd * pb -bpds * pwb + biores * pb)
 
-   if (_AVAILABLE_(self%id_dic)) _SET_BOTTOM_EXCHANGE_(self%id_dic, self%rfc*recs * fl)
+   if (_AVAILABLE_(self%id_dic)) _ADD_BOTTOM_FLUX_(self%id_dic, self%rfc*recs * fl)
 
    ! BENTHIC DIAGNOSTIC VARIABLES
    _SET_BOTTOM_DIAGNOSTIC_(self%id_DNB,(ldn_N * recs * fl + fracdenitsed * recs * fl) * secs_per_day)

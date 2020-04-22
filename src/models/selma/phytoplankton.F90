@@ -229,21 +229,21 @@
 
       if (self%nitrogen_fixation) then
          ! Nitrogen acquired from dinitrogen gas (not tracked)
-         _SET_ODE_(self%id_o2, + r * cg * 6.625_rk)
+         _ADD_SOURCE_(self%id_o2, + r * cg * 6.625_rk)
       else
          ! Nitrogen acquired from ammonium and nitrate pools (proportional to availability)
-         _SET_ODE_(self%id_aa, - r * cg * aa/(nn + aa + epsilon))
-         _SET_ODE_(self%id_nn, - r * cg * (1.0_rk - aa/(nn + aa + epsilon)))
-         _SET_ODE_(self%id_o2,   r * cg * (nn * 8.625_rk + aa * 6.625_rk)/(nn + aa + epsilon))
+         _ADD_SOURCE_(self%id_aa, - r * cg * aa/(nn + aa + epsilon))
+         _ADD_SOURCE_(self%id_nn, - r * cg * (1.0_rk - aa/(nn + aa + epsilon)))
+         _ADD_SOURCE_(self%id_o2,   r * cg * (nn * 8.625_rk + aa * 6.625_rk)/(nn + aa + epsilon))
       end if
 
-      _SET_ODE_(self%id_o2, - 6.625_rk * (lpn * c))
-      _SET_ODE_(self%id_aa, + lpn * c)
-      _SET_ODE_(self%id_po, self%rfr * (- r * cg + lpn * c))
-      _SET_ODE_(self%id_c, r * cg - (lpn + lpd) * c)
-      _SET_ODE_(self%id_dd, lpd * c)
+      _ADD_SOURCE_(self%id_o2, - 6.625_rk * (lpn * c))
+      _ADD_SOURCE_(self%id_aa, + lpn * c)
+      _ADD_SOURCE_(self%id_po, self%rfr * (- r * cg + lpn * c))
+      _ADD_SOURCE_(self%id_c, r * cg - (lpn + lpd) * c)
+      _ADD_SOURCE_(self%id_dd, lpd * c)
 
-      if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic, self%rfc*(lpn * c - r * cg))
+      if (_AVAILABLE_(self%id_dic)) _ADD_SOURCE_(self%id_dic, self%rfc*(lpn * c - r * cg))
 
       _SET_DIAGNOSTIC_(self%id_chla, (c * 9.5 + 2.1)/self%Yc) ! relation between carbon and nitrogen from Hecky et al 1993. The stoichiometry of carbon, nitrogen, and phosphorus in particulate matter of lakes and oceans. Limnology and Oceanography, 38: 709-724.
       _SET_DIAGNOSTIC_(self%id_GPP, secs_per_day * r * cg)
@@ -292,8 +292,8 @@
    ll=self%sedrate*max(0.0_rk, self%tau_crit-taub)/self%tau_crit
 
    ! Sediment resuspension, detritus settling, diatom settling, bio-resuspension, mineralization and burial
-   _SET_BOTTOM_ODE_(self%id_fl,+ ll * c)
-   _SET_BOTTOM_EXCHANGE_(self%id_c, -ll * c)
+   _ADD_BOTTOM_SOURCE_(self%id_fl,+ ll * c)
+   _ADD_BOTTOM_FLUX_(self%id_c, -ll * c)
 
    ! Leave spatial loops over the horizontal domain (if any).
    _HORIZONTAL_LOOP_END_

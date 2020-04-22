@@ -130,7 +130,7 @@ contains
          end if
 
          ! Send rate of change to FABM
-         _SET_ODE_(self%id_c,-self%k*f*c)
+         _ADD_SOURCE_(self%id_c,-self%k*f*c)
 
       ! Leave spatial loops (if any)
       _LOOP_END_
@@ -174,8 +174,8 @@ contains
 
           ! Sedimentation
           if (self%do_sed) then
-            !_SET_BOTTOM_EXCHANGE_(self%id_c,-self%w*c)
-            !_SET_BOTTOM_ODE_(self%id_c_bot, +self%w*c)
+            !_ADD_BOTTOM_FLUX_(self%id_c,-self%w*c)
+            !_ADD_BOTTOM_SOURCE_(self%id_c_bot, +self%w*c)
 
                 ! Resuspension/Erosion
                 select case(self%resusp_meth)
@@ -208,10 +208,10 @@ contains
                 !write(*,*) 'h = ',h
                 !write(*,*) 'max_dt = ',max_dt
                 
-                _SET_BOTTOM_EXCHANGE_(self%id_c,-min(h/max_dt,self%w)*c+erosion)
-                _SET_BOTTOM_ODE_(self%id_c_bot, +min(h/max_dt,self%w)*c-erosion)
-                !_SET_BOTTOM_EXCHANGE_(self%id_c,-self%w*c+erosion)
-                !_SET_BOTTOM_ODE_(self%id_c_bot, +self%w*c-erosion)
+                _ADD_BOTTOM_FLUX_(self%id_c,-min(h/max_dt,self%w)*c+erosion)
+                _ADD_BOTTOM_SOURCE_(self%id_c_bot, +min(h/max_dt,self%w)*c-erosion)
+                !_ADD_BOTTOM_FLUX_(self%id_c,-self%w*c+erosion)
+                !_ADD_BOTTOM_SOURCE_(self%id_c_bot, +self%w*c-erosion)
 
           end if
 

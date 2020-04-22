@@ -432,17 +432,17 @@ else
    end if
 
    ! We start with the differential equations
-   _SET_ODE_(self%id_pl,growth_lim_pl*pl-sum(G(1,:)*pred_vect)-self%mpl*pl)
-   _SET_ODE_(self%id_ps,growth_lim_ps*ps-sum(G(2,:)*pred_vect)-self%mps*ps)
-   _SET_ODE_(self%id_zs,(self%phyZ*sum(G(:,1)*zs))-sum(G(4,:)*pred_vect)-self%mu_zs*zs-self%mzs*zs**2)
-   _SET_ODE_(self%id_zl,(self%phyZ*sum(G(:,2)*zl))-sum(G(5,:)*pred_vect)-self%mu_zl*zl-     mzl*zl**2)
-   _SET_ODE_(self%id_zn,(self%phyZ*sum(G(:,3)*zn))-sum(G(6,:)*pred_vect)-self%mu_zn*zn-self%mzn*zn**2)
-   _SET_ODE_(self%id_zg,(self%phyZ*sum(G(:,4)*zg))-self%mu_zg*zg-self%mnzg*zg-mpzg*zg**2)
-   _SET_ODE_(self%id_dn,(1.0_rk-self%phyZ)*(sum(G(:,1)*zs)+sum(G(:,2)*zl)+sum(G(:,3)*zn)+sum(G(:,4)*zg))+self%mpl*pl+self%mps*ps+self%mzs*zs**2+self%zl_pred_lost*(mzl*zl**2)+self%mzn*zn**2+self%mnzg*zg+mpzg*zg**2+(1.0_rk-oxilimexc)*(self%mu_zs*zs+self%mu_zl*zl+self%mu_zn*zn+self%mu_zg*zg)-sum(G(3,:)*pred_vect)-epsilon_n*dn)
-   _SET_ODE_(self%id_am,epsilon_n*dn+oxilimexc*(self%mu_zs*zs+self%mu_zl*zl+self%mu_zn*zn+self%mu_zg*zg)-(self%sigma_s*ppi_s*temp_lim_s*am_lim_s*ps)-(self%sigma_l*ppi_l*temp_lim_l*am_lim_l*pl)-nitrif-amm_nit_ox)
-   _SET_ODE_(self%id_ni,nitrif-(self%sigma_s*ppi_s*temp_lim_s*nit_lim_s*ps)-(self%sigma_l*ppi_l*temp_lim_l*nit_lim_l*pl)-denitri-0.6_rk*amm_nit_ox-1.34_rk*HS_nit_oxidation)
-   _SET_ODE_(self%id_o2,8.1258_rk*(growth_lim_pl*pl+growth_lim_ps*ps)-6.625_rk*(epsilon_n*dn+self%mu_zs*zs+self%mu_zl*zl+self%mu_zn*zn+self%mu_zg*zg)-2.0_rk*nitrif-HS_ox_oxidation)
-   _SET_ODE_(self%id_hs,(0.5_rk*epsilon_n*dn)-2.0_rk*HS_ox_oxidation-HS_nit_oxidation-HS_oth_oxidation)
+   _ADD_SOURCE_(self%id_pl,growth_lim_pl*pl-sum(G(1,:)*pred_vect)-self%mpl*pl)
+   _ADD_SOURCE_(self%id_ps,growth_lim_ps*ps-sum(G(2,:)*pred_vect)-self%mps*ps)
+   _ADD_SOURCE_(self%id_zs,(self%phyZ*sum(G(:,1)*zs))-sum(G(4,:)*pred_vect)-self%mu_zs*zs-self%mzs*zs**2)
+   _ADD_SOURCE_(self%id_zl,(self%phyZ*sum(G(:,2)*zl))-sum(G(5,:)*pred_vect)-self%mu_zl*zl-     mzl*zl**2)
+   _ADD_SOURCE_(self%id_zn,(self%phyZ*sum(G(:,3)*zn))-sum(G(6,:)*pred_vect)-self%mu_zn*zn-self%mzn*zn**2)
+   _ADD_SOURCE_(self%id_zg,(self%phyZ*sum(G(:,4)*zg))-self%mu_zg*zg-self%mnzg*zg-mpzg*zg**2)
+   _ADD_SOURCE_(self%id_dn,(1.0_rk-self%phyZ)*(sum(G(:,1)*zs)+sum(G(:,2)*zl)+sum(G(:,3)*zn)+sum(G(:,4)*zg))+self%mpl*pl+self%mps*ps+self%mzs*zs**2+self%zl_pred_lost*(mzl*zl**2)+self%mzn*zn**2+self%mnzg*zg+mpzg*zg**2+(1.0_rk-oxilimexc)*(self%mu_zs*zs+self%mu_zl*zl+self%mu_zn*zn+self%mu_zg*zg)-sum(G(3,:)*pred_vect)-epsilon_n*dn)
+   _ADD_SOURCE_(self%id_am,epsilon_n*dn+oxilimexc*(self%mu_zs*zs+self%mu_zl*zl+self%mu_zn*zn+self%mu_zg*zg)-(self%sigma_s*ppi_s*temp_lim_s*am_lim_s*ps)-(self%sigma_l*ppi_l*temp_lim_l*am_lim_l*pl)-nitrif-amm_nit_ox)
+   _ADD_SOURCE_(self%id_ni,nitrif-(self%sigma_s*ppi_s*temp_lim_s*nit_lim_s*ps)-(self%sigma_l*ppi_l*temp_lim_l*nit_lim_l*pl)-denitri-0.6_rk*amm_nit_ox-1.34_rk*HS_nit_oxidation)
+   _ADD_SOURCE_(self%id_o2,8.1258_rk*(growth_lim_pl*pl+growth_lim_ps*ps)-6.625_rk*(epsilon_n*dn+self%mu_zs*zs+self%mu_zl*zl+self%mu_zn*zn+self%mu_zg*zg)-2.0_rk*nitrif-HS_ox_oxidation)
+   _ADD_SOURCE_(self%id_hs,(0.5_rk*epsilon_n*dn)-2.0_rk*HS_ox_oxidation-HS_nit_oxidation-HS_oth_oxidation)
 
    ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_dPAR,par)
@@ -505,11 +505,11 @@ else
       end if
       p_vel = p_vel/secs_per_day
       flo2 =self%pvel_c*p_vel*(osat_weiss(temp,salt)-o2)
-      _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
+      _ADD_SURFACE_FLUX_(self%id_o2,flo2)
 !   end if
 
-  _SET_SURFACE_EXCHANGE_(self%id_ni,self%sfl_ni/secs_per_day)
-  _SET_SURFACE_EXCHANGE_(self%id_am,self%sfl_am/secs_per_day)
+  _ADD_SURFACE_FLUX_(self%id_ni,self%sfl_ni/secs_per_day)
+  _ADD_SURFACE_FLUX_(self%id_am,self%sfl_am/secs_per_day)
 
    _HORIZONTAL_LOOP_END_
    end subroutine do_surface
@@ -580,11 +580,11 @@ else
          llsd=0.0_rk
       end if
 
-      _SET_BOTTOM_ODE_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,0.0_rk,1.0_rk)*llsa*fl)
-      _SET_BOTTOM_EXCHANGE_(self%id_dn,-llds*deb+llsd*fl)
-      _SET_BOTTOM_EXCHANGE_(self%id_am,llsa*fl)
-      _SET_BOTTOM_EXCHANGE_(self%id_ni,self%s1*thomnp*llsa*fl)
-      _SET_BOTTOM_EXCHANGE_(self%id_o2,-(self%s4+self%s2*(thopnp+thomnm))*llsa*fl)
+      _ADD_BOTTOM_SOURCE_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,0.0_rk,1.0_rk)*llsa*fl)
+      _ADD_BOTTOM_FLUX_(self%id_dn,-llds*deb+llsd*fl)
+      _ADD_BOTTOM_FLUX_(self%id_am,llsa*fl)
+      _ADD_BOTTOM_FLUX_(self%id_ni,self%s1*thomnp*llsa*fl)
+      _ADD_BOTTOM_FLUX_(self%id_o2,-(self%s4+self%s2*(thopnp+thomnm))*llsa*fl)
 
    ! Leave spatial loops over the horizontal domain (if any).
    _HORIZONTAL_LOOP_END_

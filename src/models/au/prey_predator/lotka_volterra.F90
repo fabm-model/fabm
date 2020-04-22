@@ -122,8 +122,8 @@
    f = (self%b-self%p*predator)*prey
 !
 !  Set temporal derivatives,  subtracted by the secs_pr_day
-   _SET_ODE_(self%id_predator,g)
-   _SET_ODE_(self%id_prey,f)
+   _ADD_SOURCE_(self%id_predator,g)
+   _ADD_SOURCE_(self%id_prey,f)
 !  Export diagnostic variables
 !  Leave spatial loops (if any)
    _LOOP_END_

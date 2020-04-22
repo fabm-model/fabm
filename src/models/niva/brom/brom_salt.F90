@@ -165,9 +165,9 @@
    NaCl_prec=self%k_prec*max(0._rk,(Om_NaCl-1._rk))
    NaCl_diss=self%k_diss*max(0._rk,(1._rk-Om_NaCl))*NaCl
 
-   _SET_ODE_(self%id_Na,  -NaCl_prec+NaCl_diss)
-   _SET_ODE_(self%id_Cl,  -NaCl_prec+NaCl_diss)
-   _SET_ODE_(self%id_NaCl,+NaCl_prec-NaCl_diss)
+   _ADD_SOURCE_(self%id_Na,  -NaCl_prec+NaCl_diss)
+   _ADD_SOURCE_(self%id_Cl,  -NaCl_prec+NaCl_diss)
+   _ADD_SOURCE_(self%id_NaCl,+NaCl_prec-NaCl_diss)
 
    ! From mmol/m3 to g/L (note: if we want g/kg, we'd need to divide by density rather than 1000)
    _SET_DIAGNOSTIC_(self%id_psu,(Na*u_Na+Cl*u_Cl)*1e-6_rk)
@@ -213,14 +213,14 @@
    _GET_(self%id_NaCl,NaCl)
    _GET_HORIZONTAL_(self%id_NaCl_bot,NaCl_bot)
 
-   _SET_BOTTOM_EXCHANGE_(self%id_NaCl,-self%w*NaCl)
-   _SET_BOTTOM_ODE_(self%id_NaCl_bot, +self%w*NaCl)
+   _ADD_BOTTOM_FLUX_(self%id_NaCl,-self%w*NaCl)
+   _ADD_BOTTOM_SOURCE_(self%id_NaCl_bot, +self%w*NaCl)
 
    Om_NaCl=Na*Cl/(self%K_NaCl)
    NaCl_diss=min(self%k_diss_bot,NaCl_bot/max_dt)*max(0._rk,(1._rk-Om_NaCl))
-   _SET_BOTTOM_ODE_(self%id_NaCl_bot,-NaCl_diss)
-   _SET_BOTTOM_EXCHANGE_(self%id_Na,  NaCl_diss)
-   _SET_BOTTOM_EXCHANGE_(self%id_Cl,  NaCl_diss)
+   _ADD_BOTTOM_SOURCE_(self%id_NaCl_bot,-NaCl_diss)
+   _ADD_BOTTOM_FLUX_(self%id_Na,  NaCl_diss)
+   _ADD_BOTTOM_FLUX_(self%id_Cl,  NaCl_diss)
 
    ! From mmol/m2 to thickness: first to g/m2 (multiply by molecuar weight), then to m by dividing by density in g/m3, accounting for porosity (void fraction)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_h_bot,NaCl_bot*(u_Na+u_Cl)/1000/NaCl_density/(1-self%porosity))

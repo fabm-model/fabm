@@ -360,14 +360,14 @@ subroutine initialize(self,configunit)
 
 !  Applying time tendencies for tracers
 <tracers vertLoc=WAT>
-  _SET_ODE_(self%id_<name>,0.0 <noNewLine>
+  _ADD_SOURCE_(self%id_<name>,0.0 <noNewLine>
     <timeTendencies vertLoc=WAT>
       <timeTendency>/secs_pr_day <noNewLine>
     </timeTendencies>
   )
 </tracers>
 
-    if (_AVAILABLE_(self%id_t_dic)) _SET_ODE_(self%id_t_dic, rfr_c*(r_pp_mort * food_zoo + r_zoo_resp * zoo_eff + r_sed_rec * t_det - r_det_rec * spp_plus_spp0 - r_lpp_assim * lpp_plus_lpp0 - r_cya_assim * cya_plus_cya0)/secs_pr_day)
+    if (_AVAILABLE_(self%id_t_dic)) _ADD_SOURCE_(self%id_t_dic, rfr_c*(r_pp_mort * food_zoo + r_zoo_resp * zoo_eff + r_sed_rec * t_det - r_det_rec * spp_plus_spp0 - r_lpp_assim * lpp_plus_lpp0 - r_cya_assim * cya_plus_cya0)/secs_pr_day)
 
 ! Export diagnostic variables
 !   _SET_DIAGNOSTIC_(self%id_dPAR,par)
@@ -589,14 +589,14 @@ subroutine initialize(self,configunit)
                    )
    </tracers>
    <tracers vertLoc=WAT; hasTimeTendenciesVertLoc=SED>
-      _SET_BOTTOM_EXCHANGE_(self%id_<name>,0.0 <noNewLine>
+      _ADD_BOTTOM_FLUX_(self%id_<name>,0.0 <noNewLine>
       <timeTendencies vertLoc=SED>
                     <timeTendency2d>/(cgt_density*secs_pr_day) <noNewLine>
       </timeTendencies>
                            )
    </tracers>
 
-    if (_AVAILABLE_(self%id_t_dic)) _SET_BOTTOM_EXCHANGE_(self%id_t_dic, rfr_c*lr_sed_rec/(cgt_density*secs_pr_day))
+    if (_AVAILABLE_(self%id_t_dic)) _ADD_BOTTOM_FLUX_(self%id_t_dic, rfr_c*lr_sed_rec/(cgt_density*secs_pr_day))
 
 
    ! Leave spatial loops over the horizontal domain (if any).
@@ -721,7 +721,7 @@ subroutine initialize(self,configunit)
 
    ! Apply time tendencies to tracers
    <tracers vertLoc=WAT; hasTimeTendenciesVertLoc=SUR>
-      _SET_SURFACE_EXCHANGE_(self%id_<name>,0.0 <noNewLine>
+      _ADD_SURFACE_FLUX_(self%id_<name>,0.0 <noNewLine>
       <timeTendencies vertLoc=SUR>
                     <timeTendency2d>/(cgt_density*secs_pr_day) <noNewLine>
       </timeTendencies>

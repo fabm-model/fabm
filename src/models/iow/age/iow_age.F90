@@ -153,12 +153,12 @@
    if ( self%external_tracer ) then
       _GET_(self%id_tracer,tracer)
       _GET_(self%id_age_alpha,alpha)
-      _SET_ODE_(self%id_age_alpha,tracer)
+      _ADD_SOURCE_(self%id_age_alpha,tracer)
       age = 0.0_rk
       if ( tracer .gt. 0.0_rk ) age = alpha/tracer
       _SET_DIAGNOSTIC_(self%id_tracer_age,age/secs_pr_day)
    else
-      _SET_ODE_(self%id_age,1.0_rk/secs_pr_day)
+      _ADD_SOURCE_(self%id_age,1.0_rk/secs_pr_day)
    endif
 
    ! Leave spatial loops (if any)

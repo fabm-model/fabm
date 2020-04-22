@@ -347,20 +347,20 @@
 !--------------------------------------------------------------
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
    ! the change in nutrients (assuming constant C:N ratio)
-   !if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic,self%dic_per_n*dn)
+   !if (_AVAILABLE_(self%id_dic)) _ADD_SOURCE_(self%id_dic,self%dic_per_n*dn)
 
    ! Export diagnostic variables
    !_SET_DIAGNOSTIC_(self%id_dPAR,par)
 !derivatives for FABM
-   _SET_ODE_(self%id_oxy,doxy)
-   _SET_ODE_(self%id_nut,dnut)
-   _SET_ODE_(self%id_dom,ddom)
-   _SET_ODE_(self%id_pom,dpom)
-   _SET_ODE_(self%id_phy,dphy)
-   _SET_ODE_(self%id_zoo,dzoo)
+   _ADD_SOURCE_(self%id_oxy,doxy)
+   _ADD_SOURCE_(self%id_nut,dnut)
+   _ADD_SOURCE_(self%id_dom,ddom)
+   _ADD_SOURCE_(self%id_pom,dpom)
+   _ADD_SOURCE_(self%id_phy,dphy)
+   _ADD_SOURCE_(self%id_zoo,dzoo)
 
-   !if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic,dnut*106._rk/16._rk)
-   !if (_AVAILABLE_(self%id_alk)) _SET_ODE_(self%id_alk,ddom)
+   !if (_AVAILABLE_(self%id_dic)) _ADD_SOURCE_(self%id_dic,dnut*106._rk/16._rk)
+   !if (_AVAILABLE_(self%id_alk)) _ADD_SOURCE_(self%id_alk,ddom)
 
    ! Leave spatial loops (if any)
    _LOOP_END_
@@ -408,7 +408,7 @@
 
    Q_O2 = Oa*(Obe-O2)*0.24/86400. ! 0,24 is to transform from [cm/h] to [m/day]
 
-   _SET_SURFACE_EXCHANGE_(self%id_oxy,Q_O2)
+   _ADD_SURFACE_FLUX_(self%id_oxy,Q_O2)
 
    _HORIZONTAL_LOOP_END_
 
@@ -445,20 +445,20 @@
 
       !----------------------------------------
       !-burying into the sediments (sinking rates "w_xxx" are in m/s and positive upward)
-   _SET_BOTTOM_EXCHANGE_(self%id_pom,self%Bu*self%w_pom*pom)   ! mmol/m2/s
-   _SET_BOTTOM_EXCHANGE_(self%id_phy,self%Bu*self%w_phy*phy)   ! mmol/m2/s
-   _SET_BOTTOM_EXCHANGE_(self%id_zoo,self%Bu*self%w_zoo*zoo)   ! mmol/m2/s
+   _ADD_BOTTOM_FLUX_(self%id_pom,self%Bu*self%w_pom*pom)   ! mmol/m2/s
+   _ADD_BOTTOM_FLUX_(self%id_phy,self%Bu*self%w_phy*phy)   ! mmol/m2/s
+   _ADD_BOTTOM_FLUX_(self%id_zoo,self%Bu*self%w_zoo*zoo)   ! mmol/m2/s
       !   cc(pon,1)=cc(pon,1)+w_pon/h(1)*cc(pon,1)*Bu from ROLM
 
       ! we use here the relaxation condition with relaxation time Trel
       !---------------------------------------- upward fluxes of dissolved parameters
       !---------------------------------------- independent on redox conditions
-   _SET_BOTTOM_EXCHANGE_(self%id_dom,-(dom-self%b_dom_ox)/self%Trel)   ! mmol/m2/s
+   _ADD_BOTTOM_FLUX_(self%id_dom,-(dom-self%b_dom_ox)/self%Trel)   ! mmol/m2/s
 
       !---------------------------------------- dependent on redox conditions
       !in suboxic and anoxic conditions upward flux of DOM increases
-   _SET_BOTTOM_EXCHANGE_(self%id_dom,-(1.-0.5*(1.-tanh(self%O2LimC-oxy)))*(dom-self%b_dom_anox)/self%Trel)
-   _SET_BOTTOM_EXCHANGE_(self%id_oxy,-(1.-0.5*(1.-tanh(self%O2LimC-oxy)))*(oxy-0.)/self%Trel)
+   _ADD_BOTTOM_FLUX_(self%id_dom,-(1.-0.5*(1.-tanh(self%O2LimC-oxy)))*(dom-self%b_dom_anox)/self%Trel)
+   _ADD_BOTTOM_FLUX_(self%id_oxy,-(1.-0.5*(1.-tanh(self%O2LimC-oxy)))*(oxy-0.)/self%Trel)
 
 !    cc(oxy,1) =cc(oxy,1) -(1-tanh(O2LimC-cc(oxy,1)))*(cc( oxy,1)-min(b_ox,cc(oxy,1))) &
 !				/(Trel*timestep) !/86400)
@@ -467,10 +467,10 @@
 
 ! if (h(1).gt.0.75) then ! that is NOT valid in the channel (<5 m)!
 !! in oxic conditions OXY is additionally consumed due to its flux from water to sediments
-   _SET_BOTTOM_EXCHANGE_(self%id_oxy,-(1-tanh(self%O2LimC-oxy))*(oxy-min(self%b_ox,oxy))/self%Trel)
+   _ADD_BOTTOM_FLUX_(self%id_oxy,-(1-tanh(self%O2LimC-oxy))*(oxy-min(self%b_ox,oxy))/self%Trel)
 !				/(Trel*timestep) !/86400)
 !! in oxic conditions fluxes of NO3/NO2 for denitrification in the sediments
-   _SET_BOTTOM_EXCHANGE_(self%id_nut,-(1-tanh(self%O2LimC-oxy))*(nut-min(self%b_nut,nut))/self%Trel)
+   _ADD_BOTTOM_FLUX_(self%id_nut,-(1-tanh(self%O2LimC-oxy))*(nut-min(self%b_nut,nut))/self%Trel)
 !				/(Trel*timestep) !/86400)
 ! endif
 

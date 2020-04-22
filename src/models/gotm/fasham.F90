@@ -293,13 +293,13 @@ contains
                - self%vb*l/(self%k4+min67+l)*(b+self%b0)
 
          ! Provide temporal derivatives to FABM.
-         _SET_ODE_(self%id_p,d_p)
-         _SET_ODE_(self%id_z,d_z)
-         _SET_ODE_(self%id_d,d_d)
-         _SET_ODE_(self%id_b,d_b)
-         _SET_ODE_(self%id_n,d_n)
-         _SET_ODE_(self%id_a,d_a)
-         _SET_ODE_(self%id_l,d_l)
+         _ADD_SOURCE_(self%id_p,d_p)
+         _ADD_SOURCE_(self%id_z,d_z)
+         _ADD_SOURCE_(self%id_d,d_d)
+         _ADD_SOURCE_(self%id_b,d_b)
+         _ADD_SOURCE_(self%id_n,d_n)
+         _ADD_SOURCE_(self%id_a,d_a)
+         _ADD_SOURCE_(self%id_l,d_l)
    
          ! Provide diagnostic variables to FABM.
          _SET_DIAGNOSTIC_(self%id_pp,secs_pr_day*ff*(n/self%k1+a/self%k2)/(1.0_rk+n/self%k1+a/self%k2))

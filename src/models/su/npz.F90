@@ -100,9 +100,9 @@ contains
     d_z = zoo_ing - zoo_void - zoo_regen
 
     !Provide temporal derivatives to FABM (must be in per second, hence division by 86400)
-    _SET_ODE_(self%id_n,d_n/86400)
-    _SET_ODE_(self%id_p,d_p/86400)
-    _SET_ODE_(self%id_z,d_z/86400)
+    _ADD_SOURCE_(self%id_n,d_n/86400)
+    _ADD_SOURCE_(self%id_p,d_p/86400)
+    _ADD_SOURCE_(self%id_z,d_z/86400)
 
     !Provide diagnostic variables to FABM
     _SET_DIAGNOSTIC_(self%id_phy_u,phy_u)

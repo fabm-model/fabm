@@ -829,7 +829,7 @@ contains
       do iprey=1,self%nprey
          do istate=1,size(self%id_prey(iprey)%state)
             _GET_(self%id_prey(iprey)%state(istate),preyP)
-            _SET_ODE_(self%id_prey(iprey)%state(istate),-sI(iprey)*preyP)
+            _ADD_SOURCE_(self%id_prey(iprey)%state(istate),-sI(iprey)*preyP)
          end do
       end do 
 
@@ -1083,8 +1083,8 @@ contains
          mortS  = stress * sd *  mSi   ! (mgSi/m3/day)
          
          ! Set ODEs: 
-         _SET_ODE_(self%id_mSi, + Sup*mC - mortS)
-         _SET_ODE_(self%id_N5s, - (Sup*mC)/28._rk)
+         _ADD_SOURCE_(self%id_mSi, + Sup*mC - mortS)
+         _ADD_SOURCE_(self%id_N5s, - (Sup*mC)/28._rk)
 
          ! Set Diagnostics:
          _SET_DIAGNOSTIC_(self%id_mSC, mSC)
@@ -1191,7 +1191,7 @@ contains
          ! is egested as particulate detritus (Luca)
          do iprey=1,self%nprey
             _GET_(self%id_preyf(iprey),preyP)
-            if (preyP/=0.0_rk) _SET_ODE_(self%id_preyf_target(iprey),sI(iprey)*preyP)
+            if (preyP/=0.0_rk) _ADD_SOURCE_(self%id_preyf_target(iprey),sI(iprey)*preyP)
          end do
       end if
 
@@ -1199,38 +1199,38 @@ contains
 !---Set ODEs and diagnostics--
 !-----------------------------
 
-      _SET_ODE_(self%id_mC,    + Cfix     + AgC_mC   - Cresp   - mortmC)
-      _SET_ODE_(self%id_mN,    + mupN_mC  + IncN_mC  - resN_mC - mortmN)
-      _SET_ODE_(self%id_mP,    + mIPu_mC  + IncP_mC  - resP_mC - mortmP)
-      _SET_ODE_(self%id_mChl,  + dChlC_mC - mortmChl)
-      _SET_ODE_(self%id_mF,    + ImF      - mDgC_mC - mortmFC)
-      _SET_ODE_(self%id_mFN,   + ImFN     - mDgN_mC - mortmFN)
-      _SET_ODE_(self%id_mFP,   + ImFP     - mDgP_mC - mortmFP)
+      _ADD_SOURCE_(self%id_mC,    + Cfix     + AgC_mC   - Cresp   - mortmC)
+      _ADD_SOURCE_(self%id_mN,    + mupN_mC  + IncN_mC  - resN_mC - mortmN)
+      _ADD_SOURCE_(self%id_mP,    + mIPu_mC  + IncP_mC  - resP_mC - mortmP)
+      _ADD_SOURCE_(self%id_mChl,  + dChlC_mC - mortmChl)
+      _ADD_SOURCE_(self%id_mF,    + ImF      - mDgC_mC - mortmFC)
+      _ADD_SOURCE_(self%id_mFN,   + ImFN     - mDgN_mC - mortmFN)
+      _ADD_SOURCE_(self%id_mFP,   + ImFP     - mDgP_mC - mortmFP)
 
       total_steal = sum(self%steal)
       if (total_steal == 0) then
-         _SET_ODE_(self%id_mFChl, + ImFChl - mDgChl_mC - mortmFChl)
+         _ADD_SOURCE_(self%id_mFChl, + ImFChl - mDgChl_mC - mortmFChl)
       else
-         _SET_ODE_(self%id_mFChl, + ImFChl - Chl_not_used - Chl_decay - mortmFChl)
+         _ADD_SOURCE_(self%id_mFChl, + ImFChl - Chl_not_used - Chl_decay - mortmFChl)
       end if
 
-      _SET_ODE_(self%id_NH4,   (- mNH4up   + mregN)/14._rk)
-      _SET_ODE_(self%id_NO3,   - mNO3up/14._rk)
-      _SET_ODE_(self%id_DIP,   (- mIPu_mC  + mregP)/31._rk)
-      _SET_ODE_(self%id_DIC,   (- mICup    - mDOCout  + mICout)/12._rk)
-      _SET_ODE_(self%id_DOC,   + mDOCout/12._rk)
-      _SET_ODE_(self%id_sDOMC, + (mVOCL + mortC)/12._rk*self%diss_frac)
-      _SET_ODE_(self%id_sDOMN, + (mVONL + mortN)/14._rk*self%diss_frac)
-      _SET_ODE_(self%id_sDOMP, + (mVOPL + mortP)/31._rk*self%diss_frac)
-      _SET_ODE_(self%id_POC,   + (mVOCL + mortC)/12._rk*(1._rk - self%diss_frac))
-      _SET_ODE_(self%id_PON,   + (mVONL + mortN)/14._rk*(1._rk - self%diss_frac))
-      _SET_ODE_(self%id_POP,   + (mVOPL + mortP)/31._rk*(1._rk - self%diss_frac))
+      _ADD_SOURCE_(self%id_NH4,   (- mNH4up   + mregN)/14._rk)
+      _ADD_SOURCE_(self%id_NO3,   - mNO3up/14._rk)
+      _ADD_SOURCE_(self%id_DIP,   (- mIPu_mC  + mregP)/31._rk)
+      _ADD_SOURCE_(self%id_DIC,   (- mICup    - mDOCout  + mICout)/12._rk)
+      _ADD_SOURCE_(self%id_DOC,   + mDOCout/12._rk)
+      _ADD_SOURCE_(self%id_sDOMC, + (mVOCL + mortC)/12._rk*self%diss_frac)
+      _ADD_SOURCE_(self%id_sDOMN, + (mVONL + mortN)/14._rk*self%diss_frac)
+      _ADD_SOURCE_(self%id_sDOMP, + (mVOPL + mortP)/31._rk*self%diss_frac)
+      _ADD_SOURCE_(self%id_POC,   + (mVOCL + mortC)/12._rk*(1._rk - self%diss_frac))
+      _ADD_SOURCE_(self%id_PON,   + (mVONL + mortN)/14._rk*(1._rk - self%diss_frac))
+      _ADD_SOURCE_(self%id_POP,   + (mVOPL + mortP)/31._rk*(1._rk - self%diss_frac))
 
       ! Send all consumed silicate (and Si-mortality) to particulate organic matter pool.
       if (self%SSi) then 
-         _SET_ODE_(self%id_RPs, (sum(sI*preysP) + mortS)/28._rk)
+         _ADD_SOURCE_(self%id_RPs, (sum(sI*preysP) + mortS)/28._rk)
       else
-         _SET_ODE_(self%id_RPs, sum(sI*preysP)/28._rk)
+         _ADD_SOURCE_(self%id_RPs, sum(sI*preysP)/28._rk)
       end if
 
       _SET_DIAGNOSTIC_(self%id_mNC,     mNC)
@@ -1347,24 +1347,24 @@ contains
       _GET_HORIZONTAL_(self%id_bp,  bp)
 
       ! Account for sinking
-      _SET_BOTTOM_EXCHANGE_(self%id_mC,    -self%sink * mC)
-      _SET_BOTTOM_EXCHANGE_(self%id_mF,    -self%sink * mF)
-      _SET_BOTTOM_EXCHANGE_(self%id_mN,    -self%sink * mN)
-      _SET_BOTTOM_EXCHANGE_(self%id_mFN,   -self%sink * mFN)
-      _SET_BOTTOM_EXCHANGE_(self%id_mP,    -self%sink * mP)
-      _SET_BOTTOM_EXCHANGE_(self%id_mFP,   -self%sink * mFP)
-      _SET_BOTTOM_EXCHANGE_(self%id_mChl,  -self%sink * mChl)
-      _SET_BOTTOM_EXCHANGE_(self%id_mFChl, -self%sink * mFChl)
+      _ADD_BOTTOM_FLUX_(self%id_mC,    -self%sink * mC)
+      _ADD_BOTTOM_FLUX_(self%id_mF,    -self%sink * mF)
+      _ADD_BOTTOM_FLUX_(self%id_mN,    -self%sink * mN)
+      _ADD_BOTTOM_FLUX_(self%id_mFN,   -self%sink * mFN)
+      _ADD_BOTTOM_FLUX_(self%id_mP,    -self%sink * mP)
+      _ADD_BOTTOM_FLUX_(self%id_mFP,   -self%sink * mFP)
+      _ADD_BOTTOM_FLUX_(self%id_mChl,  -self%sink * mChl)
+      _ADD_BOTTOM_FLUX_(self%id_mFChl, -self%sink * mFChl)
 
-      _SET_BOTTOM_ODE_(self%id_bc,         self%sink * (mC + mF)/12._rk)
-      _SET_BOTTOM_ODE_(self%id_bn,         self%sink * (mN + mFN)/14._rk)
-      _SET_BOTTOM_ODE_(self%id_bp,         self%sink * (mP + mFP)/31._rk)
+      _ADD_BOTTOM_SOURCE_(self%id_bc,         self%sink * (mC + mF)/12._rk)
+      _ADD_BOTTOM_SOURCE_(self%id_bn,         self%sink * (mN + mFN)/14._rk)
+      _ADD_BOTTOM_SOURCE_(self%id_bp,         self%sink * (mP + mFP)/31._rk)
 
       if (self%SSi) then 
       _GET_(self%id_mSi,    mSi)   
       _GET_HORIZONTAL_(self%id_bsi, bsi)  
-      _SET_BOTTOM_EXCHANGE_(self%id_mSi,  -self%sink * mSi)
-      _SET_BOTTOM_ODE_(self%id_bsi,       self%sink * mSi/28._rk)
+      _ADD_BOTTOM_FLUX_(self%id_mSi,  -self%sink * mSi)
+      _ADD_BOTTOM_SOURCE_(self%id_bsi,       self%sink * mSi/28._rk)
       end if  
 
       _HORIZONTAL_LOOP_END_

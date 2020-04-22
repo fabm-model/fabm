@@ -63,7 +63,7 @@ contains
       _HORIZONTAL_LOOP_BEGIN_
 
          ! Transfer surface exchange value to FABM.
-         _SET_SURFACE_EXCHANGE_(self%id_tracer, self%surface_flux)
+         _ADD_SURFACE_FLUX_(self%id_tracer, self%surface_flux)
 
       ! Leave spatial loops (if any)
       _HORIZONTAL_LOOP_END_

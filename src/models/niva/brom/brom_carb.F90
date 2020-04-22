@@ -302,7 +302,7 @@
       !!!!!Q_pCO2 =   xk * ( pCO2a- max(0e0,pCO2w)) ! pCO2ocean >= 0 !
       !!!!!Q_DIC = Q_pCO2*Kc0*1000./86400.
 
-      _SET_SURFACE_EXCHANGE_(self%id_DIC,Q_DIC)
+      _ADD_SURFACE_FLUX_(self%id_DIC,Q_DIC)
 
    _HORIZONTAL_LOOP_END_
 

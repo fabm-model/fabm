@@ -203,9 +203,9 @@
    mue_phy     = self%muemax_phy * ta_phy * mue_par_phy                                ! actual growth rate
 
 !  Set temporal derivatives
-  _SET_ODE_(self%id_phy, + mue_phy*phy - self%mortphy*phy                  )
-  _SET_ODE_(self%id_det,               + self%mortphy*phy - self%rem*det   )
-  _SET_ODE_(self%id_nut,                                  + self%rem*det   )
+  _ADD_SOURCE_(self%id_phy, + mue_phy*phy - self%mortphy*phy                  )
+  _ADD_SOURCE_(self%id_det,               + self%mortphy*phy - self%rem*det   )
+  _ADD_SOURCE_(self%id_nut,                                  + self%rem*det   )
 
 !  Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_dPAR,par)
@@ -328,8 +328,8 @@
    _GET_(self%id_nut,nub)
    _GET_(self%id_det,deb)
 
-   _SET_BOTTOM_EXCHANGE_(self%id_det,-self%depo*deb*deb)           !detritus burial
-   _SET_BOTTOM_EXCHANGE_(self%id_nut,(self%nbot-nub)/secs_pr_hour) !nutrient restoring
+   _ADD_BOTTOM_FLUX_(self%id_det,-self%depo*deb*deb)           !detritus burial
+   _ADD_BOTTOM_FLUX_(self%id_nut,(self%nbot-nub)/secs_pr_hour) !nutrient restoring
 
 !  Leave spatial loops over the horizontal domain (if any).
    _HORIZONTAL_LOOP_END_

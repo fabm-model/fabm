@@ -243,7 +243,7 @@ contains
    call Air_sea_exchange(temp, wnd, PCO2WATER*1.0e6_rk, pCO2a, Henry, dens/1.0e3_rk, fl)
 
    ! Transfer surface exchange value to FABM.
-   _SET_SURFACE_EXCHANGE_(self%id_dic,fl * days_per_sec)
+   _ADD_SURFACE_FLUX_(self%id_dic,fl * days_per_sec)
 
    ! Store surface flux as diagnostic variable.
    _SET_SURFACE_DIAGNOSTIC_(self%id_co2_flux,fl * days_per_sec)

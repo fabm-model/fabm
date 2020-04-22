@@ -189,14 +189,14 @@ contains
          dn = - primprod + self%rpn*p + self%rzn*z + self%rdn*d
 
          ! Set temporal derivatives
-         _SET_ODE_(self%id_n,dn)
-         _SET_ODE_(self%id_p,primprod - g - self%rpn*p - rpd*p)
-         _SET_ODE_(self%id_z,g - self%rzn*z - self%rzd*z)
-         _SET_ODE_(self%id_d,rpd*p + self%rzd*z - self%rdn*d)
+         _ADD_SOURCE_(self%id_n,dn)
+         _ADD_SOURCE_(self%id_p,primprod - g - self%rpn*p - rpd*p)
+         _ADD_SOURCE_(self%id_z,g - self%rzn*z - self%rzd*z)
+         _ADD_SOURCE_(self%id_d,rpd*p + self%rzd*z - self%rdn*d)
 
          ! If an externally maintained DIC pool is present, change the DIC pool according to the
          ! the change in nutrients (assuming constant C:N ratio)
-         if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic,self%dic_per_n*dn)
+         if (_AVAILABLE_(self%id_dic)) _ADD_SOURCE_(self%id_dic,self%dic_per_n*dn)
 
          ! Export diagnostic variables
          _SET_DIAGNOSTIC_(self%id_dPAR,par)

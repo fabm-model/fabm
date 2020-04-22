@@ -190,17 +190,17 @@
       tlim = (1.0_rk + 2.7183_rk/self%toptz/self%toptz * max(temp,0.0_rk)**2 * exp(1.0_rk - temp * 2.0_rk / self%toptz))
       graz_z = gg * cg/food_eps * tlim
 
-      _SET_ODE_(self%id_o2, - 6.625_rk * lzn * zz0)
-      _SET_ODE_(self%id_aa, + lzn * zz0)
-      _SET_ODE_(self%id_po, self%rfr * lzn * zz0)
+      _ADD_SOURCE_(self%id_o2, - 6.625_rk * lzn * zz0)
+      _ADD_SOURCE_(self%id_aa, + lzn * zz0)
+      _ADD_SOURCE_(self%id_po, self%rfr * lzn * zz0)
       do iprey=1,self%nprey
          _GET_(self%id_prey(iprey),prey)
-         _SET_ODE_(self%id_prey(iprey), - graz_z * self%pref(iprey) * prey)
+         _ADD_SOURCE_(self%id_prey(iprey), - graz_z * self%pref(iprey) * prey)
       end do
-      _SET_ODE_(self%id_c, graz_z * food - (lzn + lzd) * zz0)
-      _SET_ODE_(self%id_dd, + lzd * zz0)
+      _ADD_SOURCE_(self%id_c, graz_z * food - (lzn + lzd) * zz0)
+      _ADD_SOURCE_(self%id_dd, + lzd * zz0)
 
-      if (_AVAILABLE_(self%id_dic)) _SET_ODE_(self%id_dic, self%rfc * lzn * zz0)
+      if (_AVAILABLE_(self%id_dic)) _ADD_SOURCE_(self%id_dic, self%rfc * lzn * zz0)
 
    ! Leave spatial loops (if any)
    _LOOP_END_

@@ -105,12 +105,12 @@ contains
          primprod = fnp(self%rmax, self%alpha, n, p + self%p0, par, iopt)
 
          ! Set temporal derivatives
-         _SET_ODE_(self%id_p,primprod - self%rpn*p - rpd*p)
+         _ADD_SOURCE_(self%id_p,primprod - self%rpn*p - rpd*p)
 
          ! If an externally maintained ...
-         _SET_ODE_(self%id_upttarget,-primprod)
-         _SET_ODE_(self%id_morttarget,rpd*p)
-         _SET_ODE_(self%id_exctarget,self%rpn*p)
+         _ADD_SOURCE_(self%id_upttarget,-primprod)
+         _ADD_SOURCE_(self%id_morttarget,rpd*p)
+         _ADD_SOURCE_(self%id_exctarget,self%rpn*p)
 
          ! Export diagnostic variables
          _SET_DIAGNOSTIC_(self%id_dPAR,par)

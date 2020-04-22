@@ -67,10 +67,10 @@ contains
          g = fpz(self%gmax, self%iv, p, z + self%z0)
 
          ! Set temporal derivatives
-         _SET_ODE_(self%id_z, g - self%rzn*z - self%rzd*z)
-         _SET_ODE_(self%id_grztarget, -g)
-         _SET_ODE_(self%id_morttarget, self%rzd*z)
-         _SET_ODE_(self%id_exctarget, self%rzn*z)
+         _ADD_SOURCE_(self%id_z, g - self%rzn*z - self%rzd*z)
+         _ADD_SOURCE_(self%id_grztarget, -g)
+         _ADD_SOURCE_(self%id_morttarget, self%rzd*z)
+         _ADD_SOURCE_(self%id_exctarget, self%rzn*z)
 
       ! Leave spatial loops (if any)
       _LOOP_END_

@@ -259,17 +259,14 @@
 #define _ADD_HORIZONTAL_(variable,value) cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_sum_index) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%horizontal_sum_index) + (value)
 
 ! For BGC models: Expressions for setting space-dependent FABM variables defined on the full spatial domain.
-#define _SET_ODE_(variable,value) _ADD_(variable%sms,(value)*self%rdt__)
-#define _SET_BOTTOM_ODE_(variable,value) _ADD_HORIZONTAL_(variable%bottom_sms,(value)*self%rdt__)
-#define _SET_SURFACE_ODE_(variable,value) _ADD_HORIZONTAL_(variable%surface_sms,(value)*self%rdt__)
-#define _SET_BOTTOM_EXCHANGE_(variable,value) _ADD_HORIZONTAL_(variable%bottom_flux,(value)*self%rdt__)
-#define _SET_SURFACE_EXCHANGE_(variable,value) _ADD_HORIZONTAL_(variable%surface_flux,(value)*self%rdt__)
+#define _ADD_SOURCE_(variable,value) _ADD_(variable%sms,(value)*self%rdt__)
+#define _ADD_BOTTOM_SOURCE_(variable,value) _ADD_HORIZONTAL_(variable%bottom_sms,(value)*self%rdt__)
+#define _ADD_SURFACE_SOURCE_(variable,value) _ADD_HORIZONTAL_(variable%surface_sms,(value)*self%rdt__)
+#define _ADD_BOTTOM_FLUX_(variable,value) _ADD_HORIZONTAL_(variable%bottom_flux,(value)*self%rdt__)
+#define _ADD_SURFACE_FLUX_(variable,value) _ADD_HORIZONTAL_(variable%surface_flux,(value)*self%rdt__)
 #define _SET_DD_(variable1,variable2,value) dd _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = dd _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)*self%rdt__
 #define _SET_PP_(variable1,variable2,value) pp _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) = pp _INDEX_SLICE_PLUS_2_(variable1%state_index,variable2%state_index) + (value)*self%rdt__
-#define _SET_EXTINCTION_(value) _ADD_(self%extinction_id,value)
-#define _SCALE_DRAG_(value) _ADD_HORIZONTAL_(self%surface_drag_id,(value)-1.0_rk)
-#define _SET_ALBEDO_(value) _ADD_HORIZONTAL_(self%albedo_id,value)
-#define _SET_VERTICAL_MOVEMENT_(variable,value) _ADD_(variable%movement,(value)*self%rdt__)
+#define _ADD_VERTICAL_VELOCITY_(variable,value) _ADD_(variable%movement,(value)*self%rdt__)
 #define _INVALIDATE_STATE_ cache%valid = .false.
 #define _REPAIR_STATE_ cache%repair
 
@@ -299,3 +296,14 @@
 #define _SET_SURFACE_DIAGNOSTIC_(variable,value) cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(variable%surface_write_index) = value
 
 #define _ASSERT_(condition, routine, message) if (.not.(condition)) call driver%fatal_error(routine, message)
+
+! Backward compatibility with pre-1.0 FABM (2020-04-22)
+#define _SET_ODE_(variable,value) _ADD_SOURCE_(variable,value)
+#define _SET_BOTTOM_ODE_(variable,value) _ADD_BOTTOM_SOURCE_(variable,value)
+#define _SET_SURFACE_ODE_(variable,value) _ADD_SURFACE_SOURCE_(variable,value)
+#define _SET_BOTTOM_EXCHANGE_(variable,value) _ADD_BOTTOM_FLUX_(variable,value)
+#define _SET_SURFACE_EXCHANGE_(variable,value) _ADD_SURFACE_FLUX_(variable,value)
+#define _SET_VERTICAL_MOVEMENT_(variable,value) _ADD_VERTICAL_VELOCITY_(variable,value)
+#define _SET_EXTINCTION_(value) _ADD_(self%extinction_id,value)
+#define _SCALE_DRAG_(value) _ADD_HORIZONTAL_(self%surface_drag_id,(value)-1.0_rk)
+#define _SET_ALBEDO_(value) _ADD_HORIZONTAL_(self%albedo_id,value)

@@ -81,15 +81,15 @@ contains
          g = self%g_max * biomass * prey / (prey + self%K)
 
          ! Set local temporal derivatives of benthic variables
-         _SET_BOTTOM_ODE_(self%id_biomass, g - self%h * biomass)
+         _ADD_BOTTOM_SOURCE_(self%id_biomass, g - self%h * biomass)
 
          if (self%interact_with_pelagic) then
             ! Set bottom fluxes of pelagic variables (these mirror local benthic derivatives and have unit mmol m-2 s-1)
-            _SET_BOTTOM_EXCHANGE_(self%id_prey, -g)
-            _SET_BOTTOM_EXCHANGE_(self%id_waste, self%h * biomass)
+            _ADD_BOTTOM_FLUX_(self%id_prey, -g)
+            _ADD_BOTTOM_FLUX_(self%id_waste, self%h * biomass)
          else
-            _SET_BOTTOM_ODE_(self%id_bottom_prey, -g)
-            _SET_BOTTOM_ODE_(self%id_bottom_waste, self%h * biomass)
+            _ADD_BOTTOM_SOURCE_(self%id_bottom_prey, -g)
+            _ADD_BOTTOM_SOURCE_(self%id_bottom_waste, self%h * biomass)
          end if
 
       ! Leave spatial loops over the horizontal domain (if any).

@@ -406,15 +406,15 @@ contains
       bICout = bC*bCRes
 
       ! Set ODEs:
-      _SET_ODE_(self%id_bC,    + bCup - bICout)
+      _ADD_SOURCE_(self%id_bC,    + bCup - bICout)
 
-      _SET_ODE_(self%id_NH4,   - bNH4up + bregN)
-      _SET_ODE_(self%id_DIP,   - bDIPup + bregP)
-      _SET_ODE_(self%id_DIC,   + bICout)
-      _SET_ODE_(self%id_DOC,   - bDOCup)
-      _SET_ODE_(self%id_sDOMC, - bsOMCup)
-      _SET_ODE_(self%id_sDOMN, - bsOMNup - bConsON)
-      _SET_ODE_(self%id_sDOMP, - bsOMPup - bConsOP)
+      _ADD_SOURCE_(self%id_NH4,   - bNH4up + bregN)
+      _ADD_SOURCE_(self%id_DIP,   - bDIPup + bregP)
+      _ADD_SOURCE_(self%id_DIC,   + bICout)
+      _ADD_SOURCE_(self%id_DOC,   - bDOCup)
+      _ADD_SOURCE_(self%id_sDOMC, - bsOMCup)
+      _ADD_SOURCE_(self%id_sDOMN, - bsOMNup - bConsON)
+      _ADD_SOURCE_(self%id_sDOMP, - bsOMPup - bConsOP)
 
       ! Set diagnostic variables:
       !_SET_DIAGNOSTIC_(self%id_bN, bN)

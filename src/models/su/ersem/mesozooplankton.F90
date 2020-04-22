@@ -337,7 +337,7 @@ contains
             do iprey=1,self%nprey
                do istate=1,size(self%id_prey(iprey)%state)
                   _GET_(self%id_prey(iprey)%state(istate),preyP)
-                  _SET_ODE_(self%id_prey(iprey)%state(istate),-sprey(iprey)*preyP)
+                  _ADD_SOURCE_(self%id_prey(iprey)%state(istate),-sprey(iprey)*preyP)
                end do
             end do
 
@@ -373,22 +373,22 @@ contains
                ! As the consumed calcite has not yet been taken away from the dissolved
                ! inorganic carbon pool (prey calcite is "virtual calcite", materializing only
                ! the moment the prey dies), do so now.
-               _SET_ODE_(self%id_L2c,  (1.0_rk-self%gutdiss)*ineff*sum(self%pu_ea*sprey*preylP))
-               _SET_ODE_(self%id_O3c, -(1.0_rk-self%gutdiss)*ineff*sum(self%pu_ea*sprey*preylP)/CMass)
-               _SET_ODE_(self%id_TA,-2*(1.0_rk-self%gutdiss)*ineff*sum(self%pu_ea*sprey*preylP)/CMass)   ! CaCO3 formation decreases alkalinity by 2 units
+               _ADD_SOURCE_(self%id_L2c,  (1.0_rk-self%gutdiss)*ineff*sum(self%pu_ea*sprey*preylP))
+               _ADD_SOURCE_(self%id_O3c, -(1.0_rk-self%gutdiss)*ineff*sum(self%pu_ea*sprey*preylP)/CMass)
+               _ADD_SOURCE_(self%id_TA,-2*(1.0_rk-self%gutdiss)*ineff*sum(self%pu_ea*sprey*preylP)/CMass)   ! CaCO3 formation decreases alkalinity by 2 units
             end if
 
             ! Source equation for carbon in biomass (NB cannibalism is handled as part of predation formulation)
             SZIc = rug - fZIRDc - fZIRPc - fZIO3c
 
             ! Carbon flux to labile dissolved, refractory dissolved, and particulate organic matter.
-            _SET_ODE_(self%id_R1c, + fZIRDc * self%R1R2)
-            _SET_ODE_(self%id_R2c, + fZIRDc * (1._rk-self%R1R2))
-            _SET_ODE_(self%id_RPc, + fZIRPc)
+            _ADD_SOURCE_(self%id_R1c, + fZIRDc * self%R1R2)
+            _ADD_SOURCE_(self%id_R2c, + fZIRDc * (1._rk-self%R1R2))
+            _ADD_SOURCE_(self%id_RPc, + fZIRPc)
 
             ! Account for CO2 production and oxygen consumption in respiration.
-            _SET_ODE_(self%id_O3c, + fZIO3c/CMass)
-            _SET_ODE_(self%id_O2o, - fZIO3c*self%urB1_O2)
+            _ADD_SOURCE_(self%id_O3c, + fZIO3c/CMass)
+            _ADD_SOURCE_(self%id_O2o, - fZIO3c*self%urB1_O2)
 
             ! -------------------------------
             ! Phosphorus
@@ -403,8 +403,8 @@ contains
             SZIp = sum(sprey*preypP) - fZIRPp - fZIRDp
 
             ! Phosphorus flux to dissolved and particulate organic matter.
-            _SET_ODE_(self%id_R1p, + fZIRDp)
-            _SET_ODE_(self%id_RPp, + fZIRPp)
+            _ADD_SOURCE_(self%id_R1p, + fZIRDp)
+            _ADD_SOURCE_(self%id_RPp, + fZIRPp)
 
             ! -------------------------------
             ! Nitrogen
@@ -419,15 +419,15 @@ contains
             SZIn = sum(sprey*preynP) - fZIRPn - fZIRDn
 
             ! Nitrogen flux to dissolved and particulate organic matter.
-            _SET_ODE_(self%id_R1n, + fZIRDn)
-            _SET_ODE_(self%id_RPn, + fZIRPn)
+            _ADD_SOURCE_(self%id_R1n, + fZIRDn)
+            _ADD_SOURCE_(self%id_RPn, + fZIRPn)
 
             ! -------------------------------
             ! Silicate
             ! -------------------------------
 
             ! Send all consumed silicate to particulate organic matter pool.
-            _SET_ODE_(self%id_RPs,sum(sprey*preysP))
+            _ADD_SOURCE_(self%id_RPs,sum(sprey*preysP))
 
             ! -------------------------------
             ! Iron
@@ -439,7 +439,7 @@ contains
                ! is egested as particulate detritus (Luca)
                do iprey=1,self%nprey
                   _GET_(self%id_preyf(iprey),preyP)
-                  if (preyP/=0.0_rk) _SET_ODE_(self%id_preyf_target(iprey),sprey(iprey)*preyP)
+                  if (preyP/=0.0_rk) _ADD_SOURCE_(self%id_preyf_target(iprey),sprey(iprey)*preyP)
                end do
             end if
 
@@ -451,17 +451,17 @@ contains
             ! by corresponding nitrogen and phosphorus fluxes to maintain constant stoichiometry.
             excess_c = max(max(SZIc - SZIp/self%qpc,SZIc - SZIn/self%qnc),0._rk)
             SZIc = SZIc - excess_c
-            _SET_ODE_(self%id_c,SZIc)
-            _SET_ODE_(self%id_RPc,excess_c)
+            _ADD_SOURCE_(self%id_c,SZIc)
+            _ADD_SOURCE_(self%id_RPc,excess_c)
 
             ! Compute excess nitrogen and phosphorus fluxes, based on final carbon flux.
             excess_n = max(SZIn - SZIc*self%qnc,0.0_rk)
             excess_p = max(SZIp - SZIc*self%qpc,0.0_rk)
 
             ! Send excess nitrogen and phosphorus to ammonium and phosphate, respectively.
-            _SET_ODE_(self%id_N4n,excess_n)
-            _SET_ODE_(self%id_N1p,excess_p)
-            _SET_ODE_(self%id_TA,excess_n-excess_p)  ! Alkalinity contributions: +1 for NH4, -1 for PO4
+            _ADD_SOURCE_(self%id_N4n,excess_n)
+            _ADD_SOURCE_(self%id_N1p,excess_p)
+            _ADD_SOURCE_(self%id_TA,excess_n-excess_p)  ! Alkalinity contributions: +1 for NH4, -1 for PO4
 
          else
 
@@ -474,16 +474,16 @@ contains
             ! Mortality
             fZIRPc = cP * self%mort
 
-            _SET_ODE_(self%id_RPc,fZIRPc)
-            _SET_ODE_(self%id_RPn,fZIRPc*self%qnc)
-            _SET_ODE_(self%id_RPp,fZIRPc*self%qpc)
+            _ADD_SOURCE_(self%id_RPc,fZIRPc)
+            _ADD_SOURCE_(self%id_RPn,fZIRPc*self%qnc)
+            _ADD_SOURCE_(self%id_RPp,fZIRPc*self%qpc)
 
-            _SET_ODE_(self%id_O3c,fZIO3c/CMass)
-            _SET_ODE_(self%id_N4n,fZIO3c*self%qnc)
-            _SET_ODE_(self%id_N1p,fZIO3c*self%qpc)
-            _SET_ODE_(self%id_TA, fZIO3c*(self%qnc-self%qpc))  ! Alkalinity contributions: +1 for NH4, -1 for PO4
+            _ADD_SOURCE_(self%id_O3c,fZIO3c/CMass)
+            _ADD_SOURCE_(self%id_N4n,fZIO3c*self%qnc)
+            _ADD_SOURCE_(self%id_N1p,fZIO3c*self%qpc)
+            _ADD_SOURCE_(self%id_TA, fZIO3c*(self%qnc-self%qpc))  ! Alkalinity contributions: +1 for NH4, -1 for PO4
 
-            _SET_ODE_(self%id_c,- fZIRPc - fZIO3c)
+            _ADD_SOURCE_(self%id_c,- fZIRPc - fZIO3c)
 
             SZIc = 0
             rug = 0

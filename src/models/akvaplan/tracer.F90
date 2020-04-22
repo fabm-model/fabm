@@ -104,7 +104,7 @@ contains
          end if
 
          ! Send rate of change to FABM
-         _SET_ODE_(self%id_c,-self%k*f*c)
+         _ADD_SOURCE_(self%id_c,-self%k*f*c)
 
       ! Leave spatial loops (if any)
       _LOOP_END_

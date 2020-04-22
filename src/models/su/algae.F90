@@ -347,16 +347,16 @@ contains
       aPqmM = (self%aUmax + self%aBR + self%aNCm * self%aUmax * (self%redco_1 + self%AAsyn_1 * self%aMetMult)) + 1e-6_rk
 
       ! Set ODEs:
-      _SET_ODE_(self%id_aC,   + agro)
-      _SET_ODE_(self%id_aN,   + aupN_aC)
-      _SET_ODE_(self%id_aP,   + aupP_aC)
-      _SET_ODE_(self%id_aChl, + daChlC_aC)
+      _ADD_SOURCE_(self%id_aC,   + agro)
+      _ADD_SOURCE_(self%id_aN,   + aupN_aC)
+      _ADD_SOURCE_(self%id_aP,   + aupP_aC)
+      _ADD_SOURCE_(self%id_aChl, + daChlC_aC)
 
-      _SET_ODE_(self%id_NH4,  - aNH4up)
-      _SET_ODE_(self%id_NO3,  - aNO3up)
-      _SET_ODE_(self%id_DIP,  - aupP_aC)
-      _SET_ODE_(self%id_DIC,  + aICout - aICup - aDOCout)
-      _SET_ODE_(self%id_DOC,  + aDOCout)
+      _ADD_SOURCE_(self%id_NH4,  - aNH4up)
+      _ADD_SOURCE_(self%id_NO3,  - aNO3up)
+      _ADD_SOURCE_(self%id_DIP,  - aupP_aC)
+      _ADD_SOURCE_(self%id_DIC,  + aICout - aICup - aDOCout)
+      _ADD_SOURCE_(self%id_DOC,  + aDOCout)
 
       ! Set diagnostic variables:
       _SET_DIAGNOSTIC_(self%id_aPqmM, aPqmM)

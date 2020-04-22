@@ -608,9 +608,9 @@
          case ( 0,1 )
             massflux = Sedimentation_Flux+Erosion_Flux
             ! unit is g/m**3 * m/s
-            _SET_BOTTOM_EXCHANGE_(self%id_spm,massflux)
+            _ADD_BOTTOM_FLUX_(self%id_spm,massflux)
             ! unit is kg/m**2/s
-            _SET_BOTTOM_ODE_(self%id_pmpool,-(massflux)/1000.0_rk*self%morfac)
+            _ADD_BOTTOM_SOURCE_(self%id_pmpool,-(massflux)/1000.0_rk*self%morfac)
             ! Export diagnostic variables mass flux - unit is kg/m**2/s
             _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massflux,-(massflux)/1000.0_rk)
             ! Export diagnostic variables bed load flux - unit is kg/m/s
@@ -621,10 +621,10 @@
             massflux       = Sedimentation_Flux       + Erosion_Flux
             massflux_fluff = Sedimentation_Flux_fluff + Erosion_Flux_fluff
             ! unit is g/m**3 * m/s
-            _SET_BOTTOM_EXCHANGE_(self%id_spm,(massflux+massflux_fluff))
+            _ADD_BOTTOM_FLUX_(self%id_spm,(massflux+massflux_fluff))
             ! unit is kg/m**2/s
-            _SET_BOTTOM_ODE_(self%id_pmpool ,-(massflux)/1000.0_rk)
-            _SET_BOTTOM_ODE_(self%id_flufflayer,-(massflux_fluff)/1000.0_rk)
+            _ADD_BOTTOM_SOURCE_(self%id_pmpool ,-(massflux)/1000.0_rk)
+            _ADD_BOTTOM_SOURCE_(self%id_flufflayer,-(massflux_fluff)/1000.0_rk)
             ! Export diagnostic variables mass flux - unit is kg/m**2/s
             _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massflux ,-(massflux )/1000.0_rk)
       end select
@@ -665,7 +665,7 @@
    _GET_(self%id_temp,temp)
    _GET_(self%id_rhow,rhow)
    _GET_(self%id_spm,spm)
-   _SET_VERTICAL_MOVEMENT_(self%id_spm,ws(self,temp,rhow,spm))
+   _ADD_VERTICAL_VELOCITY_(self%id_spm,ws(self,temp,rhow,spm))
 
    _LOOP_END_
 
