@@ -13,18 +13,18 @@ module examples_npzd_model_library
    private
 
    type,extends(type_base_model_factory) :: type_factory
-      contains
+   contains
       procedure :: create
    end type
 
-   type (type_factory),save,target,public :: examples_npzd_model_factory
+   type (type_factory), save, target, public :: examples_npzd_model_factory
 
 contains
 
-   subroutine create(self,name,model)
-      class (type_factory),intent(in) :: self
-      character(*),        intent(in) :: name
-      class (type_base_model),pointer :: model
+   subroutine create(self, name, model)
+      class (type_factory), intent(in) :: self
+      character(*),         intent(in) :: name
+      class (type_base_model), pointer :: model
 
       select case (name)
          case ('nut'); allocate(type_examples_npzd_nut::model)

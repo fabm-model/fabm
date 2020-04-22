@@ -152,13 +152,13 @@ contains
       call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, self%p0 * self%kc)
    end subroutine initialize
 
-   subroutine do(self,_ARGUMENTS_DO_)
+   subroutine do(self, _ARGUMENTS_DO_)
       class (type_gotm_npzd),intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
 
-      real(rk)                   :: n,p,z,d,par,I_0
-      real(rk)                   :: iopt,rpd,primprod,g,dn
-      real(rk), parameter        :: secs_pr_day = 86400.
+      real(rk)            :: n, p, z, d, par, I_0
+      real(rk)            :: iopt, rpd, primprod, g, dn
+      real(rk), parameter :: secs_pr_day = 86400.0_rk
 
       ! Enter spatial loops (if any)
       _LOOP_BEGIN_
@@ -177,7 +177,7 @@ contains
          iopt = max(0.25*I_0,self%I_min)
 
          ! Loss rate of phytoplankton to detritus depends on local light intensity.
-         if (par .ge. self%I_min) then
+         if (par >= self%I_min) then
             rpd = self%rpdu
          else
             rpd = self%rpdl
@@ -207,13 +207,13 @@ contains
       _LOOP_END_
    end subroutine do
 
-   subroutine do_ppdd(self,_ARGUMENTS_DO_PPDD_)
+   subroutine do_ppdd(self, _ARGUMENTS_DO_PPDD_)
       class (type_gotm_npzd), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_PPDD_
 
-      real(rk)            :: n,p,z,d,par,I_0
-      real(rk)            :: iopt,rpd,dn,primprod
-      real(rk), parameter :: secs_pr_day = 86400.
+      real(rk)            :: n, p, z, d, par, I_0
+      real(rk)            :: iopt, rpd, dn, primprod
+      real(rk), parameter :: secs_pr_day = 86400.0_rk
 
       ! Enter spatial loops (if any)
       _LOOP_BEGIN_
@@ -232,7 +232,7 @@ contains
          iopt = max(0.25*I_0,self%I_min)
 
          ! Loss rate of phytoplankton to detritus depends on local light intensity.
-         if (par .ge. self%I_min) then
+         if (par >= self%I_min) then
             rpd = self%rpdu
          else
             rpd = self%rpdl

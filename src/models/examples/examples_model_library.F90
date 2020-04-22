@@ -1,6 +1,6 @@
 module examples_model_library
 
-   use fabm_types, only: type_base_model_factory,type_base_model
+   use fabm_types, only: type_base_model_factory, type_base_model
 
    use examples_benthic_predator
    use examples_duplicator
@@ -14,13 +14,13 @@ module examples_model_library
 
    private
 
-   type,extends(type_base_model_factory) :: type_factory
+   type, extends(type_base_model_factory) :: type_factory
    contains
       procedure :: initialize
       procedure :: create
    end type
 
-   type (type_factory),save,target,public :: examples_model_factory
+   type (type_factory), save, target, public :: examples_model_factory
 
 contains
 
@@ -34,10 +34,10 @@ contains
       call self%type_base_model_factory%initialize()
    end subroutine initialize
 
-   subroutine create(self,name,model)
-      class (type_factory),intent(in) :: self
-      character(*),        intent(in) :: name
-      class (type_base_model),pointer :: model
+   subroutine create(self, name, model)
+      class (type_factory), intent(in) :: self
+      character(*),         intent(in) :: name
+      class (type_base_model), pointer :: model
 
       select case (name)
          case ('benthic_predator');      allocate(type_examples_benthic_predator::model)
@@ -48,7 +48,7 @@ contains
          case ('light_cycle');           allocate(type_examples_light_cycle::model)
          ! Add individual example models here
          case default
-            call self%type_base_model_factory%create(name,model)
+            call self%type_base_model_factory%create(name, model)
       end select
 
    end subroutine

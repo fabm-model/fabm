@@ -1,5 +1,21 @@
 #include "fabm_driver.h"
 
+! This is a FABM implementation of the original two-band light model used in GOTM
+! (the General Ocean Turbulence Model)
+!
+! It distinguishes two wavebands:
+! * visible (equivalent to photosynthetically activate radation, PAR, 400 - 700 nm)
+! * non-visible, which combines ultraviolet (< 400 nm) and infrared (> 700 nm)
+! The non-visible fraction is generally absorbed close to the surface.
+! The visible fraction typically penetrates deeper into the water.
+! Attenuation of the visible band is influenced by FABM variables that contibute to
+! standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux
+! (as well as by the background attenuation set by parameter g2)
+!
+! The model is driven by downwelling shortwave radiation just below the water surface,
+! which in FABM is denoted with standard_variables%surface_downwelling_shortwave_flux
+! This is the radiation left after reflection by the surface [albedo] is accounted for.
+
 module gotm_light
 
    use fabm_types
