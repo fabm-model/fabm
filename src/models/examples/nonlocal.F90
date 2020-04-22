@@ -34,20 +34,20 @@ module nonlocal
    ! and this model will then automagically distribute those sinks and sources again over their
    ! original depth-explicit source variable, using the appropriate weights.
    type, extends(type_base_model), public :: type_depth_integral
-      type (type_horizontal_diagnostic_variable_id) :: id_integral
-      type (type_state_variable_id)                 :: id_target
-      type (type_dependency_id)                     :: id_weights
-      type (type_dependency_id)                     :: id_thickness
+      type (type_bottom_diagnostic_variable_id) :: id_integral
+      type (type_state_variable_id)             :: id_target
+      type (type_dependency_id)                 :: id_weights
+      type (type_dependency_id)                 :: id_thickness
    contains
       procedure :: initialize => depth_integral_initialize
       procedure :: do_column  => depth_integral_do_column
    end type
 
    type, extends(type_base_model) :: type_depth_integral_rate_distributor
-      type (type_horizontal_dependency_id) :: id_integral   ! Depth-integrated target variable
-      type (type_horizontal_dependency_id) :: id_sms        ! Depth-integrated sources-sinks of target variable
-      type (type_state_variable_id)        :: id_target     ! Depth-explicit variable that should absorp the sources-sinks
-      type (type_dependency_id)            :: id_weights    ! Weights for the vertical distribution of the sinks and sources
+      type (type_bottom_dependency_id) :: id_integral   ! Depth-integrated target variable
+      type (type_bottom_dependency_id) :: id_sms        ! Depth-integrated sources-sinks of target variable
+      type (type_state_variable_id)    :: id_target     ! Depth-explicit variable that should absorp the sources-sinks
+      type (type_dependency_id)        :: id_weights    ! Weights for the vertical distribution of the sinks and sources
    contains
       procedure :: initialize => depth_integral_rate_distributor_initialize
       procedure :: do         => depth_integral_rate_distributor_do
@@ -76,7 +76,7 @@ contains
 
       _LOOP_BEGIN_
          _GET_(self%id_depth,z)
-         if (z<self%z_top .or. z>self%z_bot) then
+         if (z < self%z_top .or. z > self%z_bot) then
             ! Outside specified domain - relative presence is zero.
             _SET_DIAGNOSTIC_(self%id_weights,0.0_rk)
          else
@@ -84,8 +84,7 @@ contains
             slope = (self%w_bot-self%w_top)/(self%z_bot-self%z_top)
             _SET_DIAGNOSTIC_(self%id_weights,self%w_top+(z-self%z_top)*slope)
 
-            ! Here the weights be adjusted for those cells that are only partially within the specified domain.
-
+            ! Here the weights could be adjusted for those cells that are only partially within the specified domain.
          end if
       _LOOP_END_
    end subroutine vertical_distribution_do
@@ -99,7 +98,7 @@ contains
       call self%register_state_dependency(self%id_target, 'target', '', 'variable to depth-integrate')
       call self%register_dependency(self%id_weights,'weights','-','weights for vertical integration')
       call self%register_diagnostic_variable(self%id_integral,'result','','result',missing_value=0.0_rk, &
-         act_as_state_variable=.true.,domain=domain_bottom,source=source_do_column)
+         act_as_state_variable=.true.,source=source_do_column)
       call self%register_dependency(self%id_thickness,standard_variables%cell_thickness)
 
       ! Create a child model that receives the intended rate of the change of the depth-integrated variable,
@@ -126,7 +125,7 @@ contains
          _GET_(self%id_thickness,thickness)
          integral = integral + local*weight*thickness
       _VERTICAL_LOOP_END_
-      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_integral,integral)
+      _SET_BOTTOM_DIAGNOSTIC_(self%id_integral,integral)
    end subroutine depth_integral_do_column
 
    subroutine depth_integral_rate_distributor_initialize(self, configunit)
@@ -148,10 +147,10 @@ contains
 
       _LOOP_BEGIN_
          ! First compute relative rate of change of depth-integrated target variable.
-         _GET_HORIZONTAL_(self%id_integral,integral)
-         _GET_HORIZONTAL_(self%id_sms,integrated_sms)
-         if (integral/=0.0_rk) then
-            relative_change = integrated_sms/integral
+         _GET_BOTTOM_(self%id_integral,integral)
+         _GET_BOTTOM_(self%id_sms,integrated_sms)
+         if (integral /= 0.0_rk) then
+            relative_change = integrated_sms / integral
          else
             relative_change = 0.0_rk
          end if
@@ -159,7 +158,7 @@ contains
          ! Now distribute the same relative change across the column.
          _GET_(self%id_target,local)
          _GET_(self%id_weights,weight)
-         _ADD_SOURCE_(self%id_target,relative_change*local*weight)
+         _ADD_SOURCE_(self%id_target,relative_change * local * weight)
       _LOOP_END_
    end subroutine depth_integral_rate_distributor_do
 
