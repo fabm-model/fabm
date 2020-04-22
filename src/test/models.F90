@@ -42,7 +42,7 @@ contains
    procedure :: do
    procedure :: do_surface
    procedure :: do_bottom
-   procedure :: get_light
+   procedure :: do_column
    procedure :: get_vertical_movement
 end type
 
@@ -103,7 +103,7 @@ subroutine initialize(self,configunit)
    end do
    do i=1,self%nhz_diag_vert
       write (strindex,'(i0)') i
-      call self%register_diagnostic_variable(self%id_horizontal_diag(self%nsurface_diag + self%nbottom_diag + i),'vert_hz_diagnostic'//trim(strindex),'','horizontal diagnostic variable set from get_light #'//trim(strindex),missing_value=-4999._rk - i,source=source_do_column)
+      call self%register_diagnostic_variable(self%id_horizontal_diag(self%nsurface_diag + self%nbottom_diag + i),'vert_hz_diagnostic'//trim(strindex),'','horizontal diagnostic variable set from do_column #'//trim(strindex),missing_value=-4999._rk - i,source=source_do_column)
    end do
 end subroutine initialize
 
@@ -234,9 +234,9 @@ subroutine do_bottom(self,_ARGUMENTS_DO_SURFACE_)
    _HORIZONTAL_LOOP_END_
 end subroutine do_bottom
 
-subroutine get_light(self,_ARGUMENTS_VERTICAL_)
+subroutine do_column(self, _ARGUMENTS_DO_COLUMN_)
    class (type_test_model),intent(in) :: self
-   _DECLARE_ARGUMENTS_VERTICAL_
+   _DECLARE_ARGUMENTS_DO_COLUMN_
 
    integer  :: i
    real(rk) :: value
@@ -246,29 +246,29 @@ subroutine get_light(self,_ARGUMENTS_VERTICAL_)
 
    do i=1,self%nsurface_state
       _GET_HORIZONTAL_(self%id_surface_state(i),value)
-      if (value/=i+surface_state_offset) call self%fatal_error('get_light','invalid value of surface state variable.')
+      if (value/=i+surface_state_offset) call self%fatal_error('do_column','invalid value of surface state variable.')
    end do
 
    do i=1,self%nbottom_state
       _GET_HORIZONTAL_(self%id_bottom_state(i),value)
-      if (value/=i+bottom_state_offset) call self%fatal_error('get_light','invalid value of bottom state variable.')
+      if (value/=i+bottom_state_offset) call self%fatal_error('do_column','invalid value of bottom state variable.')
    end do
 
    _GET_HORIZONTAL_(self%id_hz_dep,value)
-   if (value/=1+horizontal_dependency_offset) call self%fatal_error('get_light','invalid value of horizontal dependency #1.')
+   if (value/=1+horizontal_dependency_offset) call self%fatal_error('do_column','invalid value of horizontal dependency #1.')
 
    _VERTICAL_LOOP_BEGIN_
       do i=1,self%nstate
          _GET_(self%id_state(i),value)
-         if (value/=i+interior_state_offset) call self%fatal_error('get_light','invalid value of interior state variable.')
+         if (value/=i+interior_state_offset) call self%fatal_error('do_column','invalid value of interior state variable.')
       end do
 
       _GET_(self%id_dep,value)
-      if (value/=1+interior_dependency_offset) call self%fatal_error('get_light','invalid value of interior dependency #1.')
+      if (value/=1+interior_dependency_offset) call self%fatal_error('do_column','invalid value of interior dependency #1.')
 
       _GET_(self%id_depth,value)
       if (value <= old_depth) &
-          call self%fatal_error('get_light','depth is not increasing as expected.')
+          call self%fatal_error('do_column','depth is not increasing as expected.')
       old_depth = value
 
       do i=1,self%nint_diag_vert
@@ -281,7 +281,7 @@ subroutine get_light(self,_ARGUMENTS_VERTICAL_)
    do i=1,self%nhz_diag_vert
       _SET_HORIZONTAL_DIAGNOSTIC_(self%id_horizontal_diag(self%nsurface_diag + self%nbottom_diag + i),4999._rk+i)
    end do
-end subroutine get_light
+end subroutine do_column
 
 subroutine get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
    class (type_test_model),intent(in) :: self

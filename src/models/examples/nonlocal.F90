@@ -41,17 +41,17 @@ module nonlocal
       type (type_dependency_id)                     :: id_thickness
    contains
       procedure :: initialize => depth_integral_initialize
-      procedure :: get_light  => depth_integral_do ! currently only get_light supports non-local action in depth
+      procedure :: do_column  => depth_integral_do_column
    end type
 
-   type,extends(type_base_model) :: type_depth_integral_rate_distributor
+   type, extends(type_base_model) :: type_depth_integral_rate_distributor
       type (type_horizontal_dependency_id) :: id_integral   ! Depth-integrated target variable
       type (type_horizontal_dependency_id) :: id_sms        ! Depth-integrated sources-sinks of target variable
       type (type_state_variable_id)        :: id_target     ! Depth-explicit variable that should absorp the sources-sinks
       type (type_dependency_id)            :: id_weights    ! Weights for the vertical distribution of the sinks and sources
    contains
       procedure :: initialize => depth_integral_rate_distributor_initialize
-      procedure :: do         => depth_integral_rate_distributor_do ! currently only get_light supports non-local action in depth
+      procedure :: do         => depth_integral_rate_distributor_do
    end type
    
 contains
@@ -114,9 +114,9 @@ contains
       call rate_distributor%request_coupling(rate_distributor%id_sms,'result_sms_tot')
    end subroutine depth_integral_initialize
 
-   subroutine depth_integral_do(self,_ARGUMENTS_VERTICAL_)
+   subroutine depth_integral_do_column(self, _ARGUMENTS_DO_COLUMN_)
       class (type_depth_integral),intent(in) :: self
-      _DECLARE_ARGUMENTS_VERTICAL_
+      _DECLARE_ARGUMENTS_DO_COLUMN_
 
       real(rk) :: local,weight,thickness,integral
 
@@ -128,7 +128,7 @@ contains
          integral = integral + local*weight*thickness
       _VERTICAL_LOOP_END_
       _SET_HORIZONTAL_DIAGNOSTIC_(self%id_integral,integral)
-   end subroutine depth_integral_do
+   end subroutine depth_integral_do_column
 
    subroutine depth_integral_rate_distributor_initialize(self,configunit)
       class (type_depth_integral_rate_distributor),intent(inout),target :: self

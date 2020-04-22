@@ -583,13 +583,8 @@ module fabm_types
       procedure :: do_horizontal            => base_do_horizontal
       procedure :: do_ppdd                  => base_do_ppdd
       procedure :: do_bottom_ppdd           => base_do_bottom_ppdd
-
-      ! Advanced functionality: variable vertical movement and light attenuation, feedbacks to drag and albedo.
+      procedure :: do_column                => base_do_column
       procedure :: get_vertical_movement    => base_get_vertical_movement
-      procedure :: get_light_extinction     => base_get_light_extinction
-      procedure :: get_drag                 => base_get_drag
-      procedure :: get_albedo               => base_get_albedo
-      procedure :: get_light                => base_get_light
 
       ! Bookkeeping: calculate total of conserved quantities, check and repair model state.
       procedure :: check_state              => base_check_state
@@ -605,6 +600,12 @@ module fabm_types
 
       procedure :: implements
       procedure :: register_implemented_routines
+
+      ! Deprecated as of FABM 1.0
+      procedure :: get_light                => base_get_light
+      procedure :: get_light_extinction     => base_get_light_extinction
+      procedure :: get_drag                 => base_get_drag
+      procedure :: get_albedo               => base_get_albedo
    end type type_base_model
 
    ! ====================================================================================================
@@ -731,11 +732,33 @@ contains
       _DECLARE_ARGUMENTS_HORIZONTAL_
    end subroutine
 
-   ! Vertical movement, light attenuation, feedbacks to drag and albedo
+   subroutine base_do_column(self, _ARGUMENTS_DO_COLUMN_)
+      class (type_base_model), intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_COLUMN_
+      call self%get_light(_ARGUMENTS_DO_COLUMN_)
+   end subroutine
+
    subroutine base_get_vertical_movement(self, _ARGUMENTS_GET_VERTICAL_MOVEMENT_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
    end subroutine
+
+   subroutine base_check_state(self, _ARGUMENTS_CHECK_STATE_)
+      class (type_base_model), intent(in) :: self
+      _DECLARE_ARGUMENTS_CHECK_STATE_
+   end subroutine
+
+   subroutine base_check_surface_state(self, _ARGUMENTS_CHECK_SURFACE_STATE_)
+      class (type_base_model), intent(in) :: self
+      _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_
+   end subroutine
+
+   subroutine base_check_bottom_state(self, _ARGUMENTS_CHECK_BOTTOM_STATE_)
+      class (type_base_model), intent(in) :: self
+      _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_
+   end subroutine
+
+   ! Deprecated as of FABM 1.0:
 
    subroutine base_get_light_extinction(self, _ARGUMENTS_GET_EXTINCTION_)
       class (type_base_model), intent(in) :: self
@@ -752,24 +775,9 @@ contains
       _DECLARE_ARGUMENTS_GET_ALBEDO_
    end subroutine
 
-   subroutine base_get_light(self, _ARGUMENTS_VERTICAL_)
+   subroutine base_get_light(self, _ARGUMENTS_DO_COLUMN_)
       class (type_base_model), intent(in) :: self
-      _DECLARE_ARGUMENTS_VERTICAL_
-   end subroutine
-
-   subroutine base_check_state(self, _ARGUMENTS_CHECK_STATE_)
-      class (type_base_model), intent(in) :: self
-      _DECLARE_ARGUMENTS_CHECK_STATE_
-   end subroutine
-
-   subroutine base_check_surface_state(self, _ARGUMENTS_CHECK_SURFACE_STATE_)
-      class (type_base_model), intent(in) :: self
-      _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_
-   end subroutine
-
-   subroutine base_check_bottom_state(self, _ARGUMENTS_CHECK_BOTTOM_STATE_)
-      class (type_base_model), intent(in) :: self
-      _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_
+      _DECLARE_ARGUMENTS_DO_COLUMN_
    end subroutine
 
    function base_get_path(self) result(path)

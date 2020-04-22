@@ -20,16 +20,16 @@ module gotm_light
       type (type_surface_diagnostic_variable_id) :: id_par0 ! Surface photosynthetically active radiation
 
       ! Parameters
-      real(rk) :: a,g1,g2
+      real(rk) :: a, g1, g2
    contains
       ! Model procedures
       procedure :: initialize
-      procedure :: get_light
+      procedure :: do_column
    end type type_gotm_light
 
 contains
 
-   subroutine initialize(self,configunit)
+   subroutine initialize(self, configunit)
       class (type_gotm_light), intent(inout), target :: self
       integer,                 intent(in)            :: configunit
 
@@ -46,14 +46,14 @@ contains
          standard_variable=standard_variables%surface_downwelling_photosynthetic_radiative_flux, source=source_do_column)
 
       ! Register environmental dependencies (temperature, shortwave radiation)
-      call self%register_dependency(self%id_swr0,standard_variables%surface_downwelling_shortwave_flux)
-      call self%register_dependency(self%id_ext, standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
-      call self%register_dependency(self%id_dz,  standard_variables%cell_thickness)
+      call self%register_dependency(self%id_swr0, standard_variables%surface_downwelling_shortwave_flux)
+      call self%register_dependency(self%id_ext,  standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux)
+      call self%register_dependency(self%id_dz,   standard_variables%cell_thickness)
    end subroutine
    
-   subroutine get_light(self, _ARGUMENTS_VERTICAL_)
+   subroutine do_column(self, _ARGUMENTS_DO_COLUMN_)
       class (type_gotm_light), intent(in) :: self
-      _DECLARE_ARGUMENTS_VERTICAL_
+      _DECLARE_ARGUMENTS_DO_COLUMN_
 
       real(rk) :: swr0, dz, swr, par, z, ext, bioext
 
@@ -71,7 +71,7 @@ contains
 
          ! Calculate photosynthetically active radiation (PAR), shortwave radiation, and PAR attenuation.
          par = swr0 * (1.0_rk - self%a) * exp(-z / self%g2 - bioext)
-         swr = par + swr0 * self%A * exp(-z / self%g1)
+         swr = par + swr0 * self%a * exp(-z / self%g1)
 
          ! Move to bottom of layer
          z = z + dz * 0.5_rk
@@ -80,6 +80,6 @@ contains
          _SET_DIAGNOSTIC_(self%id_swr,swr) ! Shortwave radiation at layer centre
          _SET_DIAGNOSTIC_(self%id_par,par) ! Photosynthetically active radiation at layer centre
       _VERTICAL_LOOP_END_
-   end subroutine get_light
+   end subroutine do_column
 
 end module gotm_light

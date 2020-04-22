@@ -753,7 +753,7 @@ end subroutine end_vertical_task
             call invalidate_vertical_call_output(task%calls(icall), cache)
 #endif
 
-            call task%calls(icall)%model%get_light(cache)
+            call task%calls(icall)%model%do_column(cache)
 
 #ifndef NDEBUG
             call check_vertical_call_output(task%calls(icall), cache)

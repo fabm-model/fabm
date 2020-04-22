@@ -31,7 +31,7 @@ module akvaplan_plume_injection
    contains
       ! Model procedures
       procedure :: initialize
-      procedure :: get_light => do_column  ! NB operating in the vertical is currently only supported in "get_light"
+      procedure :: do_column
    end type
 
 contains
@@ -52,9 +52,9 @@ contains
       call self%register_diagnostic_variable(self%id_flux,'flux','quantity m-3 s-1','depth-explicit tracer flux',source=source_do_column,prefill_value=0.0_rk)
    end subroutine initialize
 
-   subroutine do_column(self,_ARGUMENTS_VERTICAL_)
+   subroutine do_column(self,_ARGUMENTS_DO_COLUMN_)
       class (type_plume_injection),intent(in) :: self
-      _DECLARE_ARGUMENTS_VERTICAL_
+      _DECLARE_ARGUMENTS_DO_COLUMN_
 
       real(rk) :: flux_int,rho,h
 

@@ -129,7 +129,7 @@ module fabm_builtin_models
       logical                                       :: average = .false.
    contains
       procedure :: initialize     => depth_integral_initialize
-      procedure :: get_light      => depth_integral_do_column
+      procedure :: do_column      => depth_integral_do_column
       procedure :: after_coupling => depth_integral_after_coupling
    end type
 
@@ -137,7 +137,7 @@ module fabm_builtin_models
       real(rk) :: minimum_depth = 0.0_rk
       real(rk) :: maximum_depth = huge(1.0_rk)
    contains
-      procedure :: get_light  => bounded_depth_integral_do_column
+      procedure :: do_column => bounded_depth_integral_do_column
    end type
 
    type, extends(type_base_model) :: type_interior_constant
@@ -833,9 +833,9 @@ module fabm_builtin_models
       if (associated(self%id_output%link%target, self%id_output%link%original)) self%id_output%link%target%units = trim(self%id_input%link%target%units)//'*m'
    end subroutine depth_integral_after_coupling
 
-   subroutine depth_integral_do_column(self,_ARGUMENTS_VERTICAL_)
-      class (type_depth_integral),intent(in) :: self
-      _DECLARE_ARGUMENTS_VERTICAL_
+   subroutine depth_integral_do_column(self, _ARGUMENTS_DO_COLUMN_)
+      class (type_depth_integral), intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_COLUMN_
 
       real(rk) :: h,value,result,depth
 
@@ -852,9 +852,9 @@ module fabm_builtin_models
       _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output, result)
    end subroutine depth_integral_do_column
 
-   subroutine bounded_depth_integral_do_column(self,_ARGUMENTS_VERTICAL_)
-      class (type_bounded_depth_integral),intent(in) :: self
-      _DECLARE_ARGUMENTS_VERTICAL_
+   subroutine bounded_depth_integral_do_column(self, _ARGUMENTS_DO_COLUMN_)
+      class (type_bounded_depth_integral), intent(in) :: self
+      _DECLARE_ARGUMENTS_DO_COLUMN_
 
       real(rk) :: h,value,cum,depth
       logical :: started
