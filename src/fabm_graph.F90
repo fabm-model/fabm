@@ -382,15 +382,27 @@ contains
             ! This is the model's own variable (not inherited from child model) and the model itself originally requested read access to it.
             _ASSERT_(.not. associated(link%target%write_owner), 'graph::add_call', 'BUG: required input variable is co-written.')
             input_variable => node%inputs%add(link%target)
-            own_stack_node%requested_variable => link%target
-            if (.not. (associated(link%target%owner, model) .and. link%target%source == source)) &
+            if (resolve(link%target)) then
+               own_stack_node%requested_variable => link%target
                call target_graph%add_variable(link%target, input_variable%sources, stack_top=own_stack_node, caller=node)
+            end if
          end if
          link => link%next
       end do
 
       ! Add node to the graph.
       call target_graph%append(node)
+
+   contains
+
+      logical function resolve(variable)
+         type (type_internal_variable), intent(in) :: variable
+         resolve = .false.
+         if (associated(variable%owner, model) .and. variable%source == source) return
+         if (source == source_get_light_extinction .or. source == source_get_drag .or. source == source_get_albedo) return
+         resolve = .true.
+      end function
+
    end function graph_add_call
 
    recursive subroutine graph_add_variable(self, variable, variable_set, stack_top, copy_to_store, caller)
