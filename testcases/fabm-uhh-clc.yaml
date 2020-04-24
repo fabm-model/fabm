@@ -1,0 +1,294 @@
+instances:
+  nutrient:
+    model: uhh_ergom_split_base
+    parameters:
+      sfl_po: 0.0312                         # , default = 0.0015
+      sfl_ni: 0.54                           # , default = 0.09
+      sfl_am: 0.4608                         # , default = 0.07
+      fluff: false                           # , default = false
+      kc: 0.03                               # , default = 0.03
+      lan: 0.024                             # , default = 0.1
+      anmx: 0.0                              # , default = 0.05
+      oan: 0.01                              # , default = 0.01
+      beta_an: 0.11                          # , default = 0.11
+      lda: 0.005                             # , default = 0.003
+      tda: 13.0                              # , default = 13.0
+      beta_da: 20.0                          # , default = 20.0
+      pvel: 5.0                              # , default = 5.0
+      sr: 0.0625                             # , default = 0.0625
+      s1: 5.3                                # , default = 5.3
+      s2: 6.625                              # , default = 6.625
+      s3: 8.625                              # , default = 8.625
+      s4: 0.67                               # , default = 2.0
+      a0: 31.25                              # , default = 31.25
+      a1: 14.603                             # , default = 14.603
+      a2: 0.4025                             # , default = 0.4025
+      lds: 3.5                               # , default = 3.5
+      lsd: 25.0                              # , default = 25.0
+      tau_crit: 0.07                         # , default = 0.07
+      lsa: 0.0001                            # , default = 0.001
+      bsa: 0.15                              # , default = 0.15
+      ph1: 0.15                              # , default = 0.15
+      ph2: 0.1                               # , default = 0.1
+      w_de: -3.0                             # , default = -3.0
+    initialization:
+      det: 5.0                               # detritus (mmol n/m**3)
+      amm: 0.1                               # ammonium (mmol n/m**3)
+      nit: 5.0                               # nitrate (mmol n/m**3)
+      pho: 2.0                               # phosphate (mmol p/m**3)
+      oxy: 100.0                             # oxygen (mmol o2/m**3)
+    coupling: 
+  diatoms:
+    model: uhh_diatoms
+    parameters:
+      mumax: 0.95                            # , default = 0.4000000059604645
+      vmort: 0.02                            # , default = 0.029999999329447746
+      rmort: 0.02                            # , default = 0.029999999329447746
+      rkn: 0.5                               # , default = 0.5
+      rdepo: 5.6e-06                         # , default = 5.599999894911889e-06
+      alpha: 0.24                            # , default = 0.18000000715255737
+      w_dia: -0.12                           # , default = 0.0
+      rkc: 0.03                              # , default = 0.07000000029802322
+      sr: 0.0625                             # , default = 0.0625
+      mdt: 3600.0                            # , default = 1800.0
+      use_mean_growth: false                 # , default = false
+      trate_veg_res: 0.04                    # , default = 0.019999999552965164
+      trate_res_veg: 0.2                     # , default = 0.019999999552965164
+    initialization:
+      veg: 0.01                              # diatoms vegetative biomass (mmol n/m**3)
+      res: 0.01                              # vegetatives resting biomass (mmol n/m**3)
+    coupling:
+      ammonium_target: nutrient/amm          # ammonium source (mmol/m**3)
+      nitrate_target: nutrient/nit           # nitrate source (mmol/m**3)
+      phosphate_target: nutrient/pho         # phosphate source (mmol/m**3)
+      mortality_target: nutrient/det         # sink for dead matter (mmol/m**3)
+      oxygen_target: nutrient/oxy            # dissolved oxygen pool (mmol-O2/m**3)
+  dinoflag:
+    model: uhh_dinoflag
+    parameters:
+      mumax: 0.4                             # , default = 0.4000000059604645
+      vmort: 0.02                            # , default = 0.029999999329447746
+      rkn: 0.48                              # , default = 0.5
+      rdepo: 7.9e-06                         # , default = 5.599999894911889e-06
+      alpha_dfl: 0.2                         # , default = 0.18000000715255737
+      w_veg: 0.0                             # , default = 0.0
+      w_gam: 0.0                             # , default = 0.0
+      w_res: -8.0                            # , default = -8.0
+      w_ger: 8.0                             # , default = 8.0
+      rkc: 0.03                              # , default = 0.07000000029802322
+      gr_crit: 3.75e-07                      # , default = 3.7500001326407073e-07
+      l_crit: 0.58                           # , default = 0.6399999856948853
+      tmat_crit: 210.0                       # , default = 200.0
+      tmat_initial: 210.0                    # , default = 170.0
+      mdt: 3600.0                            # , default = 1800.0
+      sr: 0.0625                             # , default = 0.0625
+      s2: 6.625                              # , default = 6.625
+      s3: 8.625                              # , default = 8.625
+      trate_veg_gam: 0.015                   # , default = 0.014999999664723873
+      trate_gam_res: 0.06                    # , default = 0.05999999865889549
+      trate_res_ger: 0.05                    # , default = 0.05000000074505806
+      trate_ger_veg: 0.3                     # , default = 0.30000001192092896
+      use_doy_for_maturation: false          # , default = false
+      doy_max: 100.0                         # , default = 100.0
+    initialization:
+      veg: 0.01                              # dinoflagellates vegetative biomass (mmol n/m**3)
+      gam: 0.01                              # dinoflagellates gametes biomass (mmol n/m**3)
+      res: 0.01                              # dinoflagellates resting biomass (mmol n/m**3)
+      ger: 0.01                              # dinoflagellates germinating biomass (mmol n/m**3)
+    coupling:
+      ammonium_target: nutrient/amm          # ammonium source (mmol/m**3)
+      nitrate_target: nutrient/nit           # nitrate source (mmol/m**3)
+      phosphate_target: nutrient/pho         # phosphate source (mmol/m**3)
+      mortality_target: nutrient/det         # sink for dead matter (mmol/m**3)
+      oxygen_target: nutrient/oxy            # dissolved oxygen pool (mmol-O2/m**3)
+  clc_veg:
+    model: uhh_clcveg
+    parameters:
+      kc: 0.03                               # , default = 0.03
+      alpha: 4.7e-07                         # , default = -9.255963134931783e+61
+      sr: 0.0625                             # , default = 0.0625
+      s2: 6.625                              # , default = 6.625
+      s3: 8.625                              # , default = 8.625
+      q_min: 0.5                             # , default = 0.0
+      scale: 8.0                             # , default = 8.0
+      e_storage_capacity: 5.5                # , default = 5.5
+      tscale: 2.5e-06                        # , default = 2.5e-06
+      trange: 0.05                           # , default = 0.05
+      kN: 0.3                                # , default = 0.3
+      Qc: 5.5                                # , default = 5.5
+      m: 3.0                                 # , default = 3.0
+      fcy2: 4.0                              # , default = 4.0
+      depo: 0.0                              # , default = 0.0
+      n_fixation: false                      # , default = false
+      uptake_factor: 4.0                     # , default = 0.0
+      growth_factor: 4.0                     # , default = 0.0
+      lightcapture_factor: 5.0               # , default = 0.0
+      omega0: 3.866e-06                      # , default = 3.7e-06
+      rmatscale: 45.0                        # , default = 45.0
+      w: 0.10368                             # , default = 0.1
+      mortality_rate: 0.013                  # , default = 0.02
+      fpH_const: 1.0                         # , default = 1.0
+      lifestage_name: vegetative_cells       # , default = 
+      next_in_cycle: heterocysts             # , default = 
+    initialization:
+      C: 0.01                                # vegetative_cells biomass (mmol n/m**3)
+      G: 0.0075                              # vegetative_cells energy (mmol n/m**3)
+      S: 0.0075                              # vegetative_cells quota (mmol n/m**3)
+    coupling:
+      ammonium_target: nutrient/amm          # ammonium source (mmol/m**3)
+      nitrate_target: nutrient/nit           # nitrate source (mmol/m**3)
+      phosphate_target: nutrient/pho         # phosphate source (mmol/m**3)
+      mortality_target: nutrient/det         # sink for dead matter (mmol/m**3)
+      oxygen_target: nutrient/oxy            # dissolved oxygen pool (mmol-O2/m**3)
+      next_C: clc_het/C                      # next clc biomass (mmol-N/m**3)
+      next_G: clc_het/G                      # next clc energy (mmol-N/m**3)
+      next_S: clc_het/S                      # next clc quota (mmol-N/m**3)
+  clc_het:
+    model: uhh_clchet
+    parameters:
+      kc: 0.03                               # , default = 0.03
+      alpha: 4.7e-07                         # , default = -9.255963134931783e+61
+      sr: 0.0625                             # , default = 0.0625
+      s2: 6.625                              # , default = 6.625
+      s3: 8.625                              # , default = 8.625
+      e_min: 0.5                             # , default = 0.0
+      scale: 8.0                             # , default = 8.0
+      e_storage_capacity: 5.5                # , default = 5.5
+      tscale: 2.5e-06                        # , default = 2.5e-06
+      trange: 0.05                           # , default = 0.05
+      kN: 0.3                                # , default = 0.3
+      Qc: 5.5                                # , default = 5.5
+      m: 3.0                                 # , default = 3.0
+      fcy2: 4.0                              # , default = 4.0
+      depo: 0.0                              # , default = 0.0
+      n_fixation: true                       # , default = false
+      uptake_factor: 0.0                     # , default = 0.0
+      growth_factor: 1.0                     # , default = 0.0
+      lightcapture_factor: 5.0               # , default = 0.0
+      omega0: 3.866e-06                      # , default = 3.7e-06
+      rmatscale: 45.0                        # , default = 45.0
+      w: 0.10368                             # , default = 0.1
+      mortality_rate: 0.013                  # , default = 0.02
+      fpH_const: 1.0                         # , default = 1.0
+      lifestage_name: heteocysts             # , default = 
+      next_in_cycle: akinetes                # , default = 
+    initialization:
+      C: 0.01                                # heteocysts biomass (mmol n/m**3)
+      G: 0.0075                              # heteocysts energy (mmol n/m**3)
+      S: 0.0025                              # heteocysts quota (mmol n/m**3)
+    coupling:
+      ammonium_target: nutrient/amm          # ammonium source (mmol/m**3)
+      nitrate_target: nutrient/nit           # nitrate source (mmol/m**3)
+      phosphate_target: nutrient/pho         # phosphate source (mmol/m**3)
+      mortality_target: nutrient/det         # sink for dead matter (mmol/m**3)
+      oxygen_target: nutrient/oxy            # dissolved oxygen pool (mmol-O2/m**3)
+      next_C: clc_aki/C                      # next clc biomass (mmol-N/m**3)
+      next_G: clc_aki/G                      # next clc energy (mmol-N/m**3)
+      next_S: clc_aki/S                      # next clc quota (mmol-N/m**3)
+  clc_aki:
+    model: uhh_clcaki
+    parameters:
+      kc: 0.03                               # , default = 0.03
+      alpha: 4.7e-07                         # , default = -9.255963134931783e+61
+      sr: 0.0625                             # , default = 0.0625
+      s2: 6.625                              # , default = 6.625
+      s3: 8.625                              # , default = 8.625
+      q_max: 0.5                             # , default = 1.0
+      scale: 8.0                             # , default = 8.0
+      e_storage_capacity: 5.5                # , default = 5.5
+      tscale: 2.5e-06                        # , default = 2.5e-06
+      trange: 0.05                           # , default = 0.05
+      kN: 0.3                                # , default = 0.3
+      Qc: 5.5                                # , default = 5.5
+      m: 3.0                                 # , default = 3.0
+      fcy2: 4.0                              # , default = 4.0
+      depo: 1e-08                            # , default = 0.0
+      n_fixation: false                      # , default = false
+      uptake_factor: 2.0                     # , default = 0.0
+      growth_factor: 0.0                     # , default = 0.0
+      lightcapture_factor: 3.0               # , default = 0.0
+      omega0: 2.8e-06                        # , default = 3.7e-06
+      rmatscale: 45.0                        # , default = 45.0
+      w: -10.368                             # , default = 0.1
+      mortality_rate: 0.00013                # , default = 0.02
+      fpH_const: 1.0                         # , default = 1.0
+      lifestage_name: akinetes               # , default = 
+      next_in_cycle: recruitive_cells        # , default = 
+    initialization:
+      C: 0.01                                # akinetes biomass (mmol n/m**3)
+      G: 0.0025                              # akinetes energy (mmol n/m**3)
+      S: 0.0025                              # akinetes quota (mmol n/m**3)
+    coupling:
+      ammonium_target: nutrient/amm          # ammonium source (mmol/m**3)
+      nitrate_target: nutrient/nit           # nitrate source (mmol/m**3)
+      phosphate_target: nutrient/pho         # phosphate source (mmol/m**3)
+      mortality_target: nutrient/det         # sink for dead matter (mmol/m**3)
+      oxygen_target: nutrient/oxy            # dissolved oxygen pool (mmol-O2/m**3)
+      next_C: clc_rec/C                      # next clc biomass (mmol-N/m**3)
+      next_G: clc_rec/G                      # next clc energy (mmol-N/m**3)
+      next_S: clc_rec/S                      # next clc quota (mmol-N/m**3)
+  clc_rec:
+    model: uhh_clcrec
+    parameters:
+      kc: 0.03                               # , default = 0.03
+      alpha: 4.7e-07                         # , default = -9.255963134931783e+61
+      sr: 0.0625                             # , default = 0.0625
+      s2: 6.625                              # , default = 6.625
+      s3: 8.625                              # , default = 8.625
+      e_max: 0.5                             # , default = 1.0
+      scale: 8.0                             # , default = 8.0
+      e_storage_capacity: 5.5                # , default = 5.5
+      tscale: 2.5e-06                        # , default = 2.5e-06
+      trange: 0.05                           # , default = 0.05
+      kN: 0.3                                # , default = 0.3
+      Qc: 5.5                                # , default = 5.5
+      m: 3.0                                 # , default = 3.0
+      fcy2: 4.0                              # , default = 4.0
+      depo: 0.0                              # , default = 0.0
+      n_fixation: false                      # , default = false
+      uptake_factor: 4.0                     # , default = 0.0
+      growth_factor: 0.0                     # , default = 0.0
+      lightcapture_factor: 5.0               # , default = 0.0
+      omega0: 2.8e-06                        # , default = 3.7e-06
+      rmatscale: 45.0                        # , default = 45.0
+      w: 1.728                               # , default = 0.1
+      mortality_rate: 0.013                  # , default = 0.02
+      fpH_const: 1.0                         # , default = 1.0
+      lifestage_name: recruitive_cells       # , default = 
+      next_in_cycle: vegetative_cells        # , default = 
+    initialization:
+      C: 0.01                                # recruitive_cells biomass (mmol n/m**3)
+      G: 0.0025                              # recruitive_cells energy (mmol n/m**3)
+      S: 0.0075                              # recruitive_cells quota (mmol n/m**3)
+    coupling:
+      ammonium_target: nutrient/amm          # ammonium source (mmol/m**3)
+      nitrate_target: nutrient/nit           # nitrate source (mmol/m**3)
+      phosphate_target: nutrient/pho         # phosphate source (mmol/m**3)
+      mortality_target: nutrient/det         # sink for dead matter (mmol/m**3)
+      oxygen_target: nutrient/oxy            # dissolved oxygen pool (mmol-O2/m**3)
+      next_C: clc_veg/C                      # next clc biomass (mmol-N/m**3)
+      next_G: clc_veg/G                      # next clc energy (mmol-N/m**3)
+      next_S: clc_veg/S                      # next clc quota (mmol-N/m**3)
+  zoo:
+    model: uhh_ergom_split_zoo
+    parameters:
+      zoo0: 0.0045                           # , default = 0.0225
+      p_to_n: 0.0625                         # , default = 0.0625
+      s2: 6.625                              # , default = 6.625
+      s3: 8.625                              # , default = 8.625
+      iv: 0.25                               # , default = 0.24444444
+      slopf: 1.0                             # , default = 1.0
+      topt: 20.0                             # , default = 20.0
+      gmax_dia: 0.4                          # , default = -1.0
+      gmax_din: 0.5                          # , default = 0.03
+      excretion_rate: 0.07                   # , default = 0.01
+      mortality_rate: 0.13                   # , default = 0.02
+    initialization:
+      zoo: 0.1                               # zooplankton (mmol n/m**3)
+    coupling:
+      ammonium_target: nutrient/amm          # sink for excreted matter and ammonium source (mmol/m**3)
+      phosphate_target: nutrient/pho         # phosphate source (mmol/m**3)
+      mortality_target: nutrient/det         # sink for dead matter (mmol/m**3)
+      oxygen_target: nutrient/oxy            # dissolved oxygen pool (mmol-O2/m**3)
+      diatoms_target: diatoms/veg            # diatom prey (mmol/m**3)
+      dinoflagellates_target: dinoflag/veg   # dinoflagellate prey (mmol/m**3)
