@@ -199,6 +199,10 @@ module fabm
       procedure :: initialize
       procedure :: finalize
       procedure :: set_domain
+#if _FABM_DIMENSION_COUNT_>0
+      procedure :: set_domain_start
+      procedure :: set_domain_stop
+#endif
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
       procedure :: set_bottom_index
       procedure :: set_surface_index
@@ -528,6 +532,35 @@ contains
       end if
    end subroutine set_domain
 
+#if _FABM_DIMENSION_COUNT_>0
+   ! --------------------------------------------------------------------------
+   ! set_domain_start: set start index of all spatial dimensions
+   ! --------------------------------------------------------------------------
+   ! This is optional; by default the start index for all dimensions is 1.
+   ! --------------------------------------------------------------------------
+   subroutine set_domain_start(self _POSTARG_LOCATION_)
+      class (type_fabm_model), target, intent(inout) :: self
+      _DECLARE_ARGUMENTS_LOCATION_
+      if (self%status < status_set_domain_done) &
+         call fatal_error('set_domain_start', 'set_domain has not yet been called on this model object.')
+      self%domain%start(:) = (/_LOCATION_/)
+   end subroutine set_domain_start
+
+   ! --------------------------------------------------------------------------
+   ! set_domain_stop: set stop index of all spatial dimensions (default=domain size)
+   ! --------------------------------------------------------------------------
+   ! This is optional; by default the stop index for all dimensions matches
+   ! the domain size provided to set_domain.
+   ! --------------------------------------------------------------------------
+   subroutine set_domain_stop(self _POSTARG_LOCATION_)
+      class (type_fabm_model), target, intent(inout) :: self
+      _DECLARE_ARGUMENTS_LOCATION_
+      if (self%status < status_set_domain_done) &
+         call fatal_error('set_domain_stop', 'set_domain has not yet been called on this model object.')
+      self%domain%stop(:) = (/_LOCATION_/)
+   end subroutine set_domain_stop
+#endif
+
 #ifdef _HAS_MASK_
    ! --------------------------------------------------------------------------
    ! set_mask: provide spatial mask
@@ -583,10 +616,10 @@ contains
       integer,                 intent(in)    :: index
 
       if (self%status < status_set_domain_done) &
-         call fatal_error('set_bottom_index', 'set_bottom_index has not yet been called on this model object.')
+         call fatal_error('set_bottom_index', 'set_domain has not yet been called on this model object.')
       if (index < 1) &
          call fatal_error('set_bottom_index', 'provided index must equal or exceed 1.')
-      if (index > self%domain%shape(_FABM_DEPTH_DIMENSION_INDEX_)) &
+      if (index > self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)) &
          call fatal_error('set_bottom_index', 'provided index exceeds size of the depth dimension.')
 
       self%domain%bottom_index = index
