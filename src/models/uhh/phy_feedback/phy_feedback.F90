@@ -79,20 +79,20 @@
 !  Original author(s): Inga Hense
 !
 ! !LOCAL VARIABLES:
-   real(rk)                  :: rkc=0.03          ! attenuation coefficient (organic matter)
-   real(rk)                  :: alpha=0.3         ! initial slope of the PI-curve
-   real(rk)                  :: muemax_phy=0.25   ! maximum growth rate
-   real(rk)                  :: mortphy=0.04      ! mortality rate
-   real(rk)                  :: rem=0.048         ! remineralization rate
-   real(rk)                  :: topt=25.          ! optimum temperature for growth
-   real(rk)                  :: tl1=2.            ! slope (temp. function)
-   real(rk)                  :: tl2=3.            ! slope (temp. function)
-   real(rk)                  :: w_phy=1.          ! positive buoyancy
-   real(rk)                  :: w_det=-18.        ! sinking of detritus
-   real(rk)                  :: depo=0.05         ! detritus burial rate
-   real(rk)                  :: nbot=35.          ! bottom nutrient concentration
-   real(rk)                  :: albedo_bio=0.002  ! factor for albedo changes through surface phy
-   real(rk)                  :: drag_bio=0.05     ! factor for drag coef. changes through surface phy
+   real(rk)                  :: rkc=0.03_rk          ! attenuation coefficient (organic matter)
+   real(rk)                  :: alpha=0.3_rk         ! initial slope of the PI-curve
+   real(rk)                  :: muemax_phy=0.25_rk   ! maximum growth rate
+   real(rk)                  :: mortphy=0.04_rk      ! mortality rate
+   real(rk)                  :: rem=0.048_rk         ! remineralization rate
+   real(rk)                  :: topt=25._rk          ! optimum temperature for growth
+   real(rk)                  :: tl1=2._rk            ! slope (temp. function)
+   real(rk)                  :: tl2=3._rk            ! slope (temp. function)
+   real(rk)                  :: w_phy=1._rk          ! positive buoyancy
+   real(rk)                  :: w_det=-18._rk        ! sinking of detritus
+   real(rk)                  :: depo=0.05_rk         ! detritus burial rate
+   real(rk)                  :: nbot=35._rk          ! bottom nutrient concentration
+   real(rk)                  :: albedo_bio=0.002_rk  ! factor for albedo changes through surface phy
+   real(rk)                  :: drag_bio=0.05_rk     ! factor for drag coef. changes through surface phy
 
    namelist /uhh_phy_feedback/ &
               rkc,alpha,   & 
@@ -107,18 +107,20 @@
 !  Store parameter values in our own derived type
 !  NB: all rates must be provided in values per day,
 !  and are converted here to values per second.
-   call self%get_parameter(self%rkc, 'rkc', default=rkc)
-   call self%get_parameter(self%alpha, 'alpha', default=alpha, scale_factor=secs_pr_day)
-   call self%get_parameter(self%muemax_phy, 'muemax_phy', default=muemax_phy, scale_factor=secs_pr_day) 
-   call self%get_parameter(self%mortphy, 'mortphy', default=mortphy, scale_factor=secs_pr_day)
-   call self%get_parameter(self%rem, 'rem', default=rem, scale_factor=secs_pr_day)
-   call self%get_parameter(self%topt, 'topt', default=topt) 
-   call self%get_parameter(self%tl1, 'tl1', default=tl1) 
-   call self%get_parameter(self%tl2, 'tl2', default=tl2)
-   call self%get_parameter(self%depo, 'depo', default=depo, scale_factor=secs_pr_day)  
-   call self%get_parameter(self%nbot, 'nbot', default=nbot)
-   call self%get_parameter(self%albedo_bio, 'albedo_bio', default=albedo_bio) 
-   call self%get_parameter(self%drag_bio, 'drag_bio', default=drag_bio) 
+   call self%get_parameter(self%rkc, 'rkc', '1/m', 'attenuation coefficient (organic matter)', default=rkc)
+   call self%get_parameter(self%alpha, 'alpha', 'm**2/W/d', 'initial slope of the PI-curve', default=alpha, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%muemax_phy, 'muemax_phy', '1/d', 'maximum growth rate', default=muemax_phy, scale_factor=1.0_rk/secs_pr_day) 
+   call self%get_parameter(self%mortphy, 'mortphy', '1/d', 'mortality rate', default=mortphy, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%rem, 'rem', '1/d', 'remineralization rate', default=rem, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%topt, 'topt', 'degrees_C', 'optimum temperature for growth', default=topt) 
+   call self%get_parameter(self%tl1, 'tl1', 'degrees_C', 'slope (temp. function)', default=tl1) 
+   call self%get_parameter(self%tl2, 'tl2', 'degrees_C', 'slope (temp. function)', default=tl2)
+   call self%get_parameter(self%depo, 'depo', 'm**4/mmol/d', 'detritus burial rate', default=depo, scale_factor=1.0_rk/secs_pr_day)  
+   call self%get_parameter(self%nbot, 'nbot', 'mmol/m**3', 'bottom nutrient concentration', default=nbot)
+   call self%get_parameter(w_phy, 'w_phy', 'm/d', 'buoyancy velocity', default=w_phy, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(w_det, 'w_det', 'm/d', 'sinking velocity detritus', default=w_det, scale_factor=1.0_rk/secs_pr_day)
+   call self%get_parameter(self%albedo_bio, 'albedo_bio', '', 'factor for albedo changes through surface phy', default=albedo_bio) 
+   call self%get_parameter(self%drag_bio, 'drag_bio', '', 'factor for drag coef. changes through surface phy', default=drag_bio) 
 
 
 !  Register state variables
@@ -126,10 +128,10 @@
                                     no_river_dilution=.true.)
    call self%register_state_variable(self%id_phy,'phy','mmol/m**3','phytoplankton', &
                                     vertical_movement=    &
-                                    w_phy/secs_pr_day,specific_light_extinction=rkc)
+                                    w_phy,specific_light_extinction=rkc)
    call self%register_state_variable(self%id_det,'det','mmol/m**3','detritus',      &
                                     vertical_movement=    &
-                                    w_det/secs_pr_day,specific_light_extinction=rkc)
+                                    w_det,specific_light_extinction=rkc)
 
 !  Register diagnostic variables
    call self%register_diagnostic_variable(self%id_NFIX,'NFIX','mmol/m**3',        &

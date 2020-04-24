@@ -1,0 +1,20 @@
+instances:
+  phy_feedback:
+    model: uhh/phy_feedback
+    parameters:
+      rkc: 0.03               # attenuation coefficient (organic matter) (1/m), default = 0.03
+      alpha: 0.03             # initial slope of the PI-curve (m**2/W/d), default = 0.3
+      muemax_phy: 0.25        # maximum growth rate (1/d), default = 0.25
+      mortphy: 0.05           # mortality rate (1/d), default = 0.04
+      rem: 0.008              # remineralization rate (1/d), default = 0.048
+      topt: 25.0              # optimum temperature for growth (degrees_C), default = 25.0
+      tl1: 6.0                # slope (temp. function) (degrees_C), default = 2.0
+      tl2: 1.0                # slope (temp. function) (degrees_C), default = 3.0
+      depo: 0.05              # detritus burial rate (m**4/mmol/d), default = 0.05
+      nbot: 35.0              # bottom nutrient concentration (mmol/m**3), default = 35.0
+      w_phy: 0.5              # buoyancy velocity (m/d), default = 1.0
+      w_det: -20.0            # sinking velocity detritus (m/d), default = -18.0
+    initialization:
+      nut: 40.0               # nutrients (mmol/m**3)
+      phy: 0.005              # phytoplankton (mmol/m**3)
+      det: 1e-05              # detritus (mmol/m**3)
