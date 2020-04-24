@@ -714,20 +714,26 @@ contains
 #endif
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-#  if _FABM_BOTTOM_INDEX_==0
-      if (self%domain%bottom_index == -1) then
-         call log_message('bottom index has not been set. Make sure to call set_bottom_index.')
-         ready = .false.
-      end if
-#  elif _FABM_BOTTOM_INDEX_==-1
+#  if _FABM_BOTTOM_INDEX_==-1
       if (.not. associated(self%domain%bottom_indices)) then
          call log_message('bottom indices have not been set. Make sure to call set_bottom_index.')
          ready = .false.
       end if
+#  elif _FABM_BOTTOM_INDEX_==0
+      if (self%domain%bottom_index == -1) then
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+         self%domain%bottom_index = self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
+#  else
+         self%domain%bottom_index = self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
+#  endif
+      end if
 #  endif
       if (self%domain%surface_index == -1) then
-         call log_message('surface index has not been set. Make sure to call set_surface_index.')
-         ready = .false.
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+         self%domain%surface_index = self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
+#  else
+         self%domain%surface_index = self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
+#  endif
       end if
 #endif
 
