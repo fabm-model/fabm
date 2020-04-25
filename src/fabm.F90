@@ -622,7 +622,11 @@ contains
       if (index > self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)) &
          call fatal_error('set_bottom_index', 'provided index exceeds size of the depth dimension.')
 
-      self%domain%bottom_index = index
+#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+      self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_) = index
+#    else
+      self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_) = index
+#    endif
    end subroutine set_bottom_index
 
 #  elif _FABM_BOTTOM_INDEX_==-1
@@ -667,7 +671,11 @@ contains
       if (index > self%domain%shape(_FABM_DEPTH_DIMENSION_INDEX_)) &
          call fatal_error('set_surface_index', 'provided index exceeds size of the depth dimension.')
 
-      self%domain%surface_index = index
+#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+      self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_) = index
+#    else
+      self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_) = index
+#    endif
    end subroutine set_surface_index
 
 #endif
@@ -719,22 +727,7 @@ contains
          call log_message('bottom indices have not been set. Make sure to call set_bottom_index.')
          ready = .false.
       end if
-#  elif _FABM_BOTTOM_INDEX_==0
-      if (self%domain%bottom_index == -1) then
-#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-         self%domain%bottom_index = self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
-#  else
-         self%domain%bottom_index = self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
 #  endif
-      end if
-#  endif
-      if (self%domain%surface_index == -1) then
-#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-         self%domain%surface_index = self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
-#  else
-         self%domain%surface_index = self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
-#  endif
-      end if
 #endif
 
       ! Flag variables that have had data asssigned (by user, host or FABM).
@@ -1769,10 +1762,18 @@ contains
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
          if (flag == 1) then
-            _VERTICAL_ITERATOR_ = self%domain%surface_index
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+            _VERTICAL_ITERATOR_ = self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
+#  else
+            _VERTICAL_ITERATOR_ = self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
+#  endif
          else
 #  if _FABM_BOTTOM_INDEX_==0
-            _VERTICAL_ITERATOR_ = self%domain%bottom_index
+#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+            _VERTICAL_ITERATOR_ = self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
+#    else
+            _VERTICAL_ITERATOR_ = self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
+#    endif
 #  elif !defined(_HORIZONTAL_IS_VECTORIZED_)
             _VERTICAL_ITERATOR_ = self%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #  endif

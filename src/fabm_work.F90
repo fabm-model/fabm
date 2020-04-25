@@ -43,12 +43,9 @@ module fabm_work
 #endif
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-#  if _FABM_BOTTOM_INDEX_==0
-      integer :: bottom_index = -1
-#  elif _FABM_BOTTOM_INDEX_==-1
+#  if _FABM_BOTTOM_INDEX_==-1
       integer, pointer _ATTRIBUTES_GLOBAL_HORIZONTAL_ :: bottom_indices => null()
 #  endif
-      integer :: surface_index = -1
 #endif
    end type
 
@@ -387,7 +384,11 @@ subroutine load_surface_data(domain, catalog, task, cache _POSTARG_HORIZONTAL_IN
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
    integer :: _VERTICAL_ITERATOR_
-   _VERTICAL_ITERATOR_ = domain%surface_index
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+   _VERTICAL_ITERATOR_ = domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
+#  else
+   _VERTICAL_ITERATOR_ = domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
+#  endif
 #endif
 
    _DO_CONCURRENT_(i, 1, size(task%load))
@@ -421,10 +422,13 @@ subroutine load_bottom_data(domain, catalog, task, cache _POSTARG_HORIZONTAL_IN_
    integer :: i, k
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
    integer :: _VERTICAL_ITERATOR_
-#endif
-
-#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&_FABM_BOTTOM_INDEX_==0
-   _VERTICAL_ITERATOR_ = domain%bottom_index
+#  if _FABM_BOTTOM_INDEX_==0
+#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+   _VERTICAL_ITERATOR_ = domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
+#    else
+   _VERTICAL_ITERATOR_ = domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
+#    endif
+#  endif
 #endif
 
    _DO_CONCURRENT_(i, 1, size(task%load))
