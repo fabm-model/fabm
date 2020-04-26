@@ -56,7 +56,7 @@ module fabm
 
    integer, parameter :: status_none             = 0
    integer, parameter :: status_initialize_done  = 1
-   integer, parameter :: status_set_domain_done  = 2
+   integer, parameter, public :: status_set_domain_done  = 2
    integer, parameter, public :: status_start_done = 3
 
    integer, parameter, public :: data_source_none = 0
@@ -203,9 +203,8 @@ module fabm
       procedure :: set_domain_start
       procedure :: set_domain_stop
 #endif
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&_FABM_BOTTOM_INDEX_==-1
       procedure :: set_bottom_index
-      procedure :: set_surface_index
 #endif
 #ifdef _HAS_MASK_
       procedure :: set_mask
@@ -605,32 +604,7 @@ contains
    end subroutine set_mask
 #endif
 
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-#  if _FABM_BOTTOM_INDEX_==0
-
-   ! --------------------------------------------------------------------------
-   ! set_bottom_index: set vertical index of bottom layer
-   ! --------------------------------------------------------------------------
-   subroutine set_bottom_index(self, index)
-      class (type_fabm_model), intent(inout) :: self
-      integer,                 intent(in)    :: index
-
-      if (self%status < status_set_domain_done) &
-         call fatal_error('set_bottom_index', 'set_domain has not yet been called on this model object.')
-      if (index < 1) &
-         call fatal_error('set_bottom_index', 'provided index must equal or exceed 1.')
-      if (index > self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)) &
-         call fatal_error('set_bottom_index', 'provided index exceeds size of the depth dimension.')
-
-#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-      self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_) = index
-#    else
-      self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_) = index
-#    endif
-   end subroutine set_bottom_index
-
-#  elif _FABM_BOTTOM_INDEX_==-1
-
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&_FABM_BOTTOM_INDEX_==-1
    ! --------------------------------------------------------------------------
    ! set_bottom_index: provide bottom indices for every horizontal point
    ! --------------------------------------------------------------------------
@@ -654,30 +628,6 @@ contains
 
       self%domain%bottom_indices => indices
    end subroutine set_bottom_index
-
-#  endif
-
-   ! --------------------------------------------------------------------------
-   ! set_surface_index: set vertical index of surface layer
-   ! --------------------------------------------------------------------------
-   subroutine set_surface_index(self, index)
-      class (type_fabm_model), intent(inout) :: self
-      integer,                 intent(in)    :: index
-
-      if (self%status < status_set_domain_done) &
-         call fatal_error('set_surface_index', 'set_domain has not yet been called on this model object.')
-      if (index < 1) &
-         call fatal_error('set_surface_index', 'provided index must equal or exceed 1.')
-      if (index > self%domain%shape(_FABM_DEPTH_DIMENSION_INDEX_)) &
-         call fatal_error('set_surface_index', 'provided index exceeds size of the depth dimension.')
-
-#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-      self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_) = index
-#    else
-      self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_) = index
-#    endif
-   end subroutine set_surface_index
-
 #endif
 
    ! --------------------------------------------------------------------------

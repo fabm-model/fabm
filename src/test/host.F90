@@ -345,24 +345,10 @@ program test_host
    ! Specify vertical indices of surface and bottom.
    ! ======================================================================
 
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-   call start_test('set_surface_index')
-#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-   call model%set_surface_index(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_))
-#  else
-   call model%set_surface_index(1)
-#  endif
-   call report_test_result()
-
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&_FABM_BOTTOM_INDEX_==-1
    call start_test('set_bottom_index')
-#  if _FABM_BOTTOM_INDEX_==-1
    allocate(bottom_index _INDEX_HORIZONTAL_LOCATION_)
    call model%set_bottom_index(bottom_index)
-#  elif defined(_FABM_VERTICAL_BOTTOM_TO_SURFACE_)
-   call model%set_bottom_index(1)
-#  else
-   call model%set_bottom_index(domain_extent(_FABM_DEPTH_DIMENSION_INDEX_))
-#  endif
    call report_test_result()
 #endif
 

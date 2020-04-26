@@ -49,6 +49,12 @@ module fabm_v0_compatibility
       type (type_horizontal_variable_id) :: surface_drag_id
    contains
       procedure :: initialize => fabm_initialize
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+      procedure :: set_surface_index
+#  if _FABM_BOTTOM_INDEX_==0
+      procedure :: set_bottom_index
+#  endif
+#endif
       procedure :: get_bulk_variable_id_by_name => fabm_get_bulk_variable_id_by_name
       procedure :: get_bulk_variable_id_sn => fabm_get_bulk_variable_id_sn
       generic :: get_bulk_variable_id => get_bulk_variable_id_by_name, get_bulk_variable_id_sn
@@ -125,6 +131,55 @@ contains
       real(rke), optional,        intent(in)    :: seconds_per_time_unit
       call self%set_domain(_PREARG_LOCATION_ seconds_per_time_unit)
    end subroutine
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+
+   ! --------------------------------------------------------------------------
+   ! set_surface_index: set vertical index of surface layer
+   ! --------------------------------------------------------------------------
+   subroutine set_surface_index(self, index)
+      class (type_model), intent(inout) :: self
+      integer,            intent(in)    :: index
+
+      if (self%status < status_set_domain_done) &
+         call driver%fatal_error('set_surface_index', 'set_domain has not yet been called on this model object.')
+      if (index < 1) &
+         call driver%fatal_error('set_surface_index', 'provided index must equal or exceed 1.')
+      if (index > self%domain%shape(_FABM_DEPTH_DIMENSION_INDEX_)) &
+         call driver%fatal_error('set_surface_index', 'provided index exceeds size of the depth dimension.')
+
+#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+      self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_) = index
+#    else
+      self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_) = index
+#    endif
+   end subroutine set_surface_index
+
+#  if _FABM_BOTTOM_INDEX_==0
+
+   ! --------------------------------------------------------------------------
+   ! set_bottom_index: set vertical index of bottom layer
+   ! --------------------------------------------------------------------------
+   subroutine set_bottom_index(self, index)
+      class (type_model), intent(inout) :: self
+      integer,            intent(in)    :: index
+
+      if (self%status < status_set_domain_done) &
+         call driver%fatal_error('set_bottom_index', 'set_domain has not yet been called on this model object.')
+      if (index < 1) &
+         call driver%fatal_error('set_bottom_index', 'provided index must equal or exceed 1.')
+      if (index > self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)) &
+         call driver%fatal_error('set_bottom_index', 'provided index exceeds size of the depth dimension.')
+
+#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+      self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_) = index
+#    else
+      self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_) = index
+#    endif
+   end subroutine set_bottom_index
+#  endif
+
+#endif
 
 #ifdef _HAS_MASK_
 #  ifdef _FABM_HORIZONTAL_MASK_
@@ -367,4 +422,5 @@ contains
       type (type_bulk_variable_id)                       :: id
       id = self%get_interior_variable_id(standard_variable)
    end function
+   
 end module
