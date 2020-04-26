@@ -1,0 +1,9 @@
+instances:
+  surface_age:
+    model: iow/age
+    parameters:
+      track_surface_age: true   # track surface age, default = false
+  bottom_age:
+    model: iow/age
+    parameters:
+      track_bottom_age: true    # track bottom age, default = false
