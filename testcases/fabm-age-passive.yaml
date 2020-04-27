@@ -1,0 +1,17 @@
+instances:
+  water_surface_age:
+    model: iow/age
+    parameters:
+      track_surface_age: true   # track surface age, default = false
+  tracer:
+    model: bb/passive
+    parameters:
+      surface_flux: 0.001       # surface flux (positive for into the water) (mol m-3 m d-1), default = 0.0
+    initialization:
+      c: 0.0                    # concentration (mol m-3)
+  tracer_age:
+    model: iow/age
+    parameters:
+      external_tracer: true     # whether to track age of a tracer rather than of the water parcel, default = false
+    coupling:
+      tracer: tracer/c          # tracer

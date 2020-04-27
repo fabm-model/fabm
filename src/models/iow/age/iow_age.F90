@@ -97,14 +97,13 @@
 
    call self%get_parameter(self%track_surface_age,'track_surface_age','','track surface age',default=track_surface_age)
    call self%get_parameter(self%track_bottom_age, 'track_bottom_age', '','track bottom age', default=track_bottom_age)
-   self%external_tracer = .false.
+   call self%get_parameter(self%external_tracer, 'external_tracer', '','whether to track age of a tracer rather than of the water parcel', default=tracer_age_variable/='')
 
    ! Register state variables
 
-
-   if ( tracer_age_variable/='' ) then
+   if ( self%external_tracer ) then
+      if ( tracer_age_variable=='' ) tracer_age_variable = 'tracer'
       call self%register_dependency(self%id_tracer,trim(tracer_age_variable),'',trim(tracer_age_variable))
-      self%external_tracer   = .true.
       ! we need an auxillery variable
       call self%register_state_variable(self%id_age_alpha, &
                     'age_alpha',' ','age_alpha of water mass', &
