@@ -4,33 +4,33 @@ instances:
     model: au/lotka_volterra
     use: true
     parameters:
-      b: 1.0
-      p: 0.05
-      r: 0.02
-      d: 0.5
+      b: 1.0                    # growth rate of prey (d-1), default = 1.0
+      p: 0.05                   # impact of predation (d-1), default = 0.05
+      r: 0.02                   # growth efficiency rate (d-1), default = 0.02
+      d: 0.5                    # death rate (d-1), default = 0.5
     initialization:
-      prey: 10.
-      predator: 10.
+      prey: 10.0                # nutrient (mmol/m**3)
+      predator: 10.0            # phytoplankton (mmol/m**3)
   LV2:
     long_name: lotka_volterra
     model: au/lotka_volterra
     use: true
     parameters:
-      b: 1.0
-      p: 0.05
-      r: 0.02
-      d: 0.01
+      b: 1.0                    # growth rate of prey (d-1), default = 1.0
+      p: 0.05                   # impact of predation (d-1), default = 0.05
+      r: 0.02                   # growth efficiency rate (d-1), default = 0.02
+      d: 0.01                   # death rate (d-1), default = 0.5
     initialization:
-      prey: 10.
-      predator: 10.
+      prey: 10.0                # nutrient (mmol/m**3)
+      predator: 10.0            # phytoplankton (mmol/m**3)
   jacob_monod:
     long_name: jacob_monod
     model: au/jacob_monod
     use: false
     parameters:
-      V: 1.0
-      K: 1.0
-      Y: 0.5
+      V: 1.0                    # uptake velocity (d-1), default = 1.0
+      K: 1.0                    # saturation constant (mmol/m**3), default = 1.0
+      Y: 0.5                    # predator yield (mmol/m**3), default = 0.5
     initialization:
-      prey: 10.
-      predator: 10.
+      prey: 10.0                # nutrient (mmol/m**3)
+      predator: 10.0            # phytoplankton (mmol/m**3)
