@@ -1,0 +1,21 @@
+{
+   "title": "Framework for Aquatic Biogeochemical Models",
+   "creators": [
+      {
+         "affiliation": "Bolding & Bruggeman ApS",
+         "name": "Jorn Bruggeman"
+      },
+      {
+         "affiliation": "Bolding & Bruggeman ApS",
+         "name": "Karsten Bolding"
+      }
+   ],
+   "grants": [
+      {
+         "id": "212085"
+      }
+   ],
+   "upload_type": "software",
+   "access_right": "open",
+   "license": "GPL-2.0"
+}
