@@ -36,8 +36,8 @@ endif()
 set(FABM_INSTITUTES ${DEFAULT_INSTITUTES} CACHE STRING "Institute directories to include during compilation.")
 if(FABM_INSTITUTES STREQUAL FABM_DEFAULT_INSTITUTES)
   # FABM_INSTITUTES matches its original default value; update both with the current DEFAULT_INSTITUTES list.
-  set(FABM_INSTITUTES ${DEFAULT_INSTITUTES} CACHE STRING "Institute directories to include during compilation." FORCE)  
-  set(FABM_DEFAULT_INSTITUTES ${DEFAULT_INSTITUTES} CACHE INTERNAL "Default institutes at the time FABM_INSTITUTES was initialized or updated automatically.")  
+  set(FABM_INSTITUTES ${DEFAULT_INSTITUTES} CACHE STRING "Institute directories to include during compilation." FORCE)
+  set(FABM_DEFAULT_INSTITUTES ${DEFAULT_INSTITUTES} CACHE INTERNAL "Default institutes at the time FABM_INSTITUTES was initialized or updated automatically.")
 endif()
 
 # Use solution folders in IDEs
@@ -171,7 +171,7 @@ if(FABM_EMBED_VERSION)
   add_custom_target(fabm_version
      ${CMAKE_COMMAND} -DINFILE=${CMAKE_CURRENT_LIST_DIR}/fabm_version.F90.in -DOUTFILE=${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90 -P ${GET_GIT_INFO_SCRIPT}
      WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-     COMMENT "Retrieving description of last FABM commit..." 
+     COMMENT "Retrieving description of last FABM commit..."
      SOURCES ${CMAKE_CURRENT_LIST_DIR}/fabm_version.F90.in ${GET_GIT_INFO_SCRIPT}
      VERBATIM
   )
@@ -207,7 +207,7 @@ foreach(institute ${ACTIVE_INSTITUTES})
   target_include_directories(fabm_models_${institute} PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
   list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:fabm_models_${institute}>)
   set_property(TARGET fabm_models_${institute} PROPERTY FOLDER fabm/models)
-endforeach(institute) 
+endforeach(institute)
 
 # Add YAML parsing library
 if(NOT TARGET yaml)

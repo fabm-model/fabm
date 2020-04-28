@@ -158,7 +158,7 @@ module fabm_builtin_models
    contains
       procedure :: after_coupling  => horizontal_layer_after_coupling
    end type
-   
+
    type,extends(type_horizontal_layer) :: type_bottom_field
    contains
       procedure :: initialize => bottom_field_initialize

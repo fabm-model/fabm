@@ -35,7 +35,7 @@ contains
    end subroutine
 
 end module host_hooks
-   
+
 program test_host
 
    use fabm
@@ -609,7 +609,7 @@ contains
 #  endif
 #endif
    end subroutine
-   
+
    subroutine simulate(n)
       integer, intent(in) :: n
       real(rke) :: time_begin, time_end

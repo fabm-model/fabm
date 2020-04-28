@@ -879,7 +879,7 @@ contains
    end function get_interior_variable_id_by_name
 
    ! --------------------------------------------------------------------------
-   ! get_interior_variable_id_sn: get interior variable identifier for given 
+   ! get_interior_variable_id_sn: get interior variable identifier for given
    ! standard variable
    ! --------------------------------------------------------------------------
    function get_interior_variable_id_sn(self, standard_variable) result(id)
@@ -1300,7 +1300,7 @@ contains
       integer,                 intent(in)    :: index
       real(rke) _ATTRIBUTES_GLOBAL_, pointer :: dat
 
-      _ASSERT_(self%status >= status_start_done, 'get_interior_diagnostic_data', 'This routine can only be called after model start.')   
+      _ASSERT_(self%status >= status_start_done, 'get_interior_diagnostic_data', 'This routine can only be called after model start.')
       dat => null()
       if (self%diagnostic_variables(index)%target%catalog_index /= -1) &
          dat => self%catalog%interior(self%diagnostic_variables(index)%target%catalog_index)%p
@@ -1657,7 +1657,7 @@ contains
       self%cache_hz%set_horizontal = .false.
       self%cache_hz%set_interior = .false.
 
-      call process_horizontal_slice(job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_) 
+      call process_horizontal_slice(job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
       valid = self%cache_hz%valid
       if (.not. (valid .or. repair)) return
@@ -1790,7 +1790,7 @@ contains
 #  endif
 #endif
 
-      call process_horizontal_slice(self%get_surface_sources_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_) 
+      call process_horizontal_slice(self%get_surface_sources_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
       ! Compose surface fluxes for each interior state variable, combining model-specific contributions.
       flux_pel = 0.0_rke
@@ -1828,7 +1828,7 @@ contains
 #  endif
 #endif
 
-      call process_horizontal_slice(self%get_bottom_sources_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_) 
+      call process_horizontal_slice(self%get_bottom_sources_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
       ! Compose bottom fluxes for each interior state variable, combining model-specific contributions.
       do i = 1, size(self%get_bottom_sources_job%arg1_sources)

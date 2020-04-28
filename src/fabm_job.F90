@@ -1254,7 +1254,7 @@ contains
       if (allocated(self%arg2_sources)) then
          _ASSERT_(all(self%arg2_sources > 0), 'job_process_indices', 'BUG: one or  more source indices for argument 2 of job ' // trim(self%name) // ' are invalid.')
       end if
-      
+
       task => self%first_task
       do while (associated(task))
          call task_process_indices(task, unfulfilled_dependencies)
@@ -1426,7 +1426,7 @@ contains
             call add_to_order(node%p)
             node => node%next
          end do
-      
+
          ! Append to list
          if (associated(first_ordered)) then
             node => first_ordered

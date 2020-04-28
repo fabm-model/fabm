@@ -99,7 +99,7 @@ contains
       do while (associated(schedule))
          select case (schedule%pattern)
          case (schedule_pattern_monthly)
-            active = month > schedule%last_month .or. year > schedule%last_year 
+            active = month > schedule%last_month .or. year > schedule%last_year
          end select
          if (active) then
             schedule%last_year  = year

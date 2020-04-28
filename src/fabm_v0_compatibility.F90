@@ -249,7 +249,7 @@ contains
       class (type_model),                     intent(inout) :: self
       _DECLARE_ARGUMENTS_INTERIOR_IN_
       real(rke) _DIMENSION_EXT_SLICE_PLUS_1_, intent(out)   :: velocity
-      call self%get_vertical_movement(_PREARG_INTERIOR_IN_ velocity)      
+      call self%get_vertical_movement(_PREARG_INTERIOR_IN_ velocity)
    end subroutine
 
    subroutine fabm_get_conserved_quantities(self _POSTARG_INTERIOR_IN_, sums)
@@ -415,12 +415,12 @@ contains
       type (type_bulk_variable_id)          :: id
       id = self%get_interior_variable_id(name)
    end function
-   
+
    function fabm_get_bulk_variable_id_sn(self, standard_variable) result(id)
       class (type_model),                     intent(in) :: self
       type (type_interior_standard_variable), intent(in) :: standard_variable
       type (type_bulk_variable_id)                       :: id
       id = self%get_interior_variable_id(standard_variable)
    end function
-   
+
 end module

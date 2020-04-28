@@ -11,7 +11,7 @@ module fabm_task_order
    private
 
    public find_best_order, type_step, type_graph_subset_node_pointer
-      
+
    type type_graph_subset_node_pointer
       type (type_graph_subset_node),         pointer :: p    => null()
       type (type_graph_subset_node_pointer), pointer :: next => null()
