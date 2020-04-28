@@ -1,0 +1,21 @@
+# https://editorconfig.org
+
+root = true
+
+[*]
+indent_style = space
+indent_size = 3
+trim_trailing_whitespace = true
+
+[*.{f90,F90,h}]
+insert_final_newline = true
+max_line_length = 132
+
+[{*.yaml,CMakeLists.txt}]
+indent_size = 2
+
+[{CMakeLists.txt,*.cmake}]
+indent_size = 2
+
+[*.py]
+indent_size = 4
