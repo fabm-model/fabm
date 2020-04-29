@@ -24,15 +24,15 @@ module akvaplan_antiparasitic
       type (type_bottom_state_variable_id)              :: id_antiparasitic_bot
 
       ! Environmental dependencies
-      type (type_dependency_id)            :: id_T     ! temperature
-      type (type_dependency_id)            :: id_h     ! cell thickness
-      type (type_horizontal_dependency_id) :: id_shear ! bottom shear
+      type (type_dependency_id)        :: id_T     ! temperature
+      type (type_dependency_id)        :: id_h     ! cell thickness
+      type (type_bottom_dependency_id) :: id_shear ! bottom shear
 
       ! Identifiers for diagnostic variables
-      type (type_diagnostic_variable_id)            :: id_degradation_pom_flux, id_degradation_c_flux          ! pelagic degradation flux for pom and treatment (antiparasitic!)
-      type (type_horizontal_diagnostic_variable_id) :: id_resuspension_flux_pom, id_deposition_flux_pom        ! deposition and resuspension fluxes of all pom 
-      type (type_horizontal_diagnostic_variable_id) :: id_resuspension_flux_c, id_deposition_flux_c            ! deposition and resuspension fluxes of antiparasitic treatment 
-      type (type_horizontal_diagnostic_variable_id) :: id_degradation_pom_bot_flux, id_degradation_c_bot_flux  ! sediment degradation fluxes for pom and treatment (antiparasitic!)
+      type (type_diagnostic_variable_id)        :: id_degradation_pom_flux, id_degradation_c_flux          ! pelagic degradation flux for pom and treatment (antiparasitic!)
+      type (type_bottom_diagnostic_variable_id) :: id_resuspension_flux_pom, id_deposition_flux_pom        ! deposition and resuspension fluxes of all pom 
+      type (type_bottom_diagnostic_variable_id) :: id_resuspension_flux_c, id_deposition_flux_c            ! deposition and resuspension fluxes of antiparasitic treatment 
+      type (type_bottom_diagnostic_variable_id) :: id_degradation_pom_bot_flux, id_degradation_c_bot_flux  ! sediment degradation fluxes for pom and treatment (antiparasitic!)
 
       ! Parameters
       real(rk), allocatable :: w(:)
@@ -92,7 +92,7 @@ contains
       call self%get_parameter(self%erate, 'erate', 'g m-2 d-1', 'bed erodibility', default=0.0_rk, scale_factor=1.0_rk/secs_pr_day, minimum=0._rk)
       do i=1,npom
          write (index,'(i0)') i
-         call self%get_parameter(self%tau_bot_crit(i), 'tau_bot_crit'//trim(index), 'Pa', 'critical shear stress for particulate organic matter class  '//trim(index), default=0.0_rk, scale_factor=1.0_rk/secs_pr_day, minimum=0.0_rk)
+         call self%get_parameter(self%tau_bot_crit(i), 'tau_bot_crit'//trim(index), 'Pa', 'critical shear stress for particulate organic matter class '//trim(index), default=0.0_rk, scale_factor=1.0_rk/secs_pr_day, minimum=0.0_rk)
       end do
 
       ! Numerics and debugging
@@ -124,13 +124,13 @@ contains
       call self%register_diagnostic_variable(self%id_degradation_pom_flux, 'pom_degradation', 'g C m-3 s-1', 'degradation of total particulate organic matter in pelagic')
       call self%register_diagnostic_variable(self%id_degradation_c_flux, 'c_degradation', 'g m-3 s-1', 'degradation of total antiparasitic in pelagic')
 
-      call self%register_diagnostic_variable(self%id_resuspension_flux_pom, 'resuspension_flux_pom', 'g C m-2 s-1', 'total organic matter resuspension', source=source_do_bottom)
-      call self%register_diagnostic_variable(self%id_deposition_flux_pom, 'deposition_flux_pom', 'g C m-2 s-1', 'total organic matter deposition', source=source_do_bottom)
-      call self%register_diagnostic_variable(self%id_resuspension_flux_c, 'resuspension_flux_c', 'g m-2 s-1', 'antiparasitic resuspension', source=source_do_bottom)
-      call self%register_diagnostic_variable(self%id_deposition_flux_c, 'deposition_flux_c', 'g m-2 s-1', 'antiparasitic deposition', source=source_do_bottom)
+      call self%register_diagnostic_variable(self%id_resuspension_flux_pom, 'resuspension_flux_pom', 'g C m-2 s-1', 'total organic matter resuspension')
+      call self%register_diagnostic_variable(self%id_deposition_flux_pom, 'deposition_flux_pom', 'g C m-2 s-1', 'total organic matter deposition')
+      call self%register_diagnostic_variable(self%id_resuspension_flux_c, 'resuspension_flux_c', 'g m-2 s-1', 'antiparasitic resuspension')
+      call self%register_diagnostic_variable(self%id_deposition_flux_c, 'deposition_flux_c', 'g m-2 s-1', 'antiparasitic deposition')
 
-      call self%register_diagnostic_variable(self%id_degradation_pom_bot_flux, 'pom_bot_degradation','g C m-2 s-1', 'degradation of total organic matter in sediment', source=source_do_bottom)
-      call self%register_diagnostic_variable(self%id_degradation_c_bot_flux, 'c_bot_degradation','g m-2 s-1', 'degradation of total antiparasitic in sediment', source=source_do_bottom)
+      call self%register_diagnostic_variable(self%id_degradation_pom_bot_flux, 'pom_bot_degradation','g C m-2 s-1', 'degradation of total organic matter in sediment')
+      call self%register_diagnostic_variable(self%id_degradation_c_bot_flux, 'c_bot_degradation','g m-2 s-1', 'degradation of total antiparasitic in sediment')
 
    end subroutine initialize
 
@@ -156,11 +156,11 @@ contains
          k_ads = self%k_ads * f
          k_wat = self%k_w * f
          _GET_(self%id_antiparasitic, c)
-         _SET_ODE_(self%id_antiparasitic, -(frac_ads * k_ads + frac_wat * k_wat) * c)
+         _ADD_SOURCE_(self%id_antiparasitic, -(frac_ads * k_ads + frac_wat * k_wat) * c)
 
          ! Degradation (s-1) for POM
          do i=1,size(self%id_pom)
-            _SET_ODE_(self%id_pom(i), -self%k_pom * pom(i))
+            _ADD_SOURCE_(self%id_pom(i), -self%k_pom * pom(i))
          end do
 
          ! Save diagnostics for total pom and antiparasitic degradation  
@@ -179,18 +179,18 @@ contains
       real(rk) :: h, pom(size(self%id_pom)), pom_bot(size(self%id_pom)), pom_tot, pom_bot_tot, frac_ads, w, c, tau_bot, erosion(size(self%id_pom)), rel_antiparasitic_erosion, T, f, k_ads, c_bot
       real(rk) :: pom_deposition
 
-      _HORIZONTAL_LOOP_BEGIN_
+      _BOTTOM_LOOP_BEGIN_
 
          _GET_(self%id_h, h)
          do i = 1, size(self%id_pom)
             _GET_(self%id_pom(i), pom(i))
-            _GET_HORIZONTAL_(self%id_pom_bot(i), pom_bot(i))
+            _GET_BOTTOM_(self%id_pom_bot(i), pom_bot(i))
          end do
          pom_tot = sum(pom)
          pom_bot_tot = sum(pom_bot)
 
          ! Erosion rate (g m-2 s-1) per POM class
-         _GET_HORIZONTAL_(self%id_shear, tau_bot)
+         _GET_BOTTOM_(self%id_shear, tau_bot)
          erosion = min(pom_bot/self%max_dt, self%erate * (1.0_rk - self%bed_por) * max(tau_bot / self%tau_bot_crit - 1.0_rk, 0.0_rk))
 
          ! Calculate relative erosion for antiparasitic substance.
@@ -203,9 +203,9 @@ contains
          ! Sedimentation, resuspension, degradation per POM class
          do i = 1, size(self%id_pom)
            ! From pelagic to bottom. Convention is negative out of pelagic, positive into water
-            _SET_BOTTOM_EXCHANGE_(self%id_pom(i), -min(h/self%max_dt, self%w(i)) * pom(i) + erosion(i))
+            _ADD_BOTTOM_FLUX_(self%id_pom(i), -min(h/self%max_dt, self%w(i)) * pom(i) + erosion(i))
            ! From bottom to pelagic. Convention is positive into bottom, negative into water. Added degradation of pom_bot
-            _SET_BOTTOM_ODE_(self%id_pom_bot(i), min(h/self%max_dt, self%w(i)) * pom(i) - erosion(i) - self%k_pom * pom_bot(i))
+            _ADD_BOTTOM_SOURCE_(self%id_pom_bot(i), min(h/self%max_dt, self%w(i)) * pom(i) - erosion(i) - self%k_pom * pom_bot(i))
          end do
 
          ! Sinking rate of antiparasitic is weighted average of sinking rate per antiparasitic fraction
@@ -225,32 +225,32 @@ contains
 
          ! Sedimentation and resuspension for antiparasitic
          _GET_(self%id_antiparasitic, c)
-         _GET_HORIZONTAL_(self%id_antiparasitic_bot, c_bot)
-         _SET_BOTTOM_EXCHANGE_(self%id_antiparasitic, -w * c + rel_antiparasitic_erosion * c_bot)
-         _SET_BOTTOM_ODE_(self%id_antiparasitic_bot, w * c - rel_antiparasitic_erosion * c_bot - k_ads * c_bot)
+         _GET_BOTTOM_(self%id_antiparasitic_bot, c_bot)
+         _ADD_BOTTOM_FLUX_(self%id_antiparasitic, -w * c + rel_antiparasitic_erosion * c_bot)
+         _ADD_BOTTOM_SOURCE_(self%id_antiparasitic_bot, w * c - rel_antiparasitic_erosion * c_bot - k_ads * c_bot)
 
          ! Save diagnostic total pom bottom degradation  
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_degradation_pom_bot_flux, self%k_pom * pom_bot_tot) 
+         _SET_BOTTOM_DIAGNOSTIC_(self%id_degradation_pom_bot_flux, self%k_pom * pom_bot_tot) 
          ! Save diagnostic antiparasitic bottom degradation  
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_degradation_c_bot_flux, k_ads * c_bot ) 
+         _SET_BOTTOM_DIAGNOSTIC_(self%id_degradation_c_bot_flux, k_ads * c_bot ) 
 
          ! Save diagnostic total pom bottom deposition
          pom_deposition = 0.0_rk
          do i = 1, size(self%id_pom)
             pom_deposition = pom_deposition + min(h/self%max_dt, self%w(i)) * pom(i) 
          end do
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_deposition_flux_pom, pom_deposition)
+         _SET_BOTTOM_DIAGNOSTIC_(self%id_deposition_flux_pom, pom_deposition)
 
          ! Save diagnostic total pom bottom resuspension
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_resuspension_flux_pom, sum(erosion))
+         _SET_BOTTOM_DIAGNOSTIC_(self%id_resuspension_flux_pom, sum(erosion))
 
          ! Save diagnostic antiparasitic bottom deposition  
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_deposition_flux_c, w * c )
+         _SET_BOTTOM_DIAGNOSTIC_(self%id_deposition_flux_c, w * c )
 
          ! Save diagnostic antiparasitic bottom resuspension  
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_resuspension_flux_c, rel_antiparasitic_erosion * c_bot) 
+         _SET_BOTTOM_DIAGNOSTIC_(self%id_resuspension_flux_c, rel_antiparasitic_erosion * c_bot) 
 
-       _HORIZONTAL_LOOP_END_
+       _BOTTOM_LOOP_END_
 
    end subroutine do_bottom
 
@@ -276,7 +276,7 @@ contains
          else
             w = 0
          end if
-         _SET_VERTICAL_MOVEMENT_(self%id_antiparasitic, -w)
+         _ADD_VERTICAL_VELOCITY_(self%id_antiparasitic, -w)
 
       _LOOP_END_
 
