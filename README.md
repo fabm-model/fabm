@@ -2,9 +2,12 @@
 
 FABM is a Fortran 2003 programming framework for biogeochemical models of marine and freshwater systems.
 
-Documentation and source code is available [online](http://fabm.net).
+Documentation is available at [the FABM wiki](http://fabm.net/wiki).
 
-Stable releases of the code are published on Zenodo:
+The latest code is available from [FABM's git repository](http://fabm.net/code).
+Stable releases are published with DOI on Zenodo.
+The latest stable version is:
+
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3774497.svg)](https://doi.org/10.5281/zenodo.3774497)
 
 FABM is further described in:
