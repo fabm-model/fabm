@@ -144,12 +144,16 @@ module fabm
 
    type type_fabm_model
       ! Variable metadata
-      type (type_fabm_state_variable),                 allocatable, dimension(:) :: state_variables
+      type (type_fabm_state_variable),                 allocatable, dimension(:) :: interior_state_variables
       type (type_fabm_horizontal_state_variable),      allocatable, dimension(:) :: surface_state_variables
       type (type_fabm_horizontal_state_variable),      allocatable, dimension(:) :: bottom_state_variables
-      type (type_fabm_diagnostic_variable),            allocatable, dimension(:) :: diagnostic_variables
+      type (type_fabm_diagnostic_variable),            allocatable, dimension(:) :: interior_diagnostic_variables
       type (type_fabm_horizontal_diagnostic_variable), allocatable, dimension(:) :: horizontal_diagnostic_variables
       type (type_fabm_conserved_quantity),             allocatable, dimension(:) :: conserved_quantities
+
+      ! Short names for interior state/diagnostic variables
+      type (type_fabm_state_variable),                 pointer, dimension(:) :: state_variables      => null()
+      type (type_fabm_diagnostic_variable),            pointer, dimension(:) :: diagnostic_variables => null()
 
       ! Names of variables taken as input by one or more biogeochemical models.
       ! These may be accessed by the host to enumerate potential forcing variables.
@@ -454,8 +458,8 @@ contains
       call require_call_all_with_state(self%check_surface_state_job, self%root%links, domain_surface, source_check_surface_state)
       call require_call_all_with_state(self%check_surface_state_job, self%root%links, domain_interior, source_check_surface_state)
 
-      do ivar = 1, size(self%state_variables)
-         call self%check_interior_state_job%read_cache_loads%add(self%state_variables(ivar)%target)
+      do ivar = 1, size(self%interior_state_variables)
+         call self%check_interior_state_job%read_cache_loads%add(self%interior_state_variables(ivar)%target)
       end do
       do ivar = 1, size(self%bottom_state_variables)
          call self%check_bottom_state_job%read_cache_loads%add(self%bottom_state_variables(ivar)%target)
@@ -688,15 +692,15 @@ contains
 
       ! Create job that ensures all diagnostics required by the user are computed.
       ! This is done only now because the user/host had till this moment to change the "save" flag of each diagnostic.
-      do ivar = 1, size(self%diagnostic_variables)
-         if (self%diagnostic_variables(ivar)%save) then
-            select case (self%diagnostic_variables(ivar)%target%source)
+      do ivar = 1, size(self%interior_diagnostic_variables)
+         if (self%interior_diagnostic_variables(ivar)%save) then
+            select case (self%interior_diagnostic_variables(ivar)%target%source)
             case (source_check_state)
-               call self%check_interior_state_job%request_variable(self%diagnostic_variables(ivar)%target, store=.true.)
+               call self%check_interior_state_job%request_variable(self%interior_diagnostic_variables(ivar)%target, store=.true.)
             case (source_get_vertical_movement)
-               call self%get_vertical_movement_job%request_variable(self%diagnostic_variables(ivar)%target, store=.true.)
+               call self%get_vertical_movement_job%request_variable(self%interior_diagnostic_variables(ivar)%target, store=.true.)
             case default
-               call self%finalize_outputs_job%request_variable(self%diagnostic_variables(ivar)%target, store=.true.)
+               call self%finalize_outputs_job%request_variable(self%interior_diagnostic_variables(ivar)%target, store=.true.)
             end select
          end if
       end do
@@ -1231,7 +1235,7 @@ contains
       integer,                               intent(in)    :: index
       real(rke) _ATTRIBUTES_GLOBAL_, target, intent(in)    :: dat
 
-      call link_interior_data_by_variable(self, self%state_variables(index)%target, dat, source=data_source_fabm)
+      call link_interior_data_by_variable(self, self%interior_state_variables(index)%target, dat, source=data_source_fabm)
    end subroutine link_interior_state_data
 
    subroutine link_bottom_state_data(self, index, dat)
@@ -1257,10 +1261,10 @@ contains
       integer :: i
 
 #ifndef NDEBUG
-      if (size(dat, _FABM_DIMENSION_COUNT_ + 1) /= size(self%state_variables)) &
+      if (size(dat, _FABM_DIMENSION_COUNT_ + 1) /= size(self%interior_state_variables)) &
          call fatal_error('link_all_interior_state_data', 'size of last dimension of provided array must match number of interior state variables.')
 #endif
-      do i = 1, size(self%state_variables)
+      do i = 1, size(self%interior_state_variables)
          call link_interior_state_data(self, i, dat(_PREARG_LOCATION_DIMENSIONS_ i))
       end do
    end subroutine link_all_interior_state_data
@@ -1302,8 +1306,8 @@ contains
 
       _ASSERT_(self%status >= status_start_done, 'get_interior_diagnostic_data', 'This routine can only be called after model start.')
       dat => null()
-      if (self%diagnostic_variables(index)%target%catalog_index /= -1) &
-         dat => self%catalog%interior(self%diagnostic_variables(index)%target%catalog_index)%p
+      if (self%interior_diagnostic_variables(index)%target%catalog_index /= -1) &
+         dat => self%catalog%interior(self%interior_diagnostic_variables(index)%target%catalog_index)%p
    end function get_interior_diagnostic_data
 
    function get_horizontal_diagnostic_data(self, index) result(dat)
@@ -1364,10 +1368,10 @@ contains
       call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%initialize_interior_state_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
 
       ! Default initialization for interior state variables
-      do ivar = 1, size(self%state_variables)
-         read_index = self%state_variables(ivar)%target%read_indices%value
+      do ivar = 1, size(self%interior_state_variables)
+         read_index = self%interior_state_variables(ivar)%target%read_indices%value
          _CONCURRENT_LOOP_BEGIN_EX_(self%cache_int)
-            self%cache_int%read _INDEX_SLICE_PLUS_1_(read_index) = self%state_variables(ivar)%initial_value
+            self%cache_int%read _INDEX_SLICE_PLUS_1_(read_index) = self%interior_state_variables(ivar)%initial_value
          _LOOP_END_
       end do
 
@@ -1377,10 +1381,10 @@ contains
       end do
 
       ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
-      do ivar = 1, size(self%state_variables)
-         read_index = self%state_variables(ivar)%target%read_indices%value
+      do ivar = 1, size(self%interior_state_variables)
+         read_index = self%interior_state_variables(ivar)%target%read_indices%value
          if (self%catalog%interior_sources(read_index) == data_source_fabm) then
-            _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p, self%cache_int, self%state_variables(ivar)%missing_value)
+            _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p, self%cache_int, self%interior_state_variables(ivar)%missing_value)
          end if
       end do
 
@@ -1472,9 +1476,9 @@ contains
 #ifndef NDEBUG
       call check_interior_location(self%domain%shape _POSTARG_INTERIOR_IN_, 'get_interior_sources_rhs')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      call check_extents_2d(dy, _STOP_ - _START_ + 1, size(self%state_variables), 'get_interior_sources_rhs', 'dy', 'stop-start+1, # interior state variables')
+      call check_extents_2d(dy, _STOP_ - _START_ + 1, size(self%interior_state_variables), 'get_interior_sources_rhs', 'dy', 'stop-start+1, # interior state variables')
 #  else
-      call check_extents_1d(dy, size(self%state_variables), 'get_interior_sources_rhs', 'dy', '# interior state variables')
+      call check_extents_1d(dy, size(self%interior_state_variables), 'get_interior_sources_rhs', 'dy', '# interior state variables')
 #  endif
 #endif
 
@@ -1498,11 +1502,11 @@ contains
 #ifndef NDEBUG
       call check_interior_location(self%domain%shape _POSTARG_INTERIOR_IN_, 'get_interior_sources_ppdd')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      call check_extents_3d(pp, _STOP_ - _START_ + 1, size(self%state_variables), size(self%state_variables), 'get_interior_sources_ppdd', 'pp', 'stop-start+1, # interior state variables, # interior state variables')
-      call check_extents_3d(dd, _STOP_ - _START_ + 1, size(self%state_variables), size(self%state_variables), 'get_interior_sources_ppdd', 'dd', 'stop-start+1, # interior state variables, # interior state variables')
+      call check_extents_3d(pp, _STOP_ - _START_ + 1, size(self%interior_state_variables), size(self%interior_state_variables), 'get_interior_sources_ppdd', 'pp', 'stop-start+1, # interior state variables, # interior state variables')
+      call check_extents_3d(dd, _STOP_ - _START_ + 1, size(self%interior_state_variables), size(self%interior_state_variables), 'get_interior_sources_ppdd', 'dd', 'stop-start+1, # interior state variables, # interior state variables')
 #  else
-      call check_extents_2d(pp, size(self%state_variables), size(self%state_variables), 'get_interior_sources_ppdd', 'pp', '# interior state variables, # interior state variables')
-      call check_extents_2d(dd, size(self%state_variables), size(self%state_variables), 'get_interior_sources_ppdd', 'dd', '# interior state variables, # interior state variables')
+      call check_extents_2d(pp, size(self%interior_state_variables), size(self%interior_state_variables), 'get_interior_sources_ppdd', 'pp', '# interior state variables, # interior state variables')
+      call check_extents_2d(dd, size(self%interior_state_variables), size(self%interior_state_variables), 'get_interior_sources_ppdd', 'dd', '# interior state variables, # interior state variables')
 #  endif
 #endif
 
@@ -1554,10 +1558,10 @@ contains
       ! This is always done, independently of any model-specific checks that may have been called above.
 
       ! Quick bounds check for the common case where all values are valid.
-      do ivar = 1, size(self%state_variables)
-         read_index = self%state_variables(ivar)%target%read_indices%value
-         minimum = self%state_variables(ivar)%target%minimum
-         maximum = self%state_variables(ivar)%target%maximum
+      do ivar = 1, size(self%interior_state_variables)
+         read_index = self%interior_state_variables(ivar)%target%read_indices%value
+         minimum = self%interior_state_variables(ivar)%target%minimum
+         maximum = self%interior_state_variables(ivar)%target%maximum
          _LOOP_BEGIN_EX_(self%cache_int)
             value = self%cache_int%read _INDEX_SLICE_PLUS_1_(read_index)
             if (value < minimum .or. value > maximum) valid = .false.
@@ -1567,11 +1571,11 @@ contains
       if (.not. valid) then
          ! Check boundaries for pelagic state variables specified by the models.
          ! If repair is permitted, this clips invalid values to the closest boundary.
-         do ivar = 1, size(self%state_variables)
+         do ivar = 1, size(self%interior_state_variables)
             ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
-            read_index = self%state_variables(ivar)%target%read_indices%value
-            minimum = self%state_variables(ivar)%target%minimum
-            maximum = self%state_variables(ivar)%target%maximum
+            read_index = self%interior_state_variables(ivar)%target%read_indices%value
+            minimum = self%interior_state_variables(ivar)%target%minimum
+            maximum = self%interior_state_variables(ivar)%target%maximum
 
             if (repair) then
                _CONCURRENT_LOOP_BEGIN_EX_(self%cache_int)
@@ -1583,13 +1587,13 @@ contains
                   value = self%cache_int%read _INDEX_SLICE_PLUS_1_(read_index)
                   if (value < minimum) then
                      ! State variable value lies below prescribed minimum.
-                     write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%state_variables(ivar)%name), &
+                     write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%interior_state_variables(ivar)%name), &
                                                                 & ' below minimum value ',minimum
                      call log_message(err)
                      return
                   elseif (value > maximum) then
                      ! State variable value exceeds prescribed maximum.
-                     write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%state_variables(ivar)%name), &
+                     write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ',trim(self%interior_state_variables(ivar)%name), &
                                                                 & ' above maximum value ',maximum
                      call log_message(err)
                      return
@@ -1600,10 +1604,10 @@ contains
       end if
 
       if (self%cache_int%set_interior .or. .not. valid) then
-         do ivar = 1, size(self%state_variables)
-            read_index = self%state_variables(ivar)%target%read_indices%value
+         do ivar = 1, size(self%interior_state_variables)
+            read_index = self%interior_state_variables(ivar)%target%read_indices%value
             if (self%catalog%interior_sources(read_index) == data_source_fabm) then
-               _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p, self%cache_int, self%state_variables(ivar)%missing_value)
+               _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p, self%cache_int, self%interior_state_variables(ivar)%missing_value)
             end if
          end do
       end if
@@ -1730,8 +1734,8 @@ contains
          end if
 #endif
 
-         do ivar = 1, size(self%state_variables)
-            read_index = self%state_variables(ivar)%target%read_indices%value
+         do ivar = 1, size(self%interior_state_variables)
+            read_index = self%interior_state_variables(ivar)%target%read_indices%value
             if (self%catalog%interior_sources(read_index) == data_source_fabm) then
 #if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
                if (flag == 1) then
@@ -1739,16 +1743,16 @@ contains
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
-                  self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(self%cache_hz%ipack(1:self%cache_hz%n)) = self%cache_hz%read(1:self%cache_hz%n, read_index)
+                  self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(self%cache_hz%ipack(1:self%cache_hz%n)) = self%cache_hz%read(1:self%cache_hz%n, read_index)
 #  else
                   _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
-                     self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
+                     self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
                   _HORIZONTAL_LOOP_END_
 #  endif
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-                  self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_LOCATION_ = self%cache_hz%read(1,read_index)
+                  self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p _INDEX_LOCATION_ = self%cache_hz%read(1,read_index)
 #else
-                  self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_LOCATION_ = self%cache_hz%read(read_index)
+                  self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p _INDEX_LOCATION_ = self%cache_hz%read(read_index)
 #endif
 
 #if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
@@ -1757,10 +1761,10 @@ contains
                   _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
 #  ifdef _HAS_MASK_
                      _VERTICAL_ITERATOR_ = self%domain%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(self%cache_hz%ipack(_J_))
-                     self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(self%cache_hz%ipack(_J_)) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
+                     self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(self%cache_hz%ipack(_J_)) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
 #  else
                      _VERTICAL_ITERATOR_ = self%domain%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
-                     self%catalog%interior(self%state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
+                     self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
 #  endif
                   _HORIZONTAL_LOOP_END_
                end if
@@ -1782,10 +1786,10 @@ contains
 #ifndef NDEBUG
       call check_horizontal_location(self%domain%shape _POSTARG_HORIZONTAL_IN_, 'get_surface_sources')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
-      call check_extents_2d(flux_pel, _STOP_ - _START_ + 1, size(self%state_variables), 'get_surface_sources', 'flux_pel', 'stop-start+1, # interior state variables')
+      call check_extents_2d(flux_pel, _STOP_ - _START_ + 1, size(self%interior_state_variables), 'get_surface_sources', 'flux_pel', 'stop-start+1, # interior state variables')
       if (present(flux_sf)) call check_extents_2d(flux_sf, _STOP_ - _START_ + 1, size(self%surface_state_variables), 'get_surface_sources', 'flux_sf', 'stop-start+1, # surface state variables')
 #  else
-      call check_extents_1d(flux_pel, size(self%state_variables), 'get_surface_sources', 'flux_pel', '# interior state variables')
+      call check_extents_1d(flux_pel, size(self%interior_state_variables), 'get_surface_sources', 'flux_pel', '# interior state variables')
       if (present(flux_sf)) call check_extents_1d(flux_sf, size(self%surface_state_variables), 'get_surface_sources', 'flux_sf', '# surface state variables')
 #  endif
 #endif
@@ -1820,10 +1824,10 @@ contains
 #ifndef NDEBUG
       call check_horizontal_location(self%domain%shape _POSTARG_HORIZONTAL_IN_, 'get_bottom_sources_rhs')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
-      call check_extents_2d(flux_pel, _STOP_ - _START_ + 1, size(self%state_variables), 'get_bottom_sources_rhs', 'flux_pel', 'stop-start+1, # interior state variables')
+      call check_extents_2d(flux_pel, _STOP_ - _START_ + 1, size(self%interior_state_variables), 'get_bottom_sources_rhs', 'flux_pel', 'stop-start+1, # interior state variables')
       call check_extents_2d(flux_ben, _STOP_ - _START_ + 1, size(self%bottom_state_variables), 'get_bottom_sources_rhs', 'flux_ben', 'stop-start+1, # bottom state variables')
 #  else
-      call check_extents_1d(flux_pel, size(self%state_variables), 'get_bottom_sources_rhs', 'flux_pel', '# interior state variables')
+      call check_extents_1d(flux_pel, size(self%interior_state_variables), 'get_bottom_sources_rhs', 'flux_pel', '# interior state variables')
       call check_extents_1d(flux_ben, size(self%bottom_state_variables), 'get_bottom_sources_rhs', 'flux_ben', '# bottom state variables')
 #  endif
 #endif
@@ -1887,9 +1891,9 @@ contains
 #ifndef NDEBUG
       call check_interior_location(self%domain%shape _POSTARG_INTERIOR_IN_, 'get_vertical_movement')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      call check_extents_2d(velocity, _STOP_ - _START_ + 1, size(self%state_variables), 'get_vertical_movement', 'velocity', 'stop-start+1, # interior state variables')
+      call check_extents_2d(velocity, _STOP_ - _START_ + 1, size(self%interior_state_variables), 'get_vertical_movement', 'velocity', 'stop-start+1, # interior state variables')
 #  else
-      call check_extents_1d(velocity, size(self%state_variables), 'get_vertical_movement', 'velocity', '# interior state variables')
+      call check_extents_1d(velocity, size(self%interior_state_variables), 'get_vertical_movement', 'velocity', '# interior state variables')
 #  endif
 #endif
 
@@ -2315,11 +2319,15 @@ contains
       end do
 
       ! Allocate arrays with variable information that will be accessed by the host model.
-      allocate(self%state_variables                (nstate))
+      allocate(self%interior_state_variables       (nstate))
       allocate(self%bottom_state_variables         (nstate_bot))
       allocate(self%surface_state_variables        (nstate_surf))
-      allocate(self%diagnostic_variables           (ndiag))
+      allocate(self%interior_diagnostic_variables  (ndiag))
       allocate(self%horizontal_diagnostic_variables(ndiag_hz))
+
+      ! Short names for interior variables
+      self%state_variables => self%interior_state_variables
+      self%diagnostic_variables => self%interior_diagnostic_variables
 
       allocate(self%get_interior_sources_job%arg1_sources(nstate))
       allocate(self%get_surface_sources_job%arg1_sources(nstate), self%get_surface_sources_job%arg2_sources(nstate_surf))
@@ -2342,7 +2350,7 @@ contains
             case (source_state)     ! Interior state variable
                if (object%presence == presence_internal) then
                   nstate = nstate + 1
-                  statevar => self%state_variables(nstate)
+                  statevar => self%interior_state_variables(nstate)
                   call copy_variable_metadata(object, statevar)
                   if (associated(object%standard_variables%first)) then
                      select type (standard_variable => object%standard_variables%first%p)
@@ -2360,7 +2368,7 @@ contains
                end if
             case default            ! Interior diagnostic variable
                ndiag = ndiag + 1
-               diagvar => self%diagnostic_variables(ndiag)
+               diagvar => self%interior_diagnostic_variables(ndiag)
                call copy_variable_metadata(object, diagvar)
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable => object%standard_variables%first%p)
@@ -2536,9 +2544,9 @@ contains
 
       ! Add all state variables to the catalog and read cache in the order the host is likely to
       ! have them in memory. This hopefully speeds up access (cache hits).
-      do i = 1, size(self%state_variables)
-         call self%variable_register%add_to_catalog(self%state_variables(i)%target)
-         call self%variable_register%add_to_read_cache(self%state_variables(i)%target)
+      do i = 1, size(self%interior_state_variables)
+         call self%variable_register%add_to_catalog(self%interior_state_variables(i)%target)
+         call self%variable_register%add_to_read_cache(self%interior_state_variables(i)%target)
       end do
       do i = 1, size(self%bottom_state_variables)
          call self%variable_register%add_to_catalog(self%bottom_state_variables(i)%target)

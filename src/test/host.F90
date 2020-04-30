@@ -352,7 +352,7 @@ program test_host
    call report_test_result()
 #endif
 
-   allocate(interior_state(_PREARG_LOCATION_ size(model%state_variables)))
+   allocate(interior_state(_PREARG_LOCATION_ size(model%interior_state_variables)))
    allocate(surface_state(_PREARG_HORIZONTAL_LOCATION_ size(model%surface_state_variables)))
    allocate(bottom_state(_PREARG_HORIZONTAL_LOCATION_ size(model%bottom_state_variables)))
 
@@ -361,7 +361,7 @@ program test_host
    ! ======================================================================
 
    call start_test('link_interior_state_data')
-   do ivar = 1, size(model%state_variables)
+   do ivar = 1, size(model%interior_state_variables)
       call model%link_interior_state_data(ivar, interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar))
    end do
    call report_test_result()
@@ -410,19 +410,19 @@ program test_host
    call report_test_result()
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-   allocate(dy(_START_:_STOP_, size(model%state_variables)))
-   allocate(w(_START_:_STOP_, size(model%state_variables)))
+   allocate(dy(_START_:_STOP_, size(model%interior_state_variables)))
+   allocate(w(_START_:_STOP_, size(model%interior_state_variables)))
 #else
-   allocate(dy(size(model%state_variables)))
-   allocate(w(size(model%state_variables)))
+   allocate(dy(size(model%interior_state_variables)))
+   allocate(w(size(model%interior_state_variables)))
 #endif
 
 #if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&(_FABM_DEPTH_DIMENSION_INDEX_!=_FABM_VECTORIZED_DIMENSION_INDEX_)
-   allocate(flux(_START_:_STOP_, size(model%state_variables)))
+   allocate(flux(_START_:_STOP_, size(model%interior_state_variables)))
    allocate(sms_sf(_START_:_STOP_, size(model%surface_state_variables)))
    allocate(sms_bt(_START_:_STOP_, size(model%bottom_state_variables)))
 #else
-   allocate(flux(size(model%state_variables)))
+   allocate(flux(size(model%interior_state_variables)))
    allocate(sms_sf(size(model%surface_state_variables)))
    allocate(sms_bt(size(model%bottom_state_variables)))
 #endif
@@ -691,9 +691,9 @@ contains
       _BEGIN_OUTER_INTERIOR_LOOP_
          call model%initialize_interior_state(_ARG_INTERIOR_IN_)
       _END_OUTER_INTERIOR_LOOP_
-      do ivar = 1, size(model%state_variables)
+      do ivar = 1, size(model%interior_state_variables)
          call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), &
-            model%state_variables(ivar)%missing_value, ivar+interior_state_offset+1._rke)
+            model%interior_state_variables(ivar)%missing_value, ivar+interior_state_offset+1._rke)
       end do
       call report_test_result()
 
@@ -758,9 +758,9 @@ contains
 #endif
       call apply_mask_3d(depth, -999._rke - interior_dependency_offset)
 
-      do ivar = 1, size(model%state_variables)
+      do ivar = 1, size(model%interior_state_variables)
          interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar) = ivar+interior_state_offset
-         call apply_mask_3d(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar),model%state_variables(ivar)%missing_value)
+         call apply_mask_3d(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar),model%interior_state_variables(ivar)%missing_value)
       end do
       do ivar = 1, size(model%surface_state_variables)
          surface_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar) = ivar+surface_state_offset
@@ -796,18 +796,18 @@ contains
 #else
          call model%get_interior_sources(_PREARG_INTERIOR_IN_ dy)
 #endif
-         do ivar = 1, size(model%state_variables)
+         do ivar = 1, size(model%interior_state_variables)
             call check_interior_slice_plus_1(dy, ivar, 0.0_rke, -real(ivar + interior_state_offset, rke) _POSTARG_INTERIOR_IN_)
          end do
       _END_OUTER_INTERIOR_LOOP_
       call assert(interior_loop_count == interior_count, 'get_interior_sources', &
          'call count does not match number of (unmasked) interior points')
 
-      do ivar = 1, size(model%diagnostic_variables)
-         if (model%diagnostic_variables(ivar)%save .and. model%diagnostic_variables(ivar)%target%source == source_do) then
+      do ivar = 1, size(model%interior_diagnostic_variables)
+         if (model%interior_diagnostic_variables(ivar)%save .and. model%interior_diagnostic_variables(ivar)%target%source == source_do) then
             pdata => model%get_interior_diagnostic_data(ivar)
-            call check_interior(pdata, model%diagnostic_variables(ivar)%missing_value, &
-               -model%diagnostic_variables(ivar)%missing_value)
+            call check_interior(pdata, model%interior_diagnostic_variables(ivar)%missing_value, &
+               -model%interior_diagnostic_variables(ivar)%missing_value)
          end if
       end do
 
@@ -836,7 +836,7 @@ contains
          flux = 0
          sms_sf = 0
          call model%get_surface_sources(_PREARG_HORIZONTAL_IN_ flux, sms_sf)
-         do ivar = 1, size(model%state_variables)
+         do ivar = 1, size(model%interior_state_variables)
             call check_horizontal_slice_plus_1(flux, ivar, 0.0_rke, -real(ivar + interior_state_offset, rke) _POSTARG_HORIZONTAL_IN_)
          end do
          do ivar = 1, size(model%surface_state_variables)
@@ -883,7 +883,7 @@ contains
          flux = 0
          sms_bt = 0
          call model%get_bottom_sources(_PREARG_HORIZONTAL_IN_ flux, sms_bt)
-         do ivar = 1, size(model%state_variables)
+         do ivar = 1, size(model%interior_state_variables)
             call check_horizontal_slice_plus_1(flux, ivar, 0.0_rke, -real(ivar + interior_state_offset, rke) _POSTARG_HORIZONTAL_IN_)
          end do
          do ivar = 1, size(model%bottom_state_variables)
@@ -917,11 +917,11 @@ contains
       call assert(column_loop_count == interior_count, 'finalize_outputs', &
          'call count does not match number of (unmasked) interior points')
 
-      do ivar = 1, size(model%diagnostic_variables)
-         if (model%diagnostic_variables(ivar)%save .and. model%diagnostic_variables(ivar)%target%source == source_do_column) then
+      do ivar = 1, size(model%interior_diagnostic_variables)
+         if (model%interior_diagnostic_variables(ivar)%save .and. model%interior_diagnostic_variables(ivar)%target%source == source_do_column) then
             pdata => model%get_interior_diagnostic_data(ivar)
-            call check_interior(pdata, model%diagnostic_variables(ivar)%missing_value, &
-               -model%diagnostic_variables(ivar)%missing_value)
+            call check_interior(pdata, model%interior_diagnostic_variables(ivar)%missing_value, &
+               -model%interior_diagnostic_variables(ivar)%missing_value)
          end if
       end do
 
@@ -950,7 +950,7 @@ contains
 #else
          call model%get_vertical_movement(_PREARG_INTERIOR_IN_ w)
 #endif
-         do ivar = 1, size(model%state_variables)
+         do ivar = 1, size(model%interior_state_variables)
             if (mod(ivar, 2) == 0) then
                call check_interior_slice_plus_1(w, ivar, 0.0_rke, real(ivar + interior_state_offset, rke) &
                   _POSTARG_INTERIOR_IN_)
@@ -994,9 +994,9 @@ contains
       ! ======================================================================
 
       ! Now destroy the state by setting all values to below the minimum
-      do ivar = 1, size(model%state_variables)
-        interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar) = model%state_variables(ivar)%minimum - abs(model%state_variables(ivar)%minimum) - 1
-        call apply_mask_3d(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value)
+      do ivar = 1, size(model%interior_state_variables)
+        interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar) = model%interior_state_variables(ivar)%minimum - abs(model%interior_state_variables(ivar)%minimum) - 1
+        call apply_mask_3d(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%interior_state_variables(ivar)%missing_value)
       end do
       do ivar = 1, size(model%bottom_state_variables)
         bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar) = model%bottom_state_variables(ivar)%minimum - abs(model%bottom_state_variables(ivar)%minimum) - 1
@@ -1020,9 +1020,9 @@ contains
          call assert(.not. valid, 'check_interior_state', 'invalid result')
 #endif
       _END_OUTER_INTERIOR_LOOP_
-      do ivar = 1, size(model%state_variables)
+      do ivar = 1, size(model%interior_state_variables)
          call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), &
-            model%state_variables(ivar)%missing_value, model%state_variables(ivar)%minimum)
+            model%interior_state_variables(ivar)%missing_value, model%interior_state_variables(ivar)%minimum)
       end do
       call report_test_result()
 
@@ -1061,9 +1061,9 @@ contains
       ! ======================================================================
 
       ! Now destroy the state by setting all values to above the maximum
-      do ivar = 1, size(model%state_variables)
-        interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar) = model%state_variables(ivar)%maximum + abs(model%state_variables(ivar)%maximum) + 1
-        call apply_mask_3d(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%state_variables(ivar)%missing_value)
+      do ivar = 1, size(model%interior_state_variables)
+        interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar) = model%interior_state_variables(ivar)%maximum + abs(model%interior_state_variables(ivar)%maximum) + 1
+        call apply_mask_3d(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), model%interior_state_variables(ivar)%missing_value)
       end do
       do ivar = 1, size(model%bottom_state_variables)
         bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar) = model%bottom_state_variables(ivar)%maximum + abs(model%bottom_state_variables(ivar)%maximum) + 1
@@ -1087,9 +1087,9 @@ contains
          call assert(.not. valid, 'check_interior_state', 'invalid result')
 #endif
       _END_OUTER_INTERIOR_LOOP_
-      do ivar = 1, size(model%state_variables)
+      do ivar = 1, size(model%interior_state_variables)
          call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), &
-            model%state_variables(ivar)%missing_value, model%state_variables(ivar)%maximum)
+            model%interior_state_variables(ivar)%missing_value, model%interior_state_variables(ivar)%maximum)
       end do
       call report_test_result()
 
