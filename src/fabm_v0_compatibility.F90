@@ -41,6 +41,10 @@ module fabm_v0_compatibility
 #endif
 
    type, extends(type_fabm_model) :: type_model
+      ! Short names for interior state/diagnostic variables
+      type (type_fabm_interior_state_variable),      pointer, dimension(:) :: state_variables      => null()
+      type (type_fabm_interior_diagnostic_variable), pointer, dimension(:) :: diagnostic_variables => null()
+
       type (type_job) :: get_light_extinction_job
       type (type_job) :: get_albedo_job
       type (type_job) :: get_drag_job
@@ -118,6 +122,10 @@ contains
       call self%get_light_extinction_job%request_variable(self%extinction_id%variable)
       call self%get_albedo_job%request_variable(self%albedo_id%variable)
       call self%get_drag_job%request_variable(self%surface_drag_id%variable)
+
+      ! Short names for interior variables
+      self%state_variables => self%interior_state_variables
+      self%diagnostic_variables => self%interior_diagnostic_variables
    end subroutine
 
    subroutine fabm_finalize(self)

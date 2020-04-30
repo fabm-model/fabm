@@ -48,7 +48,8 @@ module fabm
    public type_fabm_interior_variable_id
    public type_fabm_horizontal_variable_id
    public type_fabm_scalar_variable_id
-   public type_fabm_variable, type_fabm_horizontal_state_variable
+   public type_fabm_variable, type_fabm_interior_state_variable, type_fabm_horizontal_state_variable, &
+      type_fabm_interior_diagnostic_variable, type_fabm_horizontal_diagnostic_variable
 
    ! Object with all supported standard variables as its members.
    ! Imported from fabm_types, and made available so hosts only need to "use fabm"
@@ -103,7 +104,7 @@ module fabm
    end type
 
    ! Derived type for interior state variable metadata
-   type, extends(type_fabm_variable) :: type_fabm_state_variable
+   type, extends(type_fabm_variable) :: type_fabm_interior_state_variable
       class (type_interior_standard_variable), pointer :: standard_variable => null()
       real(rke)                                        :: initial_value             = 0.0_rke
       logical                                          :: no_precipitation_dilution = .false.
@@ -117,7 +118,7 @@ module fabm
    end type
 
    ! Derived type for interior diagnostic variable metadata
-   type, extends(type_fabm_variable) :: type_fabm_diagnostic_variable
+   type, extends(type_fabm_variable) :: type_fabm_interior_diagnostic_variable
       class (type_interior_standard_variable), pointer :: standard_variable => null()
       logical                                          :: save = .false.
       integer                                          :: source
@@ -144,16 +145,12 @@ module fabm
 
    type type_fabm_model
       ! Variable metadata
-      type (type_fabm_state_variable),                 allocatable, dimension(:) :: interior_state_variables
+      type (type_fabm_interior_state_variable),        allocatable, dimension(:) :: interior_state_variables
       type (type_fabm_horizontal_state_variable),      allocatable, dimension(:) :: surface_state_variables
       type (type_fabm_horizontal_state_variable),      allocatable, dimension(:) :: bottom_state_variables
-      type (type_fabm_diagnostic_variable),            allocatable, dimension(:) :: interior_diagnostic_variables
+      type (type_fabm_interior_diagnostic_variable),   allocatable, dimension(:) :: interior_diagnostic_variables
       type (type_fabm_horizontal_diagnostic_variable), allocatable, dimension(:) :: horizontal_diagnostic_variables
       type (type_fabm_conserved_quantity),             allocatable, dimension(:) :: conserved_quantities
-
-      ! Short names for interior state/diagnostic variables
-      type (type_fabm_state_variable),                 pointer, dimension(:) :: state_variables      => null()
-      type (type_fabm_diagnostic_variable),            pointer, dimension(:) :: diagnostic_variables => null()
 
       ! Names of variables taken as input by one or more biogeochemical models.
       ! These may be accessed by the host to enumerate potential forcing variables.
@@ -2197,9 +2194,9 @@ contains
       class (type_fabm_model), intent(inout), target :: self
 
       type (type_link),                                pointer :: link, newlink
-      type (type_fabm_state_variable),                 pointer :: statevar
+      type (type_fabm_interior_state_variable),        pointer :: statevar
       type (type_fabm_horizontal_state_variable),      pointer :: hz_statevar
-      type (type_fabm_diagnostic_variable),            pointer :: diagvar
+      type (type_fabm_interior_diagnostic_variable),   pointer :: diagvar
       type (type_fabm_horizontal_diagnostic_variable), pointer :: hz_diagvar
       type (type_fabm_conserved_quantity),             pointer :: consvar
       type (type_internal_variable),                   pointer :: object
@@ -2324,10 +2321,6 @@ contains
       allocate(self%surface_state_variables        (nstate_surf))
       allocate(self%interior_diagnostic_variables  (ndiag))
       allocate(self%horizontal_diagnostic_variables(ndiag_hz))
-
-      ! Short names for interior variables
-      self%state_variables => self%interior_state_variables
-      self%diagnostic_variables => self%interior_diagnostic_variables
 
       allocate(self%get_interior_sources_job%arg1_sources(nstate))
       allocate(self%get_surface_sources_job%arg1_sources(nstate), self%get_surface_sources_job%arg2_sources(nstate_surf))
