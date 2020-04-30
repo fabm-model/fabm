@@ -373,14 +373,14 @@ contains
       initialize_ = .true.
       if (present(initialize)) initialize_ = initialize
       if (initialize_) call model%initialize()
-   end function
+   end function fabm_create_model
 
    ! --------------------------------------------------------------------------
    ! initialize: initialize a model object
    ! --------------------------------------------------------------------------
    ! This freezes the tree of biogeochemical modules; afterwards no new modules
-   ! can be added. This routine will be called automatically when reading
-   ! a model configuration from fabm.yaml, unless explicitly deactivated.
+   ! can be added. This routine will be called automatically from
+   ! fabm_create_model unless called with initialize=.false.
    ! --------------------------------------------------------------------------
    subroutine initialize(self)
       class (type_fabm_model), target, intent(inout) :: self
@@ -500,12 +500,12 @@ contains
       self%status = status_set_domain_done
 
 #if _FABM_DIMENSION_COUNT_>0
-      self%domain%shape = (/_LOCATION_/)
+      self%domain%shape(:) = (/_LOCATION_/)
       self%domain%start(:) = 1
-      self%domain%stop = self%domain%shape
+      self%domain%stop(:) = self%domain%shape
 #endif
 #if _HORIZONTAL_DIMENSION_COUNT_>0
-      self%domain%horizontal_shape = (/_HORIZONTAL_LOCATION_/)
+      self%domain%horizontal_shape(:) = (/_HORIZONTAL_LOCATION_/)
 #endif
 
       if (present(seconds_per_time_unit)) then
@@ -620,12 +620,12 @@ contains
 
       if (self%status < status_set_domain_done) &
          call fatal_error('set_bottom_index', 'set_domain has not yet been called on this model object.')
-#    if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
+#  if !defined(NDEBUG)&&_HORIZONTAL_DIMENSION_COUNT_>0
       do i = 1, size(self%domain%horizontal_shape)
          if (size(indices, i) /= self%domain%horizontal_shape(i)) &
             call fatal_error('set_bottom_index', 'shape of provided index array does not match domain extents provided to set_domain.')
       end do
-#    endif
+#  endif
 
       self%domain%bottom_indices => indices
    end subroutine set_bottom_index
@@ -672,13 +672,11 @@ contains
       end if
 #endif
 
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-#  if _FABM_BOTTOM_INDEX_==-1
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&_FABM_BOTTOM_INDEX_==-1
       if (.not. associated(self%domain%bottom_indices)) then
          call log_message('bottom indices have not been set. Make sure to call set_bottom_index.')
          ready = .false.
       end if
-#  endif
 #endif
 
       ! Flag variables that have had data asssigned (by user, host or FABM).
