@@ -443,8 +443,8 @@ contains
          return
       end if
 
-      call c_f_pointer(c_loc(dy), dy_, &
-        (/size(model%p%interior_state_variables) + size(model%p%surface_state_variables) + size(model%p%bottom_state_variables)/))
+      call c_f_pointer(c_loc(dy), dy_, (/size(model%p%interior_state_variables) &
+         + size(model%p%surface_state_variables) + size(model%p%bottom_state_variables)/))
 
       if (t < 0) then
          call model%p%prepare_inputs()
@@ -453,7 +453,8 @@ contains
       end if
       dy_ = 0.0_rk
       if (int2logical(do_surface)) call model%p%get_surface_sources(dy_(1:size(model%p%interior_state_variables)), &
-         dy_(size(model%p%interior_state_variables)+1:size(model%p%interior_state_variables) + size(model%p%surface_state_variables)))
+         dy_(size(model%p%interior_state_variables)+1:size(model%p%interior_state_variables) &
+         + size(model%p%surface_state_variables)))
       if (int2logical(do_bottom)) call model%p%get_bottom_sources(dy_(1:size(model%p%interior_state_variables)), &
          dy_(size(model%p%interior_state_variables) + size(model%p%surface_state_variables) + 1:))
       if (int2logical(do_surface) .or. int2logical(do_bottom)) then
@@ -516,7 +517,8 @@ contains
          call fatal_error('integrate', 'start has not been called yet.')
          return
       end if
-      if (ny /= size(model%p%interior_state_variables) + size(model%p%surface_state_variables) + size(model%p%bottom_state_variables)) then
+      if (ny /= size(model%p%interior_state_variables) + size(model%p%surface_state_variables) &
+         + size(model%p%bottom_state_variables)) then
          call fatal_error('integrate', 'ny is wrong length')
          return
       end if
@@ -536,7 +538,8 @@ contains
       call model%p%link_all_interior_state_data(y_cur(1:size(model%p%interior_state_variables)))
       call model%p%link_all_surface_state_data(y_cur(size(model%p%interior_state_variables) + 1: &
          size(model%p%interior_state_variables) + size(model%p%surface_state_variables)))
-      call model%p%link_all_bottom_state_data(y_cur(size(model%p%interior_state_variables) + size(model%p%surface_state_variables) + 1:))
+      call model%p%link_all_bottom_state_data(y_cur(size(model%p%interior_state_variables) &
+         + size(model%p%surface_state_variables) + 1:))
 
       it = 1
       t_cur = t(1)
@@ -550,10 +553,12 @@ contains
           call model%p%prepare_inputs(t_cur)
           dy = 0.0_rk
           if (surface) call model%p%get_surface_sources(dy(1:size(model%p%interior_state_variables)), &
-             dy(size(model%p%interior_state_variables) + 1:size(model%p%interior_state_variables) + size(model%p%surface_state_variables)))
+             dy(size(model%p%interior_state_variables) + 1:size(model%p%interior_state_variables) &
+             + size(model%p%surface_state_variables)))
           if (bottom) call model%p%get_bottom_sources(dy(1:size(model%p%interior_state_variables)), &
              dy(size(model%p%interior_state_variables) + size(model%p%surface_state_variables) + 1:))
-          if (surface .or. bottom) dy(1:size(model%p%interior_state_variables)) = dy(1:size(model%p%interior_state_variables)) / model%column_depth
+          if (surface .or. bottom) dy(1:size(model%p%interior_state_variables)) = dy(1:size(model%p%interior_state_variables)) &
+             / model%column_depth
           call model%p%get_interior_sources(dy(1:size(model%p%interior_state_variables)))
           y_cur = y_cur + dt * dy * 86400
           t_cur = t_cur + dt
