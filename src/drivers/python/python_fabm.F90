@@ -204,10 +204,10 @@ contains
       type (type_model_wrapper), pointer :: model
 
       call c_f_pointer(pmodel, model)
-      nstate_interior = size(model%p%state_variables)
+      nstate_interior = size(model%p%interior_state_variables)
       nstate_surface = size(model%p%surface_state_variables)
       nstate_bottom = size(model%p%bottom_state_variables)
-      ndiagnostic_interior = size(model%p%diagnostic_variables)
+      ndiagnostic_interior = size(model%p%interior_diagnostic_variables)
       ndiagnostic_horizontal = size(model%p%horizontal_diagnostic_variables)
       nconserved = size(model%p%conserved_quantities)
       ndependencies = size(model%environment_names)
@@ -229,13 +229,13 @@ contains
       ! Get a pointer to the target variable
       select case (category)
       case (INTERIOR_STATE_VARIABLE)
-         variable => model%p%state_variables(index)
+         variable => model%p%interior_state_variables(index)
       case (SURFACE_STATE_VARIABLE)
          variable => model%p%surface_state_variables(index)
       case (BOTTOM_STATE_VARIABLE)
          variable => model%p%bottom_state_variables(index)
       case (INTERIOR_DIAGNOSTIC_VARIABLE)
-         variable => model%p%diagnostic_variables(index)
+         variable => model%p%interior_diagnostic_variables(index)
       case (HORIZONTAL_DIAGNOSTIC_VARIABLE)
          variable => model%p%horizontal_diagnostic_variables(index)
       case (CONSERVED_QUANTITY)
@@ -261,13 +261,13 @@ contains
       ! Get a pointer to the target variable
       select case (category)
       case (INTERIOR_STATE_VARIABLE)
-         variable => model%p%state_variables(index)%target
+         variable => model%p%interior_state_variables(index)%target
       case (SURFACE_STATE_VARIABLE)
          variable => model%p%surface_state_variables(index)%target
       case (BOTTOM_STATE_VARIABLE)
          variable => model%p%bottom_state_variables(index)%target
       case (INTERIOR_DIAGNOSTIC_VARIABLE)
-         variable => model%p%diagnostic_variables(index)%target
+         variable => model%p%interior_diagnostic_variables(index)%target
       case (HORIZONTAL_DIAGNOSTIC_VARIABLE)
          variable => model%p%horizontal_diagnostic_variables(index)%target
       case (CONSERVED_QUANTITY)
@@ -397,7 +397,7 @@ contains
       type (type_model_wrapper), pointer :: model
 
       call c_f_pointer(pmodel, model)
-      value = model%p%state_variables(index)%initial_value
+      value = model%p%interior_state_variables(index)%initial_value
       call model%p%link_interior_state_data(index, value)
    end subroutine link_interior_state_data
 
@@ -444,7 +444,7 @@ contains
       end if
 
       call c_f_pointer(c_loc(dy), dy_, &
-        (/size(model%p%state_variables) + size(model%p%surface_state_variables) + size(model%p%bottom_state_variables)/))
+        (/size(model%p%interior_state_variables) + size(model%p%surface_state_variables) + size(model%p%bottom_state_variables)/))
 
       if (t < 0) then
          call model%p%prepare_inputs()
@@ -452,17 +452,17 @@ contains
          call model%p%prepare_inputs(t)
       end if
       dy_ = 0.0_rk
-      if (int2logical(do_surface)) call model%p%get_surface_sources(dy_(1:size(model%p%state_variables)), &
-         dy_(size(model%p%state_variables)+1:size(model%p%state_variables) + size(model%p%surface_state_variables)))
-      if (int2logical(do_bottom)) call model%p%get_bottom_sources(dy_(1:size(model%p%state_variables)), &
-         dy_(size(model%p%state_variables) + size(model%p%surface_state_variables) + 1:))
+      if (int2logical(do_surface)) call model%p%get_surface_sources(dy_(1:size(model%p%interior_state_variables)), &
+         dy_(size(model%p%interior_state_variables)+1:size(model%p%interior_state_variables) + size(model%p%surface_state_variables)))
+      if (int2logical(do_bottom)) call model%p%get_bottom_sources(dy_(1:size(model%p%interior_state_variables)), &
+         dy_(size(model%p%interior_state_variables) + size(model%p%surface_state_variables) + 1:))
       if (int2logical(do_surface) .or. int2logical(do_bottom)) then
          if (.not.associated(model%column_depth)) call fatal_error('get_rates', &
             'Value for environmental dependency ' // trim(model%environment_names(model%index_column_depth)) // &
             ' must be provided if get_rates is called with the do_surface and/or do_bottom flags.')
-         dy_(1:size(model%p%state_variables)) = dy_(1:size(model%p%state_variables)) / model%column_depth
+         dy_(1:size(model%p%interior_state_variables)) = dy_(1:size(model%p%interior_state_variables)) / model%column_depth
       end if
-      call model%p%get_interior_sources(dy_(1:size(model%p%state_variables)))
+      call model%p%get_interior_sources(dy_(1:size(model%p%interior_state_variables)))
       call model%p%finalize_outputs()
 
       ! Compute rate of change in conserved quantities
@@ -516,7 +516,7 @@ contains
          call fatal_error('integrate', 'start has not been called yet.')
          return
       end if
-      if (ny /= size(model%p%state_variables) + size(model%p%surface_state_variables) + size(model%p%bottom_state_variables)) then
+      if (ny /= size(model%p%interior_state_variables) + size(model%p%surface_state_variables) + size(model%p%bottom_state_variables)) then
          call fatal_error('integrate', 'ny is wrong length')
          return
       end if
@@ -533,10 +533,10 @@ contains
             ' must be provided if integrate is called with the do_surface and/or do_bottom flags.')
           return
       end if
-      call model%p%link_all_interior_state_data(y_cur(1:size(model%p%state_variables)))
-      call model%p%link_all_surface_state_data(y_cur(size(model%p%state_variables) + 1: &
-         size(model%p%state_variables) + size(model%p%surface_state_variables)))
-      call model%p%link_all_bottom_state_data(y_cur(size(model%p%state_variables) + size(model%p%surface_state_variables) + 1:))
+      call model%p%link_all_interior_state_data(y_cur(1:size(model%p%interior_state_variables)))
+      call model%p%link_all_surface_state_data(y_cur(size(model%p%interior_state_variables) + 1: &
+         size(model%p%interior_state_variables) + size(model%p%surface_state_variables)))
+      call model%p%link_all_bottom_state_data(y_cur(size(model%p%interior_state_variables) + size(model%p%surface_state_variables) + 1:))
 
       it = 1
       t_cur = t(1)
@@ -549,12 +549,12 @@ contains
 
           call model%p%prepare_inputs(t_cur)
           dy = 0.0_rk
-          if (surface) call model%p%get_surface_sources(dy(1:size(model%p%state_variables)), &
-             dy(size(model%p%state_variables) + 1:size(model%p%state_variables) + size(model%p%surface_state_variables)))
-          if (bottom) call model%p%get_bottom_sources(dy(1:size(model%p%state_variables)), &
-             dy(size(model%p%state_variables) + size(model%p%surface_state_variables) + 1:))
-          if (surface .or. bottom) dy(1:size(model%p%state_variables)) = dy(1:size(model%p%state_variables)) / model%column_depth
-          call model%p%get_interior_sources(dy(1:size(model%p%state_variables)))
+          if (surface) call model%p%get_surface_sources(dy(1:size(model%p%interior_state_variables)), &
+             dy(size(model%p%interior_state_variables) + 1:size(model%p%interior_state_variables) + size(model%p%surface_state_variables)))
+          if (bottom) call model%p%get_bottom_sources(dy(1:size(model%p%interior_state_variables)), &
+             dy(size(model%p%interior_state_variables) + size(model%p%surface_state_variables) + 1:))
+          if (surface .or. bottom) dy(1:size(model%p%interior_state_variables)) = dy(1:size(model%p%interior_state_variables)) / model%column_depth
+          call model%p%get_interior_sources(dy(1:size(model%p%interior_state_variables)))
           y_cur = y_cur + dt * dy * 86400
           t_cur = t_cur + dt
       end do
