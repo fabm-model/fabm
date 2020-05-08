@@ -319,7 +319,7 @@
    model => fabm_create_model(path=trim(fabm_yaml_file))
 
    ! Shortcuts to the number of state variables.
-   n_int = size(model%state_variables)
+   n_int = size(model%interior_state_variables)
    n_sf  = size(model%surface_state_variables)
    n_bt  = size(model%bottom_state_variables)
 
@@ -472,7 +472,7 @@
                found = .true.
             case default
                do i=1,n_int
-                  if (variable_name=='deep/'//trim(model%state_variables(i)%path)) then
+                  if (variable_name=='deep/'//trim(model%interior_state_variables(i)%path)) then
                      call parse_input_variable(pair%key,pair%value,cc_deep(i))
                      found = .true.
                   end if

@@ -120,9 +120,9 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-   do i=1,size(model%state_variables)
-      pdata => model%get_data(model%get_interior_variable_id(model%state_variables(i)%name))
-      call fm%send_data(model%state_variables(i)%name, pdata)
+   do i=1,size(model%interior_state_variables)
+      pdata => model%get_data(model%get_interior_variable_id(model%interior_state_variables(i)%name))
+      call fm%send_data(model%interior_state_variables(i)%name, pdata)
    end do
    do i=1,size(model%bottom_state_variables)
       pdata => model%get_data(model%get_horizontal_variable_id(model%bottom_state_variables(i)%name))
@@ -133,10 +133,10 @@
       call fm%send_data(model%surface_state_variables(i)%name, pdata)
    end do
 
-   do i=1,size(model%diagnostic_variables)
-      if (model%diagnostic_variables(i)%save) then
+   do i=1,size(model%interior_diagnostic_variables)
+      if (model%interior_diagnostic_variables(i)%save) then
          pdata => model%get_interior_diagnostic_data(i)
-         call fm%send_data(model%diagnostic_variables(i)%name, pdata)
+         call fm%send_data(model%interior_diagnostic_variables(i)%name, pdata)
       end if
    end do
    do i=1,size(model%horizontal_diagnostic_variables)
@@ -226,8 +226,8 @@
    call fm%register('salt','1e-3','salinity',standard_name='sea_water_practical_salinity',data0d=salt%value)
 
    ! state variables
-   do i=1,size(model%state_variables)
-      in_output = register(model%state_variables(i))
+   do i=1,size(model%interior_state_variables)
+      in_output = register(model%interior_state_variables(i))
    end do
    do i=1,size(model%bottom_state_variables)
       in_output = register(model%bottom_state_variables(i))
@@ -237,8 +237,8 @@
    end do
 
    ! diagnostic variables
-   do i=1,size(model%diagnostic_variables)
-      model%diagnostic_variables(i)%save = register(model%diagnostic_variables(i))
+   do i=1,size(model%interior_diagnostic_variables)
+      model%interior_diagnostic_variables(i)%save = register(model%interior_diagnostic_variables(i))
    end do
    do i=1,size(model%horizontal_diagnostic_variables)
       model%horizontal_diagnostic_variables(i)%save = register(model%horizontal_diagnostic_variables(i))
