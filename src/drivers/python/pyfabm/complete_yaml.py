@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import sys
+import io
 
 import pyfabm
 
@@ -17,7 +18,7 @@ try:
     def dict_constructor(loader, node):
         return collections.OrderedDict(loader.construct_pairs(node))
     yaml.add_representer(collections.OrderedDict, dict_representer)
-    yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, dict_constructor)
+    yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, dict_constructor, Loader=yaml.SafeLoader)
 except ImportError:
     pass
 # ------------------------------------------
@@ -27,8 +28,8 @@ def processFile(infile,outfile,subtract_background=False,add_missing=False):
    model = pyfabm.Model(infile)
 
    # Load the old configuration
-   with open(infile,'rU') as f:
-      config = yaml.safe_load(f)
+   with io.open(infile, 'r') as f:
+      config = yaml.load(f, Loader=yaml.SafeLoader)
 
    def findMaximumDepth(d):
       n = 0
@@ -148,6 +149,6 @@ def processFile(infile,outfile,subtract_background=False,add_missing=False):
                f.write('%s: %s' % (key,value))
             f.write('\n')
 
-   icommentstart = findMaximumDepth(config)+3
-   with open(outfile,'w') as f:   
-      processDict(f,config)
+   icommentstart = findMaximumDepth(config) + 3
+   with io.open(outfile, 'w') as f:
+      processDict(f, config)
