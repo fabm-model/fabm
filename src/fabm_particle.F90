@@ -351,9 +351,9 @@ contains
       do while (associated(reference))
          model => resolve_model_reference(self, reference, require_internal_variables=associated(reference%id))
          if (associated(reference%id)) then
-            call build_state_id_list(self,reference, domain_interior)
-            call build_state_id_list(self,reference, domain_surface)
-            call build_state_id_list(self,reference, domain_bottom)
+            call build_state_id_list(self, reference, domain_interior)
+            call build_state_id_list(self, reference, domain_surface)
+            call build_state_id_list(self, reference, domain_bottom)
          end if
          reference => reference%next
       end do
