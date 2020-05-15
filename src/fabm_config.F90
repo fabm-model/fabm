@@ -348,8 +348,11 @@ contains
          select type (value => pair%value)
          class is (type_scalar)
             object => model%find_object(trim(pair%key))
-            if (.not. associated(object)) call fatal_error('parse_initialization', &
-               trim(value%path) // ': "' // trim(pair%key) // '" is not a member of model "' // trim(model%name) // '".')
+            if (.not. associated(object)) then
+               call fatal_error('parse_initialization', &
+                  trim(value%path) // ': "' // trim(pair%key) // '" is not a member of model "' // trim(model%name) // '".')
+               return
+            end if
             if (object%source /= source_state) call fatal_error('parse_initialization', &
                trim(value%path) // ': "' // trim(pair%key) // '" is not a state variable of model "' // trim(model%name) // '".')
             realvalue = value%to_real(default=real(0, real_kind), success=success)
