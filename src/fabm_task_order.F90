@@ -76,12 +76,14 @@ contains
       ! Determine optimum task order and use it to create the task objects.
       ntasks = root%get_minimum_depth()
       leaf => root%get_leaf_at_depth(ntasks)
+      _ASSERT_(associated(leaf), 'find_best_order', 'BUG: get_leaf_at_depth did not return valid leaf.')
 
       if (root%operation == source_unknown) ntasks = ntasks - 1
       if (log_unit /= -1) write (log_unit,'(a,i0,a,a)') '  best task order (', ntasks, ' tasks): ', trim(leaf%to_string())
 
       allocate(steps(ntasks))
       do itask = 1, ntasks
+         _ASSERT_(associated(leaf), 'find_best_order', 'BUG: leaf pointer not associated.')
          _ASSERT_(leaf%operation /= source_unknown, 'find_best_order', 'BUG: step with operation source_unknown.')
          steps(itask)%operation = leaf%operation
          leaf => leaf%parent
