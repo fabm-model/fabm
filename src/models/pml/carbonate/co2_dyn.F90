@@ -134,8 +134,8 @@
 
 ! calculate the scmidt number and unit conversions
           sc=2073.1-125.62*T+3.6276*T**2.0-0.0432190*T**3.0
-          fwind =  (0.222d0 * wnd**2d0 + 0.333d0 * wnd)*(sc/660.d0)**(-0.5)
-          fwind=fwind*24.d0/100.d0   ! convert to m/day
+          fwind =  (0.222_rk * wnd**2_rk + 0.333_rk * wnd)*(sc/660._rk)**(-0.5_rk)
+          fwind=fwind*24._rk/100._rk   ! convert to m/day
 
 ! flux depends on the difference in partial pressures, wind and henry
 ! here it is rescaled to mmol/m2/d
@@ -166,7 +166,7 @@
       DIMENSION AKVAL(MKVAL), CONCS(MCONC)
 
       ICONST = 6
-      PRSS = 1.0d0
+      PRSS = 1.0_rk
       CONCS(1) = TCO2
       CONCS(2) = TA
       ICALC = 1
@@ -240,8 +240,8 @@
 
       PARAMETER(MINJC=7,MAXJC=9,MINJK=3,MAXJK=4)
       PARAMETER(MINCAL=1,MAXCAL=7,MINCON=1,MAXCON=6)
-      PARAMETER(PMIN=0.99999D0,PMAX=1.00001D0,SMIN=0.0D0,  &
-     &  SMAX=45.0D0,TMIN=-4.0D0,TMAX=40.0D0)
+      PARAMETER(PMIN=0.99999_rk,PMAX=1.00001_rk,SMIN=0.0_rk,  &
+     &  SMAX=45.0_rk,TMIN=-4.0_rk,TMAX=40.0_rk)
       DIMENSION CONCS(NCONC),AKVAL(NKVAL)
 
       P = PD
@@ -259,7 +259,7 @@
       BORON=(ICONST.GT.3)
       IF(BORON) THEN
         IC=ICONST-3
-        BTOT=0.0004128D0*S/35.0D0
+        BTOT=0.0004128_rk*S/35.0_rk
         IF(NCONC.NE.MAXJC) call fatal_error('POLYCO','WRONG NCONC VALUE')
         IF(NKVAL.NE.MAXJK) call fatal_error('POLYCO','WRONG NKVAL VALUE')
       ELSE
@@ -332,35 +332,35 @@
       real(rk),DIMENSION(:) :: AKVAL(NKVAL)
       real(rk)              :: P,T,S,VAL,TK
       real(rk)              :: dlogTK, S2, sqrtS, S15, k1, k2, kb
-      DATA A/-167.8108D0, 290.9097D0, 207.6548D0, 148.0248D0/
-      DATA B/9345.17D0, -14554.21D0, -11843.79D0, -8966.9D0/
-      DATA C/23.3585D0, -45.0575D0, -33.6485D0, -24.4344D0/
-      DATA (A0(1,ICON),ICON=1,MAXCON) /3*0.0D0/
-      DATA (A0(2,ICON),ICON=1,MAXCON) /0.0221D0, 0.5709D0, -45.8076D0/
-      DATA (A0(3,ICON),ICON=1,MAXCON) /0.9805D0, 1.4853D0, -39.5492D0/
-      DATA (A0(4,ICON),ICON=1,MAXCON) /0.0473D0, 0.5998D0, 0.5998D0/
-      DATA (A1(1,ICON),ICON=1,MAXCON) /3*0.0D0/
-      DATA (A1(2,ICON),ICON=1,MAXCON) /34.02D0, -84.25D0, 1935.07D0/
-      DATA (A1(3,ICON),ICON=1,MAXCON) /-92.65D0, -192.69D0, 1590.14D0/
-      DATA (A1(4,ICON),ICON=1,MAXCON) /49.10D0, -75.25D0, -75.25D0/
-      DATA (A2(1,ICON),ICON=1,MAXCON) /3*0.0D0/
-      DATA (A2(2,ICON),ICON=1,MAXCON) /2*0.0D0,6.9513D0/
-      DATA (A2(3,ICON),ICON=1,MAXCON) /2*0.0D0,6.1523D0/
-      DATA (A2(4,ICON),ICON=1,MAXCON) /3*0.0D0/
-      DATA (B0(1,ICON),ICON=1,MAXCON) /3*0.023517D0/
-      DATA (B0(2,ICON),ICON=1,MAXCON) /0.0D0,-0.01632D0,-0.01566D0/
-      DATA (B0(3,ICON),ICON=1,MAXCON) /-0.03294D0,-0.05058D0,-0.04997D0/
-      DATA (B0(4,ICON),ICON=1,MAXCON) /0.0D0, -0.01767D0, -0.01767D0/
-      DATA (B1(1,ICON),ICON=1,MAXCON) /3*-2.3656D-4/
-      DATA (B1(2,ICON),ICON=1,MAXCON) /3*0.0D0/
-      DATA (B1(3,ICON),ICON=1,MAXCON) /3*0.0D0/
-      DATA (B1(4,ICON),ICON=1,MAXCON) /3*0.0D0/
-      DATA (B2(1,ICON),ICON=1,MAXCON) /3*4.7036D-7/
-      DATA (B2(2,ICON),ICON=1,MAXCON) /3*0.0D0/
-      DATA (B2(3,ICON),ICON=1,MAXCON) /3*0.0D0/
-      DATA (B2(4,ICON),ICON=1,MAXCON) /3*0.0D0/
+      DATA A/-167.8108_rk, 290.9097_rk, 207.6548_rk, 148.0248_rk/
+      DATA B/9345.17_rk, -14554.21_rk, -11843.79_rk, -8966.9_rk/
+      DATA C/23.3585_rk, -45.0575_rk, -33.6485_rk, -24.4344_rk/
+      DATA (A0(1,ICON),ICON=1,MAXCON) /3*0.0_rk/
+      DATA (A0(2,ICON),ICON=1,MAXCON) /0.0221_rk, 0.5709_rk, -45.8076_rk/
+      DATA (A0(3,ICON),ICON=1,MAXCON) /0.9805_rk, 1.4853_rk, -39.5492_rk/
+      DATA (A0(4,ICON),ICON=1,MAXCON) /0.0473_rk, 0.5998_rk, 0.5998_rk/
+      DATA (A1(1,ICON),ICON=1,MAXCON) /3*0.0_rk/
+      DATA (A1(2,ICON),ICON=1,MAXCON) /34.02_rk, -84.25_rk, 1935.07_rk/
+      DATA (A1(3,ICON),ICON=1,MAXCON) /-92.65_rk, -192.69_rk, 1590.14_rk/
+      DATA (A1(4,ICON),ICON=1,MAXCON) /49.10_rk, -75.25_rk, -75.25_rk/
+      DATA (A2(1,ICON),ICON=1,MAXCON) /3*0.0_rk/
+      DATA (A2(2,ICON),ICON=1,MAXCON) /2*0.0_rk,6.9513_rk/
+      DATA (A2(3,ICON),ICON=1,MAXCON) /2*0.0_rk,6.1523_rk/
+      DATA (A2(4,ICON),ICON=1,MAXCON) /3*0.0_rk/
+      DATA (B0(1,ICON),ICON=1,MAXCON) /3*0.023517_rk/
+      DATA (B0(2,ICON),ICON=1,MAXCON) /0.0_rk,-0.01632_rk,-0.01566_rk/
+      DATA (B0(3,ICON),ICON=1,MAXCON) /-0.03294_rk,-0.05058_rk,-0.04997_rk/
+      DATA (B0(4,ICON),ICON=1,MAXCON) /0.0_rk, -0.01767_rk, -0.01767_rk/
+      DATA (B1(1,ICON),ICON=1,MAXCON) /3*-2.3656E-4_rk/
+      DATA (B1(2,ICON),ICON=1,MAXCON) /3*0.0_rk/
+      DATA (B1(3,ICON),ICON=1,MAXCON) /3*0.0_rk/
+      DATA (B1(4,ICON),ICON=1,MAXCON) /3*0.0_rk/
+      DATA (B2(1,ICON),ICON=1,MAXCON) /3*4.7036E-7_rk/
+      DATA (B2(2,ICON),ICON=1,MAXCON) /3*0.0_rk/
+      DATA (B2(3,ICON),ICON=1,MAXCON) /3*0.0_rk/
+      DATA (B2(4,ICON),ICON=1,MAXCON) /3*0.0_rk/
 
-      TK=T+273.15D0
+      TK=T+273.15_rk
       DO 100 IK=1,NKVAL
         VAL=A(IK) + B(IK)/TK + C(IK)*LOG(TK)
         VAL=VAL + (A0(IK,IC) + A1(IK,IC)/TK + A2(IK,IC)*LOG(TK))*SQRT(S)
@@ -441,7 +441,7 @@
         AKVAL2(II)=AKVAL(II)
 110    CONTINUE
       AKR = AK1C/AK2C
-      AHPLUS=10.0D0**(-PH)
+      AHPLUS=10.0_rk**(-PH)
       PROD=AKR*AKP*PCO2
 
       IF(BORON) THEN
@@ -452,7 +452,7 @@
 
 !         SET INITIAL GUESSES AND TOLERANCE
           H2CO3=PCO2*AKP
-          CO3=ALK/10.0D0
+          CO3=ALK/10.0_rk
           AHPLUS=1.0D-8
           ALKB=BTOT
           TOL1=ALK/1.0D5
@@ -462,9 +462,9 @@
 
 !         HALTAFALL iteration to determine CO3, ALKB, AHPLUS
           KARL=1
-          STEG=2.0D0
-          FAK=1.0D0
-          STEGBY=0.4D0
+          STEG=2.0_rk
+          FAK=1.0_rk
+          STEGBY=0.4_rk
           do it=1,maxiter
              DONE=.TRUE.
              IF(ICALC.EQ.4) THEN
@@ -476,13 +476,13 @@
                ENDIF
              ELSEIF(ICALC.EQ.1) THEN
    !           *** CTOT IS FIXED ***
-               Y=CO3*(1.0D0+AHPLUS/AK2C+AHPLUS*AHPLUS/(AK1C*AK2C))
+               Y=CO3*(1.0_rk+AHPLUS/AK2C+AHPLUS*AHPLUS/(AK1C*AK2C))
                IF(ABS(Y-CTOT).GT.TOL3) THEN
                  CO3=CO3*CTOT/Y
                  DONE=.FALSE.
                ENDIF
              ENDIF
-             Y=ALKB*(1.0D0+AHPLUS/AKB)
+             Y=ALKB*(1.0_rk+AHPLUS/AKB)
              IF(ABS(Y-BTOT).GT.TOL4) THEN
                ALKB=ALKB*BTOT/Y
                DONE=.FALSE.
@@ -491,12 +491,12 @@
    ! Alkalinity is equivalent to -(total H+), so the sign of W is opposite
    ! to that normally used
 
-             Y=CO3*(2.0D0+AHPLUS/AK2C)+ALKB
+             Y=CO3*(2.0_rk+AHPLUS/AK2C)+ALKB
              IF(ABS(Y-ALK).GT.TOL1) THEN
                DONE=.FALSE.
                X=LOG(AHPLUS)
-               W=SIGN(1.0D0,Y-ALK)
-               IF(W.GE.0.0D0) THEN
+               W=SIGN(1.0_rk,Y-ALK)
+               IF(W.GE.0.0_rk) THEN
                  X1=X
                  Y1=Y
                ELSE
@@ -507,7 +507,7 @@
                IF(LQ.EQ.1) THEN
                  KARL=2*NINT(W)
                ELSEIF(IABS(LQ).EQ.2.AND.(LQ*W).LT.0.) THEN
-                 FAK=0.5D0
+                 FAK=0.5_rk
                  KARL=3
                ENDIF
                IF(KARL.EQ.3.AND.STEG.LT.STEGBY) THEN
@@ -536,14 +536,14 @@
           end if
         ELSEIF(ICALC.EQ.2) THEN
 !         *** CTOT, PCO2, AND BTOT FIXED ***
-          Y=SQRT(PROD*(PROD-4.0D0*AKP*PCO2+4.0D0*CTOT))
+          Y=SQRT(PROD*(PROD-4.0_rk*AKP*PCO2+4.0_rk*CTOT))
           H2CO3=PCO2*AKP
-          HCO3=(Y-PROD)/2.0D0
+          HCO3=(Y-PROD)/2.0_rk
           CO3=CTOT-H2CO3-HCO3
-          ALKC=HCO3+2.0D0*CO3
+          ALKC=HCO3+2.0_rk*CO3
           AHPLUS=AK1C*H2CO3/HCO3
           PH=-LOG10(AHPLUS)
-          ALKB=BTOT/(1.0D0+AHPLUS/AKB)
+          ALKB=BTOT/(1.0_rk+AHPLUS/AKB)
           ALK=ALKC+ALKB
         ELSEIF(ICALC.EQ.3) THEN
 !         *** CTOT, PH AND BTOT FIXED ***
@@ -552,45 +552,45 @@
           HCO3=FACTOR*AK1C*AHPLUS
           H2CO3=FACTOR*AHPLUS*AHPLUS
           PCO2=H2CO3/AKP
-          ALKC=HCO3+2.0D0*CO3
-          ALKB=BTOT/(1.0D0+AHPLUS/AKB)
+          ALKC=HCO3+2.0_rk*CO3
+          ALKB=BTOT/(1.0_rk+AHPLUS/AKB)
           ALK=ALKC+ALKB
         ELSEIF(ICALC.EQ.5) THEN
 !         *** ALK, PH AND BTOT FIXED ***
-          ALKB=BTOT/(1.0D0+AHPLUS/AKB)
+          ALKB=BTOT/(1.0_rk+AHPLUS/AKB)
           ALKC=ALK-ALKB
-          HCO3=ALKC/(1.0D0+2.0D0*AK2C/AHPLUS)
+          HCO3=ALKC/(1.0_rk+2.0_rk*AK2C/AHPLUS)
           CO3=HCO3*AK2C/AHPLUS
           H2CO3=HCO3*AHPLUS/AK1C
           PCO2=H2CO3/AKP
           CTOT=H2CO3+HCO3+CO3
         ELSEIF(ICALC.EQ.6) THEN
 !         *** PCO2, PH AND BTOT FIXED ***
-          ALKB=BTOT/(1.0D0+AHPLUS/AKB)
+          ALKB=BTOT/(1.0_rk+AHPLUS/AKB)
           H2CO3=PCO2*AKP
           HCO3=H2CO3*AK1C/AHPLUS
           CO3=HCO3*AK2C/AHPLUS
           CTOT=H2CO3+HCO3+CO3
-          ALKC=HCO3+2.0D0*CO3
+          ALKC=HCO3+2.0_rk*CO3
           ALK=ALKC+ALKB
         ENDIF
       ELSE
         IF(ICALC.EQ.1) THEN
 !         *** CTOT AND ALK FIXED ***
-          TERM=4.0D0*ALK+CTOT*AKR-ALK*AKR
-          Z=SQRT(TERM*TERM+4.0D0*(AKR-4.0D0)*ALK*ALK)
-          CO3=(ALK*AKR-CTOT*AKR-4.0D0*ALK+Z)/(2.0D0*(AKR-4.0D0))
-          HCO3=(CTOT*AKR-Z)/(AKR-4.0D0)
+          TERM=4.0_rk*ALK+CTOT*AKR-ALK*AKR
+          Z=SQRT(TERM*TERM+4.0_rk*(AKR-4.0_rk)*ALK*ALK)
+          CO3=(ALK*AKR-CTOT*AKR-4.0_rk*ALK+Z)/(2.0_rk*(AKR-4.0_rk))
+          HCO3=(CTOT*AKR-Z)/(AKR-4.0_rk)
           H2CO3=CTOT-ALK+CO3
           PCO2=H2CO3/AKP
           PH=-LOG10(AK1C*H2CO3/HCO3)
         ELSEIF(ICALC.EQ.2) THEN
 !         *** CTOT AND PCO2 FIXED ***
-          Y=SQRT(PROD*(PROD-4.0D0*AKP*PCO2+4.0D0*CTOT))
+          Y=SQRT(PROD*(PROD-4.0_rk*AKP*PCO2+4.0_rk*CTOT))
           H2CO3=PCO2*AKP
-          HCO3=(Y-PROD)/2.0D0
+          HCO3=(Y-PROD)/2.0_rk
           CO3=CTOT-H2CO3-HCO3
-          ALK=HCO3+2.0D0*CO3
+          ALK=HCO3+2.0_rk*CO3
           PH=-LOG10(AK1C*H2CO3/HCO3)
         ELSEIF(ICALC.EQ.3) THEN
 !         *** CTOT AND PH FIXED ***
@@ -599,18 +599,18 @@
           HCO3=FACTOR*AK1C*AHPLUS
           H2CO3=FACTOR*AHPLUS*AHPLUS
           PCO2=H2CO3/AKP
-          ALK=HCO3+2.0D0*CO3
+          ALK=HCO3+2.0_rk*CO3
         ELSEIF(ICALC.EQ.4) THEN
 !         *** ALK AND PCO2 FIXED ***
-          TERM=SQRT((8.0D0*ALK+PROD)*PROD)
-          CO3=ALK/2.0D0+PROD/8.0D0-TERM/8.0D0
-          HCO3=-PROD/4.0D0+TERM/4.0D0
+          TERM=SQRT((8.0_rk*ALK+PROD)*PROD)
+          CO3=ALK/2.0_rk+PROD/8.0_rk-TERM/8.0_rk
+          HCO3=-PROD/4.0_rk+TERM/4.0_rk
           H2CO3=PCO2*AKP
           CTOT=CO3+HCO3+H2CO3
           PH=-LOG10(AK1C*H2CO3/HCO3)
         ELSEIF(ICALC.EQ.5) THEN
 !         *** ALK AND PH FIXED ***
-          HCO3=ALK/(1.0D0+2.0D0*AK2C/AHPLUS)
+          HCO3=ALK/(1.0_rk+2.0_rk*AK2C/AHPLUS)
           CO3=HCO3*AK2C/AHPLUS
           H2CO3=HCO3*AHPLUS/AK1C
           PCO2=H2CO3/AKP
@@ -621,7 +621,7 @@
           HCO3=H2CO3*AK1C/AHPLUS
           CO3=HCO3*AK2C/AHPLUS
           CTOT=H2CO3+HCO3+CO3
-          ALK=HCO3+2.0D0*CO3
+          ALK=HCO3+2.0_rk*CO3
         ENDIF
       ENDIF
 
