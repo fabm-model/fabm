@@ -180,7 +180,7 @@ module fabm_builtin_models
    end type
 
    type, extends(type_base_model) :: type_horizontal_flux
-      type (type_link), pointer            :: target
+      type (type_link), pointer            :: target => null()
       type (type_horizontal_add_id)        :: id_target_flux
       type (type_horizontal_dependency_id) :: id_flux
       real(rk)                             :: scale_factor = 1.0_rk
@@ -199,7 +199,7 @@ module fabm_builtin_models
    end type
 
    type, extends(type_base_model) :: type_interior_source
-      type (type_link), pointer :: target
+      type (type_link), pointer :: target => null()
       type (type_add_id)        :: id_target_sms
       type (type_dependency_id) :: id_source
       real(rk)                  :: scale_factor = 1.0_rk
