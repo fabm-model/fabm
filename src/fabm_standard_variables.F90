@@ -144,7 +144,7 @@ contains
          class (type_base_standard_variable), intent(in) :: variable1, variable2
 
          ! Compare the type of the standard variables.
-         compare = same_type_as(variable1, variable2)
+         compare = same_type_as(variable1, variable2) .or. extends_type_of(variable1, variable2) .or. extends_type_of(variable2, variable1)
 
          ! Compare the metadata of the standard variables.
          if (compare) compare = (variable1%name  == '' .or. variable2%name  == '' .or. variable1%name  == variable2%name ) &
