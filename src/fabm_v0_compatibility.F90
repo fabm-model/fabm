@@ -352,7 +352,7 @@ contains
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self%domain%shape _POSTARG_INTERIOR_IN_, 'fabm_get_light_extinction')
+      call check_interior_location(self%domain%start, self%domain%stop _POSTARG_INTERIOR_IN_, 'fabm_get_light_extinction')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
       call check_extents_1d(extinction, _STOP_ - _START_ + 1, 'fabm_get_light_extinction', 'extinction', 'stop-start+1')
 #  endif
@@ -372,7 +372,7 @@ contains
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-       call check_horizontal_location(self%domain%shape _POSTARG_HORIZONTAL_IN_, 'fabm_get_drag')
+       call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'fabm_get_drag')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
        call check_extents_1d(drag, _STOP_ - _START_ + 1, 'fabm_get_drag', 'drag', 'stop-start+1')
 #  endif
@@ -392,7 +392,7 @@ contains
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self%domain%shape _POSTARG_HORIZONTAL_IN_, 'fabm_get_albedo')
+      call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'fabm_get_albedo')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
       call check_extents_1d(albedo, _STOP_ - _START_ + 1, 'fabm_get_albedo', 'albedo', 'stop-start+1')
 #  endif

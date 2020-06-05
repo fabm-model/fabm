@@ -15,60 +15,60 @@ module fabm_debug
 
 contains
 
-   subroutine check_interior_location(domain_size _POSTARG_INTERIOR_IN_, routine)
-      integer,          intent(in) :: domain_size(_FABM_DIMENSION_COUNT_)
+   subroutine check_interior_location(domain_start, domain_stop _POSTARG_INTERIOR_IN_, routine)
+      integer, dimension(_FABM_DIMENSION_COUNT_), intent(in) :: domain_start, domain_stop
       _DECLARE_ARGUMENTS_INTERIOR_IN_
       character(len=*), intent(in) :: routine
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
-      call check_loop(_START_, _STOP_, domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_), routine)
+      call check_loop(_START_, _STOP_, domain_start(_FABM_VECTORIZED_DIMENSION_INDEX_), domain_stop(_FABM_VECTORIZED_DIMENSION_INDEX_), routine)
 #endif
 #if _FABM_DIMENSION_COUNT_>0&&_FABM_VECTORIZED_DIMENSION_INDEX_!=1
-      call check_index(i__, domain_size(1), routine, 'i')
+      call check_index(i__, domain_start(1), domain_stop(1), routine, 'i')
 #endif
 #if _FABM_DIMENSION_COUNT_>1&&_FABM_VECTORIZED_DIMENSION_INDEX_!=2
-      call check_index(j__, domain_size(2), routine, 'j')
+      call check_index(j__, domain_start(2), domain_stop(2), routine, 'j')
 #endif
 #if _FABM_DIMENSION_COUNT_>2&&_FABM_VECTORIZED_DIMENSION_INDEX_!=3
-      call check_index(k__, domain_size(3), routine, 'k')
+      call check_index(k__, domain_start(3), domain_stop(3), routine, 'k')
 #endif
    end subroutine check_interior_location
 
-   subroutine check_horizontal_location(domain_size _POSTARG_HORIZONTAL_IN_, routine)
-      integer,          intent(in) :: domain_size(_FABM_DIMENSION_COUNT_)
+   subroutine check_horizontal_location(domain_start, domain_stop _POSTARG_HORIZONTAL_IN_, routine)
+      integer, dimension(_FABM_DIMENSION_COUNT_), intent(in) :: domain_start, domain_stop
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
       character(len=*), intent(in) :: routine
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-      call check_loop(_START_, _STOP_, domain_size(_FABM_VECTORIZED_DIMENSION_INDEX_), routine)
+      call check_loop(_START_, _STOP_, domain_start(_FABM_VECTORIZED_DIMENSION_INDEX_), domain_stop(_FABM_VECTORIZED_DIMENSION_INDEX_), routine)
 #endif
 #if _FABM_DIMENSION_COUNT_>0&&_FABM_VECTORIZED_DIMENSION_INDEX_!=1&&_FABM_DEPTH_DIMENSION_INDEX_!=1
-      call check_index(i__, domain_size(1), routine, 'i')
+      call check_index(i__, domain_start(1), domain_stop(1), routine, 'i')
 #endif
 #if _FABM_DIMENSION_COUNT_>1&&_FABM_VECTORIZED_DIMENSION_INDEX_!=2&&_FABM_DEPTH_DIMENSION_INDEX_!=2
-      call check_index(j__, domain_size(2), routine, 'j')
+      call check_index(j__, domain_start(2), domain_stop(2), routine, 'j')
 #endif
 #if _FABM_DIMENSION_COUNT_>2&&_FABM_VECTORIZED_DIMENSION_INDEX_!=3&&_FABM_DEPTH_DIMENSION_INDEX_!=3
-      call check_index(k__, domain_size(3), routine, 'k')
+      call check_index(k__, domain_start(3), domain_stop(3), routine, 'k')
 #endif
    end subroutine check_horizontal_location
 
-   subroutine check_vertical_location(domain_size _POSTARG_VERTICAL_IN_, routine)
-      integer,          intent(in) :: domain_size(_FABM_DIMENSION_COUNT_)
+   subroutine check_vertical_location(domain_start, domain_stop _POSTARG_VERTICAL_IN_, routine)
+      integer, dimension(_FABM_DIMENSION_COUNT_), intent(in) :: domain_start, domain_stop
       _DECLARE_ARGUMENTS_VERTICAL_IN_
       character(len=*), intent(in) :: routine
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-      call check_loop(_VERTICAL_START_, _VERTICAL_STOP_, domain_size(_FABM_DEPTH_DIMENSION_INDEX_), routine)
+      call check_loop(_VERTICAL_START_, _VERTICAL_STOP_, domain_start(_FABM_DEPTH_DIMENSION_INDEX_), domain_stop(_FABM_DEPTH_DIMENSION_INDEX_), routine)
 #endif
 #if _FABM_DIMENSION_COUNT_>0&&_FABM_DEPTH_DIMENSION_INDEX_!=1
-      call check_index(i__, domain_size(1), routine, 'i')
+      call check_index(i__, domain_start(1), domain_stop(1), routine, 'i')
 #endif
 #if _FABM_DIMENSION_COUNT_>1&&_FABM_DEPTH_DIMENSION_INDEX_!=2
-      call check_index(j__, domain_size(2), routine, 'j')
+      call check_index(j__, domain_start(2), domain_stop(2), routine, 'j')
 #endif
 #if _FABM_DIMENSION_COUNT_>2&&_FABM_DEPTH_DIMENSION_INDEX_!=3
-      call check_index(k__, domain_size(3), routine, 'k')
+      call check_index(k__, domain_start(3), domain_stop(3), routine, 'k')
 #endif
    end subroutine check_vertical_location
 
@@ -114,20 +114,21 @@ contains
       end if
    end subroutine check_extents_3d
 
-   subroutine check_loop(istart, istop, imax, routine)
-      integer,          intent(in) :: istart, istop, imax
+   subroutine check_loop(istart, istop, imin, imax, routine)
+      integer,          intent(in) :: istart, istop, imin, imax
       character(len=*), intent(in) :: routine
 
       character(len=8) :: str1, str2
 
-      if (istart < 1) then
+      if (istart < imin) then
          write (str1,'(i0)') istart
-         call fatal_error(routine, 'Loop start index ' // trim(str1) // ' is non-positive.')
+         write (str2,'(i0)') imin
+         call fatal_error(routine, 'Loop start index ' // trim(str1) // ' lies below minimum of ' // trim(str2) // '.')
       end if
       if (istop > imax) then
          write (str1,'(i0)') istop
          write (str2,'(i0)') imax
-         call fatal_error(routine, 'Loop stop index ' // trim(str1) // ' exceeds size of vectorized dimension (' // trim(str2) // ').')
+         call fatal_error(routine, 'Loop stop index ' // trim(str1) // ' exceeds maximum of ' // trim(str2) // '.')
       end if
       if (istart > istop) then
          write (str1,'(i0)') istart
@@ -136,20 +137,21 @@ contains
       end if
    end subroutine check_loop
 
-   subroutine check_index(i, i_max, routine, name)
-      integer,          intent(in) :: i, i_max
+   subroutine check_index(i, imin, imax, routine, name)
+      integer,          intent(in) :: i, imin, imax
       character(len=*), intent(in) :: routine, name
 
       character(len=8) :: str1, str2
 
-      if (i < 1) then
+      if (i < imin) then
          write (str1,'(i0)') i
-         call fatal_error(routine, 'Index ' // name // ' = ' // trim(str1) // ' is non-positive.')
+         write (str2,'(i0)') imin
+         call fatal_error(routine, 'Index ' // name // ' = ' // trim(str1) // ' lies below minimum of ' // trim(str2) // '.')
       end if
-      if (i > i_max) then
+      if (i > imax) then
          write (str1,'(i0)') i
-         write (str2,'(i0)') i_max
-         call fatal_error(routine, 'Index ' // name // ' = ' // trim(str1) // ' exceeds size of associated dimension (' // trim(str2) // ').')
+         write (str2,'(i0)') imax
+         call fatal_error(routine, 'Index ' // name // ' = ' // trim(str1) // ' exceeds maximum of ' // trim(str2) // '.')
       end if
    end subroutine check_index
 

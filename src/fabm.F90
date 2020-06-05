@@ -1357,7 +1357,7 @@ contains
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self%domain%shape _POSTARG_INTERIOR_IN_, 'initialize_interior_state')
+      call check_interior_location(self%domain%start, self%domain%stop _POSTARG_INTERIOR_IN_, 'initialize_interior_state')
 #endif
 
       call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%initialize_interior_state_job%first_task, self%cache_int _POSTARG_INTERIOR_IN_)
@@ -1394,7 +1394,7 @@ contains
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self%domain%shape _POSTARG_HORIZONTAL_IN_, 'initialize_bottom_state')
+      call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'initialize_bottom_state')
 #endif
 
       call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%initialize_bottom_state_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
@@ -1431,7 +1431,7 @@ contains
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self%domain%shape _POSTARG_HORIZONTAL_IN_, 'initialize_surface_state')
+      call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'initialize_surface_state')
 #endif
 
       call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%initialize_surface_state_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
@@ -1469,7 +1469,7 @@ contains
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self%domain%shape _POSTARG_INTERIOR_IN_, 'get_interior_sources_rhs')
+      call check_interior_location(self%domain%start, self%domain%stop _POSTARG_INTERIOR_IN_, 'get_interior_sources_rhs')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
       call check_extents_2d(dy, _STOP_ - _START_ + 1, size(self%interior_state_variables), 'get_interior_sources_rhs', 'dy', 'stop-start+1, # interior state variables')
 #  else
@@ -1495,7 +1495,7 @@ contains
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self%domain%shape _POSTARG_INTERIOR_IN_, 'get_interior_sources_ppdd')
+      call check_interior_location(self%domain%start, self%domain%stop _POSTARG_INTERIOR_IN_, 'get_interior_sources_ppdd')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
       call check_extents_3d(pp, _STOP_ - _START_ + 1, size(self%interior_state_variables), size(self%interior_state_variables), 'get_interior_sources_ppdd', 'pp', 'stop-start+1, # interior state variables, # interior state variables')
       call check_extents_3d(dd, _STOP_ - _START_ + 1, size(self%interior_state_variables), size(self%interior_state_variables), 'get_interior_sources_ppdd', 'dd', 'stop-start+1, # interior state variables, # interior state variables')
@@ -1537,7 +1537,7 @@ contains
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self%domain%shape _POSTARG_INTERIOR_IN_, 'check_interior_state')
+      call check_interior_location(self%domain%start, self%domain%stop _POSTARG_INTERIOR_IN_, 'check_interior_state')
 #endif
 
       self%cache_int%repair = repair
@@ -1615,7 +1615,7 @@ contains
       logical,                 intent(out)   :: valid
 
 #ifndef NDEBUG
-      call check_horizontal_location(self%domain%shape _POSTARG_HORIZONTAL_IN_, 'check_bottom_state')
+      call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'check_bottom_state')
 #endif
 
       call internal_check_horizontal_state(self, self%check_bottom_state_job _POSTARG_HORIZONTAL_IN_, 2, self%bottom_state_variables, repair, valid)
@@ -1628,7 +1628,7 @@ contains
       logical,                 intent(out)   :: valid
 
 #ifndef NDEBUG
-      call check_horizontal_location(self%domain%shape _POSTARG_HORIZONTAL_IN_, 'check_surface_state')
+      call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'check_surface_state')
 #endif
 
       call internal_check_horizontal_state(self, self%check_surface_state_job _POSTARG_HORIZONTAL_IN_, 1, self%surface_state_variables, repair, valid)
@@ -1779,7 +1779,7 @@ contains
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self%domain%shape _POSTARG_HORIZONTAL_IN_, 'get_surface_sources')
+      call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'get_surface_sources')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
       call check_extents_2d(flux_pel, _STOP_ - _START_ + 1, size(self%interior_state_variables), 'get_surface_sources', 'flux_pel', 'stop-start+1, # interior state variables')
       if (present(flux_sf)) call check_extents_2d(flux_sf, _STOP_ - _START_ + 1, size(self%surface_state_variables), 'get_surface_sources', 'flux_sf', 'stop-start+1, # surface state variables')
@@ -1817,7 +1817,7 @@ contains
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self%domain%shape _POSTARG_HORIZONTAL_IN_, 'get_bottom_sources_rhs')
+      call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'get_bottom_sources_rhs')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
       call check_extents_2d(flux_pel, _STOP_ - _START_ + 1, size(self%interior_state_variables), 'get_bottom_sources_rhs', 'flux_pel', 'stop-start+1, # interior state variables')
       call check_extents_2d(flux_ben, _STOP_ - _START_ + 1, size(self%bottom_state_variables), 'get_bottom_sources_rhs', 'flux_ben', 'stop-start+1, # bottom state variables')
@@ -1852,7 +1852,7 @@ contains
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self%domain%shape _POSTARG_HORIZONTAL_IN_, 'get_bottom_sources_ppdd')
+      call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'get_bottom_sources_ppdd')
 #endif
 
       call cache_pack(self%domain, self%catalog, self%cache_fill_values, self%get_bottom_sources_job%first_task, self%cache_hz _POSTARG_HORIZONTAL_IN_)
@@ -1884,7 +1884,7 @@ contains
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self%domain%shape _POSTARG_INTERIOR_IN_, 'get_vertical_movement')
+      call check_interior_location(self%domain%start, self%domain%stop _POSTARG_INTERIOR_IN_, 'get_vertical_movement')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
       call check_extents_2d(velocity, _STOP_ - _START_ + 1, size(self%interior_state_variables), 'get_vertical_movement', 'velocity', 'stop-start+1, # interior state variables')
 #  else
@@ -1910,7 +1910,7 @@ contains
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
-      call check_interior_location(self%domain%shape _POSTARG_INTERIOR_IN_, 'get_interior_conserved_quantities')
+      call check_interior_location(self%domain%start, self%domain%stop _POSTARG_INTERIOR_IN_, 'get_interior_conserved_quantities')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
       call check_extents_2d(sums, _STOP_ - _START_ + 1, size(self%conserved_quantities), 'get_interior_conserved_quantities', 'sums', 'stop-start+1, # conserved quantities')
 #  else
@@ -1934,7 +1934,7 @@ contains
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
-      call check_horizontal_location(self%domain%shape _POSTARG_HORIZONTAL_IN_, 'get_horizontal_conserved_quantities')
+      call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'get_horizontal_conserved_quantities')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
       call check_extents_2d(sums, _STOP_ - _START_ + 1, size(self%conserved_quantities), 'get_horizontal_conserved_quantities', 'sums', 'stop-start+1, # conserved quantities')
 #  else
