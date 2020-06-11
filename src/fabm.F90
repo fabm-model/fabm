@@ -653,7 +653,10 @@ contains
          call fatal_error('start', 'set_domain has not yet been called on this model object.')
          return
       elseif (self%status >= status_start_done) then
-         ! start has been called on this model before and it must have succeeded to have this status. We are done.
+         ! start has been called on this model before and it must have succeeded to have this status.
+         ! Reset store (e.g., all diagnostics) by setting each variable to its fill value and return.
+         ! (this allows masked cells to be properly initialized if the mask changes between calls to start)
+         call reset_store(self)
          return
       end if
 
@@ -1770,10 +1773,10 @@ contains
    end subroutine internal_check_horizontal_state
 
    subroutine get_surface_sources(self _POSTARG_HORIZONTAL_IN_, flux_pel, flux_sf)
-      class (type_fabm_model),                       intent(inout)         :: self
+      class (type_fabm_model),                           intent(inout)         :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(out)           :: flux_pel
-      real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(out), optional :: flux_sf
+      real(rke) _DIMENSION_EXT_HORIZONTAL_SLICE_PLUS_1_, intent(out)           :: flux_pel
+      real(rke) _DIMENSION_EXT_HORIZONTAL_SLICE_PLUS_1_, intent(out), optional :: flux_sf
 
       integer :: i, k
       _DECLARE_HORIZONTAL_INDICES_
@@ -1809,9 +1812,9 @@ contains
    end subroutine get_surface_sources
 
    subroutine get_bottom_sources_rhs(self _POSTARG_HORIZONTAL_IN_, flux_pel, flux_ben)
-      class (type_fabm_model),                       intent(inout) :: self
+      class (type_fabm_model),                           intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(inout) :: flux_pel, flux_ben
+      real(rke) _DIMENSION_EXT_HORIZONTAL_SLICE_PLUS_1_, intent(inout) :: flux_pel, flux_ben
 
       integer :: i, k
       _DECLARE_HORIZONTAL_INDICES_
@@ -1843,10 +1846,10 @@ contains
    end subroutine get_bottom_sources_rhs
 
    subroutine get_bottom_sources_ppdd(self _POSTARG_HORIZONTAL_IN_, pp, dd, benthos_offset)
-      class (type_fabm_model),                       intent(inout) :: self
+      class (type_fabm_model),                           intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      integer,                                       intent(in)    :: benthos_offset
-      real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_, intent(inout) :: pp, dd
+      integer,                                           intent(in)    :: benthos_offset
+      real(rke) _DIMENSION_EXT_HORIZONTAL_SLICE_PLUS_2_, intent(inout) :: pp, dd
 
       integer                   :: icall, i, j, k, ncopy
       _DECLARE_HORIZONTAL_INDICES_
@@ -1926,9 +1929,9 @@ contains
    end subroutine get_interior_conserved_quantities
 
    subroutine get_horizontal_conserved_quantities(self _POSTARG_HORIZONTAL_IN_, sums)
-      class (type_fabm_model),                       intent(inout) :: self
+      class (type_fabm_model),                           intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(out)   :: sums
+      real(rke) _DIMENSION_EXT_HORIZONTAL_SLICE_PLUS_1_, intent(out)   :: sums
 
       integer :: i
       _DECLARE_HORIZONTAL_INDICES_
@@ -2604,7 +2607,6 @@ contains
    subroutine create_store(self)
       class (type_fabm_model), intent(inout) :: self
 
-      integer                            :: i
       type (type_variable_node), pointer :: variable_node
 
       ! Allocate memory for persistent store
@@ -2624,14 +2626,7 @@ contains
       call collect_fill_values(self%variable_register%store%interior,   self%store%interior_missing_value,   use_missing=.true.)
       call collect_fill_values(self%variable_register%store%horizontal, self%store%horizontal_missing_value, use_missing=.true.)
 
-      ! Initialize persistent store entries to fill value.
-      ! For constant outputs, their values will be set here, and never touched again.
-      do i = 1, self%variable_register%store%interior%count
-         self%store%interior(_PREARG_LOCATION_DIMENSIONS_ i) = self%store%interior_fill_value(i)
-      end do
-      do i = 1, self%variable_register%store%horizontal%count
-         self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = self%store%horizontal_fill_value(i)
-      end do
+      call reset_store(self)
 
       ! Register data fields from persistent store in catalog.
       variable_node => self%variable_register%catalog%interior%first
@@ -2676,6 +2671,21 @@ contains
       end subroutine
 
    end subroutine create_store
+
+   subroutine reset_store(self)
+      class (type_fabm_model), intent(inout) :: self
+
+      integer :: i
+
+      ! Initialize persistent store entries to fill value.
+      ! For constant outputs, their values will be set here, and never touched again.
+      do i = 1, self%variable_register%store%interior%count
+         self%store%interior(_PREARG_LOCATION_DIMENSIONS_ i) = self%store%interior_fill_value(i)
+      end do
+      do i = 1, self%variable_register%store%horizontal%count
+         self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = self%store%horizontal_fill_value(i)
+      end do
+   end subroutine
 
    recursive subroutine merge_indices(model, log_unit)
       class (type_base_model), intent(inout)        :: model

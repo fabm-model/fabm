@@ -268,9 +268,9 @@ contains
    end subroutine
 
    subroutine fabm_get_horizontal_conserved_quantities(self _POSTARG_HORIZONTAL_IN_, sums)
-      class (type_model),                            intent(inout) :: self
+      class (type_model),                                intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(out)   :: sums
+      real(rke) _DIMENSION_EXT_HORIZONTAL_SLICE_PLUS_1_, intent(out)   :: sums
       call self%get_horizontal_conserved_quantities(_PREARG_HORIZONTAL_IN_ sums)
    end subroutine
 
@@ -289,25 +289,25 @@ contains
    end subroutine
 
    subroutine fabm_do_bottom_rhs(self _POSTARG_HORIZONTAL_IN_, flux_pel, flux_ben)
-      class (type_model),                            intent(inout) :: self
+      class (type_model),                                intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(inout) :: flux_pel, flux_ben
+      real(rke) _DIMENSION_EXT_HORIZONTAL_SLICE_PLUS_1_, intent(inout) :: flux_pel, flux_ben
       call self%get_bottom_sources(_PREARG_HORIZONTAL_IN_ flux_pel, flux_ben)
    end subroutine
 
    subroutine fabm_do_bottom_ppdd(self _POSTARG_HORIZONTAL_IN_, pp, dd, benthos_offset)
-      class (type_model),                            intent(inout) :: self
+      class (type_model),                                intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      integer,                                       intent(in)    :: benthos_offset
-      real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_2_, intent(inout) :: pp, dd
+      integer,                                           intent(in)    :: benthos_offset
+      real(rke) _DIMENSION_EXT_HORIZONTAL_SLICE_PLUS_2_, intent(inout) :: pp, dd
       call self%get_bottom_sources(_PREARG_HORIZONTAL_IN_ pp, dd, benthos_offset)
    end subroutine
 
    subroutine fabm_do_surface(self _POSTARG_HORIZONTAL_IN_, flux_pel, flux_sf)
-      class (type_model),                            intent(inout)         :: self
+      class (type_model),                                intent(inout)         :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(out)           :: flux_pel
-      real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, intent(out), optional :: flux_sf
+      real(rke) _DIMENSION_EXT_HORIZONTAL_SLICE_PLUS_1_, intent(out)           :: flux_pel
+      real(rke) _DIMENSION_EXT_HORIZONTAL_SLICE_PLUS_1_, intent(out), optional :: flux_sf
       call self%get_surface_sources(_PREARG_HORIZONTAL_IN_ flux_pel, flux_sf)
    end subroutine
 
@@ -365,9 +365,9 @@ contains
    end subroutine fabm_get_light_extinction
 
    subroutine fabm_get_drag(self _POSTARG_HORIZONTAL_IN_, drag)
-      class (type_model),                     intent(inout) :: self
+      class (type_model),                         intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      real(rke) _DIMENSION_HORIZONTAL_SLICE_, intent(out)   :: drag
+      real(rke) _DIMENSION_EXT_HORIZONTAL_SLICE_, intent(out)   :: drag
 
       _DECLARE_HORIZONTAL_INDICES_
 
@@ -385,9 +385,9 @@ contains
    end subroutine fabm_get_drag
 
    subroutine fabm_get_albedo(self _POSTARG_HORIZONTAL_IN_, albedo)
-      class (type_model),                     intent(inout) :: self
+      class (type_model),                         intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-      real(rke) _DIMENSION_HORIZONTAL_SLICE_, intent(out)   :: albedo
+      real(rke) _DIMENSION_EXT_HORIZONTAL_SLICE_, intent(out)   :: albedo
 
       _DECLARE_HORIZONTAL_INDICES_
 
