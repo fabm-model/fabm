@@ -8,6 +8,7 @@ import subprocess
 import shutil
 import argparse
 import timeit
+import io
 
 script_root = os.path.abspath(os.path.dirname(__file__))
 root = os.path.join(script_root, '../..')
@@ -22,6 +23,7 @@ parser.add_argument('--config', default='fabm.yaml', help='model configuration f
 parser.add_argument('--env', default='environment.yaml', help='model environment for performance testing (YAML file containing a dictionary with variable: value combinations), default: environment.yaml')
 parser.add_argument('--report', default=None, help='file to write performance report to (only used with --performance), default: performance_<BRANCH>_<COMMIT>.log')
 parser.add_argument('--repeat', type=int, default=5, help='number of times to run each performance test. Increase this to reduce the noise in timings')
+parser.add_argument('-v', '--verbose', action='store_true', help='show test results even if completed successfully')
 args, cmake_arguments = parser.parse_known_args()
 if args.performance:
     if not os.path.isfile(args.config):
@@ -48,17 +50,19 @@ if not args.hosts:
 print('Selected hosts: %s' % ', '.join(args.hosts))
 
 logs = []
-def run(phase, args, **kwargs):
-    proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs)
-    stdoutdata, stderrdata = proc.communicate()
+def run(phase, args, verbose=False, **kwargs):
+    proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, **kwargs)
+    stdoutdata, _ = proc.communicate()
     if proc.returncode != 0:
         log_path = '%s.log' % phase
-        with open(log_path, 'wb') as f:
+        with io.open(log_path, 'w') as f:
             f.write(stdoutdata)
         logs.append(log_path)
         print('FAILED (return code %i, log written to %s)' % (proc.returncode, log_path))
     else:
         print('SUCCESS')
+    if verbose:
+        print('Output:\n%s\n%s\n%s' % (80 * '-', stdoutdata, 80 * '-'))
     return proc.returncode
 
 build_root = tempfile.mkdtemp()
@@ -69,7 +73,7 @@ try:
         print(host)
         build_dir = os.path.join(build_root, host)
         os.mkdir(build_dir)
-        print('  generating...', end='')
+        print('  generating...', end='', flush=True)
         try:
             generates[host] = run('%s_generate' % host, [args.cmake, os.path.join(root, 'src'), '-DFABM_HOST=%s' % host] + cmake_arguments, cwd=build_dir)
         except FileNotFoundError:
@@ -77,16 +81,16 @@ try:
             sys.exit(2)
         if generates[host] != 0:
             continue
-        print('  building...', end='')
+        print('  building...', end='', flush=True)
         builds[host] = run('%s_build' % host, [args.cmake, '--build', build_dir, '--target', 'test_host', '--config', vsconfig])
         if builds[host] != 0:
             continue
-        print('  testing...', end='')
+        print('  testing...', end='', flush=True)
         for exename in ('%s/test_host.exe' % vsconfig, 'test_host'):
             exepath = os.path.join(build_dir, exename)
             if os.path.isfile(exepath):
                 host2exe[host] = exepath
-        tests[host] = run('%s_test' % host, [host2exe[host]])
+        tests[host] = run('%s_test' % host, [host2exe[host]], verbose=args.verbose)
 
     if args.performance:
         print('Measuring runtime')
