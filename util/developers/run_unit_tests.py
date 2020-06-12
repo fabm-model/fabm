@@ -51,7 +51,7 @@ print('Selected hosts: %s' % ', '.join(args.hosts))
 
 logs = []
 def run(phase, args, verbose=False, **kwargs):
-    proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, **kwargs)
+    proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, **kwargs)
     stdoutdata, _ = proc.communicate()
     if proc.returncode != 0:
         log_path = '%s.log' % phase
