@@ -427,7 +427,7 @@ program test_host
    case (1)
       write (*,'(a)') 'Testing without mask and unrestricted domain.'
       call test_update(apply_mask=.false., restrict_range=.false.)
-#if defined(_HAS_MASK_) .and. _FABM_DIMENSION_COUNT_>0
+#if defined(_HAS_MASK_) || _FABM_DIMENSION_COUNT_>0
       write (*,'(a,i0,a)') 'Running ', ntest, ' tests with randomized domain settings.'
       do i=1,ntest
 #  ifdef _HAS_MASK_
@@ -438,7 +438,7 @@ program test_host
          write (*,'(a)') 'Randomly restricted domain (no mask).'
          call test_update(apply_mask=.false., restrict_range=.true.)
 #  endif
-#  if defined(_HAS_MASK_) .and. _FABM_DIMENSION_COUNT_>0
+#  if defined(_HAS_MASK_) && _FABM_DIMENSION_COUNT_>0
          write (*,'(a)') 'Random mask and randomly restricted domain.'
          call test_update(apply_mask=.true., restrict_range=.true.)
 #  endif
