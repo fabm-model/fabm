@@ -176,11 +176,8 @@ program test_host
    real(rke), allocatable, target _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: surface_state
    real(rke), allocatable, target _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: bottom_state
 
-   real(rke), allocatable _DIMENSION_SLICE_PLUS_1_            :: dy
-   real(rke), allocatable _DIMENSION_SLICE_PLUS_1_            :: w
-   real(rke), allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: flux
-   real(rke), allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: sms_sf
-   real(rke), allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: sms_bt
+   real(rke), allocatable _DIMENSION_SLICE_PLUS_1_            :: dy, w, total_int
+   real(rke), allocatable _DIMENSION_HORIZONTAL_SLICE_PLUS_1_ :: flux, sms_sf, sms_bt, total_hz
 
    real(rke), allocatable, target _DIMENSION_GLOBAL_            :: temperature
    real(rke), allocatable, target _DIMENSION_GLOBAL_            :: depth
@@ -311,6 +308,7 @@ program test_host
    call assert(size(model%interior_state_variables) == test_model%nstate, 'model%initialize', 'Incorrect number of interior state variables.')
    call assert(size(model%bottom_state_variables) == test_model%nbottom_state, 'model%initialize', 'Incorrect number of bottom state variables.')
    call assert(size(model%surface_state_variables) == test_model%nsurface_state, 'model%initialize', 'Incorrect number of surface state variables.')
+   call assert(size(model%conserved_quantities) == 1, 'model%initialize', 'Incorrect number of conserved quantities.')
    call report_test_result()
 
    ! ======================================================================
@@ -408,19 +406,23 @@ program test_host
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
    allocate(dy(_START_:_STOP_, size(model%interior_state_variables)))
    allocate(w(_START_:_STOP_, size(model%interior_state_variables)))
+   allocate(total_int(_START_:_STOP_, size(model%conserved_quantities)))
 #else
    allocate(dy(size(model%interior_state_variables)))
    allocate(w(size(model%interior_state_variables)))
+   allocate(total_int(size(model%conserved_quantities)))
 #endif
 
 #if defined(_FABM_VECTORIZED_DIMENSION_INDEX_)&&(_FABM_DEPTH_DIMENSION_INDEX_!=_FABM_VECTORIZED_DIMENSION_INDEX_)
    allocate(flux(_START_:_STOP_, size(model%interior_state_variables)))
    allocate(sms_sf(_START_:_STOP_, size(model%surface_state_variables)))
    allocate(sms_bt(_START_:_STOP_, size(model%bottom_state_variables)))
+   allocate(total_hz(_START_:_STOP_, size(model%conserved_quantities)))
 #else
    allocate(flux(size(model%interior_state_variables)))
    allocate(sms_sf(size(model%surface_state_variables)))
    allocate(sms_bt(size(model%bottom_state_variables)))
+   allocate(total_hz(size(model%conserved_quantities)))
 #endif
 
    select case (mode)
@@ -910,7 +912,7 @@ contains
          'call count does not match number of (unmasked) interior points')
 
       do ivar = 1, size(model%interior_diagnostic_variables)
-         if (model%interior_diagnostic_variables(ivar)%save .and. model%interior_diagnostic_variables(ivar)%target%source == source_do) then
+         if (model%interior_diagnostic_variables(ivar)%save .and. model%interior_diagnostic_variables(ivar)%target%source == source_do .and. associated(model%interior_diagnostic_variables(ivar)%target%owner,test_model)) then
             pdata => model%get_interior_diagnostic_data(ivar)
             call check_interior(pdata, model%interior_diagnostic_variables(ivar)%missing_value, &
                -model%interior_diagnostic_variables(ivar)%missing_value)
@@ -1238,6 +1240,49 @@ contains
             model%bottom_state_variables(ivar)%missing_value, model%bottom_state_variables(ivar)%maximum)
       end do
       call report_test_result()
+
+      ! ======================================================================
+      ! Retrieve totals of conserved quantities
+      ! ======================================================================
+
+      call start_test('get_interior_conserved_quantities')
+      _BEGIN_OUTER_INTERIOR_LOOP_
+#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
+         ! We are looping over depth, but as we have a non-constant bottom index (yet no mask), we need to skip everything below bottom
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+         _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
+#  else
+         _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
+#  endif
+#endif
+         call model%get_interior_conserved_quantities(_PREARG_INTERIOR_IN_ total_int _INTERIOR_SLICE_RANGE_PLUS_1_)
+         do ivar = 1, size(model%conserved_quantities)
+            call check_interior_slice_plus_1(total_int _INTERIOR_SLICE_RANGE_PLUS_1_, ivar, -2.e20_rke, &
+               (interior_state_offset + 0.5_rke * (test_model%nstate + 1)) * test_model%nstate _POSTARG_INTERIOR_IN_)
+         end do
+      _END_OUTER_INTERIOR_LOOP_
+
+#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
+      _START_ = domain_start(_FABM_VECTORIZED_DIMENSION_INDEX_)
+      _STOP_ = domain_stop(_FABM_VECTORIZED_DIMENSION_INDEX_)
+#  endif
+      call report_test_result()
+
+      call start_test('get_horizontal_conserved_quantities')
+      _BEGIN_OUTER_HORIZONTAL_LOOP_
+#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
+         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ >= domain_start(_FABM_DEPTH_DIMENSION_INDEX_) .and. bottom_index _INDEX_HORIZONTAL_LOCATION_ <= domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)) then
+#endif
+         call model%get_horizontal_conserved_quantities(_PREARG_HORIZONTAL_IN_ total_hz _HORIZONTAL_SLICE_RANGE_PLUS_1_)
+         do ivar = 1, size(model%conserved_quantities)
+            call check_horizontal_slice_plus_1(total_hz _HORIZONTAL_SLICE_RANGE_PLUS_1_, ivar, -2.e20_rke, &
+               (surface_state_offset + 0.5_rke * (test_model%nsurface_state + 1)) * test_model%nsurface_state + &
+               (bottom_state_offset + 0.5_rke * (test_model%nbottom_state + 1)) * test_model%nbottom_state _POSTARG_HORIZONTAL_IN_)
+         end do
+#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
+         endif
+#endif
+      _END_OUTER_HORIZONTAL_LOOP_
 
    end subroutine test_update
 
