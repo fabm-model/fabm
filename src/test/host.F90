@@ -1257,7 +1257,7 @@ contains
 #endif
          call model%get_interior_conserved_quantities(_PREARG_INTERIOR_IN_ total_int _INTERIOR_SLICE_RANGE_PLUS_1_)
          do ivar = 1, size(model%conserved_quantities)
-            call check_interior_slice_plus_1(total_int _INTERIOR_SLICE_RANGE_PLUS_1_, ivar, -2.e20_rke, &
+            call check_interior_slice_plus_1(total_int _INTERIOR_SLICE_RANGE_PLUS_1_, ivar, model%conserved_quantities(ivar)%missing_value, &
                (interior_state_offset + 0.5_rke * (test_model%nstate + 1)) * test_model%nstate _POSTARG_INTERIOR_IN_)
          end do
       _END_OUTER_INTERIOR_LOOP_
@@ -1275,7 +1275,7 @@ contains
 #endif
          call model%get_horizontal_conserved_quantities(_PREARG_HORIZONTAL_IN_ total_hz _HORIZONTAL_SLICE_RANGE_PLUS_1_)
          do ivar = 1, size(model%conserved_quantities)
-            call check_horizontal_slice_plus_1(total_hz _HORIZONTAL_SLICE_RANGE_PLUS_1_, ivar, -2.e20_rke, &
+            call check_horizontal_slice_plus_1(total_hz _HORIZONTAL_SLICE_RANGE_PLUS_1_, ivar, model%conserved_quantities(ivar)%missing_value, &
                (surface_state_offset + 0.5_rke * (test_model%nsurface_state + 1)) * test_model%nsurface_state + &
                (bottom_state_offset + 0.5_rke * (test_model%nbottom_state + 1)) * test_model%nbottom_state _POSTARG_HORIZONTAL_IN_)
          end do

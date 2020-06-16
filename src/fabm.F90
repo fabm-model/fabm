@@ -2258,6 +2258,7 @@ contains
             consvar%target_hz => get_variable_by_standard_variable(self, standard_variable%at_interfaces())
             _ASSERT_(associated(consvar%target_hz), 'classify_variables', 'Conserved quantity ' // trim(standard_variable%name) // ' not found at interfaces.')
          end select
+         consvar%missing_value = consvar%target%missing_value
          standard_variable_node => standard_variable_node%next
       end do
       call standard_variable_set%finalize()
