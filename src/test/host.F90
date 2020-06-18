@@ -305,10 +305,12 @@ program test_host
 
    call start_test('initialize')
    call model%initialize()
-   call assert(size(model%interior_state_variables) == test_model%nstate, 'model%initialize', 'Incorrect number of interior state variables.')
-   call assert(size(model%bottom_state_variables) == test_model%nbottom_state, 'model%initialize', 'Incorrect number of bottom state variables.')
-   call assert(size(model%surface_state_variables) == test_model%nsurface_state, 'model%initialize', 'Incorrect number of surface state variables.')
-   call assert(size(model%conserved_quantities) == 1, 'model%initialize', 'Incorrect number of conserved quantities.')
+   if (mode == 1) then
+      call assert(size(model%interior_state_variables) == test_model%nstate, 'model%initialize', 'Incorrect number of interior state variables.')
+      call assert(size(model%bottom_state_variables) == test_model%nbottom_state, 'model%initialize', 'Incorrect number of bottom state variables.')
+      call assert(size(model%surface_state_variables) == test_model%nsurface_state, 'model%initialize', 'Incorrect number of surface state variables.')
+      call assert(size(model%conserved_quantities) == 1, 'model%initialize', 'Incorrect number of conserved quantities.')
+   end if
    call report_test_result()
 
    ! ======================================================================
