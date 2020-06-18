@@ -90,7 +90,7 @@ try:
             exepath = os.path.join(build_dir, exename)
             if os.path.isfile(exepath):
                 host2exe[host] = exepath
-        tests[host] = run('%s_test' % host, [host2exe[host], '-n', '%i' % ('1' if args.performance else args.repeat)], verbose=args.verbose)
+        tests[host] = run('%s_test' % host, [host2exe[host], '-n', '%i' % (1 if args.performance else args.repeat)], verbose=args.verbose)
 
     if args.performance:
         print('Measuring runtime')
