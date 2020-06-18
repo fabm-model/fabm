@@ -12,7 +12,7 @@ import io
 
 script_root = os.path.abspath(os.path.dirname(__file__))
 root = os.path.join(script_root, '../..')
-allowed_hosts = os.listdir(os.path.join(root, 'src/drivers'))
+allowed_hosts = sorted(os.listdir(os.path.join(root, 'src/drivers')))
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--host', action='append', dest='hosts', choices=allowed_hosts, help='host to test (may appear multiple times)')
