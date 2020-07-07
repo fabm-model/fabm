@@ -2093,11 +2093,11 @@ contains
    end subroutine register_standard_horizontal_dependency
 
    subroutine register_universal_horizontal_dependency(self, id, standard_variable, domain, required)
-      class (type_base_model),                  intent(inout)         :: self
-      type (type_horizontal_dependency_id),     intent(inout), target :: id
-      class (type_universal_standard_variable), intent(in)            :: standard_variable
-      integer, optional,                        intent(in)            :: domain
-      logical, optional,                        intent(in)            :: required
+      class (type_base_model),                 intent(inout)         :: self
+      type (type_horizontal_dependency_id),    intent(inout), target :: id
+      type (type_universal_standard_variable), intent(in)            :: standard_variable
+      integer, optional,                       intent(in)            :: domain
+      logical, optional,                       intent(in)            :: required
 
       integer :: domain_
 
@@ -2124,10 +2124,10 @@ contains
    end subroutine register_standard_surface_dependency
 
    subroutine register_universal_surface_dependency(self, id, standard_variable, required)
-      class (type_base_model),                  intent(inout)         :: self
-      type (type_surface_dependency_id),        intent(inout), target :: id
-      class (type_universal_standard_variable), intent(in)            :: standard_variable
-      logical, optional,                        intent(in)            :: required
+      class (type_base_model),                 intent(inout)         :: self
+      type (type_surface_dependency_id),       intent(inout), target :: id
+      type (type_universal_standard_variable), intent(in)            :: standard_variable
+      logical, optional,                       intent(in)            :: required
 
       call register_standard_surface_dependency(self, id, standard_variable%at_surface(), required)
    end subroutine register_universal_surface_dependency
@@ -2144,10 +2144,10 @@ contains
    end subroutine register_standard_bottom_dependency
 
    subroutine register_universal_bottom_dependency(self, id, standard_variable, required)
-      class (type_base_model),                  intent(inout)         :: self
-      type (type_bottom_dependency_id),         intent(inout), target :: id
-      class (type_universal_standard_variable), intent(in)            :: standard_variable
-      logical, optional,                        intent(in)            :: required
+      class (type_base_model),                 intent(inout)         :: self
+      type (type_bottom_dependency_id),        intent(inout), target :: id
+      type (type_universal_standard_variable), intent(in)            :: standard_variable
+      logical, optional,                       intent(in)            :: required
 
       call register_standard_bottom_dependency(self, id, standard_variable%at_bottom(), required)
    end subroutine register_universal_bottom_dependency
