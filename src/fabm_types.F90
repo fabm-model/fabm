@@ -1324,9 +1324,9 @@ contains
    end subroutine request_coupling_for_id
 
    subroutine request_standard_coupling_for_link(self, link, master)
-      class (type_base_model),             intent(inout) :: self
-      type (type_link), target,            intent(inout) :: link
-      class (type_domain_specific_standard_variable), target :: master
+      class (type_base_model),                        intent(inout)      :: self
+      type (type_link), target,                       intent(inout)      :: link
+      class (type_domain_specific_standard_variable), intent(in), target :: master
 
       class (type_coupling_task), pointer :: task
 
@@ -1336,9 +1336,9 @@ contains
    end subroutine request_standard_coupling_for_link
 
    subroutine request_standard_coupling_for_id(self, id, master)
-      class (type_base_model),             intent(inout) :: self
-      class (type_variable_id),            intent(inout) :: id
-      class (type_domain_specific_standard_variable), target :: master
+      class (type_base_model),                        intent(inout)      :: self
+      class (type_variable_id),                       intent(inout)      :: id
+      class (type_domain_specific_standard_variable), intent(in), target :: master
 
       if (.not. associated(id%link)) call self%fatal_error('request_standard_coupling_for_id', &
          'The provided variable identifier has not been registered yet.')
