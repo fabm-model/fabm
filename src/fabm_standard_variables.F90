@@ -186,9 +186,11 @@ contains
    end subroutine
 
    function universal_standard_variable_typed_resolve(self) result(p)
-      class (type_universal_standard_variable), target  :: self
-      class (type_universal_standard_variable), pointer :: p
+      class (type_universal_standard_variable), intent(in), target  :: self
+      class (type_universal_standard_variable), pointer             :: p
+
       class (type_base_standard_variable), pointer :: presolved
+
       presolved => self%resolve()
       select type (presolved)
       class is (type_universal_standard_variable)
@@ -202,41 +204,51 @@ contains
    end function
 
    function universal_standard_variable_in_interior(self) result(p)
-      class (type_universal_standard_variable), target  :: self
-      class (type_interior_standard_variable), pointer :: p
+      class (type_universal_standard_variable), intent(in), target  :: self
+      class (type_interior_standard_variable), pointer              :: p
+
       class (type_universal_standard_variable), pointer  :: presolved
+
       presolved => self%typed_resolve()
       p => presolved%pin_interior
    end function
 
    function universal_standard_variable_at_surface(self) result(p)
-      class (type_universal_standard_variable), target  :: self
-      class (type_surface_standard_variable), pointer :: p
+      class (type_universal_standard_variable), intent(in), target  :: self
+      class (type_surface_standard_variable), pointer               :: p
+
       class (type_universal_standard_variable), pointer  :: presolved
+
       presolved => self%typed_resolve()
       p => presolved%pat_surface
    end function
 
    function universal_standard_variable_at_bottom(self) result(p)
-      class (type_universal_standard_variable), target  :: self
-      class (type_bottom_standard_variable), pointer :: p
+      class (type_universal_standard_variable), intent(in), target  :: self
+      class (type_bottom_standard_variable), pointer                :: p
+
       class (type_universal_standard_variable), pointer  :: presolved
+
       presolved => self%typed_resolve()
       p => presolved%pat_bottom
    end function
 
    function universal_standard_variable_at_interfaces(self) result(p)
-      class (type_universal_standard_variable), target  :: self
-      class (type_horizontal_standard_variable), pointer :: p
+      class (type_universal_standard_variable), intent(in), target  :: self
+      class (type_horizontal_standard_variable), pointer            :: p
+
       class (type_universal_standard_variable), pointer  :: presolved
+
       presolved => self%typed_resolve()
       p => presolved%pat_interfaces
    end function
 
    function domain_specific_standard_variable_typed_resolve(self) result(p)
-      class (type_domain_specific_standard_variable), target  :: self
-      class (type_domain_specific_standard_variable), pointer :: p
+      class (type_domain_specific_standard_variable), intent(in), target  :: self
+      class (type_domain_specific_standard_variable), pointer             :: p
+
       class (type_base_standard_variable), pointer :: pbase
+
       pbase => self%resolve()
       select type (pbase)
       class is (type_domain_specific_standard_variable)
