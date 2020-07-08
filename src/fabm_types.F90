@@ -1250,7 +1250,7 @@ contains
       self%first => null()
    end subroutine link_list_finalize
 
-   function create_coupling_task(self, link) result(task)
+   subroutine create_coupling_task(self, link, task)
       class (type_base_model),  intent(inout) :: self
       type (type_link), target, intent(inout) :: link
       class (type_coupling_task), pointer     :: task
@@ -1274,7 +1274,7 @@ contains
 
       ! Create a coupling task (reuse existing one if available, and not user-specified)
       call self%coupling_task_list%add(link, .false., task)
-   end function create_coupling_task
+   end subroutine create_coupling_task
 
    subroutine request_coupling_for_link(self, link, master)
       class (type_base_model),  intent(inout) :: self
@@ -1284,7 +1284,7 @@ contains
       class (type_coupling_task), pointer :: task
 
       ! Create a coupling task (reuse existing one if available, and not user-specified)
-      task => create_coupling_task(self, link)
+      call create_coupling_task(self, link, task)
       if (.not. associated(task)) return   ! We already have a user-specified task, which takes priority
 
       ! Configure coupling task
@@ -1330,7 +1330,7 @@ contains
 
       class (type_coupling_task), pointer :: task
 
-      task => create_coupling_task(self, link)
+      call create_coupling_task(self, link, task)
       if (.not. associated(task)) return   ! We already have a user-specified task, which takes priority
       task%master_standard_variable => master%typed_resolve()
    end subroutine request_standard_coupling_for_link
