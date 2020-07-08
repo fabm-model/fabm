@@ -437,6 +437,7 @@
    _GET_(self%id_res,res)                    ! biomass
    _GET_HORIZONTAL_(self%bsv_rmax,rmax)      ! maximum bottom biomass
    _GET_HORIZONTAL_(self%bsv_rsum,rsum)      ! maximum integrated bottom biomass
+   _GET_(self%id_temp,temp)                  ! local temperature
 !   _ADD_BOTTOM_FLUX_(self%id_res,-self%rdepo*res*res)
 
    _ADD_BOTTOM_SOURCE_(self%bsv_rsum,rmax*one_pr_day)
