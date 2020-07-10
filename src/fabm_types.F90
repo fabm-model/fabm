@@ -515,12 +515,16 @@ module fabm_types
       procedure :: register_universal_interior_dependency
       procedure :: register_named_horizontal_dependency
       procedure :: register_standard_horizontal_dependency
+      procedure :: register_standard_horizontal_dependency2
+      procedure :: register_standard_horizontal_dependency3
       procedure :: register_universal_horizontal_dependency
       procedure :: register_named_surface_dependency
       procedure :: register_standard_surface_dependency
+      procedure :: register_standard_surface_dependency2
       procedure :: register_universal_surface_dependency
       procedure :: register_named_bottom_dependency
       procedure :: register_standard_bottom_dependency
+      procedure :: register_standard_bottom_dependency2
       procedure :: register_universal_bottom_dependency
       procedure :: register_named_global_dependency
       procedure :: register_standard_global_dependency
@@ -528,11 +532,12 @@ module fabm_types
       generic :: register_interior_dependency   => register_named_interior_dependency, register_standard_interior_dependency, &
                                                    register_universal_interior_dependency
       generic :: register_horizontal_dependency => register_named_horizontal_dependency, register_standard_horizontal_dependency, &
+                                                   register_standard_horizontal_dependency2, register_standard_horizontal_dependency3, &
                                                    register_universal_horizontal_dependency
       generic :: register_surface_dependency    => register_named_surface_dependency, register_standard_surface_dependency, &
-                                                   register_universal_surface_dependency
+                                                   register_standard_surface_dependency2, register_universal_surface_dependency
       generic :: register_bottom_dependency     => register_named_bottom_dependency, register_standard_bottom_dependency, &
-                                                   register_universal_bottom_dependency
+                                                   register_standard_bottom_dependency2, register_universal_bottom_dependency
       generic :: register_global_dependency     => register_named_global_dependency, register_standard_global_dependency
 
       procedure :: register_interior_state_dependency
@@ -540,7 +545,9 @@ module fabm_types
       procedure :: register_surface_state_dependency
       procedure :: register_standard_interior_state_dependency
       procedure :: register_standard_bottom_state_dependency
+      procedure :: register_standard_bottom_state_dependency2
       procedure :: register_standard_surface_state_dependency
+      procedure :: register_standard_surface_state_dependency2
 
       procedure :: register_interior_expression_dependency
       procedure :: register_horizontal_expression_dependency
@@ -553,18 +560,21 @@ module fabm_types
       generic :: register_dependency          => register_named_interior_dependency, register_standard_interior_dependency, &
                                                  register_universal_interior_dependency, &
                                                  register_named_horizontal_dependency, register_standard_horizontal_dependency, &
+                                                 register_standard_horizontal_dependency2, register_standard_horizontal_dependency3, &
                                                  register_universal_horizontal_dependency, &
                                                  register_named_surface_dependency, register_standard_surface_dependency, &
-                                                 register_universal_surface_dependency, &
+                                                 register_standard_surface_dependency2, register_universal_surface_dependency, &
                                                  register_named_bottom_dependency, register_standard_bottom_dependency, &
-                                                 register_universal_bottom_dependency, &
+                                                 register_standard_bottom_dependency2, register_universal_bottom_dependency, &
                                                  register_named_global_dependency, register_standard_global_dependency, &
                                                  register_interior_expression_dependency, register_horizontal_expression_dependency
       generic :: register_state_dependency    => register_interior_state_dependency, register_bottom_state_dependency, &
                                                  register_surface_state_dependency, &
                                                  register_standard_interior_state_dependency, &
                                                  register_standard_bottom_state_dependency, &
-                                                 register_standard_surface_state_dependency
+                                                 register_standard_bottom_state_dependency2, &
+                                                 register_standard_surface_state_dependency, &
+                                                 register_standard_surface_state_dependency2
 
       ! ----------------------------------------------------------------------------------------------------
       ! Procedures below may be overridden by biogeochemical models to provide custom data or functionality.
@@ -2032,7 +2042,7 @@ contains
       class (type_base_model),                intent(inout) :: self
       type (type_state_variable_id), target,  intent(inout) :: id
       type (type_interior_standard_variable), intent(in)    :: standard_variable
-      logical,optional,                       intent(in)    :: required
+      logical, optional,                      intent(in)    :: required
 
       call register_interior_state_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
          required=required)
@@ -2042,7 +2052,7 @@ contains
    subroutine register_standard_bottom_state_dependency(self, id, standard_variable, required)
       class (type_base_model),                      intent(inout) :: self
       type (type_bottom_state_variable_id), target, intent(inout) :: id
-      class (type_horizontal_standard_variable),    intent(in)    :: standard_variable
+      type (type_bottom_standard_variable),         intent(in)    :: standard_variable
       logical, optional,                            intent(in)    :: required
 
       call register_bottom_state_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
@@ -2050,16 +2060,38 @@ contains
       call self%request_coupling(id, standard_variable)
    end subroutine register_standard_bottom_state_dependency
 
+   subroutine register_standard_bottom_state_dependency2(self, id, standard_variable, required)
+      class (type_base_model),                      intent(inout) :: self
+      type (type_bottom_state_variable_id), target, intent(inout) :: id
+      type (type_horizontal_standard_variable),     intent(in)    :: standard_variable
+      logical, optional,                            intent(in)    :: required
+
+      call register_bottom_state_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
+         required=required)
+      call self%request_coupling(id, standard_variable)
+   end subroutine register_standard_bottom_state_dependency2
+
    subroutine register_standard_surface_state_dependency(self, id, standard_variable, required)
       class (type_base_model),                       intent(inout) :: self
       type (type_surface_state_variable_id), target, intent(inout) :: id
-      class (type_horizontal_standard_variable),     intent(in)    :: standard_variable
+      type (type_surface_standard_variable),         intent(in)    :: standard_variable
       logical, optional,                             intent(in)    :: required
 
       call register_surface_state_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
          required=required)
       call self%request_coupling(id, standard_variable)
    end subroutine register_standard_surface_state_dependency
+
+   subroutine register_standard_surface_state_dependency2(self, id, standard_variable, required)
+      class (type_base_model),                       intent(inout) :: self
+      type (type_surface_state_variable_id), target, intent(inout) :: id
+      type (type_horizontal_standard_variable),      intent(in)    :: standard_variable
+      logical, optional,                             intent(in)    :: required
+
+      call register_surface_state_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
+         required=required)
+      call self%request_coupling(id, standard_variable)
+   end subroutine register_standard_surface_state_dependency2
 
    subroutine register_standard_interior_dependency(self, id, standard_variable, required)
       class (type_base_model),                intent(inout) :: self
@@ -2082,15 +2114,37 @@ contains
    end subroutine register_universal_interior_dependency
 
    subroutine register_standard_horizontal_dependency(self, id, standard_variable, required)
-      class (type_base_model),                   intent(inout)         :: self
-      type (type_horizontal_dependency_id),      intent(inout), target :: id
-      class (type_horizontal_standard_variable), intent(in)            :: standard_variable
-      logical, optional,                         intent(in)            :: required
+      class (type_base_model),                  intent(inout)         :: self
+      type (type_horizontal_dependency_id),     intent(inout), target :: id
+      type (type_horizontal_standard_variable), intent(in)            :: standard_variable
+      logical, optional,                        intent(in)            :: required
 
       call register_named_horizontal_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
                                                 required=required)
       call self%request_coupling(id, standard_variable)
    end subroutine register_standard_horizontal_dependency
+
+   subroutine register_standard_horizontal_dependency2(self, id, standard_variable, required)
+      class (type_base_model),               intent(inout)         :: self
+      type (type_horizontal_dependency_id),  intent(inout), target :: id
+      type (type_surface_standard_variable), intent(in)            :: standard_variable
+      logical, optional,                     intent(in)            :: required
+
+      call register_named_horizontal_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
+                                                required=required)
+      call self%request_coupling(id, standard_variable)
+   end subroutine register_standard_horizontal_dependency2
+
+   subroutine register_standard_horizontal_dependency3(self, id, standard_variable, required)
+      class (type_base_model),              intent(inout)         :: self
+      type (type_horizontal_dependency_id), intent(inout), target :: id
+      type (type_bottom_standard_variable), intent(in)            :: standard_variable
+      logical, optional,                    intent(in)            :: required
+
+      call register_named_horizontal_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
+                                                required=required)
+      call self%request_coupling(id, standard_variable)
+   end subroutine register_standard_horizontal_dependency3
 
    subroutine register_universal_horizontal_dependency(self, id, standard_variable, domain, required)
       class (type_base_model),                 intent(inout)         :: self
@@ -2104,8 +2158,8 @@ contains
       domain_ = domain_horizontal
       if (present(domain)) domain_ = domain
       select case (domain_)
-      case (domain_surface);    call register_standard_horizontal_dependency(self, id, standard_variable%at_surface(), required)
-      case (domain_bottom);     call register_standard_horizontal_dependency(self, id, standard_variable%at_bottom(), required)
+      case (domain_surface);    call register_standard_horizontal_dependency2(self, id, standard_variable%at_surface(), required)
+      case (domain_bottom);     call register_standard_horizontal_dependency3(self, id, standard_variable%at_bottom(), required)
       case (domain_horizontal); call register_standard_horizontal_dependency(self, id, standard_variable%at_interfaces(), required)
       case default
          call self%fatal_error('register_universal_horizontal_dependency', 'Specified domain must be domain_surface, domain_bottom, or domain_horizontal.')
@@ -2122,6 +2176,17 @@ contains
                                              required=required)
       call self%request_coupling(id, standard_variable)
    end subroutine register_standard_surface_dependency
+
+   subroutine register_standard_surface_dependency2(self, id, standard_variable, required)
+      class (type_base_model),                  intent(inout)         :: self
+      type (type_surface_dependency_id),        intent(inout), target :: id
+      type (type_horizontal_standard_variable), intent(in)            :: standard_variable
+      logical, optional,                        intent(in)            :: required
+
+      call register_named_surface_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
+                                             required=required)
+      call self%request_coupling(id, standard_variable)
+   end subroutine register_standard_surface_dependency2
 
    subroutine register_universal_surface_dependency(self, id, standard_variable, required)
       class (type_base_model),                 intent(inout)         :: self
@@ -2142,6 +2207,17 @@ contains
                                             required=required)
       call self%request_coupling(id, standard_variable)
    end subroutine register_standard_bottom_dependency
+
+   subroutine register_standard_bottom_dependency2(self, id, standard_variable, required)
+      class (type_base_model),                  intent(inout)         :: self
+      type (type_bottom_dependency_id),         intent(inout), target :: id
+      type (type_horizontal_standard_variable), intent(in)            :: standard_variable
+      logical, optional,                        intent(in)            :: required
+
+      call register_named_bottom_dependency(self, id, standard_variable%name, standard_variable%units, standard_variable%name, &
+                                            required=required)
+      call self%request_coupling(id, standard_variable)
+   end subroutine register_standard_bottom_dependency2
 
    subroutine register_universal_bottom_dependency(self, id, standard_variable, required)
       class (type_base_model),                 intent(inout)         :: self
