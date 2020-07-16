@@ -753,7 +753,7 @@ contains
       end do
 
       if (log_unit /= -1) write (log_unit,'(a)') trim(self%name)
-      steps = find_best_order(self%graph, self%operation, log_unit)
+      call find_best_order(self%graph, self%operation, log_unit, steps)
 
       ! Build task list by prepending
       do itask = size(steps), 1, -1

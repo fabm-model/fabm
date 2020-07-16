@@ -51,11 +51,11 @@ module fabm_task_order
 
 contains
 
-   function find_best_order(graph, first_operation, log_unit) result(steps)
+   subroutine find_best_order(graph, first_operation, log_unit, steps)
       type (type_graph), intent(in) :: graph
       integer,           intent(in) :: first_operation
       integer,           intent(in) :: log_unit
-      type (type_step), allocatable :: steps(:)
+      type (type_step),  intent(out), allocatable :: steps(:)
 
       type (type_graph_subset_node_set)    :: subset
       class (type_task_tree_node), pointer :: leaf
@@ -93,7 +93,7 @@ contains
          call subset%collect(steps(itask)%operation, steps(itask))
       end do
       _ASSERT_(.not. associated(subset%first), 'find_best_order', 'BUG: graph subset should be empty after create_tasks.')
-   end function find_best_order
+   end subroutine find_best_order
 
    subroutine create_graph_subset_node_set(graph, set, log_unit)
       type (type_graph),                 intent(in)  :: graph
