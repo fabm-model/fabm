@@ -967,6 +967,7 @@ contains
       class (type_job),                     pointer :: first_job
       type (type_variable_request),         pointer :: variable_request
       type (type_output_variable_set_node), pointer :: output_variable
+      logical                                       :: responsible
 
       _ASSERT_(self%state < job_state_finalized_prefill_settings, 'job_finalize_prefill_settings', 'This job has already been initialized.')
       _ASSERT_(self%state >= job_state_tasks_created, 'job_finalize_prefill_settings', 'Tasks for this job have not been created yet.')
@@ -995,7 +996,10 @@ contains
             if (.not. associated(output_variable) .and. variable_request%variable%source /= source_constant) &
                call last_task%write_cache_preload%add(variable_request%variable)
             do while (associated(output_variable))
-               if (.not. task_is_responsible(last_task, output_variable%p)) then
+               _ASSERT_(associated(last_task), 'job_finalize_prefill_settings', 'No last task: job ' // trim(self%name) // ', output variable ' // trim(output_variable%p%target%name))
+               responsible = associated(last_task)
+               if (responsible) responsible = task_is_responsible(last_task, output_variable%p)
+               if (.not. responsible) then
                   output_variable%p%copy_to_store = .true.
                   call last_task%write_cache_preload%add(output_variable%p%target)
                end if
