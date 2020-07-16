@@ -996,7 +996,6 @@ contains
             if (.not. associated(output_variable) .and. variable_request%variable%source /= source_constant) &
                call last_task%write_cache_preload%add(variable_request%variable)
             do while (associated(output_variable))
-               _ASSERT_(associated(last_task), 'job_finalize_prefill_settings', 'No last task: job ' // trim(self%name) // ', output variable ' // trim(output_variable%p%target%name))
                responsible = associated(last_task)
                if (responsible) responsible = task_is_responsible(last_task, output_variable%p)
                if (.not. responsible) then
