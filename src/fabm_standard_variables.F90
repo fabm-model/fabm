@@ -215,7 +215,7 @@ contains
 
    function universal_standard_variable_at_surface(self) result(p)
       class (type_universal_standard_variable), intent(in), target  :: self
-      type (type_surface_standard_variable), pointer                :: p
+      class (type_surface_standard_variable), pointer               :: p
 
       class (type_universal_standard_variable), pointer  :: presolved
 
@@ -225,7 +225,7 @@ contains
 
    function universal_standard_variable_at_bottom(self) result(p)
       class (type_universal_standard_variable), intent(in), target  :: self
-      type (type_bottom_standard_variable), pointer                 :: p
+      class (type_bottom_standard_variable), pointer                :: p
 
       class (type_universal_standard_variable), pointer  :: presolved
 
@@ -235,7 +235,7 @@ contains
 
    function universal_standard_variable_at_interfaces(self) result(p)
       class (type_universal_standard_variable), intent(in), target  :: self
-      type (type_horizontal_standard_variable), pointer             :: p
+      class (type_horizontal_standard_variable), pointer            :: p
 
       class (type_universal_standard_variable), pointer  :: presolved
 
