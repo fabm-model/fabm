@@ -279,7 +279,7 @@
          case ( 0,1 )
             if ( self%bedload_method .gt. 0 ) then
                call self%register_horizontal_diagnostic_variable(self%id_bedload, 'bedload', &
-                     'kg/m/s','massflux due to bed load')
+                     'kg/m/s','massflux due to bed load', source=source_do_bottom)
             endif
          case ( 2 )
             ! if we use the van Kessel et al. 2011 formulation,
@@ -298,10 +298,10 @@
 
    ! diagnostic output of the massflux
    call self%register_horizontal_diagnostic_variable(self%id_massflux,'massflux','kg/m**2/s', &
-         'massflux in the exchange layer')
+         'massflux in the exchange layer', source=source_do_bottom)
    ! and the mass fraction of each class
    call self%register_horizontal_diagnostic_variable(self%id_massfraction,'massfraction','%', &
-         'massfraction in the exchange layer')
+         'massfraction in the exchange layer', source=source_do_bottom)
 
    ! check for sand mud interaction
    if ( self%sand_mud_interaction ) then
