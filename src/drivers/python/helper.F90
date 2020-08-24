@@ -29,8 +29,8 @@
      character(len=1024), dimension(:), allocatable, intent(out)   :: environment_names, environment_units
      integer,                                        intent(out)   :: index_column_depth
 
-     integer                         :: n
-     type (type_link),       pointer :: link
+     integer                   :: n
+     type (type_link), pointer :: link
 
      index_column_depth = -1
 
@@ -38,20 +38,20 @@
       n = 0
       link => model%links_postcoupling%first
       do while (associated(link))
-         if (.not. link%target%read_indices%is_empty() .and. link%target%state_indices%is_empty()) then
+         if (.not. link%target%read_indices%is_empty() .and. (link%target%source == source_unknown .or. link%target%source == source_external)) then
             select case (link%target%domain)
-               case (domain_interior)
-                  if (.not. associated(model%catalog%interior(link%target%catalog_index)%p)) n = n + 1
-                  if (index_column_depth == -1 .and. associated(link%target%standard_variables%first)) then
-                     if (link%target%standard_variables%contains(standard_variables%cell_thickness)) index_column_depth = n
-                  end if
-               case (domain_bottom, domain_surface, domain_horizontal)
-                  if (.not. associated(model%catalog%horizontal(link%target%catalog_index)%p)) n = n + 1
-                  if (index_column_depth==-1 .and. associated(link%target%standard_variables%first)) then
-                     if (link%target%standard_variables%contains(standard_variables%bottom_depth)) index_column_depth = n
-                  end if
-               case (domain_scalar)
-                  if (.not. associated(model%catalog%scalar(link%target%catalog_index)%p)) n = n + 1
+            case (domain_interior)
+               if (.not. associated(model%catalog%interior(link%target%catalog_index)%p)) n = n + 1
+               if (index_column_depth == -1 .and. associated(link%target%standard_variables%first)) then
+                  if (link%target%standard_variables%contains(standard_variables%cell_thickness)) index_column_depth = n
+               end if
+            case (domain_bottom, domain_surface, domain_horizontal)
+               if (.not. associated(model%catalog%horizontal(link%target%catalog_index)%p)) n = n + 1
+               if (index_column_depth==-1 .and. associated(link%target%standard_variables%first)) then
+                  if (link%target%standard_variables%contains(standard_variables%bottom_depth)) index_column_depth = n
+               end if
+            case (domain_scalar)
+               if (.not. associated(model%catalog%scalar(link%target%catalog_index)%p)) n = n + 1
             end select
          end if
          link => link%next
@@ -67,41 +67,41 @@
       n = 0
       link => model%links_postcoupling%first
       do while (associated(link))
-         if (.not.link%target%read_indices%is_empty().and.link%target%state_indices%is_empty()) then
+         if (.not. link%target%read_indices%is_empty() .and. (link%target%source == source_unknown .or. link%target%source == source_external)) then
             select case (link%target%domain)
-               case (domain_interior)
-                  if (.not. associated(model%catalog%interior(link%target%catalog_index)%p)) then
-                     n = n + 1
-                     if (.not.associated(link%target%standard_variables%first)) then
-                        environment_names(n) = trim(link%name)
-                        environment_units(n) = trim(link%target%units)
-                     else
-                        environment_names(n) = trim(link%target%standard_variables%first%p%name)
-                        environment_units(n) = trim(link%target%standard_variables%first%p%units)
-                     end if
+            case (domain_interior)
+               if (.not. associated(model%catalog%interior(link%target%catalog_index)%p)) then
+                  n = n + 1
+                  if (.not.associated(link%target%standard_variables%first)) then
+                     environment_names(n) = trim(link%name)
+                     environment_units(n) = trim(link%target%units)
+                  else
+                     environment_names(n) = trim(link%target%standard_variables%first%p%name)
+                     environment_units(n) = trim(link%target%standard_variables%first%p%units)
                   end if
-               case (domain_bottom, domain_surface, domain_horizontal)
-                  if (.not. associated(model%catalog%horizontal(link%target%catalog_index)%p)) then
-                     n = n + 1
-                     if (.not.associated(link%target%standard_variables%first)) then
-                        environment_names(n) = trim(link%name)
-                        environment_units(n) = trim(link%target%units)
-                     else
-                        environment_names(n) = trim(link%target%standard_variables%first%p%name)
-                        environment_units(n) = trim(link%target%standard_variables%first%p%units)
-                     end if
+               end if
+            case (domain_bottom, domain_surface, domain_horizontal)
+               if (.not. associated(model%catalog%horizontal(link%target%catalog_index)%p)) then
+                  n = n + 1
+                  if (.not.associated(link%target%standard_variables%first)) then
+                     environment_names(n) = trim(link%name)
+                     environment_units(n) = trim(link%target%units)
+                  else
+                     environment_names(n) = trim(link%target%standard_variables%first%p%name)
+                     environment_units(n) = trim(link%target%standard_variables%first%p%units)
                   end if
-               case (domain_scalar)
-                  if (.not. associated(model%catalog%scalar(link%target%catalog_index)%p)) then
-                     n = n + 1
-                     if (.not.associated(link%target%standard_variables%first)) then
-                        environment_names(n) = trim(link%name)
-                        environment_units(n) = trim(link%target%units)
-                     else
-                        environment_names(n) = trim(link%target%standard_variables%first%p%name)
-                        environment_units(n) = trim(link%target%standard_variables%first%p%units)
-                     end if
+               end if
+            case (domain_scalar)
+               if (.not. associated(model%catalog%scalar(link%target%catalog_index)%p)) then
+                  n = n + 1
+                  if (.not.associated(link%target%standard_variables%first)) then
+                     environment_names(n) = trim(link%name)
+                     environment_units(n) = trim(link%target%units)
+                  else
+                     environment_names(n) = trim(link%target%standard_variables%first%p%name)
+                     environment_units(n) = trim(link%target%standard_variables%first%p%units)
                   end if
+               end if
             end select
          end if
          link => link%next
@@ -144,10 +144,10 @@
       do while (associated(link))
          ! Coupled variables cannot serve as master
          if (associated(link%target,link%original) &   ! Uncoupled
-             .and..not.associated(link%target,slave) & ! Not self
-             .and..not.(link%original%state_indices%is_empty().and..not.slave%state_indices%is_empty()) & ! state variable if slave is state variable
-             .and.link%target%domain==slave%domain) then ! And on same domain
-            link2 => link_list%append(link%target,link%name)
+             .and. .not. associated(link%target, slave) & ! Not self
+             .and. .not. (link%original%state_indices%is_empty() .and. .not. slave%state_indices%is_empty()) & ! state variable if slave is state variable
+             .and. link%target%domain == slave%domain) then ! And on same domain
+            link2 => link_list%append(link%target, link%name)
             link2%original => link%original
          end if
          link => link%next
