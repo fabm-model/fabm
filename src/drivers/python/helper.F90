@@ -38,7 +38,8 @@
       n = 0
       link => model%links_postcoupling%first
       do while (associated(link))
-         if (.not. link%target%read_indices%is_empty() .and. (link%target%source == source_unknown .or. link%target%source == source_external)) then
+         if (.not. link%target%read_indices%is_empty() .and. (link%target%source == source_unknown &
+            .or. link%target%source == source_external)) then
             select case (link%target%domain)
             case (domain_interior)
                if (.not. associated(model%catalog%interior(link%target%catalog_index)%p)) n = n + 1
@@ -67,7 +68,8 @@
       n = 0
       link => model%links_postcoupling%first
       do while (associated(link))
-         if (.not. link%target%read_indices%is_empty() .and. (link%target%source == source_unknown .or. link%target%source == source_external)) then
+         if (.not. link%target%read_indices%is_empty() .and. (link%target%source == source_unknown &
+            .or. link%target%source == source_external)) then
             select case (link%target%domain)
             case (domain_interior)
                if (.not. associated(model%catalog%interior(link%target%catalog_index)%p)) then
