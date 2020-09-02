@@ -170,6 +170,13 @@ program test_host
 
 #if _FABM_BOTTOM_INDEX_==-1
    integer, allocatable, target _DIMENSION_GLOBAL_HORIZONTAL_ :: bottom_index
+#  define _DEPTH_INDEX_  bottom_index _INDEX_HORIZONTAL_LOCATION_
+#elif defined(_FABM_DEPTH_DIMENSION_INDEX_)
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+#    define _DEPTH_INDEX_  domain_start(_FABM_DEPTH_DIMENSION_INDEX_)
+#  else
+#    define _DEPTH_INDEX_  domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)
+#  endif
 #endif
 
    real(rke), allocatable, target _DIMENSION_GLOBAL_PLUS_1_            :: interior_state
@@ -832,25 +839,17 @@ contains
       ! Model has depth dimension: make sure depth varies from 0 at the surface till 1 at the bottom
       _BEGIN_GLOBAL_LOOP_
 #  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-#    if _FABM_BOTTOM_INDEX_==-1
-         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ == domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)) then
-            depth _INDEX_LOCATION_ = 2
-         else
-            depth _INDEX_LOCATION_ = real(domain_stop(_FABM_DEPTH_DIMENSION_INDEX_) - _VERTICAL_ITERATOR_, rke) / (domain_stop(_FABM_DEPTH_DIMENSION_INDEX_) - bottom_index _INDEX_HORIZONTAL_LOCATION_)
-         end if
-#    else
-         depth _INDEX_LOCATION_ = real(domain_stop(_FABM_DEPTH_DIMENSION_INDEX_) - _VERTICAL_ITERATOR_, rke) / (domain_stop(_FABM_DEPTH_DIMENSION_INDEX_) - domain_start(_FABM_DEPTH_DIMENSION_INDEX_))
-#    endif
+      if (_DEPTH_INDEX_ == domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)) then
+         depth _INDEX_LOCATION_ = 2
+      else
+         depth _INDEX_LOCATION_ = real(domain_stop(_FABM_DEPTH_DIMENSION_INDEX_) - _VERTICAL_ITERATOR_, rke) / (domain_stop(_FABM_DEPTH_DIMENSION_INDEX_) - _DEPTH_INDEX_)
+      end if
 #  else
-#    if _FABM_BOTTOM_INDEX_==-1
-         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ == domain_start(_FABM_DEPTH_DIMENSION_INDEX_)) then
-            depth _INDEX_LOCATION_ = 2
-         else
-            depth _INDEX_LOCATION_ = real(_VERTICAL_ITERATOR_ - domain_start(_FABM_DEPTH_DIMENSION_INDEX_), rke) / (bottom_index _INDEX_HORIZONTAL_LOCATION_ - domain_start(_FABM_DEPTH_DIMENSION_INDEX_))
-         end if
-#    else
-         depth _INDEX_LOCATION_ = real(_VERTICAL_ITERATOR_ - domain_start(_FABM_DEPTH_DIMENSION_INDEX_), rke) / (domain_stop(_FABM_DEPTH_DIMENSION_INDEX_) - domain_start(_FABM_DEPTH_DIMENSION_INDEX_))
-#    endif
+      if (_DEPTH_INDEX_ == domain_start(_FABM_DEPTH_DIMENSION_INDEX_)) then
+         depth _INDEX_LOCATION_ = 2
+      else
+         depth _INDEX_LOCATION_ = real(_VERTICAL_ITERATOR_ - domain_start(_FABM_DEPTH_DIMENSION_INDEX_), rke) / (_DEPTH_INDEX_ - domain_start(_FABM_DEPTH_DIMENSION_INDEX_))
+      end if
 #  endif
       _END_GLOBAL_LOOP_
 #else
@@ -927,12 +926,12 @@ contains
       ! ======================================================================
 
       ! Make sure depth at surface is exactly 0
-#if _FABM_BOTTOM_INDEX_==-1
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
       _BEGIN_GLOBAL_HORIZONTAL_LOOP_
 #  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ == domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)) depth _INDEX_GLOBAL_VERTICAL_(domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)) = 0
+         if (_DEPTH_INDEX_ == domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)) depth _INDEX_GLOBAL_VERTICAL_(domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)) = 0
 #  else
-         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ == domain_start(_FABM_DEPTH_DIMENSION_INDEX_)) depth _INDEX_GLOBAL_VERTICAL_(domain_start(_FABM_DEPTH_DIMENSION_INDEX_)) = 0
+         if (_DEPTH_INDEX_ == domain_start(_FABM_DEPTH_DIMENSION_INDEX_)) depth _INDEX_GLOBAL_VERTICAL_(domain_start(_FABM_DEPTH_DIMENSION_INDEX_)) = 0
 #  endif
       _END_GLOBAL_HORIZONTAL_LOOP_
 #endif
@@ -975,12 +974,12 @@ contains
       ! ======================================================================
 
       ! Make sure depth at bottom is exactly 1
-#if _FABM_BOTTOM_INDEX_==-1
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
       _BEGIN_GLOBAL_HORIZONTAL_LOOP_
 #  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ == domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)) depth _INDEX_GLOBAL_VERTICAL_(domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)) = 1
+         if (_DEPTH_INDEX_ == domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)) depth _INDEX_GLOBAL_VERTICAL_(domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)) = 1
 #  else
-         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ == domain_start(_FABM_DEPTH_DIMENSION_INDEX_)) depth _INDEX_GLOBAL_VERTICAL_(domain_start(_FABM_DEPTH_DIMENSION_INDEX_)) = 1
+         if (_DEPTH_INDEX_ == domain_start(_FABM_DEPTH_DIMENSION_INDEX_)) depth _INDEX_GLOBAL_VERTICAL_(domain_start(_FABM_DEPTH_DIMENSION_INDEX_)) = 1
 #  endif
       _END_GLOBAL_HORIZONTAL_LOOP_
 #endif
@@ -1001,7 +1000,7 @@ contains
             call check_horizontal_slice_plus_1(sms_bt _HORIZONTAL_SLICE_RANGE_PLUS_1_, ivar, 0.0_rke, -real(ivar + bottom_state_offset, rke) _POSTARG_HORIZONTAL_IN_)
          end do
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
-         endif
+         end if
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
       call assert(bottom_loop_count == horizontal_count, 'get_bottom_sources', &
