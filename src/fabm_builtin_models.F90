@@ -2,7 +2,6 @@
 
 module fabm_builtin_models
    use fabm_types
-   use fabm_standard_variables
 
    implicit none
 
