@@ -1284,6 +1284,7 @@ contains
          endif
 #endif
       _END_OUTER_HORIZONTAL_LOOP_
+      call report_test_result()
 
    end subroutine test_update
 
