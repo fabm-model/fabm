@@ -41,7 +41,7 @@ program test_host
    use fabm
    use fabm_driver
    use fabm_parameters, only: rke
-   use fabm_types, only: source_do, source_do_surface, source_do_bottom, source_do_column
+   use fabm_types, only: source_do, source_do_surface, source_do_bottom, source_do_column, get_free_unit
 
    use test_models
    use host_hooks
@@ -459,7 +459,6 @@ contains
       use yaml_types, only: type_node, type_yaml_dictionary => type_dictionary, type_yaml_scalar => type_scalar, &
          type_yaml_key_value_pair => type_key_value_pair, yaml_real_kind => real_kind
 
-      integer, parameter :: yaml_unit = 200
       character(yaml_error_length) :: yaml_error
       class (type_node),pointer :: yaml_root
       type (type_yaml_key_value_pair), pointer :: yaml_pair
@@ -475,7 +474,7 @@ contains
       end type
       type (type_input), pointer :: input
 
-      yaml_root => yaml_parse('environment.yaml', yaml_unit, yaml_error)
+      yaml_root => yaml_parse('environment.yaml', get_free_unit(), yaml_error)
       if (yaml_error /= '') then
          call driver%log_message(yaml_error)
          stop 2
