@@ -987,6 +987,7 @@ contains
    end subroutine
 
    subroutine add_variable_to_aggregate_variable(self, target, variable_id, scale_factor, include_background)
+      use fabm_standard_variables   ! workaround for bug in Cray compiler 8.3.7
       class (type_base_model),             intent(inout) :: self
       class (type_base_standard_variable), intent(in)    :: target
       class (type_variable_id),            intent(inout) :: variable_id
