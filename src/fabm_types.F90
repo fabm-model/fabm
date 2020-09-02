@@ -1335,6 +1335,7 @@ contains
    end subroutine request_coupling_for_id
 
    subroutine request_standard_coupling_for_link(self, link, master)
+      use fabm_standard_variables   ! workaround for bug in Cray compiler 8.3.4
       class (type_base_model),                        intent(inout)      :: self
       type (type_link), target,                       intent(inout)      :: link
       class (type_domain_specific_standard_variable), intent(in), target :: master
