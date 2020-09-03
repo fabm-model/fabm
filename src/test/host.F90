@@ -198,6 +198,7 @@ program test_host
    integer :: domain_start(_FABM_DIMENSION_COUNT_)
    integer :: domain_stop(_FABM_DIMENSION_COUNT_)
 
+   character(len=1024) :: version
    character(len=20) :: arg
    integer :: ivar
    integer :: i
@@ -214,6 +215,11 @@ program test_host
 #if _FABM_DIMENSION_COUNT_>2
    k__ = 45
 #endif
+
+   call start_test('fabm_get_version')
+   call fabm_get_version(version)
+   call report_test_result()
+   write (*,'(a,a)') 'FABM ', trim(version)
 
    ! Parse command line arguments
    call start_test('parsing command line arguments')
@@ -458,6 +464,10 @@ program test_host
    case(2)
       call simulate(ntest)
    end select
+
+   call start_test('finalize')
+   call model%finalize()
+   call report_test_result()
 
 contains
 
