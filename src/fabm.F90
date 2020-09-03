@@ -479,10 +479,10 @@ contains
    ! finalize: deallocate model object
    ! --------------------------------------------------------------------------
    subroutine finalize(self)
-      class (type_fabm_model),target,intent(inout) :: self
+      class (type_fabm_model), target, intent(inout) :: self
       self%status = status_none
 
-      ! TODO: this should deallocate the memory of all biogeochemical models
+      call self%job_manager%finalize()
    end subroutine finalize
 
    ! --------------------------------------------------------------------------

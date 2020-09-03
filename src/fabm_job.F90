@@ -86,6 +86,7 @@ module fabm_job
 
    type type_job_node
       class (type_job),     pointer :: p    => null()
+      logical                       :: owner = .false.
       type (type_job_node), pointer :: next => null()
    end type
 
@@ -128,12 +129,13 @@ module fabm_job
       procedure :: request_call     => job_request_call
       procedure :: connect          => job_connect
       procedure :: print            => job_print
+      procedure :: finalize         => job_finalize
    end type
 
    type, extends(type_job_set) :: type_job_manager
    contains
-      procedure :: create     => job_manager_create
-      procedure :: initialize   => job_manager_initialize
+      procedure :: create      => job_manager_create
+      procedure :: initialize  => job_manager_initialize
       procedure :: print       => job_manager_print
       procedure :: write_graph => job_manager_write_graph
    end type
@@ -495,6 +497,40 @@ contains
       end do
    end subroutine job_print
 
+   subroutine job_finalize(self)
+      class (type_job), intent(inout) :: self
+
+      type (type_task), pointer :: task
+      type (type_variable_request), pointer :: variable_request, next_variable_request
+      type (type_call_request), pointer :: call_request, next_call_request
+
+      task => self%first_task
+      do while (associated(task))
+         call task%finalize()
+         task => task%next
+      end do
+      self%first_task => null()
+
+      variable_request => self%first_variable_request
+      do while (associated(variable_request))
+         next_variable_request => variable_request%next
+         deallocate(variable_request)
+         variable_request => next_variable_request
+      end do
+
+      call_request => self%first_call_request
+      do while (associated(call_request))
+         next_call_request => call_request%next
+         deallocate(call_request)
+         call_request => next_call_request
+      end do
+
+      call self%read_cache_loads%finalize()
+      call self%store_prefills%finalize()
+      call self%previous%finalize()
+      call self%graph%finalize()
+   end subroutine job_finalize
+
    subroutine print_output_variable(variable, unit, indent)
       type (type_output_variable), intent(in) :: variable
       integer,                     intent(in) :: unit
@@ -633,9 +669,8 @@ contains
    subroutine task_finalize(self)
       class (type_task), intent(inout) :: self
 
-      deallocate(self%calls)
-      deallocate(self%copy_commands_int)
-      deallocate(self%copy_commands_hz)
+      call self%read_cache_preload%finalize()
+      call self%write_cache_preload%finalize()
    end subroutine task_finalize
 
    subroutine job_request_variable(self, variable, store)
@@ -1216,6 +1251,7 @@ contains
       job_node => self%first
       do while (associated(job_node))
          next => job_node%next
+         if (job_node%owner) call job_node%p%finalize()
          deallocate(job_node)
          job_node => next
       end do
@@ -1315,6 +1351,7 @@ contains
 
       allocate(node)
       node%p => job
+      node%owner = .true.
       node%next => self%first
       self%first => node
 
@@ -1437,11 +1474,13 @@ contains
                node => node%next
             end do
             allocate(node%next)
-            node%next%p => job
+            node => node%next
          else
             allocate(first_ordered)
-            first_ordered%p => job
+            node => first_ordered
          end if
+         node%p => job
+         node%owner = .true.
       end subroutine add_to_order
 
    end subroutine job_manager_initialize
