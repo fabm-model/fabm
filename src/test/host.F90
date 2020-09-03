@@ -469,6 +469,8 @@ program test_host
    call model%finalize()
    call report_test_result()
 
+   deallocate(model)
+
 contains
 
    subroutine read_environment
