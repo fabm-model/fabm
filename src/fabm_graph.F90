@@ -113,6 +113,8 @@ module fabm_graph
 
    type type_graph_set
       type (type_graph_set_member), pointer :: first => null()
+   contains
+      procedure :: finalize => graph_set_finalize
    end type
 
    type, extends(type_node_list) :: type_graph
@@ -126,6 +128,7 @@ module fabm_graph
       procedure :: add_variable => graph_add_variable
       procedure :: print        => graph_print
       procedure :: save_as_dot  => graph_save_as_dot
+      procedure :: finalize     => graph_finalize
    end type
 
 contains
@@ -640,16 +643,8 @@ contains
    subroutine graph_finalize(self)
       class (type_graph),intent(inout) :: self
 
-      type (type_node_list_member), pointer :: current
-
-      current => self%first
-      do while (associated(current))
-         call current%p%inputs%finalize()
-         call current%p%outputs%finalize(owner=.true.)
-         call current%p%dependencies%finalize()
-         deallocate(current%p)
-         current => current%next
-      end do
+      call self%previous%finalize()
+      call self%next%finalize()
       call self%type_node_list%finalize()
    end subroutine graph_finalize
 
@@ -688,6 +683,19 @@ contains
          node => node%next
       end do
    end subroutine graph_save_as_dot
+
+   subroutine graph_set_finalize(self)
+      class (type_graph_set), intent(inout) :: self
+
+      type (type_graph_set_member), pointer :: member, next
+
+      member => self%first
+      do while (associated(member))
+         next => member%next
+         deallocate(member)
+         member => next
+      end do
+   end subroutine
 
    function node_as_dot(node) result(string)
       class (type_node), intent(in)   :: node

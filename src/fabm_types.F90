@@ -305,7 +305,8 @@ module fabm_types
       type (type_variable_node), pointer :: first => null()
       integer                            :: count = 0
    contains
-      procedure :: append => variable_list_append
+      procedure :: append   => variable_list_append
+      procedure :: finalize => variable_list_finalize
    end type
 
    ! --------------------------------------------------------------------------
@@ -3030,6 +3031,19 @@ contains
       self%count = self%count + 1
       if (present(index)) index = self%count
    end subroutine variable_list_append
+
+   subroutine variable_list_finalize(self)
+      class (type_variable_list), intent(inout) :: self
+
+      type (type_variable_node), pointer :: node, next
+
+      node => self%first
+      do while (associated(node))
+         next => node%next
+         deallocate(node)
+         node => next
+      end do
+   end subroutine
 
 end module fabm_types
 

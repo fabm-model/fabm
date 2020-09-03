@@ -145,6 +145,8 @@ module fabm_job
       type (type_variable_list) :: horizontal
       type (type_variable_list) :: scalar
       logical, private :: frozen = .false.
+   contains
+      procedure :: finalize => variable_register_finalize
    end type
 
    type type_global_variable_register
@@ -153,11 +155,12 @@ module fabm_job
       type (type_variable_register) :: read_cache
       type (type_variable_register) :: write_cache
    contains
-      procedure :: add_to_store => variable_register_add_to_store
-      procedure :: add_to_catalog => variable_register_add_to_catalog
-      procedure :: add_to_read_cache => variable_register_add_to_read_cache
-      procedure :: add_to_write_cache => variable_register_add_to_write_cache
-      procedure :: print => variable_register_print
+      procedure :: add_to_store       => global_variable_register_add_to_store
+      procedure :: add_to_catalog     => global_variable_register_add_to_catalog
+      procedure :: add_to_read_cache  => global_variable_register_add_to_read_cache
+      procedure :: add_to_write_cache => global_variable_register_add_to_write_cache
+      procedure :: print              => global_variable_register_print
+      procedure :: finalize           => global_variable_register_finalize
    end type
 
 contains
@@ -1651,7 +1654,14 @@ contains
 
    end function variable_register_add
 
-   recursive subroutine variable_register_add_to_store(self, variable)
+   subroutine variable_register_finalize(self)
+      class (type_variable_register),intent(inout) :: self
+      call self%interior%finalize()
+      call self%horizontal%finalize()
+      call self%scalar%finalize()
+   end subroutine
+
+   recursive subroutine global_variable_register_add_to_store(self, variable)
       class (type_global_variable_register),intent(inout) :: self
       type (type_internal_variable), target        :: variable
 
@@ -1678,9 +1688,9 @@ contains
             variable_node => variable_node%next
          end do
       end if
-   end subroutine variable_register_add_to_store
+   end subroutine global_variable_register_add_to_store
 
-   recursive subroutine variable_register_add_to_read_cache(self, variable)
+   recursive subroutine global_variable_register_add_to_read_cache(self, variable)
       class (type_global_variable_register), intent(inout) :: self
       type (type_internal_variable), target                :: variable
 
@@ -1704,17 +1714,17 @@ contains
       !   call variable_node%target%read_indices%set_value(i)
       !   variable_node => variable_node%next
       !end do
-   end subroutine variable_register_add_to_read_cache
+   end subroutine global_variable_register_add_to_read_cache
 
-   subroutine variable_register_add_to_catalog(self, variable)
+   subroutine global_variable_register_add_to_catalog(self, variable)
       class (type_global_variable_register), intent(inout) :: self
       type (type_internal_variable), target                :: variable
 
       if (variable%catalog_index /= -1) return
       variable%catalog_index = variable_register_add(self%catalog, variable, share_constants=.false.)
-   end subroutine variable_register_add_to_catalog
+   end subroutine global_variable_register_add_to_catalog
 
-   recursive subroutine variable_register_add_to_write_cache(self, variable)
+   recursive subroutine global_variable_register_add_to_write_cache(self, variable)
       class (type_global_variable_register), intent(inout) :: self
       type (type_internal_variable), target                :: variable
 
@@ -1735,9 +1745,9 @@ contains
 
       ! Assign the write index to the variable.
       call variable%write_indices%set_value(index)
-   end subroutine variable_register_add_to_write_cache
+   end subroutine global_variable_register_add_to_write_cache
 
-   subroutine variable_register_print(self, unit)
+   subroutine global_variable_register_print(self, unit)
       class (type_global_variable_register), intent(in) :: self
       integer,                               intent(in) :: unit
 
@@ -1771,7 +1781,16 @@ contains
          end do
       end subroutine
 
-   end subroutine variable_register_print
+   end subroutine global_variable_register_print
+
+   subroutine global_variable_register_finalize(self)
+      class (type_global_variable_register), intent(inout) :: self
+
+      call self%catalog%finalize()
+      call self%store%finalize()
+      call self%read_cache%finalize()
+      call self%write_cache%finalize()
+   end subroutine
 
 end module fabm_job
 

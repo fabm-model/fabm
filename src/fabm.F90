@@ -483,6 +483,7 @@ contains
       self%status = status_none
 
       call self%job_manager%finalize()
+      call self%variable_register%finalize()
    end subroutine finalize
 
    ! --------------------------------------------------------------------------
