@@ -503,14 +503,16 @@ contains
    subroutine job_finalize(self)
       class (type_job), intent(inout) :: self
 
-      type (type_task), pointer :: task
+      type (type_task), pointer :: task, next_task
       type (type_variable_request), pointer :: variable_request, next_variable_request
       type (type_call_request), pointer :: call_request, next_call_request
 
       task => self%first_task
       do while (associated(task))
+         next_task => task%next
          call task%finalize()
-         task => task%next
+         deallocate(task)
+         task => next_task
       end do
       self%first_task => null()
 
