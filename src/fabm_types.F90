@@ -612,6 +612,8 @@ module fabm_types
       procedure :: implements
       procedure :: register_implemented_routines
 
+      procedure :: finalize => base_finalize
+
       ! Deprecated as of FABM 1.0
       procedure :: get_light                => base_get_light
       procedure :: get_light_extinction     => base_get_light_extinction
@@ -767,6 +769,29 @@ contains
    subroutine base_check_bottom_state(self, _ARGUMENTS_CHECK_BOTTOM_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_
+   end subroutine
+
+   recursive subroutine base_finalize(self)
+      class (type_base_model), intent(inout) :: self
+
+      type (type_model_list_node),           pointer :: node
+      type (type_aggregate_variable_access), pointer :: aggregate_variable_access, next_aggregate_variable_access
+
+      node => self%children%first
+      do while (associated(node))
+         call node%model%finalize()
+         node => node%next
+      end do
+
+      aggregate_variable_access => self%first_aggregate_variable_access
+      do while (associated(aggregate_variable_access))
+         next_aggregate_variable_access => aggregate_variable_access%next
+         deallocate(aggregate_variable_access)
+         aggregate_variable_access => next_aggregate_variable_access
+      end do
+
+      call self%children%finalize()
+      call self%links%finalize()
    end subroutine
 
    ! Deprecated as of FABM 1.0:
