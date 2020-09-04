@@ -257,7 +257,8 @@ module fabm_types
    type type_contribution_list
       type (type_contribution), pointer :: first => null()
    contains
-      procedure :: add => contribution_list_add
+      procedure :: add      => contribution_list_add
+      procedure :: finalize => contribution_list_finalize
    end type
 
    type type_aggregate_variable_access
@@ -810,6 +811,7 @@ contains
          type (type_link_pointer), pointer :: link_pointer, next_link_pointer
 
          call variable%standard_variables%finalize()
+         call variable%contributions%finalize()
          call variable%read_indices%finalize()
          call variable%state_indices%finalize()
          call variable%write_indices%finalize()
@@ -1142,6 +1144,20 @@ contains
       contribution%target => standard_variable
       if (present(scale_factor)) contribution%scale_factor = scale_factor
       if (present(include_background)) contribution%include_background = include_background
+   end subroutine
+
+   subroutine contribution_list_finalize(self)
+      class (type_contribution_list), intent(inout) :: self
+
+      type (type_contribution), pointer :: contribution, next_contribution
+
+      contribution => self%first
+      do while (associated(contribution))
+         next_contribution => contribution%next
+         deallocate(contribution)
+         contribution => next_contribution
+      end do
+      self%first => null()
    end subroutine
 
    subroutine model_list_append(self, model)
