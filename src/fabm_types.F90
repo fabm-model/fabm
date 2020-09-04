@@ -782,6 +782,7 @@ contains
       node => self%children%first
       do while (associated(node))
          call node%model%finalize()
+         deallocate(node%model)
          node => node%next
       end do
       call self%children%finalize()
