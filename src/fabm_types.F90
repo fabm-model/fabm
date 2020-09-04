@@ -143,11 +143,11 @@ module fabm_types
       type (type_integer_pointer), allocatable :: pointers(:)
       integer                                  :: value = -1
    contains
-      procedure :: append      => integer_pointer_set_append
-      procedure :: extend      => integer_pointer_set_extend
-      procedure :: set_value   => integer_pointer_set_set_value
-      procedure :: is_empty    => integer_pointer_set_is_empty
-      procedure :: finalize    => integer_pointer_set_finalize
+      procedure :: append    => integer_pointer_set_append
+      procedure :: extend    => integer_pointer_set_extend
+      procedure :: set_value => integer_pointer_set_set_value
+      procedure :: is_empty  => integer_pointer_set_is_empty
+      procedure :: finalize  => integer_pointer_set_finalize
    end type
 
    ! --------------------------------------------------------------------------
@@ -277,8 +277,8 @@ module fabm_types
       procedure :: append   => link_list_append
       procedure :: find     => link_list_find
       procedure :: count    => link_list_count
-      procedure :: finalize => link_list_finalize
       procedure :: extend   => link_list_extend
+      procedure :: finalize => link_list_finalize
    end type
 
    type type_link_pointer
@@ -776,12 +776,14 @@ contains
 
       type (type_model_list_node),           pointer :: node
       type (type_aggregate_variable_access), pointer :: aggregate_variable_access, next_aggregate_variable_access
+      type (type_link),                      pointer :: link
 
       node => self%children%first
       do while (associated(node))
          call node%model%finalize()
          node => node%next
       end do
+      call self%children%finalize()
 
       aggregate_variable_access => self%first_aggregate_variable_access
       do while (associated(aggregate_variable_access))
@@ -790,8 +792,31 @@ contains
          aggregate_variable_access => next_aggregate_variable_access
       end do
 
-      call self%children%finalize()
+      link => self%links%first
+      do while (associated(link))
+         if (index(link%name, '/') == 0) then
+            call finalize_variable(link%original)
+            deallocate(link%original)
+         end if
+         link => link%next
+      end do
       call self%links%finalize()
+
+   contains
+
+      subroutine finalize_variable(variable)
+         type (type_internal_variable), intent(inout) :: variable
+         call variable%standard_variables%finalize()
+         call variable%read_indices%finalize()
+         call variable%state_indices%finalize()
+         call variable%write_indices%finalize()
+         call variable%sms_list%finalize()
+         call variable%surface_flux_list%finalize()
+         call variable%bottom_flux_list%finalize()
+         call variable%movement_list%finalize()
+         if (associated(variable%cowriters)) deallocate(variable%cowriters)
+      end subroutine
+
    end subroutine
 
    ! Deprecated as of FABM 1.0:

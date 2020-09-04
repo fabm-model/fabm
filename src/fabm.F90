@@ -485,6 +485,7 @@ contains
       call self%job_manager%finalize()
       call self%variable_register%finalize()
       call self%root%finalize()
+      call self%links_postcoupling%finalize()
    end subroutine finalize
 
    ! --------------------------------------------------------------------------
