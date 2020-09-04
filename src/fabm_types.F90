@@ -819,7 +819,10 @@ contains
          call variable%surface_flux_list%finalize()
          call variable%bottom_flux_list%finalize()
          call variable%movement_list%finalize()
-         if (associated(variable%cowriters)) deallocate(variable%cowriters)
+         if (associated(variable%cowriters)) then
+            call variable%cowriters%finalize()
+            deallocate(variable%cowriters)
+         end if
          link_pointer => variable%first_link
          do while (associated(link_pointer))
             next_link_pointer => link_pointer%next
