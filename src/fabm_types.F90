@@ -806,6 +806,9 @@ contains
 
       subroutine finalize_variable(variable)
          type (type_internal_variable), intent(inout) :: variable
+
+         type (type_link_pointer), pointer :: link_pointer, next_link_pointer
+
          call variable%standard_variables%finalize()
          call variable%read_indices%finalize()
          call variable%state_indices%finalize()
@@ -815,6 +818,12 @@ contains
          call variable%bottom_flux_list%finalize()
          call variable%movement_list%finalize()
          if (associated(variable%cowriters)) deallocate(variable%cowriters)
+         link_pointer => variable%first_link
+         do while (associated(link_pointer))
+            next_link_pointer => link_pointer%next
+            deallocate(link_pointer)
+            link_pointer => next_link_pointer
+         end do
       end subroutine
 
    end subroutine
