@@ -45,10 +45,10 @@ module fabm_graph
    contains
       procedure :: append    => node_list_append
       procedure :: remove    => node_list_remove
-      procedure :: finalize  => node_list_finalize
       procedure :: find      => node_list_find
       procedure :: find_node => node_list_find_node
       procedure :: check     => node_list_check
+      procedure :: finalize  => node_list_finalize
    end type
 
    type type_call_stack_node
@@ -643,8 +643,19 @@ contains
    subroutine graph_finalize(self)
       class (type_graph),intent(inout) :: self
 
+      type (type_node_list_member), pointer :: current
+
       call self%previous%finalize()
       call self%next%finalize()
+
+      current => self%first
+      do while (associated(current))
+         call current%p%inputs%finalize()
+         call current%p%dependencies%finalize()
+         call current%p%outputs%finalize(owner=.true.)
+         deallocate(current%p)
+         current => current%next
+      end do
       call self%type_node_list%finalize()
    end subroutine graph_finalize
 
