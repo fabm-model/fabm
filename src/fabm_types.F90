@@ -793,6 +793,7 @@ contains
          deallocate(aggregate_variable_access)
          aggregate_variable_access => next_aggregate_variable_access
       end do
+      self%first_aggregate_variable_access => null()
 
       link => self%links%first
       do while (associated(link))
@@ -1252,7 +1253,7 @@ contains
    end function
 
    subroutine model_list_finalize(self)
-      class (type_model_list), intent(in) :: self
+      class (type_model_list), intent(inout) :: self
 
       type (type_model_list_node), pointer :: node, next
 
@@ -1262,6 +1263,7 @@ contains
          deallocate(node)
          node => next
       end do
+      self%first => null()
    end subroutine
 
    function link_list_find(self, name) result(link)
@@ -3122,6 +3124,7 @@ contains
          deallocate(node)
          node => next
       end do
+      self%first => null()
    end subroutine
 
 end module fabm_types
