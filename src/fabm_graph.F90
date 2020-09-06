@@ -539,7 +539,7 @@ contains
 
    subroutine node_list_append(self, node)
       class (type_node_list), intent(inout) :: self
-      type (type_node),target               :: node
+      type (type_node), pointer             :: node
 
       type (type_node_list_member), pointer :: member
 
@@ -656,6 +656,7 @@ contains
          deallocate(current%p)
          current => current%next
       end do
+      self%first => null()
       call self%type_node_list%finalize()
    end subroutine graph_finalize
 
