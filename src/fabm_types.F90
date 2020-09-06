@@ -787,6 +787,9 @@ contains
       end do
       call self%children%finalize()
 
+      call self%couplings%finalize()
+      call self%parameters%finalize()
+
       aggregate_variable_access => self%first_aggregate_variable_access
       do while (associated(aggregate_variable_access))
          next_aggregate_variable_access => aggregate_variable_access%next

@@ -519,6 +519,7 @@ contains
       variable_request => self%first_variable_request
       do while (associated(variable_request))
          next_variable_request => variable_request%next
+         call variable_request%output_variable_set%finalize(owner=.false.)
          deallocate(variable_request)
          variable_request => next_variable_request
       end do

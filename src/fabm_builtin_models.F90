@@ -67,6 +67,7 @@ module fabm_builtin_models
       procedure :: after_coupling   => weighted_sum_after_coupling
       procedure :: add_to_parent    => weighted_sum_add_to_parent
       procedure :: merge_components => weighted_sum_merge_components
+      procedure :: finalize         => weighted_sum_finalize
    end type
 
    type, extends(type_base_model) :: type_weighted_sum_sms_distributor
@@ -107,6 +108,7 @@ module fabm_builtin_models
       procedure :: after_coupling   => horizontal_weighted_sum_after_coupling
       procedure :: add_to_parent    => horizontal_weighted_sum_add_to_parent
       procedure :: merge_components => horizontal_weighted_sum_merge_components
+      procedure :: finalize         => horizontal_weighted_sum_finalize
    end type
 
    type, extends(type_base_model) :: type_scaled_horizontal_variable
@@ -497,6 +499,20 @@ module fabm_builtin_models
       end do
    end subroutine weighted_sum_merge_components
 
+   subroutine weighted_sum_finalize(self)
+      class (type_weighted_sum), intent(inout) :: self
+
+      type (type_component), pointer :: component, component_next
+
+      component => self%first
+      do while (associated(component))
+         component_next => component%next
+         deallocate(component)
+         component => component_next
+      end do
+      call self%type_reduction_operator%finalize()
+   end subroutine weighted_sum_finalize
+
    logical function merge_component(component_link, weight, target_variable, log_unit)
       type (type_link),              intent(inout)         :: component_link
       type (type_internal_variable), intent(inout), target :: target_variable
@@ -589,6 +605,20 @@ module fabm_builtin_models
          component => component%next
       end do
    end subroutine horizontal_weighted_sum_merge_components
+
+   subroutine horizontal_weighted_sum_finalize(self)
+      class (type_horizontal_weighted_sum), intent(inout) :: self
+
+      type (type_horizontal_component), pointer :: component, component_next
+
+      component => self%first
+      do while (associated(component))
+         component_next => component%next
+         deallocate(component)
+         component => component_next
+      end do
+      call self%type_reduction_operator%finalize()
+   end subroutine horizontal_weighted_sum_finalize
 
    subroutine weighted_sum_do(self, _ARGUMENTS_DO_)
       class (type_weighted_sum), intent(in) :: self
