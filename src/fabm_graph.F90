@@ -158,7 +158,7 @@ contains
 
    subroutine output_variable_set_add_output_variable(self, output_variable)
       class (type_output_variable_set), intent(inout) :: self
-      type (type_output_variable), target             :: output_variable
+      type (type_output_variable), pointer            :: output_variable ! must be pointer, not target, to permit deallocation by cray
 
       type (type_output_variable_set_node), pointer :: node
 
@@ -539,7 +539,7 @@ contains
 
    subroutine node_list_append(self, node)
       class (type_node_list), intent(inout) :: self
-      type (type_node), pointer             :: node
+      type (type_node), pointer             :: node ! must be pointer, not target, to permit deallocation by cray
 
       type (type_node_list_member), pointer :: member
 
