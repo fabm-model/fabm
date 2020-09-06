@@ -117,9 +117,9 @@ module fabm_properties
 
 contains
 
-   integer function typecode(property)
-      class (type_property), intent(in) :: property
-      select type (property)
+   integer function typecode(self)
+      class (type_property), intent(in) :: self
+      select type (self)
       class is (type_real_property)
          typecode = typecode_real
       class is (type_integer_property)
@@ -133,86 +133,86 @@ contains
       end select
    end function
 
-   function to_real(property, success, default) result(value)
-      class (type_property), intent(in)  :: property
+   function to_real(self, success, default) result(value)
+      class (type_property), intent(in)  :: self
       logical,  optional,    intent(out) :: success
       real(rk), optional,    intent(in)  :: default
       real(rk)                           :: value
 
       if (present(success)) success = .true.
-      select type (property)
+      select type (self)
       class is (type_real_property)
-         value = property%value
+         value = self%value
          return
       class is (type_integer_property)
-         value = property%value
+         value = self%value
          return
       class is (type_string_property)
-         read(property%value,*,err=99,end=99) value
+         read(self%value,*,err=99,end=99) value
          return
       end select
 99    if (present(success)) success = .false.
       if (present(default)) value = default
    end function
 
-   function to_integer(property, success, default) result(value)
-      class (type_property), intent(in)  :: property
+   function to_integer(self, success, default) result(value)
+      class (type_property), intent(in)  :: self
       logical, optional,     intent(out) :: success
       integer, optional,     intent(in)  :: default
       integer                            :: value
 
       if (present(success)) success = .true.
-      select type (property)
+      select type (self)
       class is (type_integer_property)
-         value = property%value
+         value = self%value
          return
       class is (type_string_property)
-         read(property%value,*,err=99,end=99) value
+         read(self%value,*,err=99,end=99) value
          return
       end select
 99    if (present(success)) success = .false.
       if (present(default)) value = default
    end function
 
-   function to_logical(property, success, default) result(value)
-      class (type_property), intent(in)  :: property
+   function to_logical(self, success, default) result(value)
+      class (type_property), intent(in)  :: self
       logical, optional,     intent(out) :: success
       logical, optional,     intent(in)  :: default
       logical                            :: value
 
       if (present(success)) success = .true.
-      select type (property)
+      select type (self)
       class is (type_logical_property)
-         value = property%value
+         value = self%value
          return
       class is (type_string_property)
-         read(property%value,*,err=99,end=99) value
+         read(self%value,*,err=99,end=99) value
          return
       end select
 99    if (present(success)) success = .false.
       if (present(default)) value = default
    end function
 
-   function to_string(property, success, default) result(value)
-      class (type_property),      intent(in)  :: property
+   function to_string(self, success, default) result(value)
+      class (type_property),      intent(in)  :: self
       logical,          optional, intent(out) :: success
       character(len=*), optional, intent(in)  :: default
       character(value_string_length)          :: value
 
       if (present(success)) success = .true.
-      select type (property)
+      select type (self)
       class is (type_real_property)
-         write (value,'(g13.6)') property%value
+         write (value,'(g13.6)') self%value
       class is (type_integer_property)
-         write (value,'(i0)') property%value
+         write (value,'(i0)') self%value
       class is (type_logical_property)
-         if (property%value) then
+         if (self%value) then
             value = '.true.'
          else
             value = '.false.'
          end if
       class is (type_string_property)
-         value = property%value
+         value = self%value
       class default
          if (present(success)) success = .false.
          if (present(default)) value = default
@@ -235,15 +235,15 @@ contains
        end do
    end function string_lower
 
-   function compare_keys(dictionary, key1, key2) result(equal)
-      class (type_property_dictionary), intent(in) :: dictionary
+   function compare_keys(self, key1, key2) result(equal)
+      class (type_property_dictionary), intent(in) :: self
       character(len=*),                 intent(in) :: key1, key2
       logical                                      :: equal
       equal = string_lower(key1) == string_lower(key2)
    end function
 
-   subroutine set_property(dictionary, property, overwrite)
-      class (type_property_dictionary), intent(inout) :: dictionary
+   subroutine set_property(self, property, overwrite)
+      class (type_property_dictionary), intent(inout) :: self
       class (type_property),            intent(in)    :: property
       logical,optional,                 intent(in)    :: overwrite
 
@@ -258,7 +258,7 @@ contains
 
       ! First determine if a property with this name already exists (if so, delete it)
       previous => null()
-      current => dictionary%first
+      current => self%first
       do while (associated(current))
          if (current%key==key) then
             ! We found a property with the specified name - if we are not allowed to oevrwrite it, we're done.
@@ -270,7 +270,7 @@ contains
                previous%next => current%next
             else
                ! First in the list.
-               dictionary%first => current%next
+               self%first => current%next
             end if
             deallocate(current)
             exit
@@ -279,13 +279,13 @@ contains
          current => previous%next
       end do
 
-      if (.not. associated(dictionary%first)) then
+      if (.not. associated(self%first)) then
          ! First property in list
-         allocate(dictionary%first, source=property)
-         current => dictionary%first
+         allocate(self%first, source=property)
+         current => self%first
       else
          ! Look for last element in list.
-         current => dictionary%first
+         current => self%first
          do while (associated(current%next))
             current => current%next
          end do
@@ -296,78 +296,78 @@ contains
       current%next => null()
    end subroutine
 
-   subroutine update(target, source, overwrite)
-      class (type_property_dictionary), intent(inout) :: target
+   subroutine update(self, source, overwrite)
+      class (type_property_dictionary), intent(inout) :: self
       class (type_property_dictionary), intent(in)    :: source
       logical,optional,                 intent(in)    :: overwrite
       class (type_property), pointer                  :: current
 
       current => source%first
       do while (associated(current))
-         call target%set_property(current, overwrite)
+         call self%set_property(current, overwrite)
          current => current%next
       end do
    end subroutine
 
-   subroutine set_real(dictionary, name, value)
-      class (type_property_dictionary), intent(inout) :: dictionary
+   subroutine set_real(self, name, value)
+      class (type_property_dictionary), intent(inout) :: self
       character(len=*),                 intent(in)    :: name
       real(rk),                         intent(in)    :: value
-      call dictionary%set_property(type_real_property(name=name, value=value))
+      call self%set_property(type_real_property(name=name, value=value))
    end subroutine
 
-   subroutine set_integer(dictionary, name, value)
-      class (type_property_dictionary), intent(inout) :: dictionary
+   subroutine set_integer(self, name, value)
+      class (type_property_dictionary), intent(inout) :: self
       character(len=*),                 intent(in)    :: name
       integer,                          intent(in)    :: value
-      call dictionary%set_property(type_integer_property(name=name, value=value))
+      call self%set_property(type_integer_property(name=name, value=value))
    end subroutine
 
-   subroutine set_logical(dictionary, name, value)
-      class (type_property_dictionary), intent(inout) :: dictionary
+   subroutine set_logical(self, name, value)
+      class (type_property_dictionary), intent(inout) :: self
       character(len=*),                 intent(in)    :: name
       logical,                          intent(in)    :: value
-      call dictionary%set_property(type_logical_property(name=name, value=value))
+      call self%set_property(type_logical_property(name=name, value=value))
    end subroutine
 
-   subroutine set_string(dictionary, name, value)
-      class (type_property_dictionary), intent(inout) :: dictionary
+   subroutine set_string(self, name, value)
+      class (type_property_dictionary), intent(inout) :: self
       character(len=*),                 intent(in)    :: name
       character(len=*),                 intent(in)    :: value
-      call dictionary%set_property(type_string_property(name=name, value=value))
+      call self%set_property(type_string_property(name=name, value=value))
    end subroutine
 
-   function get_property_by_name(dictionary, name) result(property)
-      class (type_property_dictionary), intent(inout) :: dictionary
+   function get_property_by_name(self, name) result(property)
+      class (type_property_dictionary), intent(inout) :: self
       character(len=*),                 intent(in)    :: name
       class (type_property), pointer                  :: property
 
       character(len=len(name)) :: key
 
       key = string_lower(name)
-      property => dictionary%first
+      property => self%first
       do while (associated(property))
          if (property%key == key) return
          property => property%next
       end do
    end function
 
-   function get_property_by_index(dictionary, index) result(property)
-      class (type_property_dictionary), intent(inout) :: dictionary
+   function get_property_by_index(self, index) result(property)
+      class (type_property_dictionary), intent(inout) :: self
       integer,                          intent(in)    :: index
       class (type_property),pointer                   :: property
 
       integer :: i
 
-      property => dictionary%first
+      property => self%first
       do i = 2, index
          if (.not. associated(property)) return
          property => property%next
       end do
    end function
 
-   function get_logical(dictionary, name, default) result(value)
-      class (type_property_dictionary), intent(inout) :: dictionary
+   function get_logical(self, name, default) result(value)
+      class (type_property_dictionary), intent(inout) :: self
       character(len=*),                 intent(in)    :: name
       logical,                          intent(in)    :: default
       logical                                         :: value
@@ -375,27 +375,27 @@ contains
       class (type_property), pointer :: property
 
       value = default
-      property => dictionary%get_property(name)
+      property => self%get_property(name)
       if (.not. associated(property)) return
       value = property%to_logical(default=default)
    end function
 
-   function get_integer(dictionary,name,default) result(value)
-      class (type_property_dictionary), intent(inout) :: dictionary
+   function get_integer(self, name, default) result(value)
+      class (type_property_dictionary), intent(inout) :: self
       character(len=*),                 intent(in)    :: name
       integer,                          intent(in)    :: default
       integer                                         :: value
 
-      class (type_property),pointer :: property
+      class (type_property), pointer :: property
 
       value = default
-      property => dictionary%get_property(name)
+      property => self%get_property(name)
       if (.not. associated(property)) return
       value = property%to_integer(default=default)
    end function
 
-   function get_real(dictionary, name, default) result(value)
-      class (type_property_dictionary), intent(inout) :: dictionary
+   function get_real(self, name, default) result(value)
+      class (type_property_dictionary), intent(inout) :: self
       character(len=*),                 intent(in)    :: name
       real(rk),                         intent(in)    :: default
       real(rk)                                        :: value
@@ -403,13 +403,13 @@ contains
       class (type_property), pointer :: property
 
       value = default
-      property => dictionary%get_property(name)
+      property => self%get_property(name)
       if (.not. associated(property)) return
       value = property%to_real(default=default)
    end function
 
-   function get_string(dictionary, name, default) result(value)
-      class (type_property_dictionary),  intent(inout) :: dictionary
+   function get_string(self, name, default) result(value)
+      class (type_property_dictionary),  intent(inout) :: self
       character(len=*),                  intent(in)    :: name
       character(len=*),                  intent(in)    :: default
       character(len=value_string_length)               :: value
@@ -417,13 +417,13 @@ contains
       class (type_property), pointer :: property
 
       value = default
-      property => dictionary%get_property(name)
+      property => self%get_property(name)
       if (.not. associated(property)) return
       value = property%to_string(default=default)
    end function
 
-   subroutine delete_by_name(dictionary, name)
-      class (type_property_dictionary), intent(inout) :: dictionary
+   subroutine delete_by_name(self, name)
+      class (type_property_dictionary), intent(inout) :: self
       character(len=*),                 intent(in)    :: name
 
       class (type_property), pointer :: property, previous
@@ -433,14 +433,14 @@ contains
       key = string_lower(name)
 
       ! First consume properties with this name at the start of the list.
-      do while (dictionary%first%key == key)
-         property => dictionary%first
-         dictionary%first => property%next
+      do while (self%first%key == key)
+         property => self%first
+         self%first => property%next
          deallocate(property)
       end do
 
       ! Now look internally for properties with this name.
-      previous => dictionary%first
+      previous => self%first
       property => previous%next
       do while (associated(property))
          if (property%key == key) then
@@ -453,18 +453,18 @@ contains
       end do
    end subroutine
 
-   subroutine delete_by_index(dictionary, index)
-      class (type_property_dictionary), intent(inout) :: dictionary
+   subroutine delete_by_index(self, index)
+      class (type_property_dictionary), intent(inout) :: self
       integer,                          intent(in)    :: index
 
       class (type_property), pointer :: property, previous
       integer                        :: i
 
-      if (.not. associated(dictionary%first)) return
-      property => dictionary%first
+      if (.not. associated(self%first)) return
+      property => self%first
       if (index == 1) then
          ! Remove head
-         dictionary%first => property%next
+         self%first => property%next
       else
          ! Remove non-head
          do i = 2, index
@@ -477,30 +477,30 @@ contains
       deallocate(property)
    end subroutine
 
-   function get_size(dictionary) result(n)
-      class (type_property_dictionary), intent(in) :: dictionary
+   function get_size(self) result(n)
+      class (type_property_dictionary), intent(in) :: self
       integer                                      :: n
 
       class (type_property), pointer :: property
 
       n = 0
-      property => dictionary%first
+      property => self%first
       do while (associated(property))
          n = n + 1
          property => property%next
       end do
    end function
 
-   subroutine keys(dictionary, names)
-      class (type_property_dictionary), intent(in)  :: dictionary
+   subroutine keys(self, names)
+      class (type_property_dictionary), intent(in)  :: self
       character(len=*), allocatable,    intent(out) :: names(:)
 
       integer                        :: n
       class (type_property), pointer :: property
 
-      allocate(names(dictionary%size()))
+      allocate(names(self%size()))
       n = 0
-      property => dictionary%first
+      property => self%first
       do while (associated(property))
          n = n + 1
          names(n) = trim(property%name)
@@ -508,18 +508,18 @@ contains
       end do
    end subroutine
 
-   subroutine finalize(dictionary)
-      class (type_property_dictionary), intent(inout) :: dictionary
+   subroutine finalize(self)
+      class (type_property_dictionary), intent(inout) :: self
 
-      class (type_property),pointer :: property, next
+      class (type_property), pointer :: property, next
 
-      property => dictionary%first
+      property => self%first
       do while (associated(property))
          next => property%next
          deallocate(property)
          property => next
       end do
-      dictionary%first => null()
+      self%first => null()
    end subroutine finalize
 
    logical function set_contains(self, string)
