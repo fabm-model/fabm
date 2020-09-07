@@ -540,6 +540,8 @@ contains
          call driver%log_message('environment.yaml should contain a dictionary at root level')
          stop 2
       end select
+      call yaml_root%finalize()
+      deallocate(yaml_root)
    end subroutine read_environment
 
    subroutine configure_range(randomize)
