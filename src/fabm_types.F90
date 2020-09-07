@@ -777,6 +777,7 @@ contains
 
       type (type_model_list_node),           pointer :: node
       type (type_aggregate_variable_access), pointer :: aggregate_variable_access, next_aggregate_variable_access
+      class (type_expression),               pointer :: expression, next_expression
       type (type_link),                      pointer :: link
 
       node => self%children%first
@@ -797,6 +798,14 @@ contains
          aggregate_variable_access => next_aggregate_variable_access
       end do
       self%first_aggregate_variable_access => null()
+
+      expression => self%first_expression
+      do while (associated(expression))
+         next_expression => expression%next
+         deallocate(expression)
+         expression => next_expression
+      end do
+      self%first_expression => null()
 
       link => self%links%first
       do while (associated(link))
@@ -2454,7 +2463,7 @@ contains
 
       class (type_expression), pointer :: current
 
-      if (.not.associated(self%first_expression)) then
+      if (.not. associated(self%first_expression)) then
          allocate(self%first_expression, source=expression)
          current => self%first_expression
       else
