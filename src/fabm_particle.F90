@@ -449,6 +449,7 @@ contains
          deallocate(reference)
          reference => next_reference
       end do
+      call self%type_base_model%finalize()
    end subroutine
 
 end module
