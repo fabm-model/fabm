@@ -66,6 +66,9 @@ contains
          call fatal_error('fabm_configure_model', trim(path_eff) // ' must contain a dictionary &
             &at the root (non-indented) level, not a single value. Are you missing a trailing colon?')
       end select
+
+      call node%finalize()
+      deallocate(node)
    end subroutine fabm_configure_model
 
    subroutine create_model_tree_from_dictionary(root, mapping, schedules)
