@@ -47,7 +47,7 @@ module fabm_particle
    end type
 
    type type_model_id
-      type (type_model_reference),pointer               :: reference => null()
+      type (type_model_reference), pointer              :: reference => null()
       type (type_state_variable_id),        allocatable :: state(:)
       type (type_bottom_state_variable_id), allocatable :: bottom_state(:)
       type (type_surface_state_variable_id),allocatable :: surface_state(:)
@@ -58,9 +58,9 @@ module fabm_particle
       integer                              :: access          = access_read
    end type
 
-   type,extends(type_base_model) :: type_particle_model
-      type (type_model_reference),    pointer :: first_model_reference   => null()
-      integer                                 :: internal_variable_state = not_done
+   type, extends(type_base_model) :: type_particle_model
+      type (type_model_reference), pointer :: first_model_reference   => null()
+      integer                              :: internal_variable_state = not_done
    contains
       ! Used by inheriting biogeochemical models:
       procedure :: register_model_dependency
@@ -76,6 +76,8 @@ module fabm_particle
       procedure :: before_coupling
       procedure :: resolve_model_reference
       procedure :: complete_internal_variables
+
+      procedure :: finalize
    end type
 
 contains
@@ -435,5 +437,18 @@ contains
       end do
 
    end subroutine build_state_id_list
+
+   subroutine finalize(self)
+      class (type_particle_model),  intent(inout) :: self
+
+      type (type_model_reference), pointer :: reference, next_reference
+
+      reference => self%first_model_reference
+      do while (associated(reference))
+         next_reference => reference%next
+         deallocate(reference)
+         reference => next_reference
+      end do
+   end subroutine
 
 end module
