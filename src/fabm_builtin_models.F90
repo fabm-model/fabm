@@ -510,6 +510,7 @@ module fabm_builtin_models
          deallocate(component)
          component => component_next
       end do
+      self%first => null()
       call self%type_reduction_operator%finalize()
    end subroutine weighted_sum_finalize
 
@@ -617,6 +618,7 @@ module fabm_builtin_models
          deallocate(component)
          component => component_next
       end do
+      self%first => null()
       call self%type_reduction_operator%finalize()
    end subroutine horizontal_weighted_sum_finalize
 

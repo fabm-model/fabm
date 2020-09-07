@@ -523,6 +523,7 @@ contains
          deallocate(variable_request)
          variable_request => next_variable_request
       end do
+      self%first_variable_request => null()
 
       call_request => self%first_call_request
       do while (associated(call_request))
@@ -530,6 +531,7 @@ contains
          deallocate(call_request)
          call_request => next_call_request
       end do
+      self%first_call_request => null()
 
       call self%read_cache_loads%finalize()
       call self%store_prefills%finalize()

@@ -449,6 +449,8 @@ contains
          deallocate(reference)
          reference => next_reference
       end do
+      self%first_model_reference => null()
+
       call self%type_base_model%finalize()
    end subroutine
 
