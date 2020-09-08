@@ -123,7 +123,7 @@ subroutine do(self,_ARGUMENTS_DO_)
       do i=1,self%nstate
          _GET_(self%id_state(i),value)
          if (value/=i+interior_state_offset) call self%fatal_error('do','invalid value of interior state variable.')
-         _SET_ODE_(self%id_state(i),-value)
+         _ADD_SOURCE_(self%id_state(i),-value)
       end do
 
       do i=1,self%nsurface_state
@@ -160,13 +160,13 @@ subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
       do i=1,self%nstate
          _GET_(self%id_state(i),value)
          if (value/=i+interior_state_offset) call self%fatal_error('do_surface','invalid value of interior state variable.')
-         _SET_SURFACE_EXCHANGE_(self%id_state(i),-value)
+         _ADD_SURFACE_FLUX_(self%id_state(i),-value)
       end do
 
       do i=1,self%nsurface_state
          _GET_HORIZONTAL_(self%id_surface_state(i),value)
          if (value/=i+surface_state_offset) call self%fatal_error('do_surface','invalid value of surface state variable.')
-         _SET_SURFACE_ODE_(self%id_surface_state(i),-value)
+         _ADD_SURFACE_SOURCE_(self%id_surface_state(i),-value)
       end do
 
       do i=1,self%nbottom_state
@@ -205,7 +205,7 @@ subroutine do_bottom(self,_ARGUMENTS_DO_SURFACE_)
       do i=1,self%nstate
          _GET_(self%id_state(i),value)
          if (value/=i+interior_state_offset) call self%fatal_error('do_bottom','invalid value of interior state variable.')
-         _SET_BOTTOM_EXCHANGE_(self%id_state(i),-value)
+         _ADD_BOTTOM_FLUX_(self%id_state(i),-value)
       end do
 
       do i=1,self%nsurface_state
@@ -216,7 +216,7 @@ subroutine do_bottom(self,_ARGUMENTS_DO_SURFACE_)
       do i=1,self%nbottom_state
          _GET_HORIZONTAL_(self%id_bottom_state(i),value)
          if (value/=i+bottom_state_offset) call self%fatal_error('do_bottom','invalid value of bottom state variable.')
-         _SET_BOTTOM_ODE_(self%id_bottom_state(i),-value)
+         _ADD_BOTTOM_SOURCE_(self%id_bottom_state(i),-value)
       end do
 
       _GET_(self%id_depth,value)
@@ -299,7 +299,7 @@ subroutine get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
       do i=1,self%nstate
          _GET_(self%id_state(i),value)
          if (value/=i+interior_state_offset) call self%fatal_error('get_vertical_movement','invalid value of interior state variable.')
-         if (mod(i, 2) == 0) _SET_VERTICAL_MOVEMENT_(self%id_state(i),real(i+interior_state_offset,rk))
+         if (mod(i, 2) == 0) _ADD_VERTICAL_VELOCITY_(self%id_state(i),real(i+interior_state_offset,rk))
       end do
 
       do i=1,self%nsurface_state

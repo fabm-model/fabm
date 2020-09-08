@@ -1020,7 +1020,7 @@ module fabm_builtin_models
       _DECLARE_ARGUMENTS_DO_SURFACE_
 
       _HORIZONTAL_LOOP_BEGIN_
-         _SET_SURFACE_EXCHANGE_(self%id_target,self%flux)
+         _ADD_SURFACE_FLUX_(self%id_target,self%flux)
       _HORIZONTAL_LOOP_END_
    end subroutine constant_surface_flux_do_surface
 
@@ -1129,7 +1129,7 @@ module fabm_builtin_models
          _GET_(self%id_original,original_value)
          _GET_(self%id_target,target_value)
          if (self%rate_is_variable) _GET_(self%id_rate, relaxation_rate)
-         _SET_ODE_(self%id_original, relaxation_rate*(target_value - original_value))
+         _ADD_SOURCE_(self%id_original, relaxation_rate*(target_value - original_value))
       _LOOP_END_
    end subroutine interior_relaxation_do
 
