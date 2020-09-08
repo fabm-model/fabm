@@ -1317,6 +1317,18 @@ contains
          call driver%fatal_error(source, message)
    end subroutine
 
+   subroutine assert_equal(value, reference, source, message)
+      real(rke),        intent(in) :: value, reference
+      character(len=*), intent(in) :: source, message
+
+      character(len=128) :: str
+
+      if (value /= reference) then
+         write (str,'(a,g0.16,a,g0.16)') ' Expected ', reference, ', found ', value
+         call driver%fatal_error(source, message // trim(str))
+      end if
+   end subroutine
+
    subroutine apply_mask_3d(dat,missing_value)
       real(rke) _DIMENSION_GLOBAL_,intent(inout) :: dat
       real(rke),                   intent(in)    :: missing_value
@@ -1381,9 +1393,9 @@ contains
 #endif
 
       if (unmasked) then
-         call assert(value == required_value, 'check_interior_slice', 'one or more non-masked cells do not have the value required.')
+         call assert_equal(value, required_value, 'check_interior_slice', 'one or more non-masked cells do not have the value required.')
       else
-         call assert(value == required_masked_value, 'check_interior_slice', 'one or more masked cells do not have the value required.')
+         call assert_equal(value, required_masked_value, 'check_interior_slice', 'one or more masked cells do not have the value required.')
       end if
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
@@ -1428,9 +1440,9 @@ contains
 #endif
 
       if (unmasked) then
-         call assert(value == required_value, 'check_horizontal_slice', 'one or more non-masked cells do not have the value required.')
+         call assert_equal(value, required_value, 'check_horizontal_slice', 'one or more non-masked cells do not have the value required.')
       else
-         call assert(value == required_masked_value, 'check_horizontal_slice', 'one or more masked cells do not have the value required.')
+         call assert_equal(value, required_masked_value, 'check_horizontal_slice', 'one or more masked cells do not have the value required.')
       end if
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
@@ -1459,9 +1471,9 @@ contains
 #  endif
 #endif
          if (unmasked) then
-            call assert(dat _INDEX_LOCATION_ == required_value, 'check_interior', 'one or more non-masked cells do not have the value required.')
+            call assert_equal(dat _INDEX_LOCATION_, required_value, 'check_interior', 'one or more non-masked cells do not have the value required.')
          else
-            call assert(dat _INDEX_LOCATION_ == required_masked_value, 'check_interior', 'one or more masked cells do not have the value required.')
+            call assert_equal(dat _INDEX_LOCATION_, required_masked_value, 'check_interior', 'one or more masked cells do not have the value required.')
          end if
       _END_GLOBAL_LOOP_
    end subroutine
@@ -1477,9 +1489,9 @@ contains
          unmasked = _IS_UNMASKED_(mask_hz _INDEX_HORIZONTAL_LOCATION_)
 #endif
          if (unmasked) then
-            call assert(dat _INDEX_HORIZONTAL_LOCATION_ == required_value, 'check_horizontal', 'one or more non-masked cells do not have the value required.')
+            call assert_equal(dat _INDEX_HORIZONTAL_LOCATION_, required_value, 'check_horizontal', 'one or more non-masked cells do not have the value required.')
          else
-            call assert(dat _INDEX_HORIZONTAL_LOCATION_ == required_masked_value, 'check_horizontal', 'one or more masked cells do not have the value required.')
+            call assert_equal(dat _INDEX_HORIZONTAL_LOCATION_, required_masked_value, 'check_horizontal', 'one or more masked cells do not have the value required.')
          end if
       _END_GLOBAL_HORIZONTAL_LOOP_
    end subroutine
