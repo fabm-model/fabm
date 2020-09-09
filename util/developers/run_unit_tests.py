@@ -9,6 +9,7 @@ import shutil
 import argparse
 import timeit
 import io
+import errno
 
 script_root = os.path.abspath(os.path.dirname(__file__))
 root = os.path.join(script_root, '../..')
@@ -55,7 +56,7 @@ def run(phase, args, verbose=False, **kwargs):
     stdoutdata, _ = proc.communicate()
     if proc.returncode != 0:
         log_path = '%s.log' % phase
-        with io.open(log_path, 'w') as f:
+        with io.open(log_path, 'wb') as f:
             f.write(stdoutdata)
         logs.append(log_path)
         print('FAILED (return code %i, log written to %s)' % (proc.returncode, log_path))
@@ -77,7 +78,9 @@ try:
         sys.stdout.flush()
         try:
             generates[host] = run('%s_generate' % host, [args.cmake, os.path.join(root, 'src'), '-DFABM_HOST=%s' % host] + cmake_arguments, cwd=build_dir)
-        except FileNotFoundError:
+        except EnvironmentError as e:
+            if e.errno != errno.ENOENT:
+                raise
             print('\n\ncmake executable not found. Specify its location on the command line with --cmake.')
             sys.exit(2)
         if generates[host] != 0:
