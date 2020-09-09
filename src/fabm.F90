@@ -1259,14 +1259,16 @@ contains
       class (type_fabm_model),                     intent(inout) :: self
       real(rke) _DIMENSION_GLOBAL_PLUS_1_, target, intent(in)    :: dat
 
-      integer :: i
+      integer                                :: i
+      real(rke) _ATTRIBUTES_GLOBAL_, pointer :: pdat
 
 #ifndef NDEBUG
       if (size(dat, _FABM_DIMENSION_COUNT_ + 1) /= size(self%interior_state_variables)) &
          call fatal_error('link_all_interior_state_data', 'size of last dimension of provided array must match number of interior state variables.')
 #endif
       do i = 1, size(self%interior_state_variables)
-         call link_interior_state_data(self, i, dat(_PREARG_LOCATION_DIMENSIONS_ i))
+         pdat => dat(_PREARG_LOCATION_DIMENSIONS_ i)
+         call link_interior_state_data(self, i, pdat)
       end do
    end subroutine link_all_interior_state_data
 
@@ -1274,14 +1276,16 @@ contains
       class (type_fabm_model),                                intent(inout) :: self
       real(rke) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_, target, intent(in)    :: dat
 
-      integer :: i
+      integer                                           :: i
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: pdat
 
 #ifndef NDEBUG
       if (size(dat, _HORIZONTAL_DIMENSION_COUNT_ + 1) /= size(self%bottom_state_variables)) &
          call fatal_error('link_all_bottom_state_data', 'size of last dimension of provided array must match number of bottom state variables.')
 #endif
       do i = 1, size(self%bottom_state_variables)
-         call link_bottom_state_data(self, i, dat(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i))
+         pdat => dat(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i)
+         call link_bottom_state_data(self, i, pdat)
       end do
    end subroutine link_all_bottom_state_data
 
@@ -1289,14 +1293,16 @@ contains
       class (type_fabm_model),                                intent(inout) :: self
       real(rke) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_, target, intent(in)    :: dat
 
-      integer :: i
+      integer                                           :: i
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: pdat
 
 #ifndef NDEBUG
       if (size(dat, _HORIZONTAL_DIMENSION_COUNT_ + 1) /= size(self%surface_state_variables)) &
          call fatal_error('link_all_surface_state_data', 'size of last dimension of provided array must match number of surface state variables.')
 #endif
       do i = 1, size(self%surface_state_variables)
-         call link_surface_state_data(self, i, dat(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i))
+         pdat => dat(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i)
+         call link_surface_state_data(self, i, pdat)
       end do
    end subroutine link_all_surface_state_data
 
