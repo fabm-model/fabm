@@ -921,39 +921,47 @@ module fabm_builtin_models
    end subroutine bounded_depth_integral_do_column
 
    subroutine interior_constant_initialize(self,configunit)
-      class (type_interior_constant),intent(inout),target :: self
-      integer,                       intent(in)           :: configunit
+      class (type_interior_constant), intent(inout), target :: self
+      integer,                        intent(in)            :: configunit
 
-      character(len=attribute_length) :: standard_name
-      real(rk)                        :: value
+      character(len=attribute_length)        :: standard_name
+      real(rk)                               :: value
+      type (type_interior_standard_variable) :: standard_variable
 
       call self%register_implemented_routines()
-      call self%get_parameter(standard_name,'standard_name','','standard name',default='')
-      call self%get_parameter(value,'value','','value')
-      if (standard_name/='') then
-         call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
-            output=output_none, standard_variable=type_interior_standard_variable(name=standard_name), source=source_constant)
+      call self%get_parameter(standard_name, 'standard_name', '', 'standard name', default='')
+      call self%get_parameter(value, 'value', '', 'value')
+      if (standard_name /= '') then
+         ! Note: for Cray 8.3.7, standard_variable needs to be declared separately.
+         ! It cannot be contructed on the fly within the function call
+         standard_variable%name = trim(standard_name)
+         call self%register_diagnostic_variable(self%id_constant, 'data', '', 'data', missing_value=value, &
+            output=output_none, standard_variable=standard_variable, source=source_constant)
       else
-         call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
+         call self%register_diagnostic_variable(self%id_constant, 'data', '', 'data', missing_value=value, &
             output=output_none, source=source_constant)
       end if
    end subroutine interior_constant_initialize
 
    subroutine horizontal_constant_initialize(self,configunit)
-      class (type_horizontal_constant),intent(inout),target :: self
-      integer,                         intent(in)           :: configunit
+      class (type_horizontal_constant), intent(inout), target :: self
+      integer,                          intent(in)            :: configunit
 
-      character(len=attribute_length) :: standard_name
-      real(rk)                        :: value
+      character(len=attribute_length)          :: standard_name
+      real(rk)                                 :: value
+      type (type_horizontal_standard_variable) :: standard_variable
 
       call self%register_implemented_routines()
-      call self%get_parameter(standard_name,'standard_name','','standard name',default='')
-      call self%get_parameter(value,'value','','value')
-      if (standard_name/='') then
-         call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
-            output=output_none, standard_variable=type_horizontal_standard_variable(name=standard_name), source=source_constant)
+      call self%get_parameter(standard_name, 'standard_name', '', 'standard name', default='')
+      call self%get_parameter(value, 'value', '', 'value')
+      if (standard_name /= '') then
+         ! Note: for Cray 8.3.7, standard_variable needs to be declared separately.
+         ! It cannot be contructed on the fly within the function call
+         standard_variable%name = trim(standard_name)
+         call self%register_diagnostic_variable(self%id_constant, 'data', '', 'data', missing_value=value, &
+            output=output_none, standard_variable=standard_variable, source=source_constant)
       else
-         call self%register_diagnostic_variable(self%id_constant,'data','','data', missing_value=value, &
+         call self%register_diagnostic_variable(self%id_constant, 'data', '', 'data', missing_value=value, &
             output=output_none, source=source_constant)
       end if
    end subroutine horizontal_constant_initialize
