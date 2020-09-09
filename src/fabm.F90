@@ -2611,7 +2611,9 @@ contains
    subroutine create_store(self)
       class (type_fabm_model), intent(inout), target :: self
 
-      type (type_variable_node), pointer :: variable_node
+      type (type_variable_node),                pointer :: variable_node
+      real(rke) _ATTRIBUTES_GLOBAL_,            pointer :: pdata
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: pdata_hz
 
       ! Allocate memory for persistent store
 #if _FABM_DIMENSION_COUNT_==0
@@ -2635,14 +2637,20 @@ contains
       ! Register data fields from persistent store in catalog.
       variable_node => self%variable_register%catalog%interior%first
       do while (associated(variable_node))
-         if (variable_node%target%store_index > 0) &
-            call self%link_interior_data(variable_node%target, self%store%interior(_PREARG_LOCATION_DIMENSIONS_ variable_node%target%store_index), source=data_source_fabm)
+         if (variable_node%target%store_index > 0) then
+            ! Note: we first assign to the pointer below to ensure ifort 15 recognizes its contiguity when _FABM_CONTIGUOUS is set
+            pdata => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ variable_node%target%store_index)
+            call self%link_interior_data(variable_node%target, pdata, source=data_source_fabm)
+         end if
          variable_node => variable_node%next
       end do
       variable_node => self%variable_register%catalog%horizontal%first
       do while (associated(variable_node))
-         if (variable_node%target%store_index > 0) &
-            call self%link_horizontal_data(variable_node%target, self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ variable_node%target%store_index), source=data_source_fabm)
+         if (variable_node%target%store_index > 0) then
+            ! Note: we first assign to the pointer below to ensure ifort 15 recognizes its contiguity when _FABM_CONTIGUOUS is set
+            pdata_hz => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ variable_node%target%store_index)
+            call self%link_horizontal_data(variable_node%target, pdata_hz, source=data_source_fabm)
+         end if
          variable_node => variable_node%next
       end do
 
