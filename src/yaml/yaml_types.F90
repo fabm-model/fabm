@@ -103,7 +103,7 @@ module yaml_types
 
 contains
 
-   subroutine node_finalize(self)
+   recursive subroutine node_finalize(self)
       class (type_node),intent(inout) :: self
    end subroutine
 
@@ -478,7 +478,7 @@ contains
       end if
    end function
 
-   subroutine dictionary_finalize(self)
+   recursive subroutine dictionary_finalize(self)
       class (type_dictionary),intent(inout) :: self
 
       type (type_key_value_pair),pointer :: pair, next
