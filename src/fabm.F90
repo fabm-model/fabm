@@ -2609,7 +2609,7 @@ contains
    end function
 
    subroutine create_store(self)
-      class (type_fabm_model), intent(inout) :: self
+      class (type_fabm_model), intent(inout), target :: self
 
       type (type_variable_node), pointer :: variable_node
 
