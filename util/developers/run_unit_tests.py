@@ -73,7 +73,8 @@ try:
         print(host)
         build_dir = os.path.join(build_root, host)
         os.mkdir(build_dir)
-        print('  generating...', end='', flush=True)
+        print('  generating...', end='')
+        sys.stdout.flush()
         try:
             generates[host] = run('%s_generate' % host, [args.cmake, os.path.join(root, 'src'), '-DFABM_HOST=%s' % host] + cmake_arguments, cwd=build_dir)
         except FileNotFoundError:
@@ -81,11 +82,13 @@ try:
             sys.exit(2)
         if generates[host] != 0:
             continue
-        print('  building...', end='', flush=True)
+        print('  building...', end='')
+        sys.stdout.flush()
         builds[host] = run('%s_build' % host, [args.cmake, '--build', build_dir, '--target', 'test_host', '--config', vsconfig])
         if builds[host] != 0:
             continue
-        print('  testing...', end='', flush=True)
+        print('  testing...', end='')
+        sys.stdout.flush()
         for exename in ('%s/test_host.exe' % vsconfig, 'test_host'):
             exepath = os.path.join(build_dir, exename)
             if os.path.isfile(exepath):
