@@ -2,14 +2,17 @@
    "title": "Framework for Aquatic Biogeochemical Models",
    "creators": [
       {
-         "affiliation": "Bolding & Bruggeman ApS",
          "name": "Jorn Bruggeman"
+         "affiliation": "Bolding & Bruggeman ApS",
+         "orcid": "0000-0003-2493-2323",
       },
       {
-         "affiliation": "Bolding & Bruggeman ApS",
          "name": "Karsten Bolding"
+         "affiliation": "Bolding & Bruggeman ApS",
+         "orcid": "0000-0001-8465-3196",
       }
    ],
+   "description": "<p>The Framework for Aquatic Biogeochemical Models (FABM) is a Fortran 2003 programming framework for biogeochemical models of marine and freshwater systems. Visit <a href=\"http://fabm.net/wiki\">the wiki</a> for information on how to build, use and develop with FABM.</p>",
    "grants": [
       {
          "id": "212085"
