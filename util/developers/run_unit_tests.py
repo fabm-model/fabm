@@ -8,7 +8,6 @@ import subprocess
 import shutil
 import argparse
 import timeit
-import io
 import errno
 
 script_root = os.path.abspath(os.path.dirname(__file__))
@@ -56,7 +55,7 @@ def run(phase, args, verbose=False, **kwargs):
     stdoutdata, _ = proc.communicate()
     if proc.returncode != 0:
         log_path = '%s.log' % phase
-        with io.open(log_path, 'wb') as f:
+        with open(log_path, 'w') as f:
             f.write(stdoutdata)
         logs.append(log_path)
         print('FAILED (return code %i, log written to %s)' % (proc.returncode, log_path))
