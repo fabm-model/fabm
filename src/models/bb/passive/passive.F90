@@ -4,7 +4,7 @@ module bb_passive
 
    ! This model describe a single passive tracer. Optionally, a vertical velocity
    ! (sinking/floating), light attenuation coefficient and surface flux can be specified.
-   ! The unit is mol/m\^3 by default, but may be explicitly configured as well.
+   ! The unit is mol/m^3 by default, but may be explicitly configured as well.
 
    use fabm_types
 

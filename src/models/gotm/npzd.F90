@@ -1,13 +1,11 @@
 #include "fabm_driver.h"
 
-! !MODULE: fabm_npzd --- NPZD biogeochemical model based upon
-! Fennel \& Neumann (1996, German Journal of Hydrography),
+! NPZD biogeochemical model based upon Fennel \& Neumann (1996, German Journal of Hydrography),
 ! with minor modifications by Burchard et al. (2005, Ocean Dynamics)
 !
 ! Original author(s): Hans Burchard, Karsten Bolding
 ! taken from GOTM and adapted for FABM by Jorn Bruggeman
 !
-! !DESCRIPTION:
 ! The NPZD (nutrient-phytoplankton-zooplankton-detritus) model described here
 ! consists of $I=4$ state variables.
 ! Nutrient uptake (phytoplankton growth) is limited by light and nutrient
@@ -98,7 +96,7 @@ contains
       class (type_gotm_npzd), intent(inout), target :: self
       integer,                intent(in)            :: configunit
 
-      real(rk), parameter :: d_per_s = 1.0_rk/86400.0_rk
+      real(rk), parameter :: d_per_s = 1.0_rk / 86400.0_rk
       real(rk) :: w_p, w_d
 
       ! Store parameter values in our own derived type
@@ -153,7 +151,7 @@ contains
    end subroutine initialize
 
    subroutine do(self, _ARGUMENTS_DO_)
-      class (type_gotm_npzd),intent(in) :: self
+      class (type_gotm_npzd), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
 
       real(rk)            :: n, p, z, d, par, I_0

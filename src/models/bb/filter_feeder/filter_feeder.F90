@@ -26,7 +26,7 @@ module bb_filter_feeder
 
    private
 
-   type,extends(type_base_model), public :: type_bb_filter_feeder
+   type, extends(type_base_model), public :: type_bb_filter_feeder
       ! Variables
       type (type_state_variable_id) :: id_consumed_prey
       type (type_state_variable_id) :: id_prey
@@ -47,7 +47,7 @@ contains
       class (type_bb_filter_feeder), intent(inout), target :: self
       integer,                       intent(in)            :: configunit
 
-      real(rk), parameter :: days_per_second = 1.0_rk/86400.0_rk
+      real(rk), parameter :: days_per_second = 1.0_rk / 86400.0_rk
 
       ! Get clearance rate as constant or external dependency.
       call self%get_parameter(self%use_external_clearance_rate, 'use_external_clearance_rate', '', 'use external clearance rate', default=.false.)
@@ -66,7 +66,7 @@ contains
       call self%register_state_dependency(self%id_prey, 'prey', '', 'prey')
    end subroutine initialize
 
-   subroutine do(self,_ARGUMENTS_DO_)
+   subroutine do(self, _ARGUMENTS_DO_)
       class (type_bb_filter_feeder), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
 
