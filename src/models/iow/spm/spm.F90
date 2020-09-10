@@ -30,21 +30,21 @@
 !
 !
 ! !PUBLIC DERIVED TYPES:
-   type, extends(type_base_model),public :: type_iow_spm
+   type, extends(type_base_model), public :: type_iow_spm
 !     Variable identifiers
-      type (type_state_variable_id)                   :: id_spm      !concentrations
-      type (type_bottom_state_variable_id)            :: id_pmpool   !sediment pool
-      type (type_horizontal_dependency_id)            :: id_taub     !bottom stress
-      type (type_dependency_id)                       :: id_temp     !temperature
-      type (type_dependency_id)                       :: id_rhow     !density
-      type (type_horizontal_diagnostic_variable_id)   :: id_massflux !exchange layer
-      type (type_horizontal_diagnostic_variable_id)   :: id_bedload  !bedload
-      type (type_horizontal_diagnostic_variable_id)   :: id_massfraction  !
-      type (type_horizontal_dependency_id)            :: id_total_pmpool
+      type (type_state_variable_id)               :: id_spm      !concentrations
+      type (type_bottom_state_variable_id)        :: id_pmpool   !sediment pool
+      type (type_bottom_dependency_id)            :: id_taub     !bottom stress
+      type (type_dependency_id)                   :: id_temp     !temperature
+      type (type_dependency_id)                   :: id_rhow     !density
+      type (type_bottom_diagnostic_variable_id)   :: id_massflux !exchange layer
+      type (type_bottom_diagnostic_variable_id)   :: id_bedload  !bedload
+      type (type_bottom_diagnostic_variable_id)   :: id_massfraction  !
+      type (type_bottom_dependency_id)            :: id_total_pmpool
       ! van Kesse L2 model
-      type (type_bottom_state_variable_id)            :: id_flufflayer  !sediment pool
-      type (type_horizontal_dependency_id)            :: id_total_fluffpool
-      type (type_horizontal_dependency_id)            :: id_total_mudpool
+      type (type_bottom_state_variable_id)        :: id_flufflayer  !sediment pool
+      type (type_bottom_dependency_id)            :: id_total_fluffpool
+      type (type_bottom_dependency_id)            :: id_total_mudpool
       ! provide information of the light model
       type (type_diagnostic_variable_id)              :: id_dPAR
       type (type_dependency_id)                       :: id_par
@@ -85,7 +85,6 @@
       procedure :: do
       procedure :: do_bottom
       procedure :: get_vertical_movement
-      procedure :: get_light_extinction
 
    end type type_iow_spm
 !EOP
@@ -265,7 +264,8 @@
    call self%register_state_variable(self%id_spm,'spm','mg/l','concentration of SPM',     &
                                     c_init,minimum=0.0_rk, &
                                     vertical_movement=self%ws_const, &
-                                    no_river_dilution=.true.)
+                                    no_river_dilution=.true., &
+                                    specific_light_extinction=self%shading)
 
    if ( self%pm_pool )  then
       ! at first we need the bottom pool
@@ -278,8 +278,8 @@
       select case (self%resuspension_model )
          case ( 0,1 )
             if ( self%bedload_method .gt. 0 ) then
-               call self%register_horizontal_diagnostic_variable(self%id_bedload, 'bedload', &
-                     'kg/m/s','massflux due to bed load', source=source_do_bottom)
+               call self%register_diagnostic_variable(self%id_bedload, 'bedload', &
+                     'kg/m/s','massflux due to bed load')
             endif
          case ( 2 )
             ! if we use the van Kessel et al. 2011 formulation,
@@ -297,11 +297,11 @@
    endif
 
    ! diagnostic output of the massflux
-   call self%register_horizontal_diagnostic_variable(self%id_massflux,'massflux','kg/m**2/s', &
-         'massflux in the exchange layer', source=source_do_bottom)
+   call self%register_diagnostic_variable(self%id_massflux,'massflux','kg/m**2/s', &
+         'massflux in the exchange layer')
    ! and the mass fraction of each class
-   call self%register_horizontal_diagnostic_variable(self%id_massfraction,'massfraction','%', &
-         'massfraction in the exchange layer', source=source_do_bottom)
+   call self%register_diagnostic_variable(self%id_massfraction,'massfraction','%', &
+         'massfraction in the exchange layer')
 
    ! check for sand mud interaction
    if ( self%sand_mud_interaction ) then
@@ -456,27 +456,27 @@
 
       stressexponent = self%stressexponent
 
-      _HORIZONTAL_LOOP_BEGIN_
+      _BOTTOM_LOOP_BEGIN_
       ! get environmental variables
       _GET_(self%id_spm,spm)
       _GET_(self%id_temp,temp)
       _GET_(self%id_rhow,rhow)
-      _GET_HORIZONTAL_(self%id_taub,taub)
+      _GET_BOTTOM_(self%id_taub,taub)
       ! get the total mass in the bottom
-      _GET_HORIZONTAL_(self%id_total_pmpool,totalmass)
+      _GET_BOTTOM_(self%id_total_pmpool,totalmass)
       ! get the mass of the individual class
-      _GET_HORIZONTAL_(self%id_pmpool,pmpool)
+      _GET_BOTTOM_(self%id_pmpool,pmpool)
       if ( self%resuspension_model .eq. 2 ) then
          ! do the same thing for the fluff layer
-         _GET_HORIZONTAL_(self%id_flufflayer,fluff)
-         _GET_HORIZONTAL_(self%id_total_fluffpool,totalfluff)
+         _GET_BOTTOM_(self%id_flufflayer,fluff)
+         _GET_BOTTOM_(self%id_total_fluffpool,totalfluff)
          fluffraction = fluff/totalfluff
       endif
 
       ! get the mass of the mud classes in the bottom pool
       if ( self%sand_mud_interaction ) then
          ! compute the mud fraction
-         _GET_HORIZONTAL_(self%id_total_mudpool,mudpool)
+         _GET_BOTTOM_(self%id_total_mudpool,mudpool)
          mudfraction = mudpool/totalmass
       endif
 
@@ -612,10 +612,10 @@
             ! unit is kg/m**2/s
             _ADD_BOTTOM_SOURCE_(self%id_pmpool,-(massflux)/1000.0_rk*self%morfac)
             ! Export diagnostic variables mass flux - unit is kg/m**2/s
-            _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massflux,-(massflux)/1000.0_rk)
+            _SET_BOTTOM_DIAGNOSTIC_(self%id_massflux,-(massflux)/1000.0_rk)
             ! Export diagnostic variables bed load flux - unit is kg/m/s
             if ( self%bedload_method .gt. 0 ) then
-               _SET_HORIZONTAL_DIAGNOSTIC_(self%id_bedload,bedload*self%bedload_factor*self%morfac)
+               _SET_BOTTOM_DIAGNOSTIC_(self%id_bedload,bedload*self%bedload_factor*self%morfac)
             endif
          case ( 2 )
             massflux       = Sedimentation_Flux       + Erosion_Flux
@@ -626,12 +626,12 @@
             _ADD_BOTTOM_SOURCE_(self%id_pmpool ,-(massflux)/1000.0_rk)
             _ADD_BOTTOM_SOURCE_(self%id_flufflayer,-(massflux_fluff)/1000.0_rk)
             ! Export diagnostic variables mass flux - unit is kg/m**2/s
-            _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massflux ,-(massflux )/1000.0_rk)
+            _SET_BOTTOM_DIAGNOSTIC_(self%id_massflux ,-(massflux )/1000.0_rk)
       end select
 
-      _SET_HORIZONTAL_DIAGNOSTIC_(self%id_massfraction,pmpool/totalmass*100.0_rk)
+      _SET_BOTTOM_DIAGNOSTIC_(self%id_massfraction,pmpool/totalmass*100.0_rk)
 
-      _HORIZONTAL_LOOP_END_
+      _BOTTOM_LOOP_END_
 
    end if
 
@@ -671,42 +671,6 @@
 
    end subroutine get_vertical_movement
 !EOP
-!-----------------------------------------------------------------------
-!BOP
-!
-! !ROUTINE: iow_spm_get_light_extinction
-!
-! !INTERFACE:
-
-   subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
-
-   implicit none
-
-! !INPUT PARAMETERS:
-
-   class (type_iow_spm), intent(in) :: self
-   _DECLARE_ARGUMENTS_GET_EXTINCTION_
-
-! !LOCAL VARIABLES
-   real(rk)      :: spm
-!
-! !REVISION HISTORY:
-!  Original author(s): Richard Hofmeister
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-   ! Enter spatial loops (if any)
-   _LOOP_BEGIN_
-
-   _GET_(self%id_spm,spm)
-   _SET_EXTINCTION_(self%shading*spm)
-
-   _LOOP_END_
-
-   end subroutine get_light_extinction
-!EOC
-!-----------------------------------------------------------------------
 
    function ws(self,temp,rhow,spm) result(svs)
 
