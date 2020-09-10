@@ -151,19 +151,9 @@
 
    logical  :: use_par=.false.
 
-   namelist /iow_spm/  diameter, &
-         c_init, tauc_factor, M0, M1, M2,                               &
-         tauc_const, cohesive, sinking_method, bottom_stress_method,    &
-         pm_pool, shading, ws_const, rho, bedload_method,               &
-         add_to_density, sand_mud_interaction, crit_mud,stressexponent, &
-         resuspension_model, thickness_L1, thickness_fluff, flux_alpha,    &
-         morfac, bedload_factor, use_par
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-
-   ! Read the namelist
-   if (configunit>0) read(configunit,nml=iow_spm,err=99,end=100)
 
    ! Store parameter values in our own derived type
    call self%get_parameter(self%diameter,'diameter','m',default=diameter,scale_factor=1e-6_rk)
