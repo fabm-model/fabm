@@ -253,7 +253,6 @@
    ! Register state variables
    call self%register_state_variable(self%id_spm,'spm','mg/l','concentration of SPM',     &
                                     c_init,minimum=0.0_rk, &
-                                    vertical_movement=self%ws_const, &
                                     no_river_dilution=.true., &
                                     specific_light_extinction=self%shading)
 
