@@ -1,0 +1,37 @@
+instances:
+  spm:                               # arbitrary short name (required)
+    use: true                        # optional, default = true
+    long_name: spm                   # optional, default = short name
+    model: iow/spm                   # (required)
+    parameters:                      # optional (names from retrieved parameters)
+      diameter: 100.0                # (micrometer), default = 100.0
+      tauc_factor: 10000.0           # default = 10000.0
+      tauc_const: 0.01               # critical bed stress for erosion (N m-2), default = 0.01
+      cohesive: false                # default = false
+      shading: 1.0                   # (m-1 mg-1 l), default = 1.0
+      ws_const: 0.001                # settling velocity (positive downwards) (m s-1), default = 0.001
+      bottom_stress_method: 1        # default = 1
+      sinking_method: 0              # default = 0
+      pm_pool: true                  # default = true
+      thickness_L1: 0.2              # thickness of transport layer (m), default = 0.2
+      thickness_fluff: 0.001         # thickness of fluff layer (m), default = 0.001
+      rho: 2650.0                    # dry bed density (kg m-3), default = 2650.0
+      M0: 0.5e-2                     # (g m-2 s-1), default = 0.5e-2
+      M1: 3.0e-5                     # (s-1), default = 3.0e-5
+      M2: 3.5e-3                     # (g m-2 s-1), default = 3.5e-3
+      flux_alpha: 0.05               # partition of deposition flux for resuspension model 2, default = 0.05
+      bedload_method: 3              # default = 3
+      bedload_factor: 1.0            # default = 1
+      add_to_density: false          # default = false
+      resuspension_model: 1          # default = 1
+      morfac: 1.0                    # morphological factor
+      sand_mud_interaction: false    # default = false
+      crit_mud: 0.5                  # critical mud content, default = 0.5
+      stressexponent: 1.5            # stressexponent for erosion, default = 1.5
+      use_par: false                 # default = false
+    initialization:                  # optional (names from registered state variables)
+      spm: 5.0                       # concentration (mg l-1)
+#      pmpool: 530.0                  # bottom pool (kg m-2), default = rho*thickness_L1
+#      flufflayer: 2.65               # bottom pool (kg m-2), default = rho*thickness_fluff
+    coupling:                        # optional
+    check_conservation: false        # default = false
