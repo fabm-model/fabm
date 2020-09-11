@@ -44,6 +44,7 @@
       logical                      :: track_surface_age
       logical                      :: track_bottom_age
       logical                      :: external_tracer
+      real(rk)                     :: min_tracer_conc
 
       contains
 
@@ -77,27 +78,25 @@
 !
 ! !LOCAL VARIABLES:
    real(rk)                  :: initial_age
+   real(rk)                  :: min_tracer_conc
    logical                   :: track_surface_age
    logical                   :: track_bottom_age
    character(len=64)         :: units
    character(len=64)         :: tracer_age_variable=''
 
-   namelist /iow_age/     initial_age,track_surface_age,track_bottom_age, &
-                          tracer_age_variable
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    initial_age       = 0.0_rk
+   min_tracer_conc   = 0.01_rk
    units             = 'days'
    track_surface_age = .false.
    track_bottom_age  = .false.
 
-   ! Read the namelist
-   if (configunit>0) read(configunit,nml=iow_age,err=99,end=100)
-
    call self%get_parameter(self%track_surface_age,'track_surface_age','','track surface age',default=track_surface_age)
    call self%get_parameter(self%track_bottom_age, 'track_bottom_age', '','track bottom age', default=track_bottom_age)
    call self%get_parameter(self%external_tracer, 'external_tracer', '','whether to track age of a tracer rather than of the water parcel', default=tracer_age_variable/='')
+   call self%get_parameter(self%min_tracer_conc, 'min_tracer_conc', '','minimum tracer concentration', default=min_tracer_conc)
 
    ! Register state variables
 
@@ -110,18 +109,16 @@
                     0.0_rk,minimum=0.0_rk)
       ! for an external tracer, age is derived quantity
       call self%register_diagnostic_variable(self%id_tracer_age, &
-                    'age_of_'//trim(tracer_age_variable),units,'age of tracer')
+                    'age_of_'//trim(tracer_age_variable),units,'age of tracer', &
+                    missing_value=-2.e20_rk)
    else
       call self%register_state_variable(self%id_age, &
                     'age_of_water',units,'age of water mass', &
-                    initial_age,minimum=0.0_rk)
+                    initial_age,minimum=0.0_rk,no_precipitation_dilution=.false., &
+                    no_river_dilution=.true.)
    endif
 
    return
-
-99 call self%fatal_error('iow_age_create','Error reading namelist iow_age')
-
-100 call self%fatal_error('iow_age_create','Namelist iow_age was not found.')
 
    end subroutine initialize
 !EOC
@@ -153,8 +150,8 @@
       _GET_(self%id_tracer,tracer)
       _GET_(self%id_age_alpha,alpha)
       _ADD_SOURCE_(self%id_age_alpha,tracer)
-      age = 0.0_rk
-      if ( tracer .gt. 0.0_rk ) age = alpha/tracer
+      age = -2.e20_rk
+      if ( tracer .gt. self%min_tracer_conc ) age = alpha/tracer
       _SET_DIAGNOSTIC_(self%id_tracer_age,age/secs_pr_day)
    else
       _ADD_SOURCE_(self%id_age,1.0_rk/secs_pr_day)
