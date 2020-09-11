@@ -4,28 +4,28 @@ instances:
     long_name: spm                   # optional, default = short name
     model: iow/spm                   # (required)
     parameters:                      # optional (names from retrieved parameters)
-      diameter: 100.0                # (micrometer), default = 100.0
+      diameter: 100.0                # particle diameter (micrometer), default = 100.0
       tauc_factor: 10000.0           # default = 10000.0
       tauc_const: 0.01               # critical bed stress for erosion (N m-2), default = 0.01
       cohesive: false                # default = false
       shading: 1.0                   # (m-1 mg-1 l), default = 1.0
       ws_const: 0.001                # settling velocity (positive downwards) (m s-1), default = 0.001
-      bottom_stress_method: 1        # default = 1
-      sinking_method: 0              # default = 0
+      bottom_stress_method: 1        # [0: constant critical stress tauc_const, 1: Soulsby 1990, 2: van Rijn 1984], default = 1
+      sinking_method: 0              # [0: constant sinking speed ws_const, 1: Soulsby 1997, 2: Stokes/Newton], default = 0
       pm_pool: true                  # default = true
       thickness_L1: 0.2              # thickness of transport layer (m), default = 0.2
       thickness_fluff: 0.001         # thickness of fluff layer (m), default = 0.001
       rho: 2650.0                    # dry bed density (kg m-3), default = 2650.0
-      M0: 0.5e-2                     # (g m-2 s-1), default = 0.5e-2
-      M1: 3.0e-5                     # (s-1), default = 3.0e-5
+      M0: 0.5e-2                     # erosion constant for resuspension_model=0 (g m-2 s-1), default = 0.5e-2
+      M1: 3.0e-5                     # erosion constant for resuspension_model=1 (s-1), default = 3.0e-5
       M2: 3.5e-3                     # (g m-2 s-1), default = 3.5e-3
       flux_alpha: 0.05               # partition of deposition flux for resuspension model 2, default = 0.05
-      bedload_method: 3              # default = 3
+      bedload_method: 3              # [0: no bedload, 1: van Rijn 1984, 2: Nielsen 1992, 3: Engelund & Hansen 1972], default = 3
       bedload_factor: 1.0            # default = 1
       add_to_density: false          # default = false
-      resuspension_model: 1          # default = 1
+      resuspension_model: 1          # [0: Zero order, 1: First Order], default = 1
       morfac: 1.0                    # morphological factor
-      sand_mud_interaction: false    # default = false
+      sand_mud_interaction: false    # sand-mud interaction (only the low mud limit), default = false
       crit_mud: 0.5                  # critical mud content, default = 0.5
       stressexponent: 1.5            # stressexponent for erosion, default = 1.5
       use_par: false                 # default = false
