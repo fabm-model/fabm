@@ -333,10 +333,6 @@
 
    return
 
-99 call self%fatal_error('iow_spm_create','Error reading namelist iow_spm')
-
-100 call self%fatal_error('iow_spm_create','Namelist iow_spm was not found')
-
    end subroutine initialize
 !EOC
 
