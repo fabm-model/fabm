@@ -24,9 +24,10 @@
 
    contains
 
-   subroutine get_environment_metadata(model, environment_names, environment_units, index_column_depth)
+   subroutine get_environment_metadata(model, environment_names, environment_units, environment_required, index_column_depth)
      type (type_fabm_model),                         intent(inout) :: model
      character(len=1024), dimension(:), allocatable, intent(out)   :: environment_names, environment_units
+     logical,             dimension(:), allocatable, intent(out)   :: environment_required
      integer,                                        intent(out)   :: index_column_depth
 
      integer                   :: n
@@ -63,6 +64,7 @@
       ! Allocate arrays to hold information on environment
       allocate(environment_names(n))
       allocate(environment_units(n))
+      allocate(environment_required(n))
 
       ! Get metadata on environmental dependencies (light, temperature, etc.)
       n = 0
@@ -74,7 +76,8 @@
             case (domain_interior)
                if (.not. associated(model%catalog%interior(link%target%catalog_index)%p)) then
                   n = n + 1
-                  if (.not.associated(link%target%standard_variables%first)) then
+                  environment_required(n) = link%target%presence /= presence_external_optional
+                  if (.not. associated(link%target%standard_variables%first)) then
                      environment_names(n) = trim(link%name)
                      environment_units(n) = trim(link%target%units)
                   else
@@ -85,7 +88,8 @@
             case (domain_bottom, domain_surface, domain_horizontal)
                if (.not. associated(model%catalog%horizontal(link%target%catalog_index)%p)) then
                   n = n + 1
-                  if (.not.associated(link%target%standard_variables%first)) then
+                  environment_required(n) = link%target%presence /= presence_external_optional
+                  if (.not. associated(link%target%standard_variables%first)) then
                      environment_names(n) = trim(link%name)
                      environment_units(n) = trim(link%target%units)
                   else
@@ -96,6 +100,7 @@
             case (domain_scalar)
                if (.not. associated(model%catalog%scalar(link%target%catalog_index)%p)) then
                   n = n + 1
+                  environment_required(n) = link%target%presence /= presence_external_optional
                   if (.not.associated(link%target%standard_variables%first)) then
                      environment_names(n) = trim(link%name)
                      environment_units(n) = trim(link%target%units)

@@ -154,6 +154,7 @@ module fabm_job
       type (type_variable_register) :: store
       type (type_variable_register) :: read_cache
       type (type_variable_register) :: write_cache
+      type (type_variable_set)      :: unfulfilled_dependencies
    contains
       procedure :: add_to_store       => global_variable_register_add_to_store
       procedure :: add_to_catalog     => global_variable_register_add_to_catalog
@@ -187,7 +188,9 @@ contains
             call variable_register%add_to_read_cache(input_variable_node%p%target)
 
             ! Make sure this input is loaded into the read cache before the task is started.
-            if (input_variable_node%p%target%source /= source_constant) call self%read_cache_preload%add(input_variable_node%p%target)
+            ! Skip constants and unavailable (= optional) inputs
+            if (input_variable_node%p%target%source /= source_constant .and. input_variable_node%p%target%source /= source_unknown) &
+               call self%read_cache_preload%add(input_variable_node%p%target)
 
             input_variable_node => input_variable_node%next
          end do
@@ -225,9 +228,8 @@ contains
       end do
    end subroutine task_initialize
 
-   subroutine task_process_indices(self, unfulfilled_dependencies)
-      class (type_task),        intent(inout) :: self
-      type (type_variable_set), intent(inout) :: unfulfilled_dependencies
+   subroutine task_process_indices(self)
+      class (type_task), intent(inout) :: self
 
       integer                                       :: icall, n_int, n_hz
       type (type_output_variable_set_node), pointer :: output_variable
@@ -353,7 +355,7 @@ contains
             do while (associated(output_variable))
                if (output_variable%p%target%prefill /= prefill_none .and. iand(output_variable%p%target%domain, domain) /= 0) then
                   _ASSERT_(output_variable%p%target%write_indices%value > 0, 'create_prefill_commands', 'Variable ' // trim(output_variable%p%target%name) // ' was registered for prefilling, but it does not have a write cache index.')
-                  _ASSERT_(output_variable%p%target%prefill /= prefill_previous_value .or. (output_variable%p%target%has_data .or. output_variable%p%target%store_index /= store_index_none), 'create_prefill_commands','Variable ' // trim(output_variable%p%target%name) // ' has prefill==previous value, but it does not have data.')
+                  _ASSERT_(output_variable%p%target%prefill /= prefill_previous_value .or. (output_variable%p%target%source == source_external .or. output_variable%p%target%store_index /= store_index_none), 'create_prefill_commands','Variable ' // trim(output_variable%p%target%name) // ' has prefill==previous value, but it does not have data.')
                   ilast = max(ilast, output_variable%p%target%write_indices%value)
                end if
                output_variable => output_variable%next
@@ -363,7 +365,7 @@ contains
          do while (associated(variable_node))
             if (iand(variable_node%target%domain, domain) /= 0) then
                _ASSERT_(variable_node%target%write_indices%value > 0, 'create_prefill_commands', 'Variable ' // trim(variable_node%target%name) // ' is set to be preloaded to write cache, but it does not have a write cache index.')
-               _ASSERT_(variable_node%target%has_data .or. variable_node%target%store_index /= store_index_none, 'create_prefill_commands','Variable ' // trim(variable_node%target%name) // ' requires preloading to write cache, but it does not have data.')
+               _ASSERT_(variable_node%target%source == source_external .or. variable_node%target%store_index /= store_index_none, 'create_prefill_commands','Variable ' // trim(variable_node%target%name) // ' requires preloading to write cache, but it does not have data.')
                ilast = max(ilast, variable_node%target%write_indices%value)
             end if
             variable_node => variable_node%next
@@ -454,18 +456,10 @@ contains
          ilast = 0
          input_variable => self%read_cache_preload%first
          do while (associated(input_variable))
-            _ASSERT_(input_variable%target%read_indices%value /= -1, 'create_load_commands', 'variable without valid read index among variables marked for preloading.')
             _ASSERT_(.not. input_variable%target%read_indices%is_empty(), 'create_load_commands', 'variable without read indices among variables marked for preloading.')
-            if (iand(input_variable%target%domain, domain) /= 0) then
-               if (input_variable%target%has_data .or. input_variable%target%store_index /= store_index_none) then
-                  ! This variable has had data assigned in the global catalog (or it is to be included in the persistent store).
-                  ! This dependency is thus fulfilled. Update the maximum index to load.
-                  ilast = max(ilast,input_variable%target%read_indices%value)
-               elseif (input_variable%target%presence /= presence_external_optional) then
-                  ! This variable has NOT had data assigned in the global read store, and it is also no optional. This is an UNFULFILLED DEPENDENCY.
-                  call unfulfilled_dependencies%add(input_variable%target)
-               end if
-            end if
+            _ASSERT_(input_variable%target%read_indices%value /= -1, 'create_load_commands', 'variable without valid read index among variables marked for preloading.')
+            _ASSERT_(input_variable%target%source == source_external .or. input_variable%target%store_index /= -1, 'create_load_commands', 'variable without valid data marked for preloading.')
+            if (iand(input_variable%target%domain, domain) /= 0) ilast = max(ilast, input_variable%target%read_indices%value)
             input_variable => input_variable%next
          end do
 
@@ -476,8 +470,7 @@ contains
          ! Flag variables that require preloading
          input_variable => self%read_cache_preload%first
          do while (associated(input_variable))
-            if (iand(input_variable%target%domain, domain) /= 0 .and. (input_variable%target%has_data .or. input_variable%target%store_index /= store_index_none)) &
-               load(input_variable%target%read_indices%value) = input_variable%target%catalog_index
+            if (iand(input_variable%target%domain, domain) /= 0) load(input_variable%target%read_indices%value) = input_variable%target%catalog_index
             input_variable => input_variable%next
          end do
       end subroutine create_load_commands
@@ -689,7 +682,7 @@ contains
       type (type_variable_request), pointer :: variable_request
 
       _ASSERT_(self%state >= job_state_created, 'job_request_variable', 'Job has not been created yet.')
-      _ASSERT_(self%state <= job_state_created, 'job_request_variable', 'Job "'//trim(self%name)//'" has already begun initialization; variables can no longer be requested.')
+      _ASSERT_(self%state <= job_state_created, 'job_request_variable', 'Job "' // trim(self%name) // '" has already begun initialization; variables can no longer be requested.')
 
       ! Make sure this variable will not be merged (thus variable request must be filed before starting to merge variables!)
       variable%write_operator = ior(variable%write_operator, operator_merge_forbidden)
@@ -711,7 +704,7 @@ contains
       type (type_call_request), pointer :: call_request
 
       _ASSERT_(self%state >= job_state_created, 'job_request_call', 'Job has not been created yet.')
-      _ASSERT_(self%state <= job_state_created, 'job_request_call', 'Job "'//trim(self%name)//'" has already begun initialization; calls can no longer be requested.')
+      _ASSERT_(self%state <= job_state_created, 'job_request_call', 'Job "' // trim(self%name) // '" has already begun initialization; calls can no longer be requested.')
 
       if (.not. model%implements(source)) return
       allocate(call_request)
@@ -731,13 +724,13 @@ contains
       type (type_node),            pointer :: graph_node
 
       _ASSERT_(self%state >= job_state_created, 'job_create_graph', 'This job has not been created yet.')
-      _ASSERT_(self%state < job_state_graph_created, 'job_create_graps', trim(self%name)//': graph for this job has already been created.')
+      _ASSERT_(self%state < job_state_graph_created, 'job_create_graps', trim(self%name) // ': graph for this job has already been created.')
 
       ! If we are linked to an earlier called job, make sure its graph has been created already.
       ! This is essential because we can skip calls if they appear already in the previous job - we determine this by exploring its graph.
       job_node => self%previous%first
       do while (associated(job_node))
-         _ASSERT_(job_node%p%state >= job_state_graph_created, 'job_create_graph', trim(self%name)//': graph for previous job ('//trim(job_node%p%name)//') has not been created yet.')
+         _ASSERT_(job_node%p%state >= job_state_graph_created, 'job_create_graph', trim(self%name) // ': graph for previous job (' // trim(job_node%p%name) // ') has not been created yet.')
          job_node => job_node%next
       end do
 
@@ -1267,9 +1260,9 @@ contains
    end subroutine
 
    subroutine job_initialize(self, variable_register, schedules)
-      class (type_job),target,             intent(inout) :: self
-      type (type_global_variable_register),intent(inout) :: variable_register
-      type (type_schedules),               intent(inout) :: schedules
+      class (type_job), target,             intent(inout) :: self
+      type (type_global_variable_register), intent(inout) :: variable_register
+      type (type_schedules),                intent(inout) :: schedules
 
       type (type_task), pointer :: task
 
@@ -1289,9 +1282,8 @@ contains
 
    end subroutine job_initialize
 
-   subroutine job_process_indices(self, unfulfilled_dependencies)
-      class (type_job),target, intent(inout) :: self
-      type (type_variable_set),intent(inout) :: unfulfilled_dependencies
+   subroutine job_process_indices(self)
+      class (type_job), target, intent(inout) :: self
 
       type (type_task), pointer :: task
 
@@ -1304,7 +1296,7 @@ contains
 
       task => self%first_task
       do while (associated(task))
-         call task_process_indices(task, unfulfilled_dependencies)
+         call task_process_indices(task)
          task => task%next
       end do
 
@@ -1314,7 +1306,7 @@ contains
    contains
 
       subroutine gather_prefill(domain, flags)
-         integer, intent(in) :: domain
+         integer, intent(in)  :: domain
          logical, allocatable :: flags(:)
 
          type (type_variable_node), pointer :: variable_node
@@ -1387,11 +1379,10 @@ contains
       call global_call_list%finalize()
    end subroutine check_graph_duplicates
 
-   subroutine job_manager_initialize(self, variable_register, schedules, unfulfilled_dependencies, log_unit)
+   subroutine job_manager_initialize(self, variable_register, schedules, log_unit)
       class (type_job_manager),             intent(inout) :: self
       type (type_global_variable_register), intent(inout) :: variable_register
       type (type_schedules),                intent(inout) :: schedules
-      type (type_variable_set),             intent(out)   :: unfulfilled_dependencies
       integer,                              intent(in)    :: log_unit
 
       type (type_job_node), pointer :: node, first_ordered
@@ -1442,15 +1433,18 @@ contains
          node => node%next
       end do
 
+      ! If we have unfulfilled dependneices, stop here and let the host/user deal with them.
+      if (associated(variable_register%unfulfilled_dependencies%first)) return
+
       variable_register%read_cache%frozen = .true.
       variable_register%write_cache%frozen = .true.
       variable_register%store%frozen = .true.
 
-      ! Create cache preload and copy instructions per task and call, and simultaneosuly check whether all dependencies are fulfilled.
+      ! Create cache preload and copy instructions per task and call, and simultaneously check whether all dependencies are fulfilled.
       ! This requires all indices (catalog/store/read cache/write cache) to be set.
       node => self%first
       do while (associated(node))
-         call job_process_indices(node%p, unfulfilled_dependencies)
+         call job_process_indices(node%p)
          node => node%next
       end do
 
@@ -1609,7 +1603,7 @@ contains
 
       type (type_job_node), pointer :: node
 
-      _ASSERT_(self%state <= job_state_created, 'job_connect','This job ('//trim(self%name)//') has already started initialization; it is too late to specify its place in the call order.')
+      _ASSERT_(self%state <= job_state_created, 'job_connect','This job (' // trim(self%name) // ') has already started initialization; it is too late to specify its place in the call order.')
       !_ASSERT_(.not. associated(self%previous), 'job_connect','This job ('//trim(self%name)//') has already been connected to a subsequent one.')
 
       allocate(node)
@@ -1626,7 +1620,7 @@ contains
       logical,                       intent(in)    :: share_constants
       integer :: i
 
-      _ASSERT_(.not. self%frozen, 'variable_register_add', 'Cannot add '//trim(variable%name)//'; register has been frozen.')
+      _ASSERT_(.not. self%frozen, 'variable_register_add', 'Cannot add ' // trim(variable%name) // '; register has been frozen.')
       select case (variable%domain)
       case (domain_interior)
          call add(self%interior)
@@ -1667,8 +1661,8 @@ contains
    end subroutine
 
    recursive subroutine global_variable_register_add_to_store(self, variable)
-      class (type_global_variable_register),intent(inout) :: self
-      type (type_internal_variable), target        :: variable
+      class (type_global_variable_register), intent(inout) :: self
+      type (type_internal_variable), target                :: variable
 
       type (type_variable_node), pointer :: variable_node
 
@@ -1701,8 +1695,12 @@ contains
 
       integer :: index
 
-      ! If this variable has already been added to the read cache, we are done: return.
-      if (variable%read_indices%value /= -1) return
+      ! If this variable is required but has no data, register it as an unfulfilled dependency.
+      if (variable%source == source_unknown .and. variable%presence /= presence_external_optional) &
+         call self%unfulfilled_dependencies%add(variable)
+
+      ! If this variable has no data or it has already been added to the read cache, we are done: return.
+      if (variable%source == source_unknown .or. variable%read_indices%value /= -1) return
 
       ! NB line below commented out because the variables that contribute together to a "reduce" operation (e.g., summation)
       ! may be called in any order. Only the last one may have copy_to_cache set, and that last one is not necessarily the write_owner.
@@ -1795,6 +1793,7 @@ contains
       call self%store%finalize()
       call self%read_cache%finalize()
       call self%write_cache%finalize()
+      call self%unfulfilled_dependencies%finalize()
    end subroutine
 
 end module fabm_job

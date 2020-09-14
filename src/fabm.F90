@@ -646,7 +646,6 @@ contains
 
       integer                           :: ivar
       logical                           :: ready
-      type (type_variable_set)          :: unfulfilled_dependencies
       type (type_variable_node),pointer :: variable_node
       type (type_link), pointer         :: link
       character(len=*), parameter       :: log_prefix = 'fabm_'
@@ -730,7 +729,7 @@ contains
          open(unit=log_unit, file=log_prefix // 'task_order.log', action='write', status='replace', iostat=ios)
          if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'task_order.log')
       end if
-      call self%job_manager%initialize(self%variable_register, self%schedules, unfulfilled_dependencies, log_unit)
+      call self%job_manager%initialize(self%variable_register, self%schedules, log_unit)
       if (self%log) then
          close(log_unit)
          open(unit=log_unit, file=log_prefix // 'graph.gv', action='write', status='replace', iostat=ios)
@@ -780,13 +779,13 @@ contains
       end if
 
       ! Report all unfulfilled dependencies.
-      variable_node => unfulfilled_dependencies%first
+      variable_node => self%variable_register%unfulfilled_dependencies%first
       do while (associated(variable_node))
          call report_unfulfilled_dependency(variable_node%target)
          variable_node => variable_node%next
       end do
 
-      if (associated(unfulfilled_dependencies%first) .or. .not. ready) &
+      if (associated(self%variable_register%unfulfilled_dependencies%first) .or. .not. ready) &
          call fatal_error('start', 'FABM is lacking required data.')
 
       self%status = status_start_done
@@ -802,7 +801,6 @@ contains
 
          variable_node => variable_list%first
          do i = 1, variable_list%count
-            variable_node%target%has_data = data_sources(i) /= data_source_none
             if (data_sources(i) > data_source_fabm) then
                variable_node%target%source = source_external
                variable_node%target%write_operator = operator_assign
@@ -2297,6 +2295,10 @@ contains
                case (presence_external_required)
                   call fatal_error('classify_variables', &
                      'Variable ' // trim(link%name) // ' must be coupled to an existing state variable.')
+               case (presence_external_optional)
+                  ! Optional interior state variable that was not coupled
+                  ! Demote to simple optional dependency; any sources will be ignored.
+                  object%source = source_unknown
                end select
             case default            ! Interior diagnostic variable
                ndiag = ndiag + 1
@@ -2318,6 +2320,10 @@ contains
                case (presence_external_required)
                   call fatal_error('classify_variables', &
                      'Variable ' // trim(link%name) // ' must be coupled to an existing state variable.')
+               case (presence_external_optional)
+                  ! Optional horizontal state variable that was not coupled
+                  ! Demote to simple optional dependency; any sources will be ignored.
+                  object%source = source_unknown
                end select
             case default            ! Horizontal diagnostic variable
                ndiag_hz = ndiag_hz + 1

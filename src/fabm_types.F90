@@ -345,7 +345,6 @@ module fabm_types
       integer, pointer :: write_index => null()
       integer          :: store_index = store_index_none
       integer          :: catalog_index = -1
-      logical          :: has_data = .false.
 
       ! Collections to collect information from all coupled variables.
       type (type_integer_pointer_set)  :: read_indices, state_indices, write_indices
@@ -3137,6 +3136,7 @@ contains
          node => next
       end do
       self%first => null()
+      self%count = 0
    end subroutine
 
 end module fabm_types

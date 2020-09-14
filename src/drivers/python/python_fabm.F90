@@ -36,7 +36,8 @@ module fabm_python
 
    type type_model_wrapper
       class (type_fabm_model), pointer :: p => null()
-      character(len=1024), dimension(:), allocatable :: environment_names,environment_units
+      character(len=1024), dimension(:), allocatable :: environment_names, environment_units
+      logical,             dimension(:), allocatable :: environment_required
       integer :: index_column_depth
       type (type_link_list) :: coupling_link_list
       real(c_double),pointer :: column_depth => null()
@@ -93,7 +94,7 @@ contains
       call model%p%set_domain(1._rk)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
-      call get_environment_metadata(model%p, model%environment_names, model%environment_units, model%index_column_depth)
+      call get_environment_metadata(model%p, model%environment_names, model%environment_units, model%environment_required, model%index_column_depth)
 
       call get_couplings(model%p, model%coupling_link_list)
 
@@ -149,7 +150,7 @@ contains
       call model%p%set_domain(1._rk)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
-      call get_environment_metadata(model%p, model%environment_names, model%environment_units, model%index_column_depth)
+      call get_environment_metadata(model%p, model%environment_names, model%environment_units, model%environment_required, model%index_column_depth)
       model%column_depth => null()
 
       call get_couplings(model%p, model%coupling_link_list)
@@ -169,6 +170,12 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: get_error_state
       get_error_state = logical2int(error_occurred)
    end function get_error_state
+
+   subroutine reset_error_state() bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: reset_error_state
+      error_occurred = .false.
+      error_message = ''
+   end subroutine reset_error_state
 
    subroutine get_error(length, message) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_error
@@ -304,17 +311,19 @@ contains
       has_default = logical2int(property%has_default)
    end subroutine get_parameter_metadata
 
-   subroutine get_dependency_metadata(pmodel, index, length, name, units) bind(c)
+   subroutine get_dependency_metadata(pmodel, index, length, name, units, required) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_dependency_metadata
       type (c_ptr),           intent(in), value              :: pmodel
       integer(c_int),         intent(in), value              :: index, length
       character(kind=c_char), intent(out), dimension(length) :: name, units
+      integer(c_int),         intent(out)                    :: required
 
       type (type_model_wrapper), pointer :: model
 
       call c_f_pointer(pmodel, model)
       call copy_to_c_string(model%environment_names(index), name)
       call copy_to_c_string(model%environment_units(index), units)
+      required = logical2int(model%environment_required(index))
    end subroutine get_dependency_metadata
 
    subroutine get_coupling(pmodel, index, slave, master) bind(c)

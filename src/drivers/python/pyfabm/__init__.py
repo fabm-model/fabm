@@ -58,7 +58,7 @@ fabm.get_variable.argtypes = [ctypes.c_void_p, ctypes.c_int,ctypes.c_int]
 fabm.get_variable.restype = ctypes.c_void_p
 fabm.get_parameter_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p,ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int)]
 fabm.get_parameter_metadata.restype = None
-fabm.get_dependency_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p]
+fabm.get_dependency_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.POINTER(ctypes.c_int)]
 fabm.get_dependency_metadata.restype = None
 fabm.get_model_metadata.argtypes = [ctypes.c_void_p, ctypes.c_char_p,ctypes.c_int,ctypes.c_char_p,ctypes.POINTER(ctypes.c_int)]
 fabm.get_model_metadata.restype = None
@@ -68,6 +68,8 @@ fabm.get_error_state.argtypes = []
 fabm.get_error_state.restype = ctypes.c_int
 fabm.get_error.argtypes = [ctypes.c_int, ctypes.c_char_p]
 fabm.get_error.restype = None
+fabm.reset_error_state.argtypes = []
+fabm.reset_error_state.restype = None
 
 # Read access to variable attributes
 fabm.variable_get_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
@@ -249,12 +251,13 @@ class Variable(object):
         return fabm.variable_get_real_property(self.variable_pointer, name.encode('ascii'), default)
 
 class Dependency(Variable):
-    def __init__(self, name, units=None, long_name=None):
+    def __init__(self, name, units=None, long_name=None, required=True):
         if long_name is None:
             long_name = name
         Variable.__init__(self, name, units, long_name.replace('_',' '))
         self.data = ctypes.c_double(0.)
         self.is_set = False
+        self.required = required
 
     def getValue(self):
         return self.data.value
@@ -395,6 +398,7 @@ class SubModel(object):
 
 class Model(object):
     def __init__(self,path='fabm.yaml'):
+        fabm.reset_error_state()
         self.lookup_tables = {}
         self.pmodel = fabm.create_model(path.encode('ascii'))
         assert not hasError(), 'An error occurred while parsing %s:\n%s' % (path, getError())
@@ -448,6 +452,7 @@ class Model(object):
         strpath = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         typecode = ctypes.c_int()
         has_default = ctypes.c_int()
+        required = ctypes.c_int()
         self.interior_state_variables = []
         self.surface_state_variables = []
         self.bottom_state_variables = []
@@ -476,12 +481,10 @@ class Model(object):
             self.conserved_quantities.append(Variable(strname.value.decode('ascii'), strunits.value.decode('ascii'), strlong_name.value.decode('ascii'), strpath.value.decode('ascii')))
         for i in range(nparameters.value):
             fabm.get_parameter_metadata(self.pmodel, i + 1, ATTRIBUTE_LENGTH, strname, strunits, strlong_name, ctypes.byref(typecode), ctypes.byref(has_default))
-            self.parameters.append(Parameter(strname.value.decode('ascii'), i, type=typecode.value, units=strunits.value.decode('ascii'), long_name=strlong_name.value.decode('ascii'), model=self, has_default=has_default.value!=0))
+            self.parameters.append(Parameter(strname.value.decode('ascii'), i, type=typecode.value, units=strunits.value.decode('ascii'), long_name=strlong_name.value.decode('ascii'), model=self, has_default=has_default.value != 0))
         for i in range(ndependencies.value):
-            fabm.get_dependency_metadata(self.pmodel, i + 1, ATTRIBUTE_LENGTH, strname, strunits)
-            dependency = Dependency(strname.value.decode('ascii'), units=strunits.value.decode('ascii'))
-            fabm.link_dependency_data(self.pmodel, i + 1, ctypes.byref(dependency.data))
-            self.dependencies.append(dependency)
+            fabm.get_dependency_metadata(self.pmodel, i + 1, ATTRIBUTE_LENGTH, strname, strunits, ctypes.byref(required))
+            self.dependencies.append(Dependency(strname.value.decode('ascii'), units=strunits.value.decode('ascii'), required=required.value != 0))
 
         self.couplings = [Coupling(self.pmodel, i + 1) for i in range(ncouplings.value)]
 
@@ -579,8 +582,10 @@ class Model(object):
 
     def start(self, verbose=True, stop=False):
        ready = True
-       for dependency in self.dependencies:
-          if not dependency.is_set:
+       for i, dependency in enumerate(self.dependencies):
+          if dependency.is_set:
+             fabm.link_dependency_data(self.pmodel, i + 1, ctypes.byref(dependency.data))
+          elif dependency.required:
              print('Value for dependency %s is not set.' % dependency.name)
              ready = False
        assert ready or not stop, 'Not all dependencies have been fulfilled.'
