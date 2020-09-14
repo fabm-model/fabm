@@ -449,16 +449,16 @@ contains
          integer, allocatable, intent(out) :: load(:)
          integer,              intent(in)  :: domain
 
-         integer                           :: ilast
-         type (type_variable_node),pointer :: input_variable
+         integer                            :: ilast
+         type (type_variable_node), pointer :: input_variable
 
          ! First determine the maximum index to preload from/to. That determines the length of the array with preloading instructions.
          ilast = 0
          input_variable => self%read_cache_preload%first
          do while (associated(input_variable))
-            _ASSERT_(.not. input_variable%target%read_indices%is_empty(), 'create_load_commands', 'variable without read indices among variables marked for preloading.')
-            _ASSERT_(input_variable%target%read_indices%value /= -1, 'create_load_commands', 'variable without valid read index among variables marked for preloading.')
-            _ASSERT_(input_variable%target%source == source_external .or. input_variable%target%store_index /= -1, 'create_load_commands', 'variable without valid data marked for preloading.')
+            _ASSERT_(.not. input_variable%target%read_indices%is_empty(), 'create_load_commands', 'Variable ' // trim(input_variable%target%name) // ' is marked for preloading but has no read indices.')
+            _ASSERT_(input_variable%target%read_indices%value /= -1, 'create_load_commands', 'Variable ' // trim(input_variable%target%name) // ' is marked for preloading but has no valid read index.')
+            _ASSERT_(input_variable%target%source == source_external .or. input_variable%target%source == source_state .or. input_variable%target%store_index /= -1, 'create_load_commands', 'Variable ' // trim(input_variable%target%name) // ' is marked for preloading but has no valid data.')
             if (iand(input_variable%target%domain, domain) /= 0) ilast = max(ilast, input_variable%target%read_indices%value)
             input_variable => input_variable%next
          end do
