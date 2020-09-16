@@ -9,7 +9,7 @@ module fabm_python
    use fabm, only: type_fabm_model, type_fabm_variable, fabm_get_version, status_start_done, fabm_create_model
    use fabm_types, only:rk => rke,attribute_length,type_model_list_node,type_base_model, &
                         factory,type_link,type_link_list,type_internal_variable
-   use fabm_driver, only: type_base_driver, driver, fatal_error
+   use fabm_driver, only: type_base_driver, driver
    use fabm_properties
    use fabm_python_helper
    use fabm_c_helper
@@ -378,7 +378,7 @@ contains
       call c_f_pointer(pmodel, model)
       call c_f_pointer(c_loc(name), pname)
       found_model => model%p%root%find_model(pname(:index(pname, C_NULL_CHAR) - 1))
-      if (.not.associated(found_model)) call fatal_error('get_model_metadata', &
+      if (.not.associated(found_model)) call driver%fatal_error('get_model_metadata', &
          'model "'//pname(:index(pname, C_NULL_CHAR) - 1) // '" not found.')
       call copy_to_c_string(found_model%long_name, long_name)
       user_created = logical2int(found_model%user_created)
@@ -450,7 +450,7 @@ contains
 
       call c_f_pointer(pmodel, model)
       if (model%p%status < status_start_done) then
-         call fatal_error('get_rates', 'start has not been called yet.')
+         call driver%fatal_error('get_rates', 'start has not been called yet.')
          return
       end if
 
@@ -469,7 +469,7 @@ contains
       if (int2logical(do_bottom)) call model%p%get_bottom_sources(dy_(1:size(model%p%interior_state_variables)), &
          dy_(size(model%p%interior_state_variables) + size(model%p%surface_state_variables) + 1:))
       if (int2logical(do_surface) .or. int2logical(do_bottom)) then
-         if (.not.associated(model%column_depth)) call fatal_error('get_rates', &
+         if (.not.associated(model%column_depth)) call driver%fatal_error('get_rates', &
             'Value for environmental dependency ' // trim(model%environment_names(model%index_column_depth)) // &
             ' must be provided if get_rates is called with the do_surface and/or do_bottom flags.')
          dy_(1:size(model%p%interior_state_variables)) = dy_(1:size(model%p%interior_state_variables)) / model%column_depth
@@ -496,7 +496,7 @@ contains
 
       call c_f_pointer(pmodel, model)
       if (model%p%status < status_start_done) then
-         call fatal_error('check_state', 'start has not been called yet.')
+         call driver%fatal_error('check_state', 'start has not been called yet.')
          return
       end if
 
@@ -525,12 +525,12 @@ contains
 
       call c_f_pointer(pmodel, model)
       if (model%p%status < status_start_done) then
-         call fatal_error('integrate', 'start has not been called yet.')
+         call driver%fatal_error('integrate', 'start has not been called yet.')
          return
       end if
       if (ny /= size(model%p%interior_state_variables) + size(model%p%surface_state_variables) &
          + size(model%p%bottom_state_variables)) then
-         call fatal_error('integrate', 'ny is wrong length')
+         call driver%fatal_error('integrate', 'ny is wrong length')
          return
       end if
 
@@ -541,7 +541,7 @@ contains
       surface = int2logical(do_surface)
       bottom = int2logical(do_bottom)
       if ((surface .or. bottom) .and. .not. associated(model%column_depth)) then
-          call fatal_error('get_rates', &
+          call driver%fatal_error('get_rates', &
             'Value for environmental dependency ' // trim(model%environment_names(model%index_column_depth)) // &
             ' must be provided if integrate is called with the do_surface and/or do_bottom flags.')
           return
@@ -670,7 +670,7 @@ contains
             value = property%value
          end if
       class default
-         call fatal_error('get_real_parameter', 'not a real variable')
+         call driver%fatal_error('get_real_parameter', 'not a real variable')
       end select
    end function get_real_parameter
 
@@ -710,7 +710,7 @@ contains
             value = property%value
          end if
       class default
-         call fatal_error('get_integer_parameter', 'not an integer variable')
+         call driver%fatal_error('get_integer_parameter', 'not an integer variable')
       end select
    end function get_integer_parameter
 
@@ -750,7 +750,7 @@ contains
             value = logical2int(property%value)
          end if
       class default
-         call fatal_error('get_logical_parameter', 'not a logical variable')
+         call driver%fatal_error('get_logical_parameter', 'not a logical variable')
       end select
    end function get_logical_parameter
 
@@ -790,7 +790,7 @@ contains
             call copy_to_c_string(property%value, value)
          end if
       class default
-         call fatal_error('get_string_parameter', 'not a string variable')
+         call driver%fatal_error('get_string_parameter', 'not a string variable')
       end select
    end subroutine get_string_parameter
 
