@@ -7,3 +7,9 @@ instances:
     model: iow/age
     parameters:
       track_bottom_age: true    # track bottom age, default = false
+#  tracer_age:
+#    model: iow/age
+#    parameters:
+#      external_tracer: true     # track external tracer, default = false
+#    coupling:
+#      tracer: <tracer>
