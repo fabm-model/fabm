@@ -28,7 +28,6 @@ module fabm
    use fabm_schedule
    use fabm_debug
    use fabm_work
-   use fabm_config
 
    implicit none
 
@@ -355,6 +354,7 @@ contains
    ! fabm_create_model: create a model from a yaml-based configuration file
    ! --------------------------------------------------------------------------
    function fabm_create_model(path, initialize, parameters, unit) result(model)
+      use fabm_config, only: fabm_configure_model
       character(len=*),                optional, intent(in) :: path
       logical,                         optional, intent(in) :: initialize
       type (type_property_dictionary), optional, intent(in) :: parameters
