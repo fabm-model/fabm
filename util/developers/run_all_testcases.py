@@ -171,9 +171,8 @@ def test_gotm(args):
         test(args.gotm_setup, args.work_root, args.cmake, *args.cmake_arguments)
 
 def test_pyfabm(args):
-    print(args)
     build_dir = os.path.join(args.work_root, 'build')
-    build(build_dir, os.path.join(fabm_base, 'src/drivers/python'), args.cmake, *args.cmake_arguments)
+    build(build_dir, os.path.join(fabm_base, 'src/drivers/python'), args.cmake, '-DPYTHON_EXECUTABLE=%s' % sys.executable, *args.cmake_arguments)
     sys.path.insert(0, build_dir)
     import pyfabm
     print('pyfabm loaded from %s (library = %s)' % (pyfabm.__file__, pyfabm.dllpath))
