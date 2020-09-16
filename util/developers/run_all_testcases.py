@@ -177,7 +177,7 @@ def test_pyfabm(args):
     import pyfabm
     print('pyfabm loaded from %s (library = %s)' % (pyfabm.__file__, pyfabm.dllpath))
     print('Running FABM testcases in pyfabm:')
-    for path in glob.glob(os.path.join(fabm_base, 'testcases/*.yaml')):
+    for path in sorted(glob.glob(os.path.join(fabm_base, 'testcases/*.yaml'))):
         print('- %s' % path)
         m = pyfabm.Model(path)
         for d in m.dependencies:
