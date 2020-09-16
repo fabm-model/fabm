@@ -13,7 +13,7 @@
 !  or something specified by lateral boundary conditions. However, you can also
 !  track the age of water masses which had last contact with the surface / bottom.
 !  You only have to set track_[surface|bottom]_age.
-!  It is also possible to track the age of a external tracer. Simply specify : tracer_age_variable=???
+!  It is also possible to track the age of an external tracer.
 !  For detail of the age concept, have a look into;
 !     England, 1995, Journal of Physical Oceanography, 25, 2756-2777
 !     http://www.elic.ucl.ac.be/repomodx/cart/
@@ -37,14 +37,14 @@
 !     Variable identifiers
       type (type_state_variable_id)       :: id_age
       type (type_state_variable_id)       :: id_age_alpha
-      type (type_dependency_id)           :: id_tracer
+      type (type_state_variable_id)       :: id_tracer
       type (type_diagnostic_variable_id)  :: id_tracer_age
 
 !     Model parameters
-      logical                      :: track_surface_age
-      logical                      :: track_bottom_age
-      logical                      :: external_tracer
-      real(rk)                     :: min_tracer_conc
+      logical                      :: track_surface_age=.false.
+      logical                      :: track_bottom_age=.false.
+      logical                      :: external_tracer=.false.
+      real(rk)                     :: min_tracer_conc=0.01_rk
 
       contains
 
@@ -78,39 +78,32 @@
 !
 ! !LOCAL VARIABLES:
    real(rk)                  :: initial_age
-   real(rk)                  :: min_tracer_conc
-   logical                   :: track_surface_age
-   logical                   :: track_bottom_age
    character(len=64)         :: units
-   character(len=64)         :: tracer_age_variable=''
 
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    initial_age       = 0.0_rk
-   min_tracer_conc   = 0.01_rk
    units             = 'days'
-   track_surface_age = .false.
-   track_bottom_age  = .false.
 
-   call self%get_parameter(self%track_surface_age,'track_surface_age','','track surface age',default=track_surface_age)
-   call self%get_parameter(self%track_bottom_age, 'track_bottom_age', '','track bottom age', default=track_bottom_age)
-   call self%get_parameter(self%external_tracer, 'external_tracer', '','whether to track age of a tracer rather than of the water parcel', default=tracer_age_variable/='')
-   call self%get_parameter(self%min_tracer_conc, 'min_tracer_conc', '','minimum tracer concentration', default=min_tracer_conc)
+   call self%get_parameter(self%track_surface_age,'track_surface_age','','track surface age',default=self%track_surface_age)
+   call self%get_parameter(self%track_bottom_age, 'track_bottom_age', '','track bottom age', default=self%track_bottom_age)
+   call self%get_parameter(self%external_tracer, 'external_tracer', '','whether to track age of a tracer rather than of the water parcel', default=self%external_tracer)
+   call self%get_parameter(self%min_tracer_conc, 'min_tracer_conc', '','minimum tracer concentration', default=self%min_tracer_conc)
 
    ! Register state variables
 
    if ( self%external_tracer ) then
-      if ( tracer_age_variable=='' ) tracer_age_variable = 'tracer'
-      call self%register_dependency(self%id_tracer,trim(tracer_age_variable),'',trim(tracer_age_variable))
       ! we need an auxillery variable
       call self%register_state_variable(self%id_age_alpha, &
                     'age_alpha',' ','age_alpha of water mass', &
                     0.0_rk,minimum=0.0_rk)
       ! for an external tracer, age is derived quantity
       call self%register_diagnostic_variable(self%id_tracer_age, &
-                    'age_of_'//trim(tracer_age_variable),units,'age of tracer', &
+                    'age',units,'age of tracer', &
                     missing_value=-2.e20_rk)
+      ! Register link to external variable
+      call self%register_state_dependency(self%id_tracer,'tracer','','tracer')
    else
       call self%register_state_variable(self%id_age, &
                     'age_of_water',units,'age of water mass', &
