@@ -38,7 +38,9 @@ add_library(python_fabm SHARED
             link_list.F90
             c_helper.F90
             helper.F90
+            pyfabm/__init__.py
            )
+source_group(pyfabm FILES REGULAR_EXPRESSION ".*\\.py")
 
 # Link in FABM itself
 target_link_libraries(python_fabm fabm)

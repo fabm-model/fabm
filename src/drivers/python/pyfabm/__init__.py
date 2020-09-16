@@ -16,7 +16,7 @@ except ImportError:
 # Determine potential names of FABM dynamic library.
 if os.name == 'nt':
    dllpaths = ('python_fabm.dll', 'libpython_fabm.dll')
-elif os.name == "posix" and sys.platform == "darwin":
+elif os.name == 'posix' and sys.platform == 'darwin':
    dllpaths = ('libpython_fabm.dylib',)
 else:
    dllpaths = ('libpython_fabm.so',)
@@ -633,6 +633,15 @@ class Simulator(object):
         y = numpy.empty((t.size, self.model.state.size))
         fabm.integrate(self.model.pmodel, t.size, self.model.state.size, t, y0, y, dt, surface, bottom)
         return y
+
+def unload():
+    handle = fabm._handle
+    if os.name == 'nt':
+        import ctypes.wintypes
+        ctypes.windll.kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
+        ctypes.windll.kernel32.FreeLibrary(handle)
+    else:
+        ctypes.cdll.LoadLibrary('libdl.so').dlclose(handle)
 
 def get_version():
     version_length = 256

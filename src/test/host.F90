@@ -11,7 +11,7 @@ module host_hooks
 
    implicit none
 
-   type,extends(type_base_driver) :: type_test_driver
+   type, extends(type_base_driver) :: type_test_driver
    contains
       procedure :: fatal_error => test_driver_fatal_error
       procedure :: log_message => test_driver_log_message
@@ -19,7 +19,7 @@ module host_hooks
 
 contains
 
-   subroutine test_driver_fatal_error(self,location,message)
+   subroutine test_driver_fatal_error(self, location, message)
       class (type_test_driver), intent(inout) :: self
       character(len=*),         intent(in)    :: location,message
 
@@ -27,7 +27,7 @@ contains
       stop 1
    end subroutine
 
-   subroutine test_driver_log_message(self,message)
+   subroutine test_driver_log_message(self, message)
       class (type_test_driver), intent(inout) :: self
       character(len=*),         intent(in)    :: message
 
