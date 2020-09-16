@@ -635,6 +635,7 @@ class Simulator(object):
         return y
 
 def unload():
+    global ctypes
     handle = fabm._handle
     if os.name == 'nt':
         import ctypes.wintypes
