@@ -151,7 +151,8 @@ contains
       call model%p%set_domain(1._rk)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
-      call get_environment_metadata(model%p, model%environment_names, model%environment_units, model%environment_required, model%index_column_depth)
+      call get_environment_metadata(model%p, model%environment_names, model%environment_units, model%environment_required, &
+         model%index_column_depth)
       model%column_depth => null()
 
       call get_couplings(model%p, model%coupling_link_list)
