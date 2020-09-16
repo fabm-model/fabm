@@ -197,9 +197,11 @@ if __name__ == '__main__':
     parser.add_argument('--fabm_ref', help='Name of FABM branch/commit to compare results against.', default=None)
     parser.add_argument('--gotm_setup', help='Path to directory with GOTM setup (gotm.yaml, etc.)', default=None)
     parser.add_argument('--cmake', help='path to cmake executable', default='cmake')
-    #parser.add_argument('cmake_arguments', nargs=argparse.REMAINDER, help='Additional arguments to pass to cmake.', default=[])
-    args = parser.parse_args()
-    args.cmake_arguments = ()
+    parser.add_argument('--compiler', help='Fortran compiler executable')
+    args, cmake_arguments = parser.parse_known_args()
+    if args.compiler is not None:
+        cmake_arguments.append('-DCMAKE_Fortran_COMPILER=%s' % args.compiler)
+    args.cmake_arguments = cmake_arguments
 
     tmp = args.work_root is None
     if tmp:
