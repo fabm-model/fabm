@@ -355,7 +355,7 @@ contains
             do while (associated(output_variable))
                if (output_variable%p%target%prefill /= prefill_none .and. iand(output_variable%p%target%domain, domain) /= 0) then
                   _ASSERT_(output_variable%p%target%write_indices%value > 0, 'create_prefill_commands', 'Variable ' // trim(output_variable%p%target%name) // ' was registered for prefilling, but it does not have a write cache index.')
-                  _ASSERT_(output_variable%p%target%prefill /= prefill_previous_value .or. (output_variable%p%target%source == source_external .or. output_variable%p%target%store_index /= store_index_none), 'create_prefill_commands','Variable ' // trim(output_variable%p%target%name) // ' has prefill==previous value, but it does not have data.')
+                  _ASSERT_(output_variable%p%target%prefill /= prefill_previous_value .or. (output_variable%p%target%source == source_external .or. output_variable%p%target%source == source_state .or. output_variable%p%target%store_index /= store_index_none), 'create_prefill_commands','Variable ' // trim(output_variable%p%target%name) // ' has prefill==previous value, but it does not have data.')
                   ilast = max(ilast, output_variable%p%target%write_indices%value)
                end if
                output_variable => output_variable%next
@@ -365,7 +365,7 @@ contains
          do while (associated(variable_node))
             if (iand(variable_node%target%domain, domain) /= 0) then
                _ASSERT_(variable_node%target%write_indices%value > 0, 'create_prefill_commands', 'Variable ' // trim(variable_node%target%name) // ' is set to be preloaded to write cache, but it does not have a write cache index.')
-               _ASSERT_(variable_node%target%source == source_external .or. variable_node%target%store_index /= store_index_none, 'create_prefill_commands','Variable ' // trim(variable_node%target%name) // ' requires preloading to write cache, but it does not have data.')
+               _ASSERT_(variable_node%target%source == source_external .or. variable_node%target%source == source_state .or. variable_node%target%store_index /= store_index_none, 'create_prefill_commands','Variable ' // trim(variable_node%target%name) // ' requires preloading to write cache, but it does not have data.')
                ilast = max(ilast, variable_node%target%write_indices%value)
             end if
             variable_node => variable_node%next
