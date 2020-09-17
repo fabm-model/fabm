@@ -9,6 +9,7 @@ import sys
 import glob
 import timeit
 import errno
+import atexit
 
 script_root = os.path.abspath(os.path.dirname(__file__))
 fabm_base = os.path.join(script_root, '../..')
@@ -24,11 +25,12 @@ def run(*args):
 
 def git_clone(url, workdir, branch=None):
     run('git', 'clone', url, workdir)
+    olddir = os.getcwd()
+    os.chdir(workdir)
     if branch is not None:
-        olddir = os.getcwd()
-        os.chdir(workdir)
         run('git', 'checkout', branch)
-        os.chdir(olddir)
+    run('git', 'submodule', 'update', '--init', '--recursive')
+    os.chdir(olddir)
 
 def run_gotm(setup_dir, gotm_exe):
     start = timeit.default_timer()
@@ -176,7 +178,7 @@ def test_pyfabm(args):
     sys.path.insert(0, build_dir)
     import pyfabm
     print('pyfabm loaded from %s (library = %s)' % (pyfabm.__file__, pyfabm.dllpath))
-    print('Running FABM testcases in pyfabm:')
+    print('Running FABM testcases with pyfabm:')
     for path in sorted(glob.glob(os.path.join(fabm_base, 'testcases/*.yaml'))):
         print('- %s' % path)
         m = pyfabm.Model(path)
@@ -189,10 +191,30 @@ def test_pyfabm(args):
     except Exception as e:
         print('Failed to unload pyfabm: %s' % e)
 
+def test_0d(args, gotm_url=default_gotm_url):
+    build_dir = os.path.join(args.work_root, 'build')
+    gotm_dir = os.path.join(args.work_root, 'code/gotm')
+    run_dir = os.path.join(args.work_root, 'run')
+    shutil.copytree(os.path.join(fabm_base, 'testcases/0d'), run_dir)
+    git_clone(gotm_url, gotm_dir)
+    build(build_dir, os.path.join(fabm_base, 'src/drivers/0d'), args.cmake, '-DGOTM_BASE=%s' % gotm_dir, *args.cmake_arguments)
+    os.chdir(run_dir)
+    exe = os.path.join(build_dir, 'Debug/fabm0d.exe' if os.name == 'nt' else 'fabm0d')
+    assert os.path.isfile(exe), '%s not found' % exe
+    print('Running FABM testcases with 0d driver:')
+    for path in sorted(glob.glob(os.path.join(fabm_base, 'testcases/*.yaml'))):
+        print('- %s' % path)
+        shutil.copy(path, 'fabm.yaml')
+        run(exe)
+
+def clean(workdir):
+    print('Clean-up: deleting %s' % workdir)
+    shutil.rmtree(workdir, ignore_errors=True)
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='This script runs all FABM testcases in either pyfabm or GOTM.')
-    parser.add_argument('host', choices=('pyfabm', 'gotm'), help='Host to use for testing.')
+    parser.add_argument('host', choices=('pyfabm', 'gotm', '0d'), help='Host to use for testing.')
     parser.add_argument('--work_root', help='Path to use for code, testcases, results.', default=None)
     parser.add_argument('--fabm_ref', help='Name of FABM branch/commit to compare results against.', default=None)
     parser.add_argument('--gotm_setup', help='Path to directory with GOTM setup (gotm.yaml, etc.)', default=None)
@@ -206,13 +228,10 @@ if __name__ == '__main__':
     tmp = args.work_root is None
     if tmp:
         args.work_root = tempfile.mkdtemp()
+        atexit.register(clean, args.work_root)
     args.work_root = os.path.abspath(args.work_root)
     print('Root of test directory: %s' % args.work_root)
 
-    {'gotm': test_gotm, 'pyfabm': test_pyfabm}[args.host](args)
-
-    if tmp:
-        print('Clean-up: deleting %s' % args.work_root)
-        shutil.rmtree(args.work_root, ignore_errors=True)
+    {'gotm': test_gotm, 'pyfabm': test_pyfabm, '0d': test_0d}[args.host](args)
 
 
