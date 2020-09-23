@@ -680,7 +680,7 @@ contains
 
    subroutine count_active_points()
       logical :: active
-      integer :: i, nhz, nhz_active
+      integer :: i, nhz, nhz_active, nint, nint_active
 
       active = .true.
 
@@ -710,9 +710,13 @@ contains
          if (active) horizontal_count = horizontal_count + 1
       _END_GLOBAL_HORIZONTAL_LOOP_
 
+      nint = 1
+      nint_active = 1
       nhz = 1
       nhz_active = 1
       do i = 1, _FABM_DIMENSION_COUNT_
+         nint = nint * domain_extent(i)
+         nint_active = nint_active * (domain_stop(i) - domain_start(i) + 1)
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
          if (i /= _FABM_DEPTH_DIMENSION_INDEX_) then
 #endif
@@ -722,7 +726,7 @@ contains
          end if
 #endif
       end do
-      write (*,'(a,i0,a,i0,a,i0,a)') 'Interior: ', product(domain_extent), ' points, ', product(domain_stop - domain_start + 1), ' in active range, ', interior_count, ' unmasked'
+      write (*,'(a,i0,a,i0,a,i0,a)') 'Interior: ', nint, ' points, ', nint_active, ' in active range, ', interior_count, ' unmasked'
       write (*,'(a,i0,a,i0,a,i0,a)') 'Horizontal: ', nhz, ' points, ', nhz_active, ' in active range, ', horizontal_count, ' unmasked'
    end subroutine
 
