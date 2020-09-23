@@ -306,7 +306,7 @@ contains
       character(len=*),        intent(in)            :: name
       type (type_link), pointer                      :: link
 
-      type (type_weighted_sum), pointer :: sum
+      class (type_weighted_sum), pointer :: sum
 
       allocate(sum)
       sum%missing_value = 0
@@ -325,7 +325,7 @@ contains
       character(len=*),        intent(in)            :: name
       type (type_link), pointer                      :: link
 
-      type (type_horizontal_weighted_sum), pointer :: sum
+      class (type_horizontal_weighted_sum), pointer :: sum
 
       allocate(sum)
       sum%missing_value = 0
