@@ -23,7 +23,7 @@ contains
       class (type_test_driver), intent(inout) :: self
       character(len=*),         intent(in)    :: location,message
 
-      write (*,*) trim(location)//': '//trim(message)
+      write (*,'(a)') trim(location)//': '//trim(message)
       stop 1
    end subroutine
 
@@ -31,7 +31,7 @@ contains
       class (type_test_driver), intent(inout) :: self
       character(len=*),         intent(in)    :: message
 
-      write (*,*) trim(message)
+      write (*,'(a)') trim(message)
    end subroutine
 
 end module host_hooks
@@ -331,7 +331,7 @@ program test_host
    ! ======================================================================
 
    call start_test('set_domain')
-   call model%set_domain(_LOCATION_)
+   call model%set_domain(_PREARG_LOCATION_ seconds_per_time_unit=1._rke)
    call report_test_result()
 
    ! ======================================================================
@@ -731,6 +731,9 @@ contains
       real(rke) :: time_begin, time_end
       integer :: nseed
       integer, allocatable :: seed(:)
+      integer :: ireport
+
+      ireport = n / 10
 
       call random_seed(size=nseed)
       allocate(seed(nseed))
@@ -784,7 +787,7 @@ contains
 
          call model%finalize_outputs()
 
-         if (mod(i, 100) == 0) write (*,'(i0,a)') int(100*i/real(n, rke)), ' % complete'
+         if (mod(i, ireport) == 0) write (*,'(i0,a)') int(100*i/real(n, rke)), ' % complete'
       end do
 
       call cpu_time(time_end)
