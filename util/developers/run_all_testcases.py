@@ -55,7 +55,7 @@ def run_gotm(setup_dir, gotm_exe):
         print('ok (%.3f s)' % duration)
     return p.returncode == 0, duration
 
-def cmake(phase, build_dir, source_dir, cmake_path='cmake', target=None, cmake_arguments=()):
+def cmake(phase, build_dir, source_dir, cmake_path='cmake', target=None, cmake_arguments=[]):
     # Create and change to build directory
     if os.path.isdir(build_dir):
         shutil.rmtree(build_dir)
@@ -125,29 +125,27 @@ def compare_netcdf(path, ref_path):
     nc_ref.close()
     return perfect
 
-def test(gotm_setup_dir, work_root, cmake_path='cmake', cmake_arguments=(), fabm_url=default_fabm_url, gotm_url=default_gotm_url, fabm_branch=None, gotm_branch=None):
+def test(gotm_setup_dir, work_root, cmake_path='cmake', cmake_arguments=[], fabm_url=default_fabm_url, gotm_url=default_gotm_url, fabm_branch=None, gotm_branch=None):
     gotm_base = os.path.join(work_root, 'code/gotm')
     build_dir = os.path.join(work_root, 'build')
-    gotm_exe = os.path.join(build_dir, 'gotm')
 
     # Get latest GOTM [public]
-    git_clone(gotm_url, gotm_base, gotm_branch)
+    git_clone('test/gotm', gotm_url, gotm_base, gotm_branch)
 
-    build(build_dir, gotm_base, '-DFABM_BASE=%s' % fabm_base, cmake_path, cmake_arguments=cmake_arguments)
-
+    cmake('test_gotm', build_dir, gotm_base, cmake_path, cmake_arguments=['-DFABM_BASE=%s' % fabm_base] + cmake_arguments)
+    exe = os.path.join(build_dir, 'Debug/gotm.exe' if os.name == 'nt' else 'gotm')
     for name in enumerate_testcases(gotm_setup_dir, os.path.join(fabm_base, 'testcases/*.yaml')):
-        print('TESTING %s...' % name, end='')
-        run_gotm(gotm_setup_dir, gotm_exe)
+        run('test/gotm/%s' % name, [exe], cwd=gotm_setup_dir)
 
-def compare(gotm_setup_dir, work_root=None, cmake_path='cmake', cmake_arguments=(), fabm_url=default_fabm_url, gotm_url=default_gotm_url, fabm_branch=None, gotm_branch=None, fabm_ref_branch=None, gotm_ref_branch=None):
+def compare(gotm_setup_dir, work_root=None, cmake_path='cmake', cmake_arguments=[], fabm_url=default_fabm_url, gotm_url=default_gotm_url, fabm_branch=None, gotm_branch=None, fabm_ref_branch=None, gotm_ref_branch=None):
     assert fabm_branch != fabm_ref_branch or gotm_branch != gotm_ref_branch
     git_clone(fabm_url, os.path.join(work_root, 'code/fabm'), fabm_branch)
     git_clone(gotm_url, os.path.join(work_root, 'code/gotm'), gotm_branch)
-    build(os.path.join(work_root, 'build'), os.path.join(work_root, 'code/gotm'), cmake_path, '-DFABM_BASE=%s' % os.path.join(work_root, 'code/fabm'), cmake_arguments=cmake_arguments)
+    cmake('test_gotm', os.path.join(work_root, 'build'), os.path.join(work_root, 'code/gotm'), cmake_path, '-DFABM_BASE=%s' % os.path.join(work_root, 'code/fabm'), cmake_arguments=cmake_arguments)
 
     git_clone(fabm_url, os.path.join(work_root, 'ref/code/fabm'), fabm_ref_branch)
     git_clone(gotm_url, os.path.join(work_root, 'ref/code/gotm'), gotm_ref_branch)
-    build(os.path.join(work_root, 'ref/build'), os.path.join(work_root, 'ref/code/gotm'), cmake_path, '-DFABM_BASE=%s' % os.path.join(work_root, 'ref/code/fabm'), cmake_arguments=cmake_arguments)
+    cmake('ref_gotm', os.path.join(work_root, 'ref/build'), os.path.join(work_root, 'ref/code/gotm'), cmake_path, '-DFABM_BASE=%s' % os.path.join(work_root, 'ref/code/fabm'), cmake_arguments=cmake_arguments)
 
     faster, slower = [], []
     failed, success, crashed = [], [], []
@@ -176,11 +174,12 @@ def compare(gotm_setup_dir, work_root=None, cmake_path='cmake', cmake_arguments=
     print('Faster than reference? %i out of %i times.' % (len(faster), len(faster) + len(slower)))
 
 def test_gotm(args):
-    if args.fabm_ref_branch is not None:
+    assert args.gotm_setup is not None, 'You must specify --gotm_setup when testing GOTM'
+    if args.fabm_ref is not None:
         print('Running in comparison mode.')
-        compare(args.gotm_setup, args.work_root, args.cmake, args.cmake_arguments, fabm_ref_branch=args.fabm_ref)
+        compare(args.gotm_setup, args.work_root, args.cmake, cmake_arguments=args.cmake_arguments, fabm_ref_branch=args.fabm_ref)
     else:
-        test(args.gotm_setup, args.work_root, args.cmake, *args.cmake_arguments)
+        test(args.gotm_setup, args.work_root, args.cmake, cmake_arguments=args.cmake_arguments)
 
 def test_pyfabm(args):
     build_dir = os.path.join(args.work_root, 'build')
@@ -230,7 +229,7 @@ def test_harness(args):
     os.mkdir(run_dir)
     shutil.copy(os.path.join(script_root, 'environment.yaml'), run_dir)
     print('Running FABM testcases with testing harness:')
-    for host in os.listdir(os.path.join(fabm_base, 'src/drivers')):
+    for host in sorted(os.listdir(os.path.join(fabm_base, 'src/drivers'))):
         print('  host %s' % host)
         build_dir = os.path.join(args.work_root, 'build_%s' % host)
         success = cmake('test_harness/%s' % host, build_dir, fabm_base, args.cmake, cmake_arguments=['-DFABM_HOST=%s' % host, '-DCMAKE_BUILD_TYPE=debug'] + args.cmake_arguments, target='test_host')
