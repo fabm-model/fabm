@@ -939,10 +939,10 @@ contains
    end subroutine
 
    recursive subroutine add_child(self, model, name, long_name, configunit)
-      class (type_base_model),target, intent(inout) :: self, model
-      character(len=*),               intent(in)    :: name
-      character(len=*),optional,      intent(in)    :: long_name
-      integer,                        intent(in)    :: configunit
+      class (type_base_model), target, intent(inout) :: self, model
+      character(len=*),                intent(in)    :: name
+      character(len=*), optional,      intent(in)    :: long_name
+      integer,                         intent(in)    :: configunit
 
       integer                              :: islash
       class (type_base_model),     pointer :: parent
