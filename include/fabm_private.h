@@ -270,7 +270,7 @@
 #  define _IS_UNMASKED_(maskvalue) .true.
 #endif
 
-#ifdef _FABM_CONTIGUOUS_
+#if defined(_FABM_CONTIGUOUS_)&&!defined(_NO_CONTIGUOUS_)
 #  define _CONTIGUOUS_ ,contiguous
 #else
 #  define _CONTIGUOUS_
