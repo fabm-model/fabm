@@ -1,10 +1,17 @@
 #include "fabm_driver.h"
-!-----------------------------------------------------------------------
-!BOP
-!
-! !MODULE: fabm_job: derived types that describe a single job (module subroutines to call and their dependencies)
-!
-! !INTERFACE:
+
+! =============================================================================
+! Derived types that describe a single job
+! -----------------------------------------------------------------------------
+! A "job" typically describes the work (biogeochemical computations) that is
+! done in a single call by the host model. For instance, it describes all calls
+! to BGC model instances (and their order!) that need to be made when retrieving
+! interior sources. A job can consists of multiple ordered "tasks",
+! which in turn groups "calls" to procedures of specific model objects.
+! All calls within a task operate on the same spatial domain, e.g., on the
+! interior, surface, bottom, or on water columns.
+! =============================================================================
+
 module fabm_job
 
    use fabm_types

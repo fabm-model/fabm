@@ -1,13 +1,14 @@
 #include "fabm_driver.h"
-!-----------------------------------------------------------------------
-!BOP
-!
-! !MODULE: fabm_graph: derived types to describe the directed acyclic graph (DAG) that characterizes dependencies between models.
-! Each graph node represents a call, that is, a specific combination of a model and one of its APIs ("source").
-! Graph nodes maintain both pointers to their dependencies (a set of other nodes, maintained at the node level),
-! and to the nodes that depend on them (maintained separately per output variable).
-!
-! !INTERFACE:
+
+! =============================================================================
+! Derived types to describe the directed acyclic graph (DAG) that
+! characterizes dependencies between models. Each graph node represents a call
+! to a procedure, defined by the combination of a model object and one of its
+! APIs ("source"). Graph nodes maintain both pointers to their dependencies
+! (a set of other nodes, maintained at the node level), and to the nodes that
+! depend on them (maintained separately per output variable).
+! =============================================================================
+
 module fabm_graph
 
    use fabm_types
