@@ -17,3 +17,11 @@ ice_area_fraction: 0
 absorption_of_silt: 0.1
 latitude: 50
 longitude: 0
+mass_concentration_of_silt: 10
+cloud_area_fraction: 0.5
+atmosphere_mass_content_of_cloud_liquid_water: 0
+atmosphere_mass_content_of_ozone: 0
+atmosphere_mass_content_of_water_vapor: 0
+surface_specific_humidity: 0
+surface_temperature: 15
+surface_air_pressure: 100000
