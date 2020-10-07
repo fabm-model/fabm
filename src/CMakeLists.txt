@@ -220,6 +220,7 @@ endforeach(institute)
 if(NOT TARGET yaml)
   add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/yaml" yaml EXCLUDE_FROM_ALL)
   set_property(TARGET yaml PROPERTY FOLDER fabm/yaml)
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/yaml/modules/\${BUILD_TYPE}/ DESTINATION include/yaml)
 endif(NOT TARGET yaml)
 
 add_library(fabm
