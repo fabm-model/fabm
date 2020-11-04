@@ -115,7 +115,7 @@ module fabm_standard_variables
 
 contains
 
-   function base_standard_variable_resolve(self) result(p)
+   recursive function base_standard_variable_resolve(self) result(p)
       class (type_base_standard_variable), intent(in), target :: self
       class (type_base_standard_variable), pointer            :: p
 
@@ -153,29 +153,21 @@ contains
 
    end function base_standard_variable_resolve
 
-   subroutine add_child(standard_variable, name, units, universal)
-      class (type_domain_specific_standard_variable), target :: standard_variable
-      character(len=*), intent(in)                           :: name, units
-      type (type_universal_standard_variable),        target :: universal
-      standard_variable%name = name
-      standard_variable%units = units
-      standard_variable%aggregate_variable = universal%aggregate_variable
-      standard_variable%universal => universal
-      call add(standard_variable)
-   end subroutine
-
    recursive subroutine add(standard_variable)
       class (type_base_standard_variable), target, intent(inout) :: standard_variable
 
       type (type_standard_variable_node), pointer :: node
+      type (type_interior_standard_variable)   :: in_interior
+      type (type_horizontal_standard_variable) :: at_interfaces
+      type (type_surface_standard_variable)    :: at_surface
+      type (type_bottom_standard_variable)     :: at_bottom
 
       select type (standard_variable)
       class is (type_universal_standard_variable)
-         allocate(standard_variable%pin_interior, standard_variable%pat_surface, standard_variable%pat_bottom, standard_variable%pat_interfaces)
-         call add_child(standard_variable%pin_interior,   trim(standard_variable%name),                     standard_variable%units, standard_variable)
-         call add_child(standard_variable%pat_surface,    trim(standard_variable%name) // '_at_surface',    trim(standard_variable%units) // '*m', standard_variable)
-         call add_child(standard_variable%pat_bottom,     trim(standard_variable%name) // '_at_bottom',     trim(standard_variable%units) // '*m', standard_variable)
-         call add_child(standard_variable%pat_interfaces, trim(standard_variable%name) // '_at_interfaces', trim(standard_variable%units) // '*m', standard_variable)
+         call add_child(in_interior,   trim(standard_variable%name),                     standard_variable%units, standard_variable)
+         call add_child(at_surface,    trim(standard_variable%name) // '_at_surface',    trim(standard_variable%units) // '*m', standard_variable)
+         call add_child(at_bottom,     trim(standard_variable%name) // '_at_bottom',     trim(standard_variable%units) // '*m', standard_variable)
+         call add_child(at_interfaces, trim(standard_variable%name) // '_at_interfaces', trim(standard_variable%units) // '*m', standard_variable)
       end select
 
       allocate(node)
@@ -183,6 +175,33 @@ contains
       node%next => standard_variables%first
       standard_variables%first => node
       standard_variable%resolved = .true.
+
+   contains
+
+      subroutine add_child(standard_variable, name, units, universal_standard_variable)
+         class (type_domain_specific_standard_variable), target :: standard_variable
+         character(len=*), intent(in)                           :: name, units
+         type (type_universal_standard_variable),        target :: universal_standard_variable
+         class (type_domain_specific_standard_variable), pointer :: p
+
+         standard_variable%name = name
+         standard_variable%units = units
+         p => standard_variable%typed_resolve()
+         p%universal => universal_standard_variable
+         p%aggregate_variable = universal_standard_variable%aggregate_variable
+         select type (p)
+         type is (type_interior_standard_variable);   universal_standard_variable%pin_interior => p
+         type is (type_surface_standard_variable);    universal_standard_variable%pat_surface => p
+         type is (type_bottom_standard_variable);     universal_standard_variable%pat_bottom => p
+         type is (type_horizontal_standard_variable); universal_standard_variable%pat_interfaces => p
+#ifndef NDEBUG
+         class default
+            write (*,*) 'fabm_standard_variables::add::add_child: BUG wrong type returned'
+            stop 1
+#endif
+         end select
+      end subroutine
+
    end subroutine
 
    function universal_standard_variable_typed_resolve(self) result(p)
