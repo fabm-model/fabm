@@ -7,6 +7,7 @@ add_library(fabm_models_niva OBJECT
             brom/brom_redox.F90
             brom/brom_salt.F90
             domcast/domcast.F90
+            roms/niva_roms_npzd_Franks.F90
            )
 
 add_dependencies(fabm_models_niva fabm_base)

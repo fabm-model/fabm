@@ -25,6 +25,7 @@ contains
       use fabm_niva_brom_salt
       ! Add new NIVA models here
       use niva_domcast
+      use niva_roms_npzd_Franks
 
       class (type_factory),intent(in) :: self
       character(*),        intent(in) :: name
@@ -38,6 +39,7 @@ contains
          case ('brom_redox');   allocate(type_niva_brom_redox::model)
          case ('brom_salt');    allocate(type_niva_brom_salt::model)
          case ('domcast');      allocate(type_niva_domcast::model)
+         case ('roms_npzd_Franks'); allocate(type_niva_roms_npzd_Franks::model)
          ! Add new NIVA models here
       end select
 
