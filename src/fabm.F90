@@ -142,6 +142,12 @@ module fabm
    ! Derived type for a biogeochemical model as seen by the host
    ! --------------------------------------------------------------------------
 
+   type type_check_state_data
+      integer   :: index
+      real(rki) :: minimum
+      real(rki) :: maximum
+   end type
+
    type type_fabm_model
       ! Variable metadata
       type (type_fabm_interior_state_variable),        allocatable, dimension(:) :: interior_state_variables
@@ -195,6 +201,11 @@ module fabm
 
       ! Cache fill values
       type (type_cache_fill_values) :: cache_fill_values
+
+      ! Information for check_state routines
+      type (type_check_state_data), allocatable :: check_interior_state_data(:)
+      type (type_check_state_data), allocatable :: check_surface_state_data(:)
+      type (type_check_state_data), allocatable :: check_bottom_state_data(:)
    contains
       procedure :: initialize
       procedure :: finalize
@@ -494,7 +505,7 @@ contains
    subroutine set_domain(self _POSTARG_LOCATION_, seconds_per_time_unit)
       class (type_fabm_model), target, intent(inout) :: self
       _DECLARE_ARGUMENTS_LOCATION_
-      real(rke), optional, intent(in)    :: seconds_per_time_unit
+      real(rke), optional,             intent(in)    :: seconds_per_time_unit
 
       class (type_expression), pointer :: expression
 
@@ -785,12 +796,27 @@ contains
          variable_node => variable_node%next
       end do
 
+      call gather_check_state_data(self%interior_state_variables, self%check_interior_state_data)
+      call gather_check_state_data(self%surface_state_variables, self%check_surface_state_data)
+      call gather_check_state_data(self%bottom_state_variables, self%check_bottom_state_data)
+
       if (associated(self%variable_register%unfulfilled_dependencies%first) .or. .not. ready) &
          call fatal_error('start', 'FABM is lacking required data.')
 
       self%status = status_start_done
 
    contains
+
+      subroutine gather_check_state_data(variables, dat)
+         class (type_fabm_variable), intent(in)    :: variables(:)
+         type (type_check_state_data), allocatable :: dat(:)
+         allocate(dat(size(variables)))
+         do ivar = 1, size(variables)
+            dat(ivar)%index = variables(ivar)%target%read_indices%value
+            dat(ivar)%minimum = variables(ivar)%target%minimum
+            dat(ivar)%maximum = variables(ivar)%target%maximum
+         end do
+      end subroutine
 
       subroutine flag_variables_with_data(variable_list, data_sources)
          type (type_variable_list), intent(inout) :: variable_list
@@ -1541,6 +1567,7 @@ contains
       logical,                 intent(in)    :: repair
       logical,                 intent(out)   :: valid
 
+      logical            :: valid_ranges
       integer            :: ivar, read_index
       real(rki)          :: value, minimum, maximum
       character(len=256) :: err
@@ -1563,24 +1590,25 @@ contains
       ! This is always done, independently of any model-specific checks that may have been called above.
 
       ! Quick bounds check for the common case where all values are valid.
-      do ivar = 1, size(self%interior_state_variables)
-         read_index = self%interior_state_variables(ivar)%target%read_indices%value
-         minimum = self%interior_state_variables(ivar)%target%minimum
-         maximum = self%interior_state_variables(ivar)%target%maximum
+      valid_ranges = .true.
+      do ivar = 1, size(self%check_interior_state_data)
+         read_index = self%check_interior_state_data(ivar)%index
+         minimum = self%check_interior_state_data(ivar)%minimum
+         maximum = self%check_interior_state_data(ivar)%maximum
          _LOOP_BEGIN_EX_(self%cache_int)
             value = self%cache_int%read _INDEX_SLICE_PLUS_1_(read_index)
-            if (value < minimum .or. value > maximum) valid = .false.
+            if (value < minimum .or. value > maximum) valid_ranges = .false.
          _LOOP_END_
       end do
+      valid = valid .and. valid_ranges
 
-      if (.not. valid) then
+      if (.not. valid_ranges) then
          ! Check boundaries for pelagic state variables specified by the models.
          ! If repair is permitted, this clips invalid values to the closest boundary.
          do ivar = 1, size(self%interior_state_variables)
-            ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
-            read_index = self%interior_state_variables(ivar)%target%read_indices%value
-            minimum = self%interior_state_variables(ivar)%target%minimum
-            maximum = self%interior_state_variables(ivar)%target%maximum
+            read_index = self%check_interior_state_data(ivar)%index
+            minimum = self%check_interior_state_data(ivar)%minimum
+            maximum = self%check_interior_state_data(ivar)%maximum
 
             if (repair) then
                _CONCURRENT_LOOP_BEGIN_EX_(self%cache_int)
@@ -1628,7 +1656,7 @@ contains
       call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'check_bottom_state')
 #endif
 
-      call internal_check_horizontal_state(self, self%check_bottom_state_job _POSTARG_HORIZONTAL_IN_, 2, self%bottom_state_variables, repair, valid)
+      call internal_check_horizontal_state(self, self%check_bottom_state_job _POSTARG_HORIZONTAL_IN_, self%check_bottom_state_data, 2, self%bottom_state_variables, repair, valid)
    end subroutine check_bottom_state
 
    subroutine check_surface_state(self _POSTARG_HORIZONTAL_IN_, repair, valid)
@@ -1641,18 +1669,20 @@ contains
       call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'check_surface_state')
 #endif
 
-      call internal_check_horizontal_state(self, self%check_surface_state_job _POSTARG_HORIZONTAL_IN_, 1, self%surface_state_variables, repair, valid)
+      call internal_check_horizontal_state(self, self%check_surface_state_job _POSTARG_HORIZONTAL_IN_, self%check_surface_state_data, 1, self%surface_state_variables, repair, valid)
    end subroutine check_surface_state
 
-   subroutine internal_check_horizontal_state(self,job _POSTARG_HORIZONTAL_IN_, flag, state_variables, repair, valid)
+   subroutine internal_check_horizontal_state(self, job _POSTARG_HORIZONTAL_IN_, check_state_data, flag, state_variables, repair, valid)
       class (type_fabm_model),                    intent(inout) :: self
       type (type_job),                            intent(in)    :: job
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+      type (type_check_state_data),               intent(in)    :: check_state_data(:)
       integer,                                    intent(in)    :: flag
       type (type_fabm_horizontal_state_variable), intent(inout) :: state_variables(:)
       logical,                                    intent(in)    :: repair
       logical,                                    intent(out)   :: valid
 
+      logical            :: valid_ranges
       integer            :: ivar, read_index
       real(rki)          :: value, minimum, maximum
       character(len=256) :: err
@@ -1671,41 +1701,56 @@ contains
       valid = self%cache_hz%valid
       if (.not. (valid .or. repair)) return
 
-      ! Check boundaries for horizontal state variables, as prescribed by the owning models.
-      ! If repair is permitted, this clips invalid values to the closest boundary.
-      do ivar = 1, size(state_variables)
+      ! Quick bounds check for the common case where all values are valid.
+      valid_ranges = .true.
+      do ivar = 1, size(check_state_data)
          ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
-         read_index = state_variables(ivar)%target%read_indices%value
-         minimum = state_variables(ivar)%target%minimum
-         maximum = state_variables(ivar)%target%maximum
-
+         read_index = check_state_data(ivar)%index
+         minimum = check_state_data(ivar)%minimum
+         maximum = check_state_data(ivar)%maximum
          _HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
             value = self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index)
-            if (value < minimum) then
-               ! State variable value lies below prescribed minimum.
-               valid = .false.
-               if (.not. repair) then
-                  write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
-                                                             & trim(state_variables(ivar)%name), &
-                                                             & ' below minimum value ',minimum
-                  call log_message(err)
-                  return
-               end if
-               self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = minimum
-            elseif (value > maximum) then
-               ! State variable value exceeds prescribed maximum.
-               valid = .false.
-               if (.not. repair) then
-                  write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
-                                                             & trim(state_variables(ivar)%name), &
-                                                             & ' above maximum value ',maximum
-                  call log_message(err)
-                  return
-               end if
-               self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = maximum
-            end if
+            if (value < minimum .or. value > maximum) valid_ranges = .false.
          _HORIZONTAL_LOOP_END_
       end do
+      valid = valid .and. valid_ranges
+
+      ! Check boundaries for horizontal state variables, as prescribed by the owning models.
+      ! If repair is permitted, this clips invalid values to the closest boundary.
+      if (.not. valid_ranges) then
+         do ivar = 1, size(check_state_data)
+            read_index = check_state_data(ivar)%index
+            minimum = check_state_data(ivar)%minimum
+            maximum = check_state_data(ivar)%maximum
+
+            _HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
+               value = self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index)
+               if (value < minimum) then
+                  ! State variable value lies below prescribed minimum.
+                  valid = .false.
+                  if (.not. repair) then
+                     write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
+                                                                & trim(state_variables(ivar)%name), &
+                                                                & ' below minimum value ',minimum
+                     call log_message(err)
+                     return
+                  end if
+                  self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = minimum
+               elseif (value > maximum) then
+                  ! State variable value exceeds prescribed maximum.
+                  valid = .false.
+                  if (.not. repair) then
+                     write (unit=err,fmt='(a,e12.4,a,a,a,e12.4)') 'Value ',value,' of variable ', &
+                                                                & trim(state_variables(ivar)%name), &
+                                                                & ' above maximum value ',maximum
+                     call log_message(err)
+                     return
+                  end if
+                  self%cache_hz%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(read_index) = maximum
+               end if
+            _HORIZONTAL_LOOP_END_
+         end do
+      end if
 
       if (self%cache_hz%set_horizontal .or. .not. valid) then
          do ivar = 1, size(state_variables)
