@@ -736,6 +736,8 @@ contains
       integer :: nseed
       integer, allocatable :: seed(:)
       integer :: ireport
+      logical, parameter :: repair = .false.
+      logical :: valid
 
       ireport = n / 10
 
@@ -790,6 +792,18 @@ contains
          _END_OUTER_INTERIOR_LOOP_
 
          call model%finalize_outputs()
+
+         _BEGIN_OUTER_HORIZONTAL_LOOP_
+            call model%check_bottom_state(_PREARG_HORIZONTAL_IN_ repair, valid)
+         _END_OUTER_HORIZONTAL_LOOP_
+
+         _BEGIN_OUTER_HORIZONTAL_LOOP_
+            call model%check_surface_state(_PREARG_HORIZONTAL_IN_ repair, valid)
+         _END_OUTER_HORIZONTAL_LOOP_
+
+         _BEGIN_OUTER_INTERIOR_LOOP_
+            call model%check_interior_state(_PREARG_INTERIOR_IN_ repair, valid)
+         _END_OUTER_INTERIOR_LOOP_
 
          if (mod(i, ireport) == 0) write (*,'(i0,a)') int(100*i/real(n, rke)), ' % complete'
       end do
