@@ -203,9 +203,9 @@ module fabm
       type (type_cache_fill_values) :: cache_fill_values
 
       ! Information for check_state routines
-      type (type_check_state_data), allocatable :: check_interior_state_data(:)
-      type (type_check_state_data), allocatable :: check_surface_state_data(:)
-      type (type_check_state_data), allocatable :: check_bottom_state_data(:)
+      type (type_check_state_data), allocatable, private :: check_interior_state_data(:)
+      type (type_check_state_data), allocatable, private :: check_surface_state_data(:)
+      type (type_check_state_data), allocatable, private :: check_bottom_state_data(:)
    contains
       procedure :: initialize
       procedure :: finalize
@@ -1603,8 +1603,8 @@ contains
       valid = valid .and. valid_ranges
 
       if (.not. valid_ranges) then
-         ! Check boundaries for pelagic state variables specified by the models.
-         ! If repair is permitted, this clips invalid values to the closest boundary.
+         ! One or more variables have out-of-bounds value(s)
+         ! Either repair these by clipping or stop with an error message.
          do ivar = 1, size(self%interior_state_variables)
             read_index = self%check_interior_state_data(ivar)%index
             minimum = self%check_interior_state_data(ivar)%minimum
@@ -1636,9 +1636,9 @@ contains
          end do
       end if
 
-      if (self%cache_int%set_interior .or. .not. valid) then
+      if (self%cache_int%set_interior .or. .not. valid_ranges) then
          do ivar = 1, size(self%interior_state_variables)
-            read_index = self%interior_state_variables(ivar)%target%read_indices%value
+            read_index = self%check_interior_state_data(ivar)%index
             if (self%catalog%interior_sources(read_index) == data_source_fabm) then
                _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p, self%cache_int, self%interior_state_variables(ivar)%missing_value)
             end if
@@ -1704,7 +1704,6 @@ contains
       ! Quick bounds check for the common case where all values are valid.
       valid_ranges = .true.
       do ivar = 1, size(check_state_data)
-         ! Shortcuts to variable information - this demonstrably helps the compiler (ifort).
          read_index = check_state_data(ivar)%index
          minimum = check_state_data(ivar)%minimum
          maximum = check_state_data(ivar)%maximum
@@ -1715,9 +1714,9 @@ contains
       end do
       valid = valid .and. valid_ranges
 
-      ! Check boundaries for horizontal state variables, as prescribed by the owning models.
-      ! If repair is permitted, this clips invalid values to the closest boundary.
       if (.not. valid_ranges) then
+         ! One or more variables have out-of-bounds value(s)
+         ! Either repair these by clipping or stop with an error message.
          do ivar = 1, size(check_state_data)
             read_index = check_state_data(ivar)%index
             minimum = check_state_data(ivar)%minimum
@@ -1752,10 +1751,10 @@ contains
          end do
       end if
 
-      if (self%cache_hz%set_horizontal .or. .not. valid) then
+      if (self%cache_hz%set_horizontal .or. .not. valid_ranges) then
          do ivar = 1, size(state_variables)
-            read_index = state_variables(ivar)%target%read_indices%value
-            if (self%catalog%horizontal_sources(read_index)==data_source_fabm) then
+            read_index = check_state_data(ivar)%index
+            if (self%catalog%horizontal_sources(read_index) == data_source_fabm) then
                _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(state_variables(ivar)%target%catalog_index)%p, self%cache_hz, state_variables(ivar)%missing_value)
             end if
          end do
