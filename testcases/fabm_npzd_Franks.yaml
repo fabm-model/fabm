@@ -1,0 +1,30 @@
+# fabm_npzd_Franks.yaml
+#
+# Specification file for FABM model niva_roms_npzd_Franks.F90, derived
+# from ROMS biology model npzd_Franks.h, using the parameter set in External/npzd_Franks.in 
+# (these are also listed as default values here).
+#
+# Phil Wallhead, NIVA Bergen, 31/10/2020
+check_conservation: false
+require_initialization: true
+instances:
+  npzd:
+    model: niva/roms_npzd_Franks
+    parameters:
+      K_ext: 0.06                  # light extinction coefficient (1/m), default = 0.067
+      K_NO3: 0.1                   # half-saturation concentration for phytoplankton nitrate uptake (mmol N/m3), default = 1.0
+      K_Phy: 0.4                   # phytoplankton saturation coefficient (mmol N/m3), default = 0.4
+      Vm_NO3: 2.0                  # nitrate uptake rate (1/day), default = 1.5
+      PhyMR: 0.05                  # phytoplankton senescence/mortality rate (1/day), default = 0.1
+      ZooGR: 0.6                   # zooplankton maximum growth rate (1/day), default = 0.52
+      ZooMR: 0.2                   # zooplankton mortality rate (1/day), default = 0.145
+      ZooMD: 0.05                  # zooplankton death bits rate (1/day), default = 0.05
+      ZooGA: 0.3                   # zooplankton grazing inefficiency (-), default = 0.3
+      ZooEC: 0.15                  # zooplankton excreted fraction (-), default = 0.15
+      DetRR: 0.1                   # detritus remineralization rate (1/day), default = 0.1
+      wDet: 5.0                    # detrital sinking rate (m/day), default = 8.0
+    initialization:
+      NO3_: 1.67       # nutrients (mmol N/m3), default = 1.67 (from npzd_Franks.in)
+      Phyt: 0.08       # phytoplankton (mmol N/m3), default = 0.08 (from npzd_Franks.in)
+      Zoop: 0.06       # zooplankton (mmol N/m3), default = 0.06 (from npzd_Franks.in)
+      SDet: 0.04       # detritus (mmol N/m3), default = 0.04 (from npzd_Franks.in)
