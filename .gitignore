@@ -15,3 +15,4 @@ include/version.h
 /scripts/developers/*.log
 /scripts/developers/environment.yaml
 /build*
+/util/developers/*.log
