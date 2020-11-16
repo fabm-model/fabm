@@ -7,6 +7,8 @@
 #define _LOCATION_
 #define _LOCATION_DIMENSIONS_
 #define _LOCATION_RANGE_
+#define _BEGIN_GLOBAL_LOOP_
+#define _END_GLOBAL_LOOP_
 
 #elif _FABM_DIMENSION_COUNT_==1
 
@@ -17,20 +19,16 @@
 #define _LOCATION_ i__
 #define _LOCATION_DIMENSIONS_ :
 #define _LOCATION_RANGE_ istart__,istop__
+#define _BEGIN_GLOBAL_LOOP_ do i__=istart__,istop__
+#define _END_GLOBAL_LOOP_ end do
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  define _GLOBAL_VERTICAL_(it) it
-#else
-#  define _BEGIN_OUTER_VERTICAL_LOOP_ do i__=istart__,istop__
-#  define _END_OUTER_VERTICAL_LOOP_ end do
 #endif
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
 #  define _INTERIOR_FIXED_LOCATION_
 #  define _GLOBAL_INTERIOR_(it) it
-#else
-#  define _BEGIN_OUTER_INTERIOR_LOOP_ do i__=istart__,istop__
-#  define _END_OUTER_INTERIOR_LOOP_ end do
 #endif
 
 #elif _FABM_DIMENSION_COUNT_==2
@@ -42,6 +40,8 @@
 #define _LOCATION_ i__,j__
 #define _LOCATION_DIMENSIONS_ :,:
 #define _LOCATION_RANGE_ istart__,istop__,jstart__,jstop__
+#define _BEGIN_GLOBAL_LOOP_ do j__=jstart__,jstop__;do i__=istart__,istop__
+#define _END_GLOBAL_LOOP_ end do;end do
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  if _FABM_DEPTH_DIMENSION_INDEX_==1
@@ -58,9 +58,6 @@
 #    define _GLOBAL_VERTICAL_(it) i__,it
 #  endif
 #  define _HORIZONTAL_LOCATION_DIMENSIONS_ :
-#else
-#  define _BEGIN_OUTER_VERTICAL_LOOP_ do j__=jstart__,jstop__;do i__=istart__,istop__
-#  define _END_OUTER_VERTICAL_LOOP_ end do;end do
 #endif
 
 #if _FABM_VECTORIZED_DIMENSION_INDEX_==1
@@ -79,9 +76,6 @@
 #  endif
 #  define _BEGIN_OUTER_INTERIOR_LOOP_ do i__=istart__,istop__
 #  define _END_OUTER_INTERIOR_LOOP_ end do
-#else
-#  define _BEGIN_OUTER_INTERIOR_LOOP_ do j__=jstart__,jstop__;do i__=istart__,istop__
-#  define _END_OUTER_INTERIOR_LOOP_ end do;end do
 #endif
 
 #elif _FABM_DIMENSION_COUNT_==3
@@ -93,6 +87,8 @@
 #define _LOCATION_ i__,j__,k__
 #define _LOCATION_DIMENSIONS_ :,:,:
 #define _LOCATION_RANGE_ istart__,istop__,jstart__,jstop__,kstart__,kstop__
+#define _BEGIN_GLOBAL_LOOP_ do k__=kstart__,kstop__;do j__=jstart__,jstop__;do i__=istart__,istop__
+#define _END_GLOBAL_LOOP_ end do;end do;end do
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
 #  if _FABM_DEPTH_DIMENSION_INDEX_==1
@@ -115,9 +111,6 @@
 #    define _GLOBAL_VERTICAL_(it) i__,j__,it
 #  endif
 #  define _HORIZONTAL_LOCATION_DIMENSIONS_ :,:
-#else
-#  define _BEGIN_OUTER_VERTICAL_LOOP_ do k__=kstart__,kstop__;do j__=jstart__,jstop__;do i__=istart__,istop__
-#  define _END_OUTER_VERTICAL_LOOP_ end do;end do;end do
 #endif
 
 #if _FABM_VECTORIZED_DIMENSION_INDEX_==1
@@ -168,9 +161,6 @@
 #  endif
 #  define _BEGIN_OUTER_INTERIOR_LOOP_ do j__=jstart__,jstop__;do i__=istart__,istop__
 #  define _END_OUTER_INTERIOR_LOOP_ end do;end do
-#else
-#  define _BEGIN_OUTER_INTERIOR_LOOP_ do k__=kstart__,kstop__;do j__=jstart__,jstop__;do i__=istart__,istop__
-#  define _END_OUTER_INTERIOR_LOOP_ end do;end do;end do
 #endif
 
 #endif
@@ -187,6 +177,9 @@
 #  define _ITERATOR_ k__
 #  define _START_ kstart__
 #  define _STOP_ kstop__
+#else
+#  define _BEGIN_OUTER_INTERIOR_LOOP_ _BEGIN_GLOBAL_LOOP_
+#  define _END_OUTER_INTERIOR_LOOP_ _END_GLOBAL_LOOP_
 #endif
 
 ! If there is no depth dimension, horizontal dimensions match full dimensions.
@@ -196,6 +189,8 @@
 #  define _HORIZONTAL_LOCATION_RANGE_ _LOCATION_RANGE_
 #  define _HORIZONTAL_LOCATION_DIMENSIONS_ _LOCATION_DIMENSIONS_
 #  define _HORIZONTAL_DIMENSION_COUNT_ _FABM_DIMENSION_COUNT_
+#  define _BEGIN_OUTER_VERTICAL_LOOP_ _BEGIN_GLOBAL_LOOP_
+#  define _END_OUTER_VERTICAL_LOOP_ _END_GLOBAL_LOOP_
 #else
 #  define _HORIZONTAL_DIMENSION_COUNT_ _FABM_DIMENSION_COUNT_-1
 #endif

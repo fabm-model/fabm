@@ -2099,6 +2099,21 @@ contains
       real(rke), optional,      intent(in)    :: t
 
       class (type_expression), pointer :: expression
+      _DECLARE_LOCATION_
+
+#  if _FABM_DIMENSION_COUNT_ > 0
+      integer :: _LOCATION_RANGE_
+      istart__ = self%domain%start(1)
+      istop__ = self%domain%stop(1)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 1
+      jstart__ = self%domain%start(2)
+      jstop__ = self%domain%stop(2)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 2
+      kstart__ = self%domain%start(3)
+      kstop__ = self%domain%stop(3)
+#  endif
 
       call self%process(self%prepare_inputs_job)
 
@@ -2119,6 +2134,7 @@ contains
 
       subroutine update_interior_temporal_mean(expression)
          class (type_interior_temporal_mean), intent(inout) :: expression
+
          integer  :: i
          real(rke) :: weight_right, frac_outside
 
@@ -2131,16 +2147,23 @@ contains
             ! Weight for linear interpolation between last stored point and current point, to get at values for desired time.
             weight_right = (expression%next_save_time - expression%last_time) / (t - expression%last_time)
 
-            ! For temporal means:
-            ! - remove contribution of oldest point from historical mean (@ n + 2)
-            ! - linearly interpolate to desired time (@ ioldest), by computing a weighted mean of the current value (data(expression%in)%p) and the previous value (@ n + 1)
-            ! - add contribution of new point to historical mean
-            expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) &
-               - expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) / expression%n
-            expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) = (1.0_rke - weight_right) * expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 1) &
-               + weight_right * self%catalog%interior(expression%in)%p
-            expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) &
-               + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) / expression%n
+            ! Remove contribution of oldest point from historical mean (@ n + 2)
+            _BEGIN_GLOBAL_LOOP_
+               expression%history(_PREARG_LOCATION_ expression%n + 2) = expression%history(_PREARG_LOCATION_ expression%n + 2) &
+                  - expression%history(_PREARG_LOCATION_ expression%ioldest) / expression%n
+            _END_GLOBAL_LOOP_
+
+            ! Linearly interpolate to desired time (@ ioldest), by computing a weighted mean of the current value (data(expression%in)%p) and the previous value (@ n + 1)
+            _BEGIN_GLOBAL_LOOP_
+               expression%history(_PREARG_LOCATION_ expression%ioldest) = (1.0_rke - weight_right) * expression%history(_PREARG_LOCATION_ expression%n + 1) &
+                  + weight_right * self%catalog%interior(expression%in)%p _INDEX_LOCATION_
+            _END_GLOBAL_LOOP_
+
+            ! Add contribution of new point to historical mean
+            _BEGIN_GLOBAL_LOOP_
+               expression%history(_PREARG_LOCATION_ expression%n + 2) = expression%history(_PREARG_LOCATION_ expression%n + 2) &
+                  + expression%history(_PREARG_LOCATION_ expression%ioldest) / expression%n
+            _END_GLOBAL_LOOP_
 
             ! Compute next time for which we want to store output
             expression%next_save_time = expression%next_save_time + expression%period / expression%n
@@ -2148,11 +2171,13 @@ contains
             ! If we just completed the first entire history, compute the running mean and record that it is now valid.
             if (expression%ioldest == expression%n .and. .not. expression%valid) then
                expression%valid = .true.
-               expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) = 0.0_rke
-               do i = 1, expression%n
-                  expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) + expression%history(_PREARG_LOCATION_DIMENSIONS_ i)
-               end do
-               expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) / expression%n
+               _BEGIN_GLOBAL_LOOP_
+                  expression%history(_PREARG_LOCATION_ expression%n + 2) = 0.0_rke
+                  do i = 1, expression%n
+                     expression%history(_PREARG_LOCATION_ expression%n + 2) = expression%history(_PREARG_LOCATION_ expression%n + 2) + expression%history(_PREARG_LOCATION_ i)
+                  end do
+                  expression%history(_PREARG_LOCATION_ expression%n + 2) = expression%history(_PREARG_LOCATION_ expression%n + 2) / expression%n
+               _END_GLOBAL_LOOP_
             end if
 
             ! Increment index for oldest time point
@@ -2161,22 +2186,26 @@ contains
          end do
 
          ! Store current value to enable linear interpolation to next output time in subsequent call.
-         expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 1) = self%catalog%interior(expression%in)%p
+         _BEGIN_GLOBAL_LOOP_
+            expression%history(_PREARG_LOCATION_ expression%n + 1) = self%catalog%interior(expression%in)%p _INDEX_LOCATION_
+         _END_GLOBAL_LOOP_
 
          if (expression%valid) then
-            ! We have a full history. To compute the temporal mean:
-            ! - store values at current time step (@ n + 1)
-            ! - set mean (@ n + 3) to historical mean (@ n + 2) but account for change since most recent point in history.
+            ! We have a full history. Set temporal mean (@ n + 3) to historical mean (@ n + 2) but account for change since most recent point in history.
 
             ! Compute extent of time period outside history
             frac_outside = (t- (expression%next_save_time - expression%period / expression%n)) / expression%period
 
             ! Set corrected running mean (move window by removing part of the start, and appending to the end)
-            expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 3) = expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 2) &
-               + frac_outside*(-expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%ioldest) + expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n+1))
+            _BEGIN_GLOBAL_LOOP_
+               expression%history(_PREARG_LOCATION_ expression%n + 3) = expression%history(_PREARG_LOCATION_ expression%n + 2) &
+                  + frac_outside * (- expression%history(_PREARG_LOCATION_ expression%ioldest) + expression%history(_PREARG_LOCATION_ expression%n + 1))
+            _END_GLOBAL_LOOP_
          else
             ! We do not have a full history yet; set temporal mean to missing value
-            expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 3) = expression%missing_value
+            _BEGIN_GLOBAL_LOOP_
+               expression%history(_PREARG_LOCATION_ expression%n + 3) = expression%missing_value
+            _END_GLOBAL_LOOP_
          end if
 
          expression%last_time = t
@@ -2184,13 +2213,16 @@ contains
 
       subroutine update_horizontal_temporal_mean(expression)
          class (type_horizontal_temporal_mean), intent(inout) :: expression
+
          integer  :: i
          real(rke) :: weight_right, frac_outside
 
          if (expression%ioldest == -1) then
             ! Start of simulation; set entire history equal to current value.
             do i = 1, expression%n + 3
-               expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = self%catalog%horizontal(expression%in)%p
+               _BEGIN_OUTER_VERTICAL_LOOP_
+                  expression%history(_PREARG_HORIZONTAL_LOCATION_ i) = self%catalog%horizontal(expression%in)%p _INDEX_HORIZONTAL_LOCATION_
+               _END_OUTER_VERTICAL_LOOP_
             end do
             expression%next_save_time = t + expression%period / expression%n
             expression%ioldest = 1
@@ -2199,34 +2231,45 @@ contains
             ! Weight for linear interpolation between last stored point and current point, to get at values for desired time.
             weight_right = (expression%next_save_time - expression%last_time) / (t - expression%last_time)
 
-            ! For temporal means:
-            ! - remove contribution of oldest point from historical mean
-            ! - linearly interpolate to desired time
-            ! - add contribution of new point to historical mean
-            expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 2) = expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 2) &
-               - expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest) / expression%n
-            expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest) = (1.0_rke - weight_right)*expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 1) &
-               + weight_right*self%catalog%horizontal(expression%in)%p
-            expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 2) = expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 2) &
-               + expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest) / expression%n
+            ! Remove contribution of oldest point from historical mean
+            _BEGIN_OUTER_VERTICAL_LOOP_
+               expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 2) = expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 2) &
+                  - expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%ioldest) / expression%n
+            _END_OUTER_VERTICAL_LOOP_
+
+            ! Linearly interpolate to desired time
+            _BEGIN_OUTER_VERTICAL_LOOP_
+               expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%ioldest) = (1.0_rke - weight_right)*expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 1) &
+                  + weight_right*self%catalog%horizontal(expression%in)%p _INDEX_HORIZONTAL_LOCATION_
+            _END_OUTER_VERTICAL_LOOP_
+
+            ! Add contribution of new point to historical mean
+            _BEGIN_OUTER_VERTICAL_LOOP_
+               expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 2) = expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 2) &
+                  + expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%ioldest) / expression%n
+            _END_OUTER_VERTICAL_LOOP_
 
             ! Compute next time for which we want to store output
             expression%next_save_time = expression%next_save_time + expression%period / expression%n
 
             ! Increment index for oldest time point
             expression%ioldest = expression%ioldest + 1
-            if (expression%ioldest>expression%n) expression%ioldest = 1
+            if (expression%ioldest > expression%n) expression%ioldest = 1
          end do
 
          ! Compute extent of time period outside history
          frac_outside = (t - (expression%next_save_time - expression%period / expression%n)) / expression%period
 
-         ! For temporal means:
-         ! - store values at current time step
-         ! - for current mean, use historical mean but account for change since most recent point in history.
-         expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 1) = self%catalog%horizontal(expression%in)%p
-         expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 3) = expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 2) &
-            + frac_outside * (-expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%ioldest) + expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 1))
+         ! Store current value to enable linear interpolation to next output time in subsequent call.
+         _BEGIN_OUTER_VERTICAL_LOOP_
+            expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 1) = self%catalog%horizontal(expression%in)%p _INDEX_HORIZONTAL_LOCATION_
+         _END_OUTER_VERTICAL_LOOP_
+
+         ! Set corrected running mean (move window by removing part of the start, and appending to the end)
+         _BEGIN_OUTER_VERTICAL_LOOP_
+            expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 3) = expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 2) &
+               + frac_outside * (-expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%ioldest) + expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 1))
+         _END_OUTER_VERTICAL_LOOP_
 
          expression%last_time = t
       end subroutine
