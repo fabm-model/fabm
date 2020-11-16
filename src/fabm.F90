@@ -655,12 +655,13 @@ contains
    subroutine start(self)
       class (type_fabm_model), intent(inout), target :: self
 
-      integer                           :: ivar
-      logical                           :: ready
-      type (type_variable_node),pointer :: variable_node
-      type (type_link), pointer         :: link
-      character(len=*), parameter       :: log_prefix = 'fabm_'
-      integer                           :: log_unit, ios
+      integer                             :: ivar
+      logical                             :: ready
+      type (type_variable_node),pointer   :: variable_node
+      type (type_link), pointer           :: link
+      character(len=*), parameter         :: log_prefix = 'fabm_'
+      integer                             :: log_unit, ios
+      class (type_fabm_variable), pointer :: pvariables(:)
 
       if (self%status < status_set_domain_done) then
          call fatal_error('start', 'set_domain has not yet been called on this model object.')
@@ -796,9 +797,14 @@ contains
          variable_node => variable_node%next
       end do
 
-      call gather_check_state_data(self%interior_state_variables, self%check_interior_state_data)
-      call gather_check_state_data(self%surface_state_variables, self%check_surface_state_data)
-      call gather_check_state_data(self%bottom_state_variables, self%check_bottom_state_data)
+      ! Gather information for check_state routines in cache-friendly data structures
+      ! NB intermediate pointer "pvariables" is needed to work around bug in PGI 19.1, 20.7
+      pvariables => self%interior_state_variables
+      call gather_check_state_data(pvariables, self%check_interior_state_data)
+      pvariables => self%surface_state_variables
+      call gather_check_state_data(pvariables, self%check_surface_state_data)
+      pvariables => self%bottom_state_variables
+      call gather_check_state_data(pvariables, self%check_bottom_state_data)
 
       if (associated(self%variable_register%unfulfilled_dependencies%first) .or. .not. ready) &
          call fatal_error('start', 'FABM is lacking required data.')
