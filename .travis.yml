@@ -4,21 +4,22 @@
 os: linux
 dist: bionic
 language: minimal
-addons:
-   apt:
-      packages:
-         - gfortran-5
-         - gfortran-7
-         - gfortran-8
-env:
-   - FC=gfortran-5
-   - FC=gfortran-7
-   - FC=gfortran-8
 arch:
   - amd64
 branches:
   only:
-  - master
-script:
-  - cd util/developers
-  - python run_all_testcases.py --show_logs harness
+    - master
+job:
+  include:
+    - addons:
+        apt:
+          packages: gfortran-5
+      script: python util/developers/run_all_testcases.py --show_logs harness --compiler gfortran-5
+    - addons:
+        apt:
+          packages: gfortran-7
+      script: python util/developers/run_all_testcases.py --show_logs harness --compiler gfortran-7
+    - addons:
+        apt:
+          packages: gfortran-8
+      script: python util/developers/run_all_testcases.py --show_logs harness --compiler gfortran-8 -DFABM_USE_CONTIGUOUS=OFF
