@@ -4,6 +4,10 @@
 os: linux
 dist: bionic
 language: minimal
+addons:
+   apt:
+      packages:
+         - gfortran
 arch:
   - amd64
 branches:
