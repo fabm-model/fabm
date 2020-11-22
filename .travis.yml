@@ -7,7 +7,7 @@ language: minimal
 addons:
    apt:
       packages:
-         - gfortran
+         - gfortran-8
 arch:
   - amd64
 branches:
@@ -15,4 +15,4 @@ branches:
   - master
 script:
   - cd util/developers
-  - python run_all_testcases.py harness
+  - python run_all_testcases.py --show_logs harness

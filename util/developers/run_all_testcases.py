@@ -253,6 +253,7 @@ if __name__ == '__main__':
     parser.add_argument('--gotm_setup', help='Path to directory with GOTM setup (gotm.yaml, etc.)', default=None)
     parser.add_argument('--cmake', help='path to cmake executable', default='cmake')
     parser.add_argument('--compiler', help='Fortran compiler executable')
+    parser.add_argument('--show_logs', action='store_true', help='Show contents of log files for failures at end of testing')
     parser.add_argument('--ext', nargs=2, action='append', help='Additional institute (name + dir) to include', default=[])
     parser.add_argument('-v', '--verbose', action='store_true', help='Enable more detailed output')
     args, cmake_arguments = parser.parse_known_args()
@@ -289,6 +290,16 @@ if __name__ == '__main__':
     host2function[args.host](args, testcases)
     if logs:
         print('%i ERRORS! Check the logs:\n%s' % (len(logs), '\n'.join(logs)))
+        if args.show_logs:
+            print()
+            for path in logs:
+                print('=' * 80)
+                print(path)
+                print('=' * 80)
+                with open(path) as f:
+                    print(f.read())
+                print('=' * 80)
+                print()
         sys.exit(1)
     else:
         print('ALL TESTS SUCCEEDED')
