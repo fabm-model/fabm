@@ -15,4 +15,4 @@ branches:
   - master
 script:
   - cd util/developers
-  - python run_all_testcases.py --show_logs harness
+  - python run_all_testcases.py --show_logs harness --compiler gfortran-8

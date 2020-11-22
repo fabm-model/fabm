@@ -298,7 +298,6 @@ if __name__ == '__main__':
                 print('=' * 80)
                 with open(path) as f:
                     print(f.read())
-                print('=' * 80)
                 print()
         sys.exit(1)
     else:
