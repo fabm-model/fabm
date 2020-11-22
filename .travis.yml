@@ -1,0 +1,14 @@
+# https://travis-ci.org/dashboard
+# https://config.travis-ci.com/explore
+
+os: linux
+dist: bionic
+language: minimal
+arch:
+  - amd64
+branches:
+  only:
+  - master
+script:
+  - cd util/developers
+  - python run_all_testcases.py harness
