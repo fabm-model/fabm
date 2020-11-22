@@ -254,7 +254,7 @@ if __name__ == '__main__':
     parser.add_argument('--cmake', help='path to cmake executable', default='cmake')
     parser.add_argument('--compiler', help='Fortran compiler executable')
     parser.add_argument('--ext', nargs=2, action='append', help='Additional institute (name + dir) to include', default=[])
-    parser.add_argument('-v', '--verbose', help='Enable more detailed output')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Enable more detailed output')
     args, cmake_arguments = parser.parse_known_args()
     if args.compiler is not None:
         cmake_arguments.append('-DCMAKE_Fortran_COMPILER=%s' % args.compiler)
@@ -289,6 +289,7 @@ if __name__ == '__main__':
     host2function[args.host](args, testcases)
     if logs:
         print('%i ERRORS! Check the logs:\n%s' % (len(logs), '\n'.join(logs)))
+        sys.exit(1)
     else:
         print('ALL TESTS SUCCEEDED')
 
