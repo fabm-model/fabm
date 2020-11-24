@@ -44,11 +44,12 @@ job:
         - python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-9
     - env:
         - NVHPC_SILENT=true
-        - NVHPC_INSTALL_DIR=./nvhpc
+        - NVHPC_INSTALL_DIR=${HOME}/nvhpc
         - NVHPC_INSTALL_TYPE=single
-      script:
+      before_install:
         - wget https://developer.download.nvidia.com/hpc-sdk/20.9/nvhpc_2020_209_Linux_x86_64_cuda_11.0.tar.gz
         - tar xpzf nvhpc_2020_209_Linux_x86_64_cuda_11.0.tar.gz
         - nvhpc_2020_209_Linux_x86_64_cuda_11.0/install
-        - python util/developers/run_all_testcases.py harness --show_logs --compiler ./nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
-        - python util/developers/run_all_testcases.py pyfabm --show_logs --compiler ./nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
+      script:
+        - python util/developers/run_all_testcases.py harness --show_logs --compiler ${HOME}/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
+        - python util/developers/run_all_testcases.py pyfabm --show_logs --compiler ${HOME}/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
