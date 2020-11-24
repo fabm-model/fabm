@@ -42,7 +42,10 @@ job:
       script:
         - python util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-9
         - python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-9
-    - env:
+    - addons:
+        apt:
+          packages: python-numpy
+      env:
         - NVHPC_SILENT=true
         - NVHPC_INSTALL_DIR=${HOME}/nvhpc
         - NVHPC_INSTALL_TYPE=single
