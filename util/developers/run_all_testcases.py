@@ -197,10 +197,10 @@ def test_pyfabm(args, testcases):
         m.start()
         m.getRates()
         print('SUCCESS')
-    try:
-        pyfabm.unload()
-    except Exception as e:
-        print('Failed to unload pyfabm: %s' % e)
+    #try:
+    #    pyfabm.unload()
+    #except Exception as e:
+    #    print('Failed to unload pyfabm: %s' % e)
     if args.verbose:
         print('Combined dependency list:\n%s' % '\n'.join(sorted(dependency_names)))
 
