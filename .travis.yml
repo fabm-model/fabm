@@ -16,29 +16,29 @@ job:
           packages: gfortran-5
       script:
         - python util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-5
-        - python util/developers/run_all_testcases.py python --show_logs --compiler gfortran-5
+        - python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-5
     - addons:
         apt:
           packages: gfortran-6
       script:
         - python util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-6
-        - python util/developers/run_all_testcases.py python --show_logs --compiler gfortran-6
+        - python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-6
     - addons:
         apt:
           packages: gfortran-7
       script:
         - python util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-7
-        - python util/developers/run_all_testcases.py python --show_logs --compiler gfortran-7
+        - python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-7
     - addons:
         apt:
           packages: gfortran-8
       script:
         - python util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-8 -DFABM_USE_CONTIGUOUS=OFF
-        - python util/developers/run_all_testcases.py python --show_logs --compiler gfortran-8 -DFABM_USE_CONTIGUOUS=OFF
+        - python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-8 -DFABM_USE_CONTIGUOUS=OFF
     - addons:
         apt:
           sources: ubuntu-toolchain-r-test
           packages: gfortran-9
       script:
         - python util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-9
-        - python util/developers/run_all_testcases.py python --show_logs --compiler gfortran-9
+        - python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-9
