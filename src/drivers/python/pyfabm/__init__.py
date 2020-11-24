@@ -635,14 +635,18 @@ class Simulator(object):
         return y
 
 def unload():
-    global ctypes
+    global ctypes, fabm
     handle = fabm._handle
     if os.name == 'nt':
         import ctypes.wintypes
         ctypes.windll.kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
         ctypes.windll.kernel32.FreeLibrary(handle)
     else:
-        ctypes.cdll.LoadLibrary('libdl.so').dlclose(handle)
+        dlclose = ctypes.CDLL(None).dlclose
+        dlclose.argtypes = [ctypes.c_void_p]
+        dlclose.restype = ctypes.c_int
+        dlclose(handle)
+    fabm = None
 
 def get_version():
     version_length = 256
