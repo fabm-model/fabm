@@ -1,4 +1,5 @@
 #include "fabm_driver.h"
+#include "fabm_private.h"
 
 module fabm_python
 
@@ -10,7 +11,7 @@ module fabm_python
    use fabm_types, only:rk => rke,attribute_length,type_model_list_node,type_base_model, &
                         factory,type_link,type_link_list,type_internal_variable
    use fabm_driver, only: type_base_driver, driver
-   use fabm_properties
+   use fabm_properties, only: type_property, type_property_dictionary
    use fabm_python_helper
    use fabm_c_helper
 
@@ -28,20 +29,20 @@ module fabm_python
    logical, save :: error_occurred = .false.
    character(len=:), allocatable, save :: error_message
 
-   type,extends(type_base_driver) :: type_python_driver
+   type, extends(type_base_driver) :: type_python_driver
    contains
       procedure :: fatal_error => python_driver_fatal_error
       procedure :: log_message => python_driver_log_message
    end type
 
    type type_model_wrapper
-      class (type_fabm_model), pointer :: p => null()
+      class (type_fabm_model), pointer               :: p => null()
       character(len=1024), dimension(:), allocatable :: environment_names, environment_units
       logical,             dimension(:), allocatable :: environment_required
-      integer :: index_column_depth
-      type (type_link_list) :: coupling_link_list
-      real(c_double),pointer :: column_depth => null()
-      type (type_property_dictionary) :: forced_parameters,forced_couplings
+      integer                                        :: index_column_depth
+      type (type_link_list)                          :: coupling_link_list
+      real(c_double), pointer                        :: column_depth => null()
+      type (type_property_dictionary)                :: forced_parameters, forced_couplings
    end type
 
 contains
@@ -57,10 +58,11 @@ contains
       call copy_to_c_string(string, version_string)
    end subroutine get_version
 
-   function create_model(path) result(ptr) bind(c)
+   function create_model(path _POSTARG_LOCATION_) result(ptr) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: create_model
-      character(kind=c_char), target, intent(in)  :: path(*)
-      type(c_ptr)                                 :: ptr
+      character(kind=c_char), target, intent(in) :: path(*)
+      _DECLARE_ARGUMENTS_LOCATION_
+      type(c_ptr)                                :: ptr
 
       type (type_model_wrapper),       pointer :: model
       character(len=attribute_length), pointer :: ppath
@@ -91,7 +93,7 @@ contains
       end do
 
       ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
-      call model%p%set_domain(1._rk)
+      call model%p%set_domain(_PREARG_LOCATION_ 1._rk)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
       call get_environment_metadata(model%p, model%environment_names, model%environment_units, model%environment_required, &
@@ -102,13 +104,14 @@ contains
       ptr = c_loc(model)
    end function create_model
 
-   subroutine reinitialize(model)
+   subroutine reinitialize(model _POSTARG_LOCATION_)
       type (type_model_wrapper), intent(inout) :: model
+      _DECLARE_ARGUMENTS_LOCATION_
 
       class (type_fabm_model),     pointer :: newmodel
       type (type_model_list_node), pointer :: node
       class (type_base_model),     pointer :: childmodel
-      class (type_property),       pointer :: property,next
+      class (type_property),       pointer :: property, next
 
       ! Create new model object.
       allocate(newmodel)
@@ -148,7 +151,7 @@ contains
       end do
 
       ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
-      call model%p%set_domain(1._rk)
+      call model%p%set_domain(_PREARG_LOCATION_ 1._rk)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
       call get_environment_metadata(model%p, model%environment_names, model%environment_units, model%environment_required, &
@@ -403,7 +406,7 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: link_interior_state_data
       type (c_ptr),   intent(in), value     :: pmodel
       integer(c_int), intent(in), value     :: index
-      real(c_double), intent(inout), target :: value
+      real(c_double) _ATTRIBUTES_GLOBAL_, intent(inout), target :: value
 
       type (type_model_wrapper), pointer :: model
 
@@ -416,7 +419,7 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: link_surface_state_data
       type (c_ptr),   intent(in), value     :: pmodel
       integer(c_int), intent(in), value     :: index
-      real(c_double), intent(inout), target :: value
+      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, intent(inout), target :: value
 
       type (type_model_wrapper), pointer :: model
 
@@ -429,7 +432,7 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: link_bottom_state_data
       type (c_ptr),   intent(in), value     :: pmodel
       integer(c_int), intent(in), value     :: index
-      real(c_double), intent(inout), target :: value
+      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, intent(inout), target :: value
 
       type (type_model_wrapper), pointer :: model
 
@@ -507,81 +510,12 @@ contains
       valid_ = logical2int(interior_valid .and. surface_valid .and. bottom_valid)
    end function check_state
 
-   subroutine integrate(pmodel, nt, ny, t_, y_ini_, y_, dt, do_surface, do_bottom) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: integrate
-      type (c_ptr),  value, intent(in) :: pmodel
-      integer(c_int),value, intent(in) :: nt, ny
-      real(c_double),target,intent(in) :: t_(*), y_ini_(*), y_(*)
-      real(c_double),value, intent(in) :: dt
-      integer(c_int),value, intent(in) :: do_surface, do_bottom
-
-      type (type_model_wrapper), pointer :: model
-      real(c_double),pointer :: t(:), y_ini(:), y(:,:)
-      integer                :: it
-      real(rk)               :: t_cur
-      real(rk), target       :: y_cur(ny)
-      real(rk)               :: dy(ny)
-      logical                :: surface, bottom
-
-      call c_f_pointer(pmodel, model)
-      if (model%p%status < status_start_done) then
-         call driver%fatal_error('integrate', 'start has not been called yet.')
-         return
-      end if
-      if (ny /= size(model%p%interior_state_variables) + size(model%p%surface_state_variables) &
-         + size(model%p%bottom_state_variables)) then
-         call driver%fatal_error('integrate', 'ny is wrong length')
-         return
-      end if
-
-      call c_f_pointer(c_loc(t_), t, (/nt/))
-      call c_f_pointer(c_loc(y_ini_), y_ini, (/ny/))
-      call c_f_pointer(c_loc(y_), y, (/ny, nt/))
-
-      surface = int2logical(do_surface)
-      bottom = int2logical(do_bottom)
-      if ((surface .or. bottom) .and. .not. associated(model%column_depth)) then
-          call driver%fatal_error('get_rates', &
-            'Value for environmental dependency ' // trim(model%environment_names(model%index_column_depth)) // &
-            ' must be provided if integrate is called with the do_surface and/or do_bottom flags.')
-          return
-      end if
-      call model%p%link_all_interior_state_data(y_cur(1:size(model%p%interior_state_variables)))
-      call model%p%link_all_surface_state_data(y_cur(size(model%p%interior_state_variables) + 1: &
-         size(model%p%interior_state_variables) + size(model%p%surface_state_variables)))
-      call model%p%link_all_bottom_state_data(y_cur(size(model%p%interior_state_variables) &
-         + size(model%p%surface_state_variables) + 1:))
-
-      it = 1
-      t_cur = t(1)
-      y_cur = y_ini
-      do while (it <= nt)
-          if (t_cur >= t(it)) then
-              y(:, it) = y_cur
-              it = it + 1
-          end if
-
-          call model%p%prepare_inputs(t_cur)
-          dy = 0.0_rk
-          if (surface) call model%p%get_surface_sources(dy(1:size(model%p%interior_state_variables)), &
-             dy(size(model%p%interior_state_variables) + 1:size(model%p%interior_state_variables) &
-             + size(model%p%surface_state_variables)))
-          if (bottom) call model%p%get_bottom_sources(dy(1:size(model%p%interior_state_variables)), &
-             dy(size(model%p%interior_state_variables) + size(model%p%surface_state_variables) + 1:))
-          if (surface .or. bottom) dy(1:size(model%p%interior_state_variables)) = dy(1:size(model%p%interior_state_variables)) &
-             / model%column_depth
-          call model%p%get_interior_sources(dy(1:size(model%p%interior_state_variables)))
-          y_cur = y_cur + dt * dy * 86400
-          t_cur = t_cur + dt
-      end do
-   end subroutine integrate
-
    subroutine get_interior_diagnostic_data(pmodel, index, ptr) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_interior_diagnostic_data
       type (c_ptr),   intent(in), value :: pmodel
       integer(c_int), intent(in), value :: index
       type(c_ptr),    intent(out)       :: ptr
-      real(rk), pointer :: pvalue
+      real(rk) _ATTRIBUTES_GLOBAL_, pointer :: pvalue
 
       type (type_model_wrapper), pointer :: model
 
@@ -596,7 +530,7 @@ contains
       type (c_ptr),   intent(in), value :: pmodel
       integer(c_int), intent(in), value :: index
       type(c_ptr),    intent(out)       :: ptr
-      real(rk), pointer :: pvalue
+      real(rk) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: pvalue
 
       type (type_model_wrapper), pointer :: model
 
@@ -616,183 +550,6 @@ contains
       call model%forced_couplings%finalize()
       deallocate(model%p)
    end subroutine finalize
-
-   subroutine reset_parameter(pmodel, index) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: reset_parameter
-      type (c_ptr), value,   intent(in) :: pmodel
-      integer(c_int), value, intent(in) :: index
-      class (type_property), pointer    :: property
-
-      type (type_model_wrapper), pointer :: model
-
-      call c_f_pointer(pmodel, model)
-      property => model%p%root%parameters%get_property(index)
-      if (.not. associated(property)) return
-      call model%forced_parameters%delete(property%name)
-
-      ! Re-initialize the model using updated parameter values
-      call reinitialize(model)
-   end subroutine reset_parameter
-
-   subroutine set_real_parameter(pmodel, name, value) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: set_real_parameter
-      type (c_ptr),   value,          intent(in) :: pmodel
-      character(kind=c_char), target, intent(in) :: name(*)
-      real(c_double), value,          intent(in) :: value
-
-      type (type_model_wrapper),       pointer :: model
-      character(len=attribute_length), pointer :: pname
-
-      call c_f_pointer(pmodel, model)
-      call c_f_pointer(c_loc(name), pname)
-      call model%forced_parameters%set_real(pname(:index(pname, C_NULL_CHAR) - 1), value)
-
-      ! Re-initialize the model using updated parameter values
-      call reinitialize(model)
-   end subroutine set_real_parameter
-
-   function get_real_parameter(pmodel, index, default) bind(c) result(value)
-      !DIR$ ATTRIBUTES DLLEXPORT :: get_real_parameter
-      type (c_ptr),   value, intent(in) :: pmodel
-      integer(c_int), value, intent(in) :: index, default
-      real(c_double)                    :: value
-
-      type (type_model_wrapper), pointer :: model
-      class (type_property),     pointer    :: property
-
-      call c_f_pointer(pmodel, model)
-      property => model%p%root%parameters%get_property(index)
-      select type (property)
-      class is (type_real_property)
-         if (int2logical(default)) then
-            value = property%default
-         else
-            value = property%value
-         end if
-      class default
-         call driver%fatal_error('get_real_parameter', 'not a real variable')
-      end select
-   end function get_real_parameter
-
-   subroutine set_integer_parameter(pmodel, name, value) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: set_integer_parameter
-      type (c_ptr),   value,          intent(in) :: pmodel
-      character(kind=c_char), target, intent(in) :: name(*)
-      integer(c_int), value,          intent(in) :: value
-
-      type (type_model_wrapper),       pointer :: model
-      character(len=attribute_length), pointer :: pname
-
-      call c_f_pointer(pmodel, model)
-      call c_f_pointer(c_loc(name), pname)
-      call model%forced_parameters%set_integer(pname(:index(pname, C_NULL_CHAR) - 1), value)
-
-      ! Re-initialize the model using updated parameter values
-      call reinitialize(model)
-   end subroutine set_integer_parameter
-
-   function get_integer_parameter(pmodel, index, default) bind(c) result(value)
-      !DIR$ ATTRIBUTES DLLEXPORT :: get_integer_parameter
-      type (c_ptr),   value, intent(in) :: pmodel
-      integer(c_int), value, intent(in) :: index, default
-      integer(c_int)                    :: value
-
-      type (type_model_wrapper), pointer :: model
-      class (type_property),     pointer :: property
-
-      call c_f_pointer(pmodel, model)
-      property => model%p%root%parameters%get_property(index)
-      select type (property)
-      class is (type_integer_property)
-         if (int2logical(default)) then
-            value = property%default
-         else
-            value = property%value
-         end if
-      class default
-         call driver%fatal_error('get_integer_parameter', 'not an integer variable')
-      end select
-   end function get_integer_parameter
-
-   subroutine set_logical_parameter(pmodel, name, value) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: set_logical_parameter
-      type (c_ptr),  value,           intent(in) :: pmodel
-      character(kind=c_char), target, intent(in) :: name(*)
-      integer(c_int), value,          intent(in) :: value
-
-      type (type_model_wrapper),       pointer :: model
-      character(len=attribute_length), pointer :: pname
-
-      call c_f_pointer(pmodel, model)
-      call c_f_pointer(c_loc(name), pname)
-      call model%forced_parameters%set_logical(pname(:index(pname, C_NULL_CHAR) - 1), int2logical(value))
-
-      ! Re-initialize the model using updated parameter values
-      call reinitialize(model)
-   end subroutine set_logical_parameter
-
-   function get_logical_parameter(pmodel, index, default) bind(c) result(value)
-      !DIR$ ATTRIBUTES DLLEXPORT :: get_logical_parameter
-      type (c_ptr),   value, intent(in) :: pmodel
-      integer(c_int), value, intent(in) :: index, default
-      integer(c_int)                    :: value
-
-      type (type_model_wrapper), pointer :: model
-      class (type_property),     pointer :: property
-
-      call c_f_pointer(pmodel, model)
-      property => model%p%root%parameters%get_property(index)
-      select type (property)
-      class is (type_logical_property)
-         if (int2logical(default)) then
-            value = logical2int(property%default)
-         else
-            value = logical2int(property%value)
-         end if
-      class default
-         call driver%fatal_error('get_logical_parameter', 'not a logical variable')
-      end select
-   end function get_logical_parameter
-
-   subroutine set_string_parameter(pmodel, name, value) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: set_string_parameter
-      type (c_ptr), value,            intent(in) :: pmodel
-      character(kind=c_char), target, intent(in) :: name(*), value(*)
-
-      type (type_model_wrapper),       pointer :: model
-      character(len=attribute_length), pointer :: pname, pvalue
-
-      call c_f_pointer(pmodel, model)
-      call c_f_pointer(c_loc(name), pname)
-      call c_f_pointer(c_loc(value), pvalue)
-      call model%forced_parameters%set_string(pname(:index(pname, C_NULL_CHAR) - 1), pvalue(:index(pname, C_NULL_CHAR) - 1))
-
-      ! Re-initialize the model using updated parameter values
-      call reinitialize(model)
-   end subroutine set_string_parameter
-
-   subroutine get_string_parameter(pmodel, index, default, length, value) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: get_string_parameter
-      type (c_ptr),   value, intent(in) :: pmodel
-      integer(c_int), value, intent(in) :: index, default, length
-      character(kind=c_char)            :: value(length)
-
-      type (type_model_wrapper), pointer :: model
-      class (type_property),     pointer :: property
-
-      call c_f_pointer(pmodel, model)
-      property => model%p%root%parameters%get_property(index)
-      select type (property)
-      class is (type_string_property)
-         if (int2logical(default)) then
-            call copy_to_c_string(property%default, value)
-         else
-            call copy_to_c_string(property%value, value)
-         end if
-      class default
-         call driver%fatal_error('get_string_parameter', 'not a string variable')
-      end select
-   end subroutine get_string_parameter
 
    subroutine python_driver_fatal_error(self, location, message)
       class (type_python_driver), intent(inout) :: self

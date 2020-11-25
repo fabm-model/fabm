@@ -1,16 +1,7 @@
 #include "fabm_driver.h"
-!-----------------------------------------------------------------------
-!BOP
-!
-! !MODULE: Helper for the Python interface to FABM. This functionality may move to the FABM core in time.
-!
-! !INTERFACE:
-   module fabm_python_helper
-!
-! !DESCRIPTION:
-! TODO
-!
-! !USES:
+
+module fabm_python_helper
+
    use fabm, only: type_fabm_model
    use fabm_types
 
@@ -19,10 +10,8 @@
    private
 
    public get_environment_metadata, get_couplings, get_suitable_masters
-!EOP
-!-----------------------------------------------------------------------
 
-   contains
+contains
 
    subroutine get_environment_metadata(model, environment_names, environment_units, environment_required, index_column_depth)
      type (type_fabm_model),                         intent(inout) :: model
@@ -161,7 +150,7 @@
       end do
    end function get_suitable_masters
 
-   end module fabm_python_helper
+end module fabm_python_helper
 
 !-----------------------------------------------------------------------
 ! Copyright Bolding & Bruggeman ApS - GNU Public License - www.gnu.org

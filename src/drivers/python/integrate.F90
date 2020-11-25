@@ -1,0 +1,83 @@
+module fabm_c_integrate
+
+   use iso_c_binding, only: c_ptr, c_f_pointer, c_loc, c_int, c_double
+
+   use fabm_types, only: rke
+   use fabm_python
+   use fabm_driver, only: driver
+   use fabm, only: status_start_done
+
+   implicit none
+
+contains
+
+   subroutine integrate(pmodel, nt, ny, t_, y_ini_, y_, dt, do_surface, do_bottom) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: integrate
+      type (c_ptr),  value, intent(in) :: pmodel
+      integer(c_int),value, intent(in) :: nt, ny
+      real(c_double),target,intent(in) :: t_(*), y_ini_(*), y_(*)
+      real(c_double),value, intent(in) :: dt
+      integer(c_int),value, intent(in) :: do_surface, do_bottom
+
+      type (type_model_wrapper), pointer :: model
+      real(c_double), pointer :: t(:), y_ini(:), y(:,:)
+      integer                :: it
+      real(rke)              :: t_cur
+      real(rke), target      :: y_cur(ny)
+      real(rke)              :: dy(ny)
+      logical                :: surface, bottom
+
+      call c_f_pointer(pmodel, model)
+      if (model%p%status < status_start_done) then
+         call driver%fatal_error('integrate', 'start has not been called yet.')
+         return
+      end if
+      if (ny /= size(model%p%interior_state_variables) + size(model%p%surface_state_variables) &
+         + size(model%p%bottom_state_variables)) then
+         call driver%fatal_error('integrate', 'ny is wrong length')
+         return
+      end if
+
+      call c_f_pointer(c_loc(t_), t, (/nt/))
+      call c_f_pointer(c_loc(y_ini_), y_ini, (/ny/))
+      call c_f_pointer(c_loc(y_), y, (/ny, nt/))
+
+      surface = int2logical(do_surface)
+      bottom = int2logical(do_bottom)
+      if ((surface .or. bottom) .and. .not. associated(model%column_depth)) then
+          call driver%fatal_error('get_rates', &
+            'Value for environmental dependency ' // trim(model%environment_names(model%index_column_depth)) // &
+            ' must be provided if integrate is called with the do_surface and/or do_bottom flags.')
+          return
+      end if
+      call model%p%link_all_interior_state_data(y_cur(1:size(model%p%interior_state_variables)))
+      call model%p%link_all_surface_state_data(y_cur(size(model%p%interior_state_variables) + 1: &
+         size(model%p%interior_state_variables) + size(model%p%surface_state_variables)))
+      call model%p%link_all_bottom_state_data(y_cur(size(model%p%interior_state_variables) &
+         + size(model%p%surface_state_variables) + 1:))
+
+      it = 1
+      t_cur = t(1)
+      y_cur = y_ini
+      do while (it <= nt)
+          if (t_cur >= t(it)) then
+              y(:, it) = y_cur
+              it = it + 1
+          end if
+
+          call model%p%prepare_inputs(t_cur)
+          dy = 0.0_rke
+          if (surface) call model%p%get_surface_sources(dy(1:size(model%p%interior_state_variables)), &
+             dy(size(model%p%interior_state_variables) + 1:size(model%p%interior_state_variables) &
+             + size(model%p%surface_state_variables)))
+          if (bottom) call model%p%get_bottom_sources(dy(1:size(model%p%interior_state_variables)), &
+             dy(size(model%p%interior_state_variables) + size(model%p%surface_state_variables) + 1:))
+          if (surface .or. bottom) dy(1:size(model%p%interior_state_variables)) = dy(1:size(model%p%interior_state_variables)) &
+             / model%column_depth
+          call model%p%get_interior_sources(dy(1:size(model%p%interior_state_variables)))
+          y_cur = y_cur + dt * dy * 86400
+          t_cur = t_cur + dt
+      end do
+   end subroutine integrate
+
+end module

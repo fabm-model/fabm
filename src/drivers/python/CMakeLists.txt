@@ -35,9 +35,11 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm EXCLUDE_FROM_ALL)
 add_library(python_fabm SHARED
             python_fabm.F90
             variable.F90
+            parameter.F90
             link_list.F90
             c_helper.F90
             helper.F90
+            integrate.F90
             pyfabm/__init__.py
            )
 source_group(pyfabm FILES REGULAR_EXPRESSION ".*\\.py")
