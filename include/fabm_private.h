@@ -23,6 +23,8 @@
 #define _END_GLOBAL_LOOP_ end do
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#  define _BEGIN_OUTER_VERTICAL_LOOP_
+#  define _END_OUTER_VERTICAL_LOOP_
 #  define _GLOBAL_VERTICAL_(it) it
 #endif
 
@@ -276,11 +278,6 @@
 #ifndef _BEGIN_OUTER_HORIZONTAL_LOOP_
 #  define _BEGIN_OUTER_HORIZONTAL_LOOP_
 #  define _END_OUTER_HORIZONTAL_LOOP_
-#endif
-
-#if _FABM_DIMENSION_COUNT_==0||(_FABM_DIMENSION_COUNT_==1&&defined(_FABM_DEPTH_DIMENSION_INDEX_))
-#  define _BEGIN_OUTER_VERTICAL_LOOP_
-#  define _END_OUTER_VERTICAL_LOOP_
 #endif
 
 ! =================================================================================
