@@ -78,8 +78,19 @@ contains
       type (type_internal_variable), pointer :: variable
 
       call c_f_pointer(pvariable, variable)
-      value = logical2int(variable%output/=output_none)
+      value = logical2int(variable%output /= output_none)
    end function variable_get_output
+
+   function variable_is_required(pvariable) bind(c) result(value)
+      !DIR$ ATTRIBUTES DLLEXPORT :: variable_is_required
+      type (c_ptr), value, intent(in) :: pvariable
+      integer(kind=c_int)             :: value
+
+      type (type_internal_variable), pointer :: variable
+
+      call c_f_pointer(pvariable, variable)
+      value = logical2int(variable%presence /= presence_external_optional)
+   end function variable_is_required
 
    function variable_get_real_property(pvariable, name, default) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_real_property

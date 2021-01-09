@@ -58,8 +58,6 @@ fabm.get_variable.argtypes = [ctypes.c_void_p, ctypes.c_int,ctypes.c_int]
 fabm.get_variable.restype = ctypes.c_void_p
 fabm.get_parameter_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.c_char_p,ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int)]
 fabm.get_parameter_metadata.restype = None
-fabm.get_dependency_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int,ctypes.c_int,ctypes.c_char_p,ctypes.c_char_p,ctypes.POINTER(ctypes.c_int)]
-fabm.get_dependency_metadata.restype = None
 fabm.get_model_metadata.argtypes = [ctypes.c_void_p, ctypes.c_char_p,ctypes.c_int,ctypes.c_char_p,ctypes.POINTER(ctypes.c_int)]
 fabm.get_model_metadata.restype = None
 fabm.get_coupling.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_void_p)]
@@ -84,6 +82,8 @@ fabm.variable_get_suitable_masters.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
 fabm.variable_get_suitable_masters.restype = ctypes.c_void_p
 fabm.variable_get_output.argtypes = [ctypes.c_void_p]
 fabm.variable_get_output.restype = ctypes.c_int
+fabm.variable_is_required.argtypes = [ctypes.c_void_p]
+fabm.variable_is_required.restype = ctypes.c_int
 fabm.variable_get_real_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_double]
 fabm.variable_get_real_property.restype = ctypes.c_double
 
@@ -110,7 +110,7 @@ fabm.set_string_parameter.restype = None
 # Read access to lists of variables (e.g., suitable coupling targets).
 fabm.link_list_count.argtypes = [ctypes.c_void_p]
 fabm.link_list_count.restype = ctypes.c_int
-fabm.link_list_index.argtypes = [ctypes.c_void_p,ctypes.c_int]
+fabm.link_list_index.argtypes = [ctypes.c_void_p, ctypes.c_int]
 fabm.link_list_index.restype = ctypes.c_void_p
 fabm.link_list_finalize.argtypes = [ctypes.c_void_p]
 fabm.link_list_finalize.restype = None
@@ -122,7 +122,7 @@ fabm.link_surface_state_data.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.P
 fabm.link_surface_state_data.restype = None
 fabm.link_bottom_state_data.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_double)]
 fabm.link_bottom_state_data.restype = None
-fabm.link_dependency_data.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_double)]
+fabm.link_dependency_data.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(ctypes.c_double)]
 fabm.link_dependency_data.restype = None
 
 # Read access to diagnostic data.
@@ -135,8 +135,8 @@ fabm.start.argtypes = [ctypes.c_void_p]
 fabm.start.restype = None
 
 # Routine for retrieving source-sink terms for the interior domain.
-fabm.get_rates.argtypes = [ctypes.c_void_p, ctypes.c_double, numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), ctypes.c_int, ctypes.c_int]
-fabm.get_rates.restype = None
+fabm.get_sources.argtypes = [ctypes.c_void_p, ctypes.c_double, numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), ctypes.c_int, ctypes.c_int]
+fabm.get_sources.restype = None
 fabm.check_state.argtypes = [ctypes.c_void_p, ctypes.c_int]
 fabm.check_state.restype = ctypes.c_int
 fabm.integrate.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=2, flags=CONTIGUOUS), ctypes.c_double, ctypes.c_int, ctypes.c_int]
@@ -152,6 +152,7 @@ BOTTOM_STATE_VARIABLE          = 3
 INTERIOR_DIAGNOSTIC_VARIABLE   = 4
 HORIZONTAL_DIAGNOSTIC_VARIABLE = 5
 CONSERVED_QUANTITY             = 6
+DEPENDENCY                     = 7
 ATTRIBUTE_LENGTH               = 256
 
 unicodesuperscript = {'1':'\u00B9','2':'\u00B2','3':'\u00B3',
@@ -234,14 +235,14 @@ class Variable(object):
     def long_path(self):
         if self.variable_pointer is None: return self.long_name
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        fabm.variable_get_long_path(self.variable_pointer,ATTRIBUTE_LENGTH,strlong_name)
+        fabm.variable_get_long_path(self.variable_pointer, ATTRIBUTE_LENGTH, strlong_name)
         return strlong_name.value.decode('ascii')
 
     @property
     def output_name(self):
         if self.variable_pointer is None: return self.name
         stroutput_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        fabm.variable_get_output_name(self.variable_pointer,ATTRIBUTE_LENGTH,stroutput_name)
+        fabm.variable_get_output_name(self.variable_pointer, ATTRIBUTE_LENGTH, stroutput_name)
         return stroutput_name.value.decode('ascii')
 
     def getOptions(self):
@@ -251,13 +252,10 @@ class Variable(object):
         return fabm.variable_get_real_property(self.variable_pointer, name.encode('ascii'), default)
 
 class Dependency(Variable):
-    def __init__(self, name, units=None, long_name=None, required=True):
-        if long_name is None:
-            long_name = name
-        Variable.__init__(self, name, units, long_name.replace('_',' '))
+    def __init__(self, variable_pointer):
+        Variable.__init__(self, variable_pointer=variable_pointer)
         self.data = ctypes.c_double(0.)
         self.is_set = False
-        self.required = required
 
     def getValue(self):
         return self.data.value
@@ -268,9 +266,13 @@ class Dependency(Variable):
 
     value = property(getValue, setValue)
 
+    @property
+    def required(self):
+        return fabm.variable_is_required(self.variable_pointer) != 0
+
 class StateVariable(Variable):
-    def __init__(self,variable_pointer,statearray,index):
-        Variable.__init__(self,variable_pointer=variable_pointer)
+    def __init__(self, variable_pointer, statearray, index):
+        Variable.__init__(self, variable_pointer=variable_pointer)
         self.index = index
         self.statearray = statearray
 
@@ -438,12 +440,15 @@ class Model(object):
 
         # Allocate memory for state variable values, and send ctypes.pointer to this memory to FABM.
         self.state = numpy.empty((nstate_interior.value + nstate_surface.value + nstate_bottom.value,), dtype=float)
+        self.interior_state = self.state[:nstate_interior.value]
+        self.surface_state = self.state[nstate_interior.value:nstate_interior.value + nstate_surface.value]
+        self.bottom_state = self.state[nstate_interior.value + nstate_surface.value:]
         for i in range(nstate_interior.value):
-            fabm.link_interior_state_data(self.pmodel, i + 1, self.state[i:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
+            fabm.link_interior_state_data(self.pmodel, i + 1, self.interior_state[i:i+1].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
         for i in range(nstate_surface.value):
-            fabm.link_surface_state_data(self.pmodel, i + 1, self.state[i+nstate_interior.value:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
+            fabm.link_surface_state_data(self.pmodel, i + 1,self.surface_state[i:i+1].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
         for i in range(nstate_bottom.value):
-            fabm.link_bottom_state_data(self.pmodel, i + 1, self.state[i+nstate_interior.value+nstate_surface.value:].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
+            fabm.link_bottom_state_data(self.pmodel, i + 1, self.bottom_state[i:i+1].ctypes.data_as(ctypes.POINTER(ctypes.c_double)))
 
         # Retrieve variable metadata
         strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
@@ -483,8 +488,8 @@ class Model(object):
             fabm.get_parameter_metadata(self.pmodel, i + 1, ATTRIBUTE_LENGTH, strname, strunits, strlong_name, ctypes.byref(typecode), ctypes.byref(has_default))
             self.parameters.append(Parameter(strname.value.decode('ascii'), i, type=typecode.value, units=strunits.value.decode('ascii'), long_name=strlong_name.value.decode('ascii'), model=self, has_default=has_default.value != 0))
         for i in range(ndependencies.value):
-            fabm.get_dependency_metadata(self.pmodel, i + 1, ATTRIBUTE_LENGTH, strname, strunits, ctypes.byref(required))
-            self.dependencies.append(Dependency(strname.value.decode('ascii'), units=strunits.value.decode('ascii'), required=required.value != 0))
+            ptr = fabm.get_variable(self.pmodel, DEPENDENCY, i + 1)
+            self.dependencies.append(Dependency(ptr))
 
         self.couplings = [Coupling(self.pmodel, i + 1) for i in range(ncouplings.value)]
 
@@ -506,9 +511,12 @@ class Model(object):
         """
         if t is None:
             t = self.itime
-        localrates = numpy.empty_like(self.state)
-        fabm.get_rates(self.pmodel, t, localrates, surface, bottom)
-        return localrates
+        sources = numpy.empty_like(self.state)
+        sources_interior = sources[:len(self.interior_state_variables)]
+        sources_surface = sources[len(self.interior_state_variables):len(self.interior_state_variables)+len(self.surface_state_variables)]
+        sources_bottom = sources[len(self.interior_state_variables)+len(self.surface_state_variables):]
+        fabm.get_sources(self.pmodel, t, sources_interior, sources_surface, sources_bottom, surface, bottom)
+        return sources
 
     def checkState(self, repair=False):
         return fabm.check_state(self.pmodel, repair) != 0
@@ -584,7 +592,7 @@ class Model(object):
        ready = True
        for i, dependency in enumerate(self.dependencies):
           if dependency.is_set:
-             fabm.link_dependency_data(self.pmodel, i + 1, ctypes.byref(dependency.data))
+             fabm.link_dependency_data(self.pmodel, dependency.variable_pointer, ctypes.byref(dependency.data))
           elif dependency.required:
              print('Value for dependency %s is not set.' % dependency.name)
              ready = False

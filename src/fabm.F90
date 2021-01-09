@@ -259,10 +259,11 @@ module fabm
       procedure :: link_horizontal_data_by_name
       generic :: link_horizontal_data => link_horizontal_data_by_variable, link_horizontal_data_by_id, link_horizontal_data_by_sn, link_horizontal_data_by_name
 
+      procedure :: link_scalar_by_variable
       procedure :: link_scalar_by_id
       procedure :: link_scalar_by_sn
       procedure :: link_scalar_by_name
-      generic :: link_scalar => link_scalar_by_id, link_scalar_by_sn, link_scalar_by_name
+      generic :: link_scalar => link_scalar_by_variable, link_scalar_by_id, link_scalar_by_sn, link_scalar_by_name
 
       procedure :: link_interior_state_data
       procedure :: link_bottom_state_data
@@ -1133,6 +1134,7 @@ contains
          end if
       end do
 #endif
+      _ASSERT_(variable%domain == domain_interior, 'link_interior_data_by_variable', 'link_interior_data_by_variable called with variable without domain_interior.')
 
       i = variable%catalog_index
       if (i /= -1) then
@@ -1187,6 +1189,7 @@ contains
          end if
       end do
 #endif
+      _ASSERT_(iand(variable%domain, domain_horizontal) /= 0, 'link_horizontal_data_by_variable', 'link_horizontal_data_by_variable called with variable without domain_horizontal.')
 
       i = variable%catalog_index
       if (i /= -1) then
@@ -1224,17 +1227,17 @@ contains
       call link_horizontal_data_by_id(self, get_horizontal_variable_id_by_name(self, name), dat)
    end subroutine link_horizontal_data_by_name
 
-   subroutine link_scalar_by_id(self, id, dat, source)
+   subroutine link_scalar_by_variable(self, variable, dat, source)
       class (type_fabm_model),             intent(inout) :: self
-      type (type_fabm_scalar_variable_id), intent(in)    :: id
+      type (type_internal_variable),       intent(in)    :: variable
       real(rke), target,                   intent(in)    :: dat
       integer, optional,                   intent(in)    :: source
 
       integer :: i
       integer :: source_
 
-      if (.not. associated(id%variable)) return
-      i = id%variable%catalog_index
+      _ASSERT_(variable%domain == domain_scalar, 'link_scalar_by_variable', 'link_scalar_by_variable called with variable without domain_scalar.')
+      i = variable%catalog_index
       if (i /= -1) then
          source_ = data_source_default
          if (present(source)) source_ = source
@@ -1243,6 +1246,15 @@ contains
             self%catalog%scalar_sources(i) = source_
          end if
       end if
+   end subroutine link_scalar_by_variable
+
+   subroutine link_scalar_by_id(self, id, dat, source)
+      class (type_fabm_model),             intent(inout) :: self
+      type (type_fabm_scalar_variable_id), intent(in)    :: id
+      real(rke), target,                   intent(in)    :: dat
+      integer, optional,                   intent(in)    :: source
+
+      if (associated(id%variable)) call link_scalar_by_variable(self, id%variable, dat, source)
    end subroutine link_scalar_by_id
 
    subroutine link_scalar_by_sn(self, standard_variable, dat)

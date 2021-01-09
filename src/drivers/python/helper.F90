@@ -13,102 +13,39 @@ module fabm_python_helper
 
 contains
 
-   subroutine get_environment_metadata(model, environment_names, environment_units, environment_required, index_column_depth)
-     type (type_fabm_model),                         intent(inout) :: model
-     character(len=1024), dimension(:), allocatable, intent(out)   :: environment_names, environment_units
-     logical,             dimension(:), allocatable, intent(out)   :: environment_required
-     integer,                                        intent(out)   :: index_column_depth
+   subroutine get_environment_metadata(model, list, cell_thickness)
+     type (type_fabm_model),    intent(inout) :: model
+     type (type_variable_list), intent(out)   :: list
+     type (type_internal_variable), pointer   :: cell_thickness
 
-     integer                   :: n
      type (type_link), pointer :: link
 
-     index_column_depth = -1
+     cell_thickness => null()
 
       ! Get number of environmental dependencies (light, temperature, etc.)
-      n = 0
       link => model%links_postcoupling%first
       do while (associated(link))
          if (.not. link%target%read_indices%is_empty() .and. (link%target%source == source_unknown &
             .or. link%target%source == source_external)) then
             select case (link%target%domain)
             case (domain_interior)
-               if (.not. associated(model%catalog%interior(link%target%catalog_index)%p)) n = n + 1
-               if (index_column_depth == -1 .and. associated(link%target%standard_variables%first)) then
-                  if (link%target%standard_variables%contains(standard_variables%cell_thickness)) index_column_depth = n
+               if (.not. associated(model%catalog%interior(link%target%catalog_index)%p)) call list%append(link%target)
+               if (.not. associated(cell_thickness) .and. associated(link%target%standard_variables%first)) then
+                  if (link%target%standard_variables%contains(standard_variables%cell_thickness)) cell_thickness => link%target
                end if
             case (domain_bottom, domain_surface, domain_horizontal)
-               if (.not. associated(model%catalog%horizontal(link%target%catalog_index)%p)) n = n + 1
-               if (index_column_depth==-1 .and. associated(link%target%standard_variables%first)) then
-                  if (link%target%standard_variables%contains(standard_variables%bottom_depth)) index_column_depth = n
+               if (.not. associated(model%catalog%horizontal(link%target%catalog_index)%p)) call list%append(link%target)
+#ifndef _FABM_DEPTH_DIMENSION_INDEX_
+               if (.not. associated(cell_thickness) .and. associated(link%target%standard_variables%first)) then
+                  if (link%target%standard_variables%contains(standard_variables%bottom_depth)) cell_thickness => link%target
                end if
+#endif
             case (domain_scalar)
-               if (.not. associated(model%catalog%scalar(link%target%catalog_index)%p)) n = n + 1
+               if (.not. associated(model%catalog%scalar(link%target%catalog_index)%p)) call list%append(link%target)
             end select
          end if
          link => link%next
       end do
-
-      if (index_column_depth == -1) n = n + 1
-
-      ! Allocate arrays to hold information on environment
-      allocate(environment_names(n))
-      allocate(environment_units(n))
-      allocate(environment_required(n))
-
-      ! Get metadata on environmental dependencies (light, temperature, etc.)
-      n = 0
-      link => model%links_postcoupling%first
-      do while (associated(link))
-         if (.not. link%target%read_indices%is_empty() .and. (link%target%source == source_unknown &
-            .or. link%target%source == source_external)) then
-            select case (link%target%domain)
-            case (domain_interior)
-               if (.not. associated(model%catalog%interior(link%target%catalog_index)%p)) then
-                  n = n + 1
-                  environment_required(n) = link%target%presence /= presence_external_optional
-                  if (.not. associated(link%target%standard_variables%first)) then
-                     environment_names(n) = trim(link%name)
-                     environment_units(n) = trim(link%target%units)
-                  else
-                     environment_names(n) = trim(link%target%standard_variables%first%p%name)
-                     environment_units(n) = trim(link%target%standard_variables%first%p%units)
-                  end if
-               end if
-            case (domain_bottom, domain_surface, domain_horizontal)
-               if (.not. associated(model%catalog%horizontal(link%target%catalog_index)%p)) then
-                  n = n + 1
-                  environment_required(n) = link%target%presence /= presence_external_optional
-                  if (.not. associated(link%target%standard_variables%first)) then
-                     environment_names(n) = trim(link%name)
-                     environment_units(n) = trim(link%target%units)
-                  else
-                     environment_names(n) = trim(link%target%standard_variables%first%p%name)
-                     environment_units(n) = trim(link%target%standard_variables%first%p%units)
-                  end if
-               end if
-            case (domain_scalar)
-               if (.not. associated(model%catalog%scalar(link%target%catalog_index)%p)) then
-                  n = n + 1
-                  environment_required(n) = link%target%presence /= presence_external_optional
-                  if (.not.associated(link%target%standard_variables%first)) then
-                     environment_names(n) = trim(link%name)
-                     environment_units(n) = trim(link%target%units)
-                  else
-                     environment_names(n) = trim(link%target%standard_variables%first%p%name)
-                     environment_units(n) = trim(link%target%standard_variables%first%p%units)
-                  end if
-               end if
-            end select
-         end if
-         link => link%next
-      end do
-
-      if (index_column_depth == -1) then
-         n = n + 1
-         index_column_depth = n
-         environment_names(n) = trim(standard_variables%bottom_depth%name)
-         environment_units(n) = trim(standard_variables%bottom_depth%units)
-      end if
    end subroutine get_environment_metadata
 
    subroutine get_couplings(model, link_list)

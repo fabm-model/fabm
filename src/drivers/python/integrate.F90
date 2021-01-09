@@ -44,10 +44,9 @@ contains
 
       surface = int2logical(do_surface)
       bottom = int2logical(do_bottom)
-      if ((surface .or. bottom) .and. .not. associated(model%column_depth)) then
-          call driver%fatal_error('get_rates', &
-            'Value for environmental dependency ' // trim(model%environment_names(model%index_column_depth)) // &
-            ' must be provided if integrate is called with the do_surface and/or do_bottom flags.')
+      if ((surface .or. bottom) .and. .not. associated(model%cell_thickness)) then
+          call driver%fatal_error('integrate', &
+            'Value for cell_thickness must be provided if integrate is called with the do_surface and/or do_bottom flags.')
           return
       end if
       call model%p%link_all_interior_state_data(y_cur(1:size(model%p%interior_state_variables)))
@@ -73,7 +72,7 @@ contains
           if (bottom) call model%p%get_bottom_sources(dy(1:size(model%p%interior_state_variables)), &
              dy(size(model%p%interior_state_variables) + size(model%p%surface_state_variables) + 1:))
           if (surface .or. bottom) dy(1:size(model%p%interior_state_variables)) = dy(1:size(model%p%interior_state_variables)) &
-             / model%column_depth
+             / model%cell_thickness
           call model%p%get_interior_sources(dy(1:size(model%p%interior_state_variables)))
           y_cur = y_cur + dt * dy * 86400
           t_cur = t_cur + dt

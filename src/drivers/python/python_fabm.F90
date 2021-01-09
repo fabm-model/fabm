@@ -8,8 +8,8 @@ module fabm_python
    !DIR$ ATTRIBUTES DLLEXPORT :: STATE_VARIABLE,DIAGNOSTIC_VARIABLE,CONSERVED_QUANTITY
 
    use fabm, only: type_fabm_model, type_fabm_variable, fabm_get_version, status_start_done, fabm_create_model
-   use fabm_types, only:rk => rke,attribute_length,type_model_list_node,type_base_model, &
-                        factory,type_link,type_link_list,type_internal_variable
+   use fabm_types, only: rk => rke, attribute_length, type_model_list_node, type_base_model, domain_interior, domain_scalar, &
+                         factory, type_link, type_link_list, type_internal_variable, type_variable_list, type_variable_node
    use fabm_driver, only: type_base_driver, driver
    use fabm_properties, only: type_property, type_property_dictionary
    use fabm_python_helper
@@ -25,6 +25,7 @@ module fabm_python
    integer, parameter :: INTERIOR_DIAGNOSTIC_VARIABLE   = 4
    integer, parameter :: HORIZONTAL_DIAGNOSTIC_VARIABLE = 5
    integer, parameter :: CONSERVED_QUANTITY             = 6
+   integer, parameter :: DEPENDENCY                     = 7
 
    logical, save :: error_occurred = .false.
    character(len=:), allocatable, save :: error_message
@@ -36,13 +37,12 @@ module fabm_python
    end type
 
    type type_model_wrapper
-      class (type_fabm_model), pointer               :: p => null()
-      character(len=1024), dimension(:), allocatable :: environment_names, environment_units
-      logical,             dimension(:), allocatable :: environment_required
-      integer                                        :: index_column_depth
-      type (type_link_list)                          :: coupling_link_list
-      real(c_double), pointer                        :: column_depth => null()
-      type (type_property_dictionary)                :: forced_parameters, forced_couplings
+      class (type_fabm_model), pointer           :: p => null()
+      type (type_variable_list)                  :: environment
+      type (type_internal_variable), pointer     :: cell_thickness_variable
+      type (type_link_list)                      :: coupling_link_list
+      real(c_double) _DIMENSION_GLOBAL_, pointer :: cell_thickness => null()
+      type (type_property_dictionary)            :: forced_parameters, forced_couplings
    end type
 
 contains
@@ -96,22 +96,31 @@ contains
       call model%p%set_domain(_PREARG_LOCATION_ 1._rk)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
-      call get_environment_metadata(model%p, model%environment_names, model%environment_units, model%environment_required, &
-         model%index_column_depth)
+      call get_environment_metadata(model%p, model%environment, model%cell_thickness_variable)
 
       call get_couplings(model%p, model%coupling_link_list)
 
       ptr = c_loc(model)
    end function create_model
 
-   subroutine reinitialize(model _POSTARG_LOCATION_)
+   subroutine reinitialize(model)
       type (type_model_wrapper), intent(inout) :: model
-      _DECLARE_ARGUMENTS_LOCATION_
 
       class (type_fabm_model),     pointer :: newmodel
       type (type_model_list_node), pointer :: node
       class (type_base_model),     pointer :: childmodel
       class (type_property),       pointer :: property, next
+      _DECLARE_LOCATION_
+
+#  if _FABM_DIMENSION_COUNT_ > 0
+      i__ = model%p%domain%shape(1)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 1
+      j__ = model%p%domain%shape(2)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 2
+      k__ = model%p%domain%shape(3)
+#  endif
 
       ! Create new model object.
       allocate(newmodel)
@@ -154,9 +163,8 @@ contains
       call model%p%set_domain(_PREARG_LOCATION_ 1._rk)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
-      call get_environment_metadata(model%p, model%environment_names, model%environment_units, model%environment_required, &
-         model%index_column_depth)
-      model%column_depth => null()
+      call get_environment_metadata(model%p, model%environment, model%cell_thickness_variable)
+      model%cell_thickness => null()
 
       call get_couplings(model%p, model%coupling_link_list)
    end subroutine reinitialize
@@ -222,7 +230,7 @@ contains
       ndiagnostic_interior = size(model%p%interior_diagnostic_variables)
       ndiagnostic_horizontal = size(model%p%horizontal_diagnostic_variables)
       nconserved = size(model%p%conserved_quantities)
-      ndependencies = size(model%environment_names)
+      ndependencies = model%environment%count
       nparameters = model%p%root%parameters%size()
       ncouplings = model%coupling_link_list%count()
    end subroutine get_counts
@@ -267,6 +275,8 @@ contains
 
       type (type_model_wrapper),     pointer :: model
       type (type_internal_variable), pointer :: variable
+      type (type_variable_node),     pointer :: node
+      integer :: i
 
       call c_f_pointer(pmodel, model)
 
@@ -284,6 +294,15 @@ contains
          variable => model%p%horizontal_diagnostic_variables(index)%target
       case (CONSERVED_QUANTITY)
          variable => model%p%conserved_quantities(index)%target
+      case (DEPENDENCY)
+         i = 0
+         variable => null()
+         node => model%environment%first
+         do while (associated(node))
+            i = i + 1
+            if (i == index) variable => node%target
+            node => node%next
+         end do
       end select
       pvariable = c_loc(variable)
    end function get_variable
@@ -315,21 +334,6 @@ contains
       typecode = property%typecode()
       has_default = logical2int(property%has_default)
    end subroutine get_parameter_metadata
-
-   subroutine get_dependency_metadata(pmodel, index, length, name, units, required) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: get_dependency_metadata
-      type (c_ptr),           intent(in), value              :: pmodel
-      integer(c_int),         intent(in), value              :: index, length
-      character(kind=c_char), intent(out), dimension(length) :: name, units
-      integer(c_int),         intent(out)                    :: required
-
-      type (type_model_wrapper), pointer :: model
-
-      call c_f_pointer(pmodel, model)
-      call copy_to_c_string(model%environment_names(index), name)
-      call copy_to_c_string(model%environment_units(index), units)
-      required = logical2int(model%environment_required(index))
-   end subroutine get_dependency_metadata
 
    subroutine get_coupling(pmodel, index, slave, master) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_coupling
@@ -387,106 +391,237 @@ contains
       user_created = logical2int(found_model%user_created)
    end subroutine get_model_metadata
 
-   subroutine link_dependency_data(pmodel, index, value) bind(c)
+   function c_f_pointer_interior(model, ptr) result(pdata)
+      type (type_model_wrapper), intent(in) :: model
+      real(c_double), intent(in), target :: ptr(*)
+      real(c_double) _ATTRIBUTES_GLOBAL_, pointer :: pdata
+#if _FABM_DIMENSION_COUNT_ > 0
+      call c_f_pointer(c_loc(ptr), pdata, model%p%domain%shape)
+#else
+      call c_f_pointer(c_loc(ptr), pdata)
+#endif
+   end function
+
+   function c_f_pointer_horizontal(model, ptr) result(pdata)
+      type (type_model_wrapper), intent(in) :: model
+      real(c_double), intent(in), target :: ptr(*)
+      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: pdata
+#if  _HORIZONTAL_DIMENSION_COUNT_ > 0
+      call c_f_pointer(c_loc(ptr), pdata, model%p%domain%horizontal_shape)
+#else
+      call c_f_pointer(c_loc(ptr), pdata)
+#endif
+   end function
+
+   subroutine link_dependency_data(pmodel, pvariable, dat) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_dependency_data
       type (c_ptr),   intent(in), value  :: pmodel
-      integer(c_int), intent(in), value  :: index
-      real(c_double), intent(in), target :: value
+      type (c_ptr),   intent(in), value  :: pvariable
+      real(c_double), intent(in), target :: dat(*)
 
-      type (type_model_wrapper), pointer :: model
+      type (type_model_wrapper),                     pointer :: model
+      type (type_internal_variable),                 pointer :: variable
+      real(c_double) _ATTRIBUTES_GLOBAL_,            pointer :: interior_data
+      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: horizontal_data
+      real(c_double),                                pointer :: scalar_data
 
       call c_f_pointer(pmodel, model)
-      call model%p%link_interior_data(model%environment_names(index), value)
-      call model%p%link_horizontal_data(model%environment_names(index), value)
-      call model%p%link_scalar(model%environment_names(index), value)
-      if (index == model%index_column_depth) model%column_depth => value
+      call c_f_pointer(pvariable, variable)
+      select case (variable%domain)
+      case (domain_interior)
+         interior_data => c_f_pointer_interior(model, dat)
+         call model%p%link_interior_data(variable, interior_data)
+         if (associated(variable, model%cell_thickness_variable)) model%cell_thickness => interior_data
+      case (domain_scalar)
+         call c_f_pointer(c_loc(dat), scalar_data)
+         call model%p%link_scalar(variable, scalar_data)
+      case default
+         horizontal_data => c_f_pointer_horizontal(model, dat)
+         call model%p%link_horizontal_data(variable, horizontal_data)
+#ifndef _FABM_DEPTH_DIMENSION_INDEX_
+         if (associated(variable, model%cell_thickness_variable)) model%cell_thickness => horizontal_data
+#endif
+      end select
    end subroutine link_dependency_data
 
-   subroutine link_interior_state_data(pmodel, index, value) bind(c)
+   subroutine link_interior_state_data(pmodel, index, dat) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_interior_state_data
-      type (c_ptr),   intent(in), value     :: pmodel
-      integer(c_int), intent(in), value     :: index
-      real(c_double) _ATTRIBUTES_GLOBAL_, intent(inout), target :: value
+      type (c_ptr),   intent(in), value  :: pmodel
+      integer(c_int), intent(in), value  :: index
+      real(c_double), intent(in), target :: dat(*)
 
-      type (type_model_wrapper), pointer :: model
+      type (type_model_wrapper),          pointer :: model
+      real(c_double) _ATTRIBUTES_GLOBAL_, pointer :: dat_
 
       call c_f_pointer(pmodel, model)
-      value = model%p%interior_state_variables(index)%initial_value
-      call model%p%link_interior_state_data(index, value)
+      dat_ => c_f_pointer_interior(model, dat)
+      dat_ = model%p%interior_state_variables(index)%initial_value
+      call model%p%link_interior_state_data(index, dat_)
    end subroutine link_interior_state_data
 
-   subroutine link_surface_state_data(pmodel, index, value) bind(c)
+   subroutine link_surface_state_data(pmodel, index, dat) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_surface_state_data
-      type (c_ptr),   intent(in), value     :: pmodel
-      integer(c_int), intent(in), value     :: index
-      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, intent(inout), target :: value
+      type (c_ptr),   intent(in), value  :: pmodel
+      integer(c_int), intent(in), value  :: index
+      real(c_double), intent(in), target :: dat(*)
 
-      type (type_model_wrapper), pointer :: model
+      type (type_model_wrapper),                     pointer :: model
+      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: dat_
 
       call c_f_pointer(pmodel, model)
-      value = model%p%surface_state_variables(index)%initial_value
-      call model%p%link_surface_state_data(index, value)
+      dat_ => c_f_pointer_horizontal(model, dat)
+      dat_ = model%p%surface_state_variables(index)%initial_value
+      call model%p%link_surface_state_data(index, dat_)
    end subroutine link_surface_state_data
 
-   subroutine link_bottom_state_data(pmodel, index, value) bind(c)
+   subroutine link_bottom_state_data(pmodel, index, dat) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_bottom_state_data
-      type (c_ptr),   intent(in), value     :: pmodel
-      integer(c_int), intent(in), value     :: index
-      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, intent(inout), target :: value
+      type (c_ptr),   intent(in), value  :: pmodel
+      integer(c_int), intent(in), value  :: index
+      real(c_double), intent(in), target :: dat(*)
 
-      type (type_model_wrapper), pointer :: model
+      type (type_model_wrapper),                     pointer :: model
+      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: dat_
 
       call c_f_pointer(pmodel, model)
-      value = model%p%bottom_state_variables(index)%initial_value
-      call model%p%link_bottom_state_data(index, value)
+      dat_ => c_f_pointer_horizontal(model, dat)
+      dat_ = model%p%bottom_state_variables(index)%initial_value
+      call model%p%link_bottom_state_data(index, dat_)
    end subroutine link_bottom_state_data
 
-   subroutine get_rates(pmodel, t, dy, do_surface, do_bottom) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: get_rates
-      type (c_ptr),           intent(in), value :: pmodel
-      real(rk), value,        intent(in) :: t
-      real(c_double), target, intent(in) :: dy(*)
+   subroutine get_sources(pmodel, t, sources_interior, sources_surface, sources_bottom, do_surface, do_bottom) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_sources
+      type (c_ptr),   value,  intent(in) :: pmodel
+      real(c_double), value,  intent(in) :: t
+      real(c_double), target, intent(in) :: sources_interior(*), sources_surface(*), sources_bottom(*)
       integer(c_int), value,  intent(in) :: do_surface, do_bottom
 
+      logical :: surface, bottom
       type (type_model_wrapper), pointer :: model
-      real(c_double), pointer :: dy_(:)
+      real(c_double) _DIMENSION_GLOBAL_PLUS_1_, pointer :: sources_interior_
+      real(c_double) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_, pointer :: sources_surface_, sources_bottom_
+      real(c_double) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, allocatable :: fluxes
+      real(c_double) :: cell_thickness
+      _DECLARE_LOCATION_
+
+#  if _FABM_DIMENSION_COUNT_ > 0
+      integer :: _LOCATION_RANGE_
+      istart__ = model%p%domain%start(1)
+      istop__ = model%p%domain%stop(1)
+      i__ = model%p%domain%shape(1)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 1
+      jstart__ = model%p%domain%start(2)
+      jstop__ = model%p%domain%stop(2)
+      j__ = model%p%domain%shape(2)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 2
+      kstart__ = model%p%domain%start(3)
+      kstop__ = model%p%domain%stop(3)
+      k__ = model%p%domain%shape(3)
+#  endif
 
       call c_f_pointer(pmodel, model)
       if (model%p%status < status_start_done) then
-         call driver%fatal_error('get_rates', 'start has not been called yet.')
+         call driver%fatal_error('get_sources', 'start has not been called yet.')
          return
       end if
 
-      call c_f_pointer(c_loc(dy), dy_, (/size(model%p%interior_state_variables) &
-         + size(model%p%surface_state_variables) + size(model%p%bottom_state_variables)/))
+      surface = int2logical(do_surface)
+      bottom = int2logical(do_bottom)
+      if ((surface .or. bottom) .and. size(model%p%interior_state_variables) > 0 .and. .not. associated(model%cell_thickness)) then
+          call driver%fatal_error('get_sources', &
+            'Value for cell_thickness must be provided if get_sources is called with the do_surface and/or do_bottom flags.')
+          return
+      end if
+
+      call c_f_pointer(c_loc(sources_interior), sources_interior_, (/_PREARG_LOCATION_ size(model%p%interior_state_variables)/))
+      call c_f_pointer(c_loc(sources_surface), sources_surface_, (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%surface_state_variables)/))
+      call c_f_pointer(c_loc(sources_bottom), sources_bottom_, (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%bottom_state_variables)/))
+#if _HORIZONTAL_IS_VECTORIZED_
+      allocate(fluxes(_ITERATOR_,size(model%p%interior_state_variables)))
+#else
+      allocate(fluxes(size(model%p%interior_state_variables)))
+#endif
 
       if (t < 0) then
          call model%p%prepare_inputs()
       else
          call model%p%prepare_inputs(t)
       end if
-      dy_ = 0.0_rk
-      if (int2logical(do_surface)) call model%p%get_surface_sources(dy_(1:size(model%p%interior_state_variables)), &
-         dy_(size(model%p%interior_state_variables)+1:size(model%p%interior_state_variables) &
-         + size(model%p%surface_state_variables)))
-      if (int2logical(do_bottom)) call model%p%get_bottom_sources(dy_(1:size(model%p%interior_state_variables)), &
-         dy_(size(model%p%interior_state_variables) + size(model%p%surface_state_variables) + 1:))
-      if (int2logical(do_surface) .or. int2logical(do_bottom)) then
-         if (.not.associated(model%column_depth)) call driver%fatal_error('get_rates', &
-            'Value for environmental dependency ' // trim(model%environment_names(model%index_column_depth)) // &
-            ' must be provided if get_rates is called with the do_surface and/or do_bottom flags.')
-         dy_(1:size(model%p%interior_state_variables)) = dy_(1:size(model%p%interior_state_variables)) / model%column_depth
+
+      sources_interior_ = 0.0_rk
+      sources_surface_ = 0.0_rk
+      sources_bottom_ = 0.0_rk
+
+      _BEGIN_OUTER_INTERIOR_LOOP_
+         call model%p%get_interior_sources(_PREARG_INTERIOR_IN_ sources_interior_ _INDEX_GLOBAL_INTERIOR_PLUS_1_(_START_:_STOP_,:))
+      _END_OUTER_INTERIOR_LOOP_
+
+      if (surface) then
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+         _VERTICAL_ITERATOR_ = model%p%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
+#  else
+         _VERTICAL_ITERATOR_ = model%p%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
+#  endif
+#endif
+
+         _BEGIN_OUTER_HORIZONTAL_LOOP_
+            fluxes = 0.0_rk
+            call model%p%get_surface_sources(_PREARG_HORIZONTAL_IN_ fluxes, sources_surface_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_,:))
+            if (size(model%p%interior_state_variables) > 0) then
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+               _DO_CONCURRENT_(_ITERATOR_,_START_,_STOP_)
+                  sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
+                     + fluxes(_ITERATOR_,:) / model%cell_thickness _INDEX_LOCATION_
+               end do
+#else
+               sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
+                  + fluxes(:) / model%cell_thickness _INDEX_LOCATION_
+#endif
+            end if
+         _END_OUTER_HORIZONTAL_LOOP_
       end if
-      call model%p%get_interior_sources(dy_(1:size(model%p%interior_state_variables)))
+
+      if (bottom) then
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#  if _FABM_BOTTOM_INDEX_==0
+#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+         _VERTICAL_ITERATOR_ = model%p%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
+#    else
+         _VERTICAL_ITERATOR_ = model%p%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
+#    endif
+#  elif !defined(_HORIZONTAL_IS_VECTORIZED_)
+         _VERTICAL_ITERATOR_ = model%p%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+#  endif
+#endif
+
+         _BEGIN_OUTER_HORIZONTAL_LOOP_
+            fluxes = 0.0_rk
+            call model%p%get_bottom_sources_rhs(_PREARG_HORIZONTAL_IN_ fluxes, sources_bottom_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_,:))
+            if (size(model%p%interior_state_variables) > 0) then
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+               _DO_CONCURRENT_(_ITERATOR_,_START_,_STOP_)
+#if _FABM_BOTTOM_INDEX_==-1
+                  _VERTICAL_ITERATOR_ = model%p%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+#endif
+                  sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
+                     + fluxes(_ITERATOR_,:) / model%cell_thickness _INDEX_LOCATION_
+               end do
+#else
+#if _FABM_BOTTOM_INDEX_==-1
+               _VERTICAL_ITERATOR_ = model%p%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+#endif
+               sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
+                  + fluxes(:) / model%cell_thickness _INDEX_LOCATION_
+#endif
+            end if
+         _END_OUTER_HORIZONTAL_LOOP_
+      end if
+
       call model%p%finalize_outputs()
-
-      ! Compute rate of change in conserved quantities
-      !call fabm_state_to_conserved_quantities(model,pelagic_rates,conserved_rates)
-
-      ! Normalize rate of change in conserved quantities to sum of absolute rates of change.
-      !call fabm_state_to_conserved_quantities(model,abs(pelagic_rates),abs_conserved_rates)
-      !where (abs_conserved_rates>0.0_rk) conserved_rates = conserved_rates/abs_conserved_rates
-   end subroutine get_rates
+   end subroutine get_sources
 
    function check_state(pmodel, repair_) bind(c) result(valid_)
       !DIR$ ATTRIBUTES DLLEXPORT :: check_state
@@ -495,7 +630,22 @@ contains
       integer(c_int)                          :: valid_
 
       type (type_model_wrapper), pointer :: model
-      logical :: repair, interior_valid, surface_valid, bottom_valid
+      logical :: repair, all_valid, interior_valid, surface_valid, bottom_valid
+      _DECLARE_LOCATION_
+
+#  if _FABM_DIMENSION_COUNT_ > 0
+      integer :: _LOCATION_RANGE_
+      istart__ = model%p%domain%start(1)
+      istop__ = model%p%domain%stop(1)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 1
+      jstart__ = model%p%domain%start(2)
+      jstop__ = model%p%domain%stop(2)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 2
+      kstart__ = model%p%domain%start(3)
+      kstop__ = model%p%domain%stop(3)
+#  endif
 
       call c_f_pointer(pmodel, model)
       if (model%p%status < status_start_done) then
@@ -504,10 +654,27 @@ contains
       end if
 
       repair = int2logical(repair_)
-      call model%p%check_interior_state(repair, interior_valid)
-      call model%p%check_surface_state(repair, surface_valid)
-      call model%p%check_bottom_state(repair, bottom_valid)
-      valid_ = logical2int(interior_valid .and. surface_valid .and. bottom_valid)
+
+      ! Check interior state everywhere
+      all_valid = .true.
+      _BEGIN_OUTER_INTERIOR_LOOP_
+         call model%p%check_interior_state(_PREARG_INTERIOR_IN_ repair, interior_valid)
+         all_valid = all_valid .and. interior_valid
+      _END_OUTER_INTERIOR_LOOP_
+
+      ! Check surface state everywhere
+      _BEGIN_OUTER_HORIZONTAL_LOOP_
+         call model%p%check_surface_state(_PREARG_HORIZONTAL_IN_ repair, surface_valid)
+         all_valid = all_valid .and. surface_valid
+      _END_OUTER_HORIZONTAL_LOOP_
+
+      ! Check bottom state everywhere
+      _BEGIN_OUTER_HORIZONTAL_LOOP_
+         call model%p%check_bottom_state(_PREARG_HORIZONTAL_IN_ repair, bottom_valid)
+         all_valid = all_valid .and. bottom_valid
+      _END_OUTER_HORIZONTAL_LOOP_
+
+      valid_ = logical2int(all_valid)
    end function check_state
 
    subroutine get_interior_diagnostic_data(pmodel, index, ptr) bind(c)
@@ -544,8 +711,7 @@ contains
       type (type_model_wrapper), intent(inout) :: model
 
       call model%p%finalize()
-      if (allocated(model%environment_names)) deallocate(model%environment_names)
-      if (allocated(model%environment_units)) deallocate(model%environment_units)
+      call model%environment%finalize()
       call model%forced_parameters%finalize()
       call model%forced_couplings%finalize()
       deallocate(model%p)
