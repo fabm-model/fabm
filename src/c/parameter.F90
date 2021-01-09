@@ -6,7 +6,7 @@ module fabm_c_parameter
    use fabm_properties
    use fabm_types, only: attribute_length
    use fabm_driver, only: driver
-   use fabm_python
+   use fabm_c
 
    implicit none
 

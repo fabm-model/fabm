@@ -3,7 +3,7 @@ module fabm_c_integrate
    use iso_c_binding, only: c_ptr, c_f_pointer, c_loc, c_int, c_double
 
    use fabm_types, only: rke
-   use fabm_python
+   use fabm_c
    use fabm_driver, only: driver
    use fabm, only: status_start_done
 

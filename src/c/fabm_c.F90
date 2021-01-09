@@ -1,7 +1,7 @@
 #include "fabm_driver.h"
 #include "fabm_private.h"
 
-module fabm_python
+module fabm_c
 
    use iso_c_binding, only: c_double, c_int, c_char, C_NULL_CHAR, c_f_pointer, c_loc, c_ptr, c_null_ptr
 
@@ -733,7 +733,7 @@ contains
       !write (*,*) trim(message)
    end subroutine python_driver_log_message
 
-end module fabm_python
+end module fabm_c
 
 !-----------------------------------------------------------------------
 ! Copyright Bolding & Bruggeman ApS - Public License - www.gnu.org

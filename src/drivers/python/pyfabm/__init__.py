@@ -15,11 +15,11 @@ except ImportError:
 
 # Determine potential names of FABM dynamic library.
 if os.name == 'nt':
-   dllpaths = ('python_fabm.dll', 'libpython_fabm.dll')
+   dllpaths = ('fabm_c.dll', 'libfabm_c.dll')
 elif os.name == 'posix' and sys.platform == 'darwin':
-   dllpaths = ('libpython_fabm.dylib',)
+   dllpaths = ('libfabm_c.dylib',)
 else:
-   dllpaths = ('libpython_fabm.so',)
+   dllpaths = ('libfabm_c.so',)
 
 def find_library(basedir):
     for dllpath in dllpaths:

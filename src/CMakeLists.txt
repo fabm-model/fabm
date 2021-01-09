@@ -257,6 +257,12 @@ foreach(institute ${ACTIVE_INSTITUTES})
   target_include_directories(fabm PRIVATE $<TARGET_PROPERTY:fabm_models_${institute},INTERFACE_INCLUDE_DIRECTORIES>)
 endforeach(institute)
 
+option(FABM_BUILD_C_API "Build C interfaces" OFF)
+mark_as_advanced(FABM_BUILD_C_API)
+if(FABM_BUILD_C_API)
+  add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/c" c)
+endif()
+
 # Tests
 add_executable(test_host EXCLUDE_FROM_ALL
                ${CMAKE_CURRENT_LIST_DIR}/test/host.F90

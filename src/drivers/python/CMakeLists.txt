@@ -29,34 +29,14 @@ endif()
 
 # Force FABM_HOST to python and include FABM CMakeLists.txt.
 set(FABM_FORCED_HOST python)
+set(FABM_BUILD_C_API ON CACHE BOOL "Build C interfaces" FORCE)
 add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm EXCLUDE_FROM_ALL)
 
 # Add Python-FABM library
-add_library(python_fabm SHARED
-            python_fabm.F90
-            variable.F90
-            parameter.F90
-            link_list.F90
-            c_helper.F90
-            helper.F90
-            integrate.F90
-            pyfabm/__init__.py
-           )
-source_group(pyfabm FILES REGULAR_EXPRESSION ".*\\.py")
-
-# Link in FABM itself
-target_link_libraries(python_fabm fabm)
-
-# Set module directory (output of *.mod)
-set_property(TARGET python_fabm PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
-
-# Set include directories with modules (*.mod) - our own and FABM's.
-set_property(TARGET python_fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/modules")
-set_property(TARGET python_fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}/fabm/modules")
-
-# Set include directories with header files (*.h) - our own and FABM's.
-set_property(TARGET python_fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}")
-set_property(TARGET python_fabm APPEND PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/../../../include")
+#add_library(python_fabm SHARED
+#            pyfabm/__init__.py
+#           )
+#source_group(pyfabm FILES REGULAR_EXPRESSION ".*\\.py")
 
 # Find target Python interpreter.
 find_package(PythonInterp)
@@ -64,7 +44,7 @@ find_package(PythonInterp)
 # Build wheel
 add_custom_command(OUTPUT wheel.stamp
                    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/pyfabm" pyfabm
-                   COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:python_fabm>" pyfabm/
+                   COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:fabm_c>" pyfabm/
                    COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" bdist_wheel
                    VERBATIM)
 add_custom_target(wheel ALL DEPENDS wheel.stamp)
