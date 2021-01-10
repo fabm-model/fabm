@@ -13,14 +13,11 @@ module fabm_python_helper
 
 contains
 
-   subroutine get_environment_metadata(model, list, cell_thickness)
+   subroutine get_environment_metadata(model, list)
      type (type_fabm_model),    intent(inout) :: model
      type (type_variable_list), intent(out)   :: list
-     type (type_internal_variable), pointer   :: cell_thickness
 
      type (type_link), pointer :: link
-
-     cell_thickness => null()
 
       ! Get number of environmental dependencies (light, temperature, etc.)
       link => model%links_postcoupling%first
@@ -30,16 +27,8 @@ contains
             select case (link%target%domain)
             case (domain_interior)
                if (.not. associated(model%catalog%interior(link%target%catalog_index)%p)) call list%append(link%target)
-               if (.not. associated(cell_thickness) .and. associated(link%target%standard_variables%first)) then
-                  if (link%target%standard_variables%contains(standard_variables%cell_thickness)) cell_thickness => link%target
-               end if
             case (domain_bottom, domain_surface, domain_horizontal)
                if (.not. associated(model%catalog%horizontal(link%target%catalog_index)%p)) call list%append(link%target)
-#ifndef _FABM_DEPTH_DIMENSION_INDEX_
-               if (.not. associated(cell_thickness) .and. associated(link%target%standard_variables%first)) then
-                  if (link%target%standard_variables%contains(standard_variables%bottom_depth)) cell_thickness => link%target
-               end if
-#endif
             case (domain_scalar)
                if (.not. associated(model%catalog%scalar(link%target%catalog_index)%p)) call list%append(link%target)
             end select

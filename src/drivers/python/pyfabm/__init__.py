@@ -135,11 +135,11 @@ fabm.start.argtypes = [ctypes.c_void_p]
 fabm.start.restype = None
 
 # Routine for retrieving source-sink terms for the interior domain.
-fabm.get_sources.argtypes = [ctypes.c_void_p, ctypes.c_double, numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), ctypes.c_int, ctypes.c_int]
+fabm.get_sources.argtypes = [ctypes.c_void_p, ctypes.c_double, numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_double)]
 fabm.get_sources.restype = None
 fabm.check_state.argtypes = [ctypes.c_void_p, ctypes.c_int]
 fabm.check_state.restype = ctypes.c_int
-fabm.integrate.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=2, flags=CONTIGUOUS), ctypes.c_double, ctypes.c_int, ctypes.c_int]
+fabm.integrate.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS), numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=2, flags=CONTIGUOUS), ctypes.c_double, ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_double)]
 fabm.integrate.restype = None
 
 # Routine for getting git repository version information.
@@ -185,6 +185,9 @@ def createPrettyUnit(unit):
     unit = supnumber.sub(replace_superscript,unit)
     #unit = oldsupminus.sub(reploldminus,unit)
     return unit
+
+class FABMException(Exception):
+    pass
 
 def hasError():
    return fabm.get_error_state() != 0
@@ -399,12 +402,21 @@ class SubModel(object):
         self.user_created = iuser.value!=0
 
 class Model(object):
-    def __init__(self,path='fabm.yaml'):
+    def __init__(self, path='fabm.yaml'):
         fabm.reset_error_state()
         self.lookup_tables = {}
+        self._cell_thickness = None
         self.pmodel = fabm.create_model(path.encode('ascii'))
-        assert not hasError(), 'An error occurred while parsing %s:\n%s' % (path, getError())
+        if hasError():
+            raise FABMException('An error occurred while parsing %s:\n%s' % (path, getError()))
         self.updateConfiguration()
+
+    def setCellThickness(self, value):
+        if self._cell_thickness is None:
+            self._cell_thickness = ctypes.c_double()
+        self._cell_thickness.value = value
+
+    cell_thickness = property(fset=setCellThickness)
 
     def getSubModel(self,name):
         return SubModel(self.pmodel, name)
@@ -497,7 +509,8 @@ class Model(object):
         self.state_variables = self.interior_state_variables + self.surface_state_variables + self.bottom_state_variables
         self.diagnostic_variables = self.interior_diagnostic_variables + self.horizontal_diagnostic_variables
 
-        if settings is not None: self.restoreSettings(settings)
+        if settings is not None:
+            self.restoreSettings(settings)
 
         # For backward compatibility
         self.bulk_state_variables = self.interior_state_variables
@@ -515,11 +528,17 @@ class Model(object):
         sources_interior = sources[:len(self.interior_state_variables)]
         sources_surface = sources[len(self.interior_state_variables):len(self.interior_state_variables)+len(self.surface_state_variables)]
         sources_bottom = sources[len(self.interior_state_variables)+len(self.surface_state_variables):]
-        fabm.get_sources(self.pmodel, t, sources_interior, sources_surface, sources_bottom, surface, bottom)
+        assert not ((surface or bottom) and self._cell_thickness is None), 'You must assign model.cell_thickness to use getRates'
+        fabm.get_sources(self.pmodel, t, sources_interior, sources_surface, sources_bottom, surface, bottom, ctypes.byref(self._cell_thickness))
+        if hasError():
+            raise FABMException(getError())
         return sources
 
     def checkState(self, repair=False):
-        return fabm.check_state(self.pmodel, repair) != 0
+        valid = fabm.check_state(self.pmodel, repair) != 0
+        if hasError():
+            raise FABMException(getError())
+        return valid
 
     def getJacobian(self,pert=None):
         # Define perturbation per state variable.
@@ -635,11 +654,14 @@ class Model(object):
 
 class Simulator(object):
     def __init__(self, model):
+        assert model._cell_thickness is not None, 'You must assign model.cell_thickness to use Simulator'
         self.model = model
 
     def integrate(self, y0, t, dt, surface=True, bottom=True):
         y = numpy.empty((t.size, self.model.state.size))
-        fabm.integrate(self.model.pmodel, t.size, self.model.state.size, t, y0, y, dt, surface, bottom)
+        fabm.integrate(self.model.pmodel, t.size, self.model.state.size, t, y0, y, dt, surface, bottom, ctypes.byref(self.model._cell_thickness))
+        if hasError():
+            raise FABMException(getError())
         return y
 
 def unload():

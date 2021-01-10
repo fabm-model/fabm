@@ -192,6 +192,7 @@ def test_pyfabm(args, testcases):
         print('  %s... ' % case, end='')
         sys.stdout.flush()
         m = pyfabm.Model(path)
+        m.cell_thickness = 1.
         for d in m.dependencies:
             dependency_names.add(d.name)
             d.value = 1.

@@ -37,12 +37,10 @@ module fabm_c
    end type
 
    type type_model_wrapper
-      class (type_fabm_model), pointer           :: p => null()
-      type (type_variable_list)                  :: environment
-      type (type_internal_variable), pointer     :: cell_thickness_variable
-      type (type_link_list)                      :: coupling_link_list
-      real(c_double) _DIMENSION_GLOBAL_, pointer :: cell_thickness => null()
-      type (type_property_dictionary)            :: forced_parameters, forced_couplings
+      class (type_fabm_model), pointer :: p => null()
+      type (type_variable_list)        :: environment
+      type (type_link_list)            :: coupling_link_list
+      type (type_property_dictionary)  :: forced_parameters, forced_couplings
    end type
 
 contains
@@ -96,7 +94,7 @@ contains
       call model%p%set_domain(_PREARG_LOCATION_ 1._rk)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
-      call get_environment_metadata(model%p, model%environment, model%cell_thickness_variable)
+      call get_environment_metadata(model%p, model%environment)
 
       call get_couplings(model%p, model%coupling_link_list)
 
@@ -163,8 +161,7 @@ contains
       call model%p%set_domain(_PREARG_LOCATION_ 1._rk)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
-      call get_environment_metadata(model%p, model%environment, model%cell_thickness_variable)
-      model%cell_thickness => null()
+      call get_environment_metadata(model%p, model%environment)
 
       call get_couplings(model%p, model%coupling_link_list)
    end subroutine reinitialize
@@ -431,16 +428,12 @@ contains
       case (domain_interior)
          interior_data => c_f_pointer_interior(model, dat)
          call model%p%link_interior_data(variable, interior_data)
-         if (associated(variable, model%cell_thickness_variable)) model%cell_thickness => interior_data
       case (domain_scalar)
          call c_f_pointer(c_loc(dat), scalar_data)
          call model%p%link_scalar(variable, scalar_data)
       case default
          horizontal_data => c_f_pointer_horizontal(model, dat)
          call model%p%link_horizontal_data(variable, horizontal_data)
-#ifndef _FABM_DEPTH_DIMENSION_INDEX_
-         if (associated(variable, model%cell_thickness_variable)) model%cell_thickness => horizontal_data
-#endif
       end select
    end subroutine link_dependency_data
 
@@ -489,19 +482,20 @@ contains
       call model%p%link_bottom_state_data(index, dat_)
    end subroutine link_bottom_state_data
 
-   subroutine get_sources(pmodel, t, sources_interior, sources_surface, sources_bottom, do_surface, do_bottom) bind(c)
+   subroutine get_sources(pmodel, t, sources_interior, sources_surface, sources_bottom, do_surface, do_bottom, cell_thickness) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_sources
       type (c_ptr),   value,  intent(in) :: pmodel
       real(c_double), value,  intent(in) :: t
       real(c_double), target, intent(in) :: sources_interior(*), sources_surface(*), sources_bottom(*)
       integer(c_int), value,  intent(in) :: do_surface, do_bottom
+      real(c_double), target, intent(in) :: cell_thickness(*)
 
       logical :: surface, bottom
       type (type_model_wrapper), pointer :: model
       real(c_double) _DIMENSION_GLOBAL_PLUS_1_, pointer :: sources_interior_
       real(c_double) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_, pointer :: sources_surface_, sources_bottom_
       real(c_double) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, allocatable :: fluxes
-      real(c_double) :: cell_thickness
+      real(c_double) _ATTRIBUTES_GLOBAL_, pointer :: cell_thickness_
       _DECLARE_LOCATION_
 
 #  if _FABM_DIMENSION_COUNT_ > 0
@@ -529,17 +523,13 @@ contains
 
       surface = int2logical(do_surface)
       bottom = int2logical(do_bottom)
-      if ((surface .or. bottom) .and. size(model%p%interior_state_variables) > 0 .and. .not. associated(model%cell_thickness)) then
-          call driver%fatal_error('get_sources', &
-            'Value for cell_thickness must be provided if get_sources is called with the do_surface and/or do_bottom flags.')
-          return
-      end if
+      if ((surface .or. bottom) .and. size(model%p%interior_state_variables) > 0) cell_thickness_ => c_f_pointer_interior(model, cell_thickness)
 
       call c_f_pointer(c_loc(sources_interior), sources_interior_, (/_PREARG_LOCATION_ size(model%p%interior_state_variables)/))
       call c_f_pointer(c_loc(sources_surface), sources_surface_, (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%surface_state_variables)/))
       call c_f_pointer(c_loc(sources_bottom), sources_bottom_, (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%bottom_state_variables)/))
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-      allocate(fluxes(_ITERATOR_,size(model%p%interior_state_variables)))
+      allocate(fluxes(_ITERATOR_, size(model%p%interior_state_variables)))
 #else
       allocate(fluxes(size(model%p%interior_state_variables)))
 #endif
@@ -574,11 +564,11 @@ contains
 #ifdef _HORIZONTAL_IS_VECTORIZED_
                _DO_CONCURRENT_(_ITERATOR_,_START_,_STOP_)
                   sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
-                     + fluxes(_ITERATOR_,:) / model%cell_thickness _INDEX_LOCATION_
+                     + fluxes(_ITERATOR_,:) / cell_thickness_ _INDEX_LOCATION_
                end do
 #else
                sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
-                  + fluxes(:) / model%cell_thickness _INDEX_LOCATION_
+                  + fluxes(:) / cell_thickness_ _INDEX_LOCATION_
 #endif
             end if
          _END_OUTER_HORIZONTAL_LOOP_
@@ -607,14 +597,14 @@ contains
                   _VERTICAL_ITERATOR_ = model%p%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #endif
                   sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
-                     + fluxes(_ITERATOR_,:) / model%cell_thickness _INDEX_LOCATION_
+                     + fluxes(_ITERATOR_,:) / cell_thickness_ _INDEX_LOCATION_
                end do
 #else
 #if _FABM_BOTTOM_INDEX_==-1
                _VERTICAL_ITERATOR_ = model%p%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #endif
                sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
-                  + fluxes(:) / model%cell_thickness _INDEX_LOCATION_
+                  + fluxes(:) / cell_thickness_ _INDEX_LOCATION_
 #endif
             end if
          _END_OUTER_HORIZONTAL_LOOP_
