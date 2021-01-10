@@ -181,7 +181,7 @@ def test_gotm(args, testcases):
 
 def test_pyfabm(args, testcases):
     build_dir = os.path.join(args.work_root, 'build')
-    if not cmake('test_pyfabm', build_dir, os.path.join(fabm_base, 'src/drivers/python'), args.cmake, cmake_arguments=['-DCMAKE_BUILD_TYPE=debug', '-DPYTHON_EXECUTABLE=%s' % sys.executable] + args.cmake_arguments)
+    if not cmake('test_pyfabm', build_dir, os.path.join(fabm_base, 'src/drivers/python'), args.cmake, cmake_arguments=['-DCMAKE_BUILD_TYPE=debug', '-DPYTHON_EXECUTABLE=%s' % sys.executable] + args.cmake_arguments):
         return
     sys.path.insert(0, build_dir)
     import pyfabm
