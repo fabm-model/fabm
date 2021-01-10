@@ -181,7 +181,8 @@ def test_gotm(args, testcases):
 
 def test_pyfabm(args, testcases):
     build_dir = os.path.join(args.work_root, 'build')
-    cmake('test_pyfabm', build_dir, os.path.join(fabm_base, 'src/drivers/python'), args.cmake, cmake_arguments=['-DCMAKE_BUILD_TYPE=debug', '-DPYTHON_EXECUTABLE=%s' % sys.executable] + args.cmake_arguments)
+    if not cmake('test_pyfabm', build_dir, os.path.join(fabm_base, 'src/drivers/python'), args.cmake, cmake_arguments=['-DCMAKE_BUILD_TYPE=debug', '-DPYTHON_EXECUTABLE=%s' % sys.executable] + args.cmake_arguments)
+        return
     sys.path.insert(0, build_dir)
     import pyfabm
     dependency_names = set()
@@ -285,6 +286,8 @@ if __name__ == '__main__':
         atexit.register(clean, args.work_root)
     args.work_root = os.path.abspath(args.work_root)
     print('Root of test directory: %s' % args.work_root)
+    if len(args.cmake_arguments) > 0:
+        print('Additional cmake arguments: %s' % ' '.join(args.cmake_arguments))
 
     logs = []
     host2function[args.host](args, testcases)
