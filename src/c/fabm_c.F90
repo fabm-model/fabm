@@ -538,7 +538,7 @@ contains
       call c_f_pointer(c_loc(sources_interior), sources_interior_, (/_PREARG_LOCATION_ size(model%p%interior_state_variables)/))
       call c_f_pointer(c_loc(sources_surface), sources_surface_, (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%surface_state_variables)/))
       call c_f_pointer(c_loc(sources_bottom), sources_bottom_, (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%bottom_state_variables)/))
-#if _HORIZONTAL_IS_VECTORIZED_
+#ifdef _HORIZONTAL_IS_VECTORIZED_
       allocate(fluxes(_ITERATOR_,size(model%p%interior_state_variables)))
 #else
       allocate(fluxes(size(model%p%interior_state_variables)))

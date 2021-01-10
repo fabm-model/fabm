@@ -1,5 +1,7 @@
-module fabm_c_integrate
+#include "fabm_driver.h"
 
+module fabm_c_integrate
+#if _FABM_DIMENSION_COUNT_ == 0
    use iso_c_binding, only: c_ptr, c_f_pointer, c_loc, c_int, c_double
 
    use fabm_types, only: rke
@@ -78,5 +80,5 @@ contains
           t_cur = t_cur + dt
       end do
    end subroutine integrate
-
+#endif
 end module
