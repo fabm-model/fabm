@@ -475,7 +475,7 @@ contains
 
    subroutine read_environment
       use yaml, only: yaml_parse => parse, yaml_error_length => error_length
-      use yaml_types, only: type_node, type_yaml_dictionary => type_dictionary, type_yaml_scalar => type_scalar, &
+      use yaml_types, only: type_node, type_scalar, type_yaml_dictionary => type_dictionary, &
          type_yaml_key_value_pair => type_key_value_pair, yaml_real_kind => real_kind
 
       character(yaml_error_length) :: yaml_error
@@ -503,7 +503,7 @@ contains
           yaml_pair => yaml_root%first
           do while (associated(yaml_pair))
               select type (node => yaml_pair%value)
-              class is (type_yaml_scalar)
+              class is (type_scalar)
                   call driver%log_message('Setting '//trim(yaml_pair%key)//' to '//trim(node%string))
                   value = node%to_real(0._yaml_real_kind, success)
                   if (.not. success) then
