@@ -66,6 +66,10 @@ def cmake(phase, build_dir, source_dir, cmake_path='cmake', target=None, cmake_a
         x64 = sys.maxsize > 2**32
         cmake_arguments = ['-A', 'x64' if x64 else 'Win32'] + cmake_arguments
 
+    if os.path.isfile(os.path.join(source_dir, 'CMakeCache.txt')):
+        print('\n\nCannot use "%s" as source directory for cmake because it has previously been used as build directory.\nPlease delete "%s" before continuing.' % (source_dir, os.path.abspath(os.path.join(source_dir, 'CMakeCache.txt'))))
+        sys.exit(1)
+
     # Build
     try:
         ret = run('%s/configure' % phase, [cmake_path, source_dir] + cmake_arguments, cwd=build_dir)
