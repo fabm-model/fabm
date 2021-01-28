@@ -435,11 +435,15 @@ contains
       class (type_aggregate_variable_list), intent(inout)    :: self
       class (type_domain_specific_standard_variable), target :: standard_variable
 
-      type (type_aggregate_variable), pointer :: aggregate_variable
+      type (type_aggregate_variable),                pointer :: aggregate_variable
+      type (type_domain_specific_standard_variable), pointer :: p1, p2
 
+      p1 => standard_variable
       aggregate_variable => self%first
       do while (associated(aggregate_variable))
-         if (associated(aggregate_variable%standard_variable, standard_variable)) return
+         ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
+         p2 => aggregate_variable%standard_variable
+         if (associated(p1, p2)) return
          aggregate_variable => aggregate_variable%next
       end do
       allocate(aggregate_variable)
@@ -745,10 +749,10 @@ contains
 
       link => self%links%first
       do while (associated(link))
-         if (index(link%name,'/')==0 .and. .not. associated(link%target,link%original)) then
-            if (link%target%units/=''.and. link%original%units/=''.and. link%target%units/=link%original%units) &
-               call log_message('WARNING: unit mismatch between master '//trim(link%target%name)//' ('//trim(link%target%units)// &
-                  ') and slave '//trim(link%original%name)//' ('//trim(link%original%units)//').')
+         if (index(link%name, '/') == 0 .and. .not. associated(link%target, link%original)) then
+            if (link%target%units/=''.and. link%original%units/=''.and. link%target%units /= link%original%units) &
+               call log_message('WARNING: unit mismatch between master ' // trim(link%target%name) // ' (' // trim(link%target%units) // &
+                  ') and slave ' // trim(link%original%name) // ' (' // trim(link%original%units) // ').')
          end if
          link => link%next
       end do
