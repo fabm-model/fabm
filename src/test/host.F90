@@ -1,6 +1,8 @@
 #include "fabm_driver.h"
 #include "fabm_private.h"
 
+#undef _BEGIN_GLOBAL_LOOP_
+#undef _END_GLOBAL_LOOP_
 #undef _BEGIN_OUTER_INTERIOR_LOOP_
 #undef _END_OUTER_INTERIOR_LOOP_
 #undef _BEGIN_OUTER_HORIZONTAL_LOOP_
