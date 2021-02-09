@@ -8,8 +8,9 @@ module fabm_c
    !DIR$ ATTRIBUTES DLLEXPORT :: STATE_VARIABLE,DIAGNOSTIC_VARIABLE,CONSERVED_QUANTITY
 
    use fabm, only: type_fabm_model, type_fabm_variable, fabm_get_version, status_start_done, fabm_create_model
-   use fabm_types, only: rk => rke, attribute_length, type_model_list_node, type_base_model, domain_interior, domain_scalar, &
-                         factory, type_link, type_link_list, type_internal_variable, type_variable_list, type_variable_node
+   use fabm_types, only: rk => rke, attribute_length, type_model_list_node, type_base_model, &
+                         factory, type_link, type_link_list, type_internal_variable, type_variable_list, type_variable_node, &
+                         domain_interior, domain_horizontal, domain_scalar
    use fabm_driver, only: type_base_driver, driver
    use fabm_properties, only: type_property, type_property_dictionary
    use fabm_python_helper
@@ -25,7 +26,9 @@ module fabm_c
    integer, parameter :: INTERIOR_DIAGNOSTIC_VARIABLE   = 4
    integer, parameter :: HORIZONTAL_DIAGNOSTIC_VARIABLE = 5
    integer, parameter :: CONSERVED_QUANTITY             = 6
-   integer, parameter :: DEPENDENCY                     = 7
+   integer, parameter :: INTERIOR_DEPENDENCY            = 7
+   integer, parameter :: HORIZONTAL_DEPENDENCY          = 8
+   integer, parameter :: SCALAR_DEPENDENCY              = 9
 
    logical, save :: error_occurred = .false.
    character(len=:), allocatable, save :: error_message
@@ -56,10 +59,25 @@ contains
       call copy_to_c_string(string, version_string)
    end subroutine get_version
 
+
+   subroutine get_driver_settings(ndim, idepthdim) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_driver_settings
+      integer(c_int), intent(out) :: ndim, idepthdim
+
+      ndim = _FABM_DIMENSION_COUNT_
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+      idepthdim = _FABM_DEPTH_DIMENSION_INDEX_
+#else
+      idepthdim = -1
+#endif
+   end subroutine get_driver_settings
+
    function create_model(path _POSTARG_LOCATION_) result(ptr) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: create_model
       character(kind=c_char), target, intent(in) :: path(*)
-      _DECLARE_ARGUMENTS_LOCATION_
+#if _FABM_DIMENSION_COUNT_ > 0
+      integer (kind=c_int), value, intent(in) :: _LOCATION_
+#endif
       type(c_ptr)                                :: ptr
 
       type (type_model_wrapper),       pointer :: model
@@ -211,14 +229,16 @@ contains
    end function model_count
 
    subroutine get_counts(pmodel, nstate_interior, nstate_surface, nstate_bottom, ndiagnostic_interior, ndiagnostic_horizontal, &
-      nconserved, ndependencies, nparameters, ncouplings) bind(c)
+      ndependencies_interior, ndependencies_horizontal, ndependencies_scalar, nconserved, nparameters, ncouplings) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_counts
       type (c_ptr),   intent(in), value :: pmodel
       integer(c_int), intent(out)       :: nstate_interior, nstate_surface, nstate_bottom
       integer(c_int), intent(out)       :: ndiagnostic_interior, ndiagnostic_horizontal
-      integer(c_int), intent(out)       :: nconserved, ndependencies, nparameters, ncouplings
+      integer(c_int), intent(out)       :: ndependencies_interior, ndependencies_horizontal, ndependencies_scalar
+      integer(c_int), intent(out)       :: nconserved, nparameters, ncouplings
 
       type (type_model_wrapper), pointer :: model
+      type (type_variable_node), pointer :: node
 
       call c_f_pointer(pmodel, model)
       nstate_interior = size(model%p%interior_state_variables)
@@ -226,8 +246,21 @@ contains
       nstate_bottom = size(model%p%bottom_state_variables)
       ndiagnostic_interior = size(model%p%interior_diagnostic_variables)
       ndiagnostic_horizontal = size(model%p%horizontal_diagnostic_variables)
+
+      ndependencies_interior = 0
+      ndependencies_horizontal = 0
+      ndependencies_scalar = 0
+      node => model%environment%first
+      do while (associated(node))
+         select case (node%target%domain)
+         case (domain_interior); ndependencies_interior = ndependencies_interior + 1
+         case (domain_scalar);   ndependencies_scalar = ndependencies_scalar + 1
+         case default;           ndependencies_horizontal = ndependencies_horizontal + 1
+         end select
+         node => node%next
+      end do
+
       nconserved = size(model%p%conserved_quantities)
-      ndependencies = model%environment%count
       nparameters = model%p%root%parameters%size()
       ncouplings = model%coupling_link_list%count()
    end subroutine get_counts
@@ -273,7 +306,7 @@ contains
       type (type_model_wrapper),     pointer :: model
       type (type_internal_variable), pointer :: variable
       type (type_variable_node),     pointer :: node
-      integer :: i
+      integer                                :: i, domain
 
       call c_f_pointer(pmodel, model)
 
@@ -291,17 +324,25 @@ contains
          variable => model%p%horizontal_diagnostic_variables(index)%target
       case (CONSERVED_QUANTITY)
          variable => model%p%conserved_quantities(index)%target
-      case (DEPENDENCY)
+      case (INTERIOR_DEPENDENCY, HORIZONTAL_DEPENDENCY, SCALAR_DEPENDENCY)
+         select case (category)
+         case (INTERIOR_DEPENDENCY);   domain = domain_interior
+         case (HORIZONTAL_DEPENDENCY); domain = domain_horizontal
+         case (SCALAR_DEPENDENCY);     domain = domain_scalar
+         end select
          i = 0
          variable => null()
          node => model%environment%first
          do while (associated(node))
-            i = i + 1
-            if (i == index) variable => node%target
+            if (iand(node%target%domain, domain) /= 0) then
+               i = i + 1
+               if (i == index) variable => node%target
+            end if
             node => node%next
          end do
       end select
-      pvariable = c_loc(variable)
+      pvariable = c_null_ptr
+      if (associated(variable)) pvariable = c_loc(variable)
    end function get_variable
 
    subroutine get_parameter_metadata(pmodel, index, length, name, units, long_name, typecode, has_default) bind(c)
@@ -410,32 +451,53 @@ contains
 #endif
    end function
 
-   subroutine link_dependency_data(pmodel, pvariable, dat) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: link_dependency_data
+   subroutine link_interior_data(pmodel, pvariable, dat) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: link_interior_data
+      type (c_ptr),   intent(in), value  :: pmodel
+      type (c_ptr),   intent(in), value  :: pvariable
+      real(c_double) _ATTRIBUTES_GLOBAL_, target :: dat(*)
+
+      type (type_model_wrapper),          pointer :: model
+      type (type_internal_variable),      pointer :: variable
+      real(c_double) _ATTRIBUTES_GLOBAL_, pointer :: interior_data
+
+      call c_f_pointer(pmodel, model)
+      call c_f_pointer(pvariable, variable)
+      interior_data => c_f_pointer_interior(model, dat)
+      call model%p%link_interior_data(variable, interior_data)
+   end subroutine link_interior_data
+
+   subroutine link_horizontal_data(pmodel, pvariable, dat) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: link_horizontal_data
+      type (c_ptr),   intent(in), value  :: pmodel
+      type (c_ptr),   intent(in), value  :: pvariable
+      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, target :: dat(*)
+
+      type (type_model_wrapper),                     pointer :: model
+      type (type_internal_variable),                 pointer :: variable
+      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: horizontal_data
+
+      call c_f_pointer(pmodel, model)
+      call c_f_pointer(pvariable, variable)
+      horizontal_data => c_f_pointer_horizontal(model, dat)
+      call model%p%link_horizontal_data(variable, horizontal_data)
+   end subroutine link_horizontal_data
+
+   subroutine link_scalar(pmodel, pvariable, dat) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: link_scalar
       type (c_ptr),   intent(in), value  :: pmodel
       type (c_ptr),   intent(in), value  :: pvariable
       real(c_double), intent(in), target :: dat(*)
 
-      type (type_model_wrapper),                     pointer :: model
-      type (type_internal_variable),                 pointer :: variable
-      real(c_double) _ATTRIBUTES_GLOBAL_,            pointer :: interior_data
-      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: horizontal_data
-      real(c_double),                                pointer :: scalar_data
+      type (type_model_wrapper),     pointer :: model
+      type (type_internal_variable), pointer :: variable
+      real(c_double),                pointer :: scalar_data
 
       call c_f_pointer(pmodel, model)
       call c_f_pointer(pvariable, variable)
-      select case (variable%domain)
-      case (domain_interior)
-         interior_data => c_f_pointer_interior(model, dat)
-         call model%p%link_interior_data(variable, interior_data)
-      case (domain_scalar)
-         call c_f_pointer(c_loc(dat), scalar_data)
-         call model%p%link_scalar(variable, scalar_data)
-      case default
-         horizontal_data => c_f_pointer_horizontal(model, dat)
-         call model%p%link_horizontal_data(variable, horizontal_data)
-      end select
-   end subroutine link_dependency_data
+      call c_f_pointer(c_loc(dat), scalar_data)
+      call model%p%link_scalar(variable, scalar_data)
+   end subroutine link_scalar
 
    subroutine link_interior_state_data(pmodel, index, dat) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_interior_state_data
@@ -497,9 +559,17 @@ contains
       real(c_double) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, allocatable :: fluxes
       real(c_double) _ATTRIBUTES_GLOBAL_, pointer :: cell_thickness_
       _DECLARE_LOCATION_
-
 #  if _FABM_DIMENSION_COUNT_ > 0
       integer :: _LOCATION_RANGE_
+#  endif
+
+      call c_f_pointer(pmodel, model)
+      if (model%p%status < status_start_done) then
+         call driver%fatal_error('get_sources', 'start has not been called yet.')
+         return
+      end if
+
+#  if _FABM_DIMENSION_COUNT_ > 0
       istart__ = model%p%domain%start(1)
       istop__ = model%p%domain%stop(1)
       i__ = model%p%domain%shape(1)
@@ -514,12 +584,6 @@ contains
       kstop__ = model%p%domain%stop(3)
       k__ = model%p%domain%shape(3)
 #  endif
-
-      call c_f_pointer(pmodel, model)
-      if (model%p%status < status_start_done) then
-         call driver%fatal_error('get_sources', 'start has not been called yet.')
-         return
-      end if
 
       surface = int2logical(do_surface)
       bottom = int2logical(do_bottom)
@@ -667,11 +731,11 @@ contains
       valid_ = logical2int(all_valid)
    end function check_state
 
-   subroutine get_interior_diagnostic_data(pmodel, index, ptr) bind(c)
+   function get_interior_diagnostic_data(pmodel, index) result(ptr) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_interior_diagnostic_data
       type (c_ptr),   intent(in), value :: pmodel
       integer(c_int), intent(in), value :: index
-      type(c_ptr),    intent(out)       :: ptr
+      type(c_ptr)                       :: ptr
       real(rk) _ATTRIBUTES_GLOBAL_, pointer :: pvalue
 
       type (type_model_wrapper), pointer :: model
@@ -680,13 +744,13 @@ contains
       ptr = c_null_ptr
       pvalue => model%p%get_interior_diagnostic_data(index)
       if (associated(pvalue)) ptr = c_loc(pvalue)
-   end subroutine get_interior_diagnostic_data
+   end function get_interior_diagnostic_data
 
-   subroutine get_horizontal_diagnostic_data(pmodel, index, ptr) bind(c)
+   function get_horizontal_diagnostic_data(pmodel, index) result(ptr) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_horizontal_diagnostic_data
       type (c_ptr),   intent(in), value :: pmodel
       integer(c_int), intent(in), value :: index
-      type(c_ptr),    intent(out)       :: ptr
+      type(c_ptr)                       :: ptr
       real(rk) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: pvalue
 
       type (type_model_wrapper), pointer :: model
@@ -695,7 +759,7 @@ contains
       ptr = c_null_ptr
       pvalue => model%p%get_horizontal_diagnostic_data(index)
       if (associated(pvalue)) ptr = c_loc(pvalue)
-   end subroutine get_horizontal_diagnostic_data
+   end function get_horizontal_diagnostic_data
 
    subroutine finalize(model)
       type (type_model_wrapper), intent(inout) :: model

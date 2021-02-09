@@ -47,7 +47,7 @@ add_custom_command(OUTPUT wheel.stamp
                    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:fabm_c>" pyfabm/
                    COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" bdist_wheel
                    VERBATIM)
-add_custom_target(wheel ALL DEPENDS wheel.stamp)
+add_custom_target(wheel ALL DEPENDS wheel.stamp SOURCES pyfabm/__init__.py)
 
 # Let pip install the wheel
 install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install --no-index --find-links=${CMAKE_CURRENT_BINARY_DIR}/dist --user --force-reinstall --upgrade pyfabm WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dist)")

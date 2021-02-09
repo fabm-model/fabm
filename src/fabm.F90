@@ -2808,15 +2808,19 @@ contains
    subroutine reset_store(self)
       class (type_fabm_model), intent(inout) :: self
 
-      integer :: i
+      integer   :: i
+      real(rke) :: fill_value
 
       ! Initialize persistent store entries to fill value.
       ! For constant outputs, their values will be set here, and never touched again.
+      ! The intermediate variable fill_value is used to prevent ifort 19.2 from putting large temporary arrays on the stack
       do i = 1, self%variable_register%store%interior%count
-         self%store%interior(_PREARG_LOCATION_DIMENSIONS_ i) = self%store%interior_fill_value(i)
+         fill_value = self%store%interior_fill_value(i)
+         self%store%interior(_PREARG_LOCATION_DIMENSIONS_ i) = fill_value
       end do
       do i = 1, self%variable_register%store%horizontal%count
-         self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = self%store%horizontal_fill_value(i)
+         fill_value = self%store%horizontal_fill_value(i)
+         self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = fill_value
       end do
    end subroutine
 
