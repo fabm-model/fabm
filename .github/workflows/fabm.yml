@@ -8,6 +8,6 @@ jobs:
       runs-on: ubuntu-latest
       steps:
       - uses: actions/checkout@v2
-      - run: sudo apt-get install gfortran-{{ matrix.version }} python-numpy
-      - run: python util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-{{ matrix.version }}
-      - run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-{{ matrix.version }}
+      - run: sudo apt-get install gfortran-${{ matrix.version }} python-numpy
+      - run: python util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-${{ matrix.version }}
+      - run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-${{ matrix.version }}
