@@ -1,0 +1,60 @@
+name: Build and test
+on: push
+jobs:
+   gfortran:
+      strategy:
+         matrix:
+            version: [5, 6, 7, 8, 9]
+            include:
+               - version: 8
+                 cmake_args: -DFABM_USE_CONTIGUOUS=OFF
+         fail-fast: false
+      runs-on: ubuntu-latest
+      steps:
+      - name: Install dependencies
+        run: sudo apt-get install gfortran-${{ matrix.version }} python-numpy python-wheel
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Run all test cases with host emulators
+        run: python util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
+      - name: Run all test cases with pyfabm
+        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
+   ifort:
+      runs-on: ubuntu-latest
+      steps:
+      - name: Install compiler
+        run: |
+           wget --no-verbose https://registrationcenter-download.intel.com/akdlm/irc_nas/17508/l_fortran-compiler_p_2021.1.2.62_offline.sh
+           /bin/sh l_fortran-compiler_p_2021.1.2.62_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
+      - name: Install dependencies
+        run: sudo apt-get install python-numpy python-wheel
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Run all test cases with host emulators
+        run: |
+           source ${HOME}/intel/setvars.sh
+           python util/developers/run_all_testcases.py harness --show_logs --compiler ifort
+      - name: Run all test cases with pyfabm
+        run: |
+           source ${HOME}/intel/setvars.sh
+           python util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifort
+   nvfortran:
+      runs-on: ubuntu-latest
+      steps:
+      - name: Install compiler
+        run: |
+           wget --no-verbose https://developer.download.nvidia.com/hpc-sdk/20.9/nvhpc_2020_209_Linux_x86_64_cuda_11.0.tar.gz
+           tar xpzf nvhpc_2020_209_Linux_x86_64_cuda_11.0.tar.gz
+           nvhpc_2020_209_Linux_x86_64_cuda_11.0/install
+        env:
+           NVHPC_SILENT: true
+           NVHPC_INSTALL_DIR: /home/runner/nvhpc
+           NVHPC_INSTALL_TYPE: single
+      - name: Install dependencies
+        run: sudo apt-get install python-numpy python-wheel
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Run all test cases with host emulators
+        run: python util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
+      - name: Run all test cases with pyfabm
+        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
