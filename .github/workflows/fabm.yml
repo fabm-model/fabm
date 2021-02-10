@@ -15,8 +15,9 @@ jobs:
    ifort:
       runs-on: ubuntu-latest
       steps:
-      - run: |
-           wget --progress=dot https://registrationcenter-download.intel.com/akdlm/irc_nas/17508/l_fortran-compiler_p_2021.1.2.62_offline.sh
+      - name: install compiler
+        run: |
+           wget --no-verbose https://registrationcenter-download.intel.com/akdlm/irc_nas/17508/l_fortran-compiler_p_2021.1.2.62_offline.sh
            /bin/sh l_fortran-compiler_p_2021.1.2.62_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
       - run: sudo apt-get install python-numpy python-wheel
       - uses: actions/checkout@v2
@@ -29,8 +30,9 @@ jobs:
    pgi:
       runs-on: ubuntu-latest
       steps:
-      - run: |
-           wget --progress=dot https://developer.download.nvidia.com/hpc-sdk/20.9/nvhpc_2020_209_Linux_x86_64_cuda_11.0.tar.gz
+      - name: install compiler
+        run: |
+           wget --no-verbose https://developer.download.nvidia.com/hpc-sdk/20.9/nvhpc_2020_209_Linux_x86_64_cuda_11.0.tar.gz
            tar xpzf nvhpc_2020_209_Linux_x86_64_cuda_11.0.tar.gz
            nvhpc_2020_209_Linux_x86_64_cuda_11.0/install
         env:
