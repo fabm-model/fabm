@@ -1,4 +1,4 @@
-name: FABM
+name: Build and test
 on: push
 jobs:
    gfortran:
@@ -40,7 +40,7 @@ jobs:
            nvhpc_2020_209_Linux_x86_64_cuda_11.0/install
         env:
            NVHPC_SILENT: true
-           NVHPC_INSTALL_DIR: ${HOME}/nvhpc
+           NVHPC_INSTALL_DIR: ${{ env.HOME }}/nvhpc
            NVHPC_INSTALL_TYPE: single
       - run: sudo apt-get install python-numpy python-wheel
       - uses: actions/checkout@v2
