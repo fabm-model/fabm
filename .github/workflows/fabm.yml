@@ -30,7 +30,7 @@ jobs:
       - run: |
            source ${HOME}/intel/setvars.sh
            python util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifort
-   pgi:
+   nvfortran:
       runs-on: ubuntu-latest
       steps:
       - name: Install compiler
@@ -40,9 +40,9 @@ jobs:
            nvhpc_2020_209_Linux_x86_64_cuda_11.0/install
         env:
            NVHPC_SILENT: true
-           NVHPC_INSTALL_DIR: ${{ env.HOME }}/nvhpc
+           NVHPC_INSTALL_DIR: ${{ github.workspace }}/nvhpc
            NVHPC_INSTALL_TYPE: single
       - run: sudo apt-get install python-numpy python-wheel
       - uses: actions/checkout@v2
-      - run: python util/developers/run_all_testcases.py harness --show_logs --compiler ${HOME}/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
-      - run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler ${HOME}/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
+      - run: python util/developers/run_all_testcases.py harness --show_logs --compiler ${{ github.workspace }}/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
+      - run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler ${{ github.workspace }}/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
