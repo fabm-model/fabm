@@ -11,10 +11,14 @@ jobs:
          fail-fast: false
       runs-on: ubuntu-latest
       steps:
-      - run: sudo apt-get install gfortran-${{ matrix.version }} python-numpy python-wheel
-      - uses: actions/checkout@v2
-      - run: python util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
-      - run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
+      - name: Install dependencies
+        run: sudo apt-get install gfortran-${{ matrix.version }} python-numpy python-wheel
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Run all test cases with host emulators
+        run: python util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
+      - name: Run all test cases with pyfabm
+        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
    ifort:
       runs-on: ubuntu-latest
       steps:
@@ -22,12 +26,16 @@ jobs:
         run: |
            wget --no-verbose https://registrationcenter-download.intel.com/akdlm/irc_nas/17508/l_fortran-compiler_p_2021.1.2.62_offline.sh
            /bin/sh l_fortran-compiler_p_2021.1.2.62_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
-      - run: sudo apt-get install python-numpy python-wheel
-      - uses: actions/checkout@v2
-      - run: |
+      - name: Install dependencies
+        run: sudo apt-get install python-numpy python-wheel
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Run all test cases with host emulators
+        run: |
            source ${HOME}/intel/setvars.sh
            python util/developers/run_all_testcases.py harness --show_logs --compiler ifort
-      - run: |
+      - name: Run all test cases with pyfabm
+        run: |
            source ${HOME}/intel/setvars.sh
            python util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifort
    nvfortran:
@@ -40,9 +48,13 @@ jobs:
            nvhpc_2020_209_Linux_x86_64_cuda_11.0/install
         env:
            NVHPC_SILENT: true
-           NVHPC_INSTALL_DIR: ${{ github.workspace }}/nvhpc
+           NVHPC_INSTALL_DIR: /home/runner/nvhpc
            NVHPC_INSTALL_TYPE: single
-      - run: sudo apt-get install python-numpy python-wheel
-      - uses: actions/checkout@v2
-      - run: python util/developers/run_all_testcases.py harness --show_logs --compiler ${{ github.workspace }}/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
-      - run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler ${{ github.workspace }}/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
+      - name: Install dependencies
+        run: sudo apt-get install python-numpy python-wheel
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Run all test cases with host emulators
+        run: python util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
+      - name: Run all test cases with pyfabm
+        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
