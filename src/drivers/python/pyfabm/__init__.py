@@ -662,8 +662,8 @@ class Model(object):
             return ready
 
         ready = process_dependencies(self.interior_dependencies, fabm.link_interior_data)
-        ready = ready and process_dependencies(self.horizontal_dependencies, fabm.link_horizontal_data)
-        ready = ready and process_dependencies(self.scalar_dependencies, fabm.link_scalar)
+        ready = process_dependencies(self.horizontal_dependencies, fabm.link_horizontal_data) and ready
+        ready = process_dependencies(self.scalar_dependencies, fabm.link_scalar) and ready
         assert ready or not stop, 'Not all dependencies have been fulfilled.'
 
         fabm.start(self.pmodel)
