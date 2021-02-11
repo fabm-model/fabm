@@ -251,6 +251,8 @@ contains
       class (type_particle_model), pointer :: source_model
       logical                              :: require_internal_variables_
 
+      model => null()
+
       select case (reference%state)
       case (busy)
          call self%fatal_error('resolve_model_reference', 'Circular dependency')
@@ -263,8 +265,10 @@ contains
 
       ! First find a coupling for the referenced model.
       model_master_name => self%couplings%find_in_tree(reference%name)
-      if (.not. associated(model_master_name)) call self%fatal_error('resolve_model_reference', &
-         'Model reference "' // trim(reference%name) // '" was not coupled.')
+      if (.not. associated(model_master_name)) then
+         call self%fatal_error('resolve_model_reference', 'Model reference "' // trim(reference%name) // '" was not coupled.')
+         return
+      end if
 
       select type (model_master_name)
       class is (type_string_property)
@@ -304,8 +308,11 @@ contains
             end if
          end if
 
-         if (.not. associated(reference%model)) call self%fatal_error('resolve_model_reference', &
-            'Referenced model instance "' // trim(model_master_name%value) // '" not found.')
+         if (.not. associated(reference%model)) then
+            call self%fatal_error('resolve_model_reference', &
+               'Referenced model instance "' // trim(model_master_name%value) // '" not found.')
+            return
+         end if
       end select
 
       reference%state = done
@@ -351,6 +358,7 @@ contains
       reference => self%first_model_reference
       do while (associated(reference))
          model => resolve_model_reference(self, reference, require_internal_variables=associated(reference%id))
+         if (.not. associated(model)) return
          if (associated(reference%id)) then
             call build_state_id_list(self, reference, domain_interior)
             call build_state_id_list(self, reference, domain_surface)
