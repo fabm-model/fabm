@@ -455,7 +455,7 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: link_interior_data
       type (c_ptr),   intent(in), value  :: pmodel
       type (c_ptr),   intent(in), value  :: pvariable
-      real(c_double) _ATTRIBUTES_GLOBAL_, target :: dat(*)
+      real(c_double), intent(in), target :: dat(*)
 
       type (type_model_wrapper),          pointer :: model
       type (type_internal_variable),      pointer :: variable
@@ -471,7 +471,7 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: link_horizontal_data
       type (c_ptr),   intent(in), value  :: pmodel
       type (c_ptr),   intent(in), value  :: pvariable
-      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, target :: dat(*)
+      real(c_double), intent(in), target :: dat(*)
 
       type (type_model_wrapper),                     pointer :: model
       type (type_internal_variable),                 pointer :: variable
