@@ -4,7 +4,7 @@ import pyfabm
 try:
     from PySide import QtCore,QtGui
 except ImportError:
-    print 'Unable to load PySide. Is it installed?'
+    print('Unable to load PySide. Is it installed?')
     sys.exit(1)
 
 class Delegate(QtGui.QStyledItemDelegate):
@@ -331,7 +331,7 @@ class ScientificDoubleValidator(QtGui.QValidator):
 
         if self.minimum is not None and v<self.minimum: input = u'%s%s' % (self.minimum,self.suffix)
         if self.maximum is not None and v>self.maximum: input = u'%s%s' % (self.maximum,self.suffix)
-        print u'"%s"' % input
+        print(u'"%s"' % input)
         return input
 
     def setSuffix(self,suffix):

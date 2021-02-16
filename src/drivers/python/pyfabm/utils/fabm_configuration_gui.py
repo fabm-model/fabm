@@ -9,7 +9,7 @@ import sys
 try:
     import pyfabm
 except ImportError:
-    print 'Unable to load pyfabm. See https://github.com/fabm-model/code/wiki/python.'
+    print('Unable to load pyfabm. See https://github.com/fabm-model/code/wiki/python.')
     sys.exit(1)
 import pyfabm.gui_qt
 
@@ -19,7 +19,7 @@ def main():
     import argparse
     # Parse command line arguments.
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('path',help='Path to a YAML file with the model configuration (typically fabm.yaml)',nargs='?',default='fabm.yaml')
+    parser.add_argument('path', help='Path to a YAML file with the model configuration (typically fabm.yaml)', nargs='?', default='fabm.yaml')
     args = parser.parse_args()
 
     # Create model object
