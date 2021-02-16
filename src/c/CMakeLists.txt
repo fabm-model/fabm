@@ -13,6 +13,6 @@ target_link_libraries(fabm_c fabm)
 
 # Set module directory (where *.mod will be saved by the compiler)
 set_property(TARGET fabm_c PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
-target_include_directories(fabm_c PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules> $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../include> $<INSTALL_INTERFACE:include>)
+target_include_directories(fabm_c PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules>)
 
 set_property(TARGET fabm_c PROPERTY FOLDER fabm)
