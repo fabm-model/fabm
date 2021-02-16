@@ -248,8 +248,18 @@ endif()
 
 # Store FABM *.mod in separate directory, so these files can later be installed.
 set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/modules")
-target_include_directories(fabm_base PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules> $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../include> $<INSTALL_INTERFACE:include>)
-target_include_directories(fabm PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules> $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../include> $<INSTALL_INTERFACE:include>)
+target_include_directories(fabm_base PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../include>
+  $<INSTALL_INTERFACE:include>
+)
+target_include_directories(fabm PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../include>
+  $<INSTALL_INTERFACE:include>
+)
 
 # Add directories with model-specific *.mod to include directories of main FABM library.
 target_include_directories(fabm PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -273,7 +283,7 @@ if(YAML_SOURCES)
   # YAML is integrated into FABM library; we only need to set the proper include directory
   target_include_directories(test_host PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
 else()
-  # YAML library is stand-alone - target_link_libraries will add both include direcotry and library
+  # YAML library is stand-alone - target_link_libraries will add both include directory and library
   target_link_libraries(test_host PRIVATE yaml)
 endif()
 
