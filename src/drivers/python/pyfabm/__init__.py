@@ -13,162 +13,169 @@ except ImportError:
    print('Unable to import NumPy. Please ensure it is installed.')
    sys.exit(1)
 
-# Determine potential names of FABM dynamic library.
-if os.name == 'nt':
-   dllpaths = ('fabm_c.dll', 'libfabm_c.dll')
-elif os.name == 'posix' and sys.platform == 'darwin':
-   dllpaths = ('libfabm_c.dylib',)
-else:
-   dllpaths = ('libfabm_c.so',)
+def find_library(basedir, names):
+    for name in names:
+        path = os.path.join(basedir, name)
+        if os.path.isfile(path):
+            return path
 
-def find_library(basedir):
-    for dllpath in dllpaths:
-        dllpath = os.path.join(basedir, dllpath)
-        if os.path.isfile(dllpath):
-            return dllpath
+def wrap(name):
+    # Determine potential names of dynamic library.
+    if os.name == 'nt':
+       names = ('%s.dll' % name, 'lib%s.dll' % name)
+    elif os.name == 'posix' and sys.platform == 'darwin':
+       names = ('lib%s.dylib' % name,)
+    else:
+       names = ('lib%s.so' % name,)
 
-# Find FABM dynamic library.
-# Look first in pyfabm directory, then in Python path.
-dllpath = find_library(os.path.dirname(os.path.abspath(__file__)))
-if not dllpath:
-    for basedir in sys.path:
-        dllpath = find_library(basedir)
-        if dllpath:
-            break
+    # Find FABM dynamic library.
+    # Look first in pyfabm directory, then in Python path.
+    path = find_library(os.path.dirname(os.path.abspath(__file__)), names)
+    if not path:
+        for basedir in sys.path:
+            path = find_library(basedir, names)
+            if path:
+                break
+        else:
+            print('Unable to locate dynamic library %s (tried %s).' % (name, ', '.join(names),))
+            return
 
-if not dllpath:
-   print('Unable to locate FABM dynamic library %s.' % (' or '.join(dllpaths),))
-   sys.exit(1)
+    # Load FABM library.
+    lib = ctypes.CDLL(str(path))
 
-# Load FABM library.
-fabm = ctypes.CDLL(str(dllpath))
+    # Driver settings (number of spatial dimensions, depth index)
+    lib.get_driver_settings.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
+    lib.get_driver_settings.restype = ctypes.c_void_p
 
-# Driver settings (number of spatial dimensions, depth index)
-fabm.get_driver_settings.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
-fabm.get_driver_settings.restype = ctypes.c_void_p
+    ndim_c = ctypes.c_int()
+    idepthdim_c = ctypes.c_int()
+    lib.get_driver_settings(ctypes.byref(ndim_c), ctypes.byref(idepthdim_c))
+    assert idepthdim_c.value == -1, 'pyfabm currently only handles spatial domains without deph dimension'
+    ndim_int = ndim_hz = ndim_c.value
+    lib.ndim_int = ndim_int
 
-ndim_c = ctypes.c_int()
-idepthdim_c = ctypes.c_int()
-fabm.get_driver_settings(ctypes.byref(ndim_c), ctypes.byref(idepthdim_c))
-assert idepthdim_c.value == -1, 'pyfabm currently only handles spatial domains without deph dimension'
-ndim_int = ndim_hz = ndim_c.value
+    CONTIGUOUS = str('CONTIGUOUS')
+    arrtype0D = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=0, flags=CONTIGUOUS)
+    arrtype1D = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS)
+    arrtypeInterior = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_int, flags=CONTIGUOUS)
+    arrtypeHorizontal = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_hz, flags=CONTIGUOUS)
+    arrtypeInteriorExt = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_int + 1, flags=CONTIGUOUS)
+    arrtypeHorizontalExt = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_hz + 1, flags=CONTIGUOUS)
+    arrtypeInteriorExt2 = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_int + 2, flags=CONTIGUOUS)
+    arrtypeHorizontalExt2 = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_hz + 2, flags=CONTIGUOUS)
 
-CONTIGUOUS = str('CONTIGUOUS')
-arrtype0D = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=0, flags=CONTIGUOUS)
-arrtype1D = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS)
-arrtypeInterior = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_int, flags=CONTIGUOUS)
-arrtypeHorizontal = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_hz, flags=CONTIGUOUS)
-arrtypeInteriorExt = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_int + 1, flags=CONTIGUOUS)
-arrtypeHorizontalExt = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_hz + 1, flags=CONTIGUOUS)
-arrtypeInteriorExt2 = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_int + 2, flags=CONTIGUOUS)
-arrtypeHorizontalExt2 = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_hz + 2, flags=CONTIGUOUS)
+    # Initialization
+    lib.create_model.argtypes = [ctypes.c_char_p] + [ctypes.c_int] * ndim_int
+    lib.create_model.restype = ctypes.c_void_p
 
-# Initialization
-fabm.create_model.argtypes = [ctypes.c_char_p] + [ctypes.c_int] * ndim_int
-fabm.create_model.restype = ctypes.c_void_p
+    # Access to model objects (variables, parameters, dependencies, couplings, model instances)
+    lib.get_counts.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
+    lib.get_counts.restype = None
+    lib.get_variable_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
+    lib.get_variable_metadata.restype = None
+    lib.get_variable.argtypes = [ctypes.c_void_p, ctypes.c_int,ctypes.c_int]
+    lib.get_variable.restype = ctypes.c_void_p
+    lib.get_parameter_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
+    lib.get_parameter_metadata.restype = None
+    lib.get_model_metadata.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int)]
+    lib.get_model_metadata.restype = None
+    lib.get_coupling.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_void_p)]
+    lib.get_coupling.restype = None
+    lib.get_error_state.argtypes = []
+    lib.get_error_state.restype = ctypes.c_int
+    lib.get_error.argtypes = [ctypes.c_int, ctypes.c_char_p]
+    lib.get_error.restype = None
+    lib.reset_error_state.argtypes = []
+    lib.reset_error_state.restype = None
 
-# Access to model objects (variables, parameters, dependencies, couplings, model instances)
-fabm.get_counts.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
-fabm.get_counts.restype = None
-fabm.get_variable_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
-fabm.get_variable_metadata.restype = None
-fabm.get_variable.argtypes = [ctypes.c_void_p, ctypes.c_int,ctypes.c_int]
-fabm.get_variable.restype = ctypes.c_void_p
-fabm.get_parameter_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
-fabm.get_parameter_metadata.restype = None
-fabm.get_model_metadata.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int)]
-fabm.get_model_metadata.restype = None
-fabm.get_coupling.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_void_p)]
-fabm.get_coupling.restype = None
-fabm.get_error_state.argtypes = []
-fabm.get_error_state.restype = ctypes.c_int
-fabm.get_error.argtypes = [ctypes.c_int, ctypes.c_char_p]
-fabm.get_error.restype = None
-fabm.reset_error_state.argtypes = []
-fabm.reset_error_state.restype = None
+    # Read access to variable attributes
+    lib.variable_get_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
+    lib.variable_get_metadata.restype = None
+    lib.variable_get_background_value.argtypes = [ctypes.c_void_p]
+    lib.variable_get_background_value.restype = ctypes.c_double
+    lib.variable_get_long_path.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p]
+    lib.variable_get_long_path.restype = None
+    lib.variable_get_output_name.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p]
+    lib.variable_get_output_name.restype = None
+    lib.variable_get_suitable_masters.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    lib.variable_get_suitable_masters.restype = ctypes.c_void_p
+    lib.variable_get_output.argtypes = [ctypes.c_void_p]
+    lib.variable_get_output.restype = ctypes.c_int
+    lib.variable_is_required.argtypes = [ctypes.c_void_p]
+    lib.variable_is_required.restype = ctypes.c_int
+    lib.variable_get_real_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_double]
+    lib.variable_get_real_property.restype = ctypes.c_double
 
-# Read access to variable attributes
-fabm.variable_get_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
-fabm.variable_get_metadata.restype = None
-fabm.variable_get_background_value.argtypes = [ctypes.c_void_p]
-fabm.variable_get_background_value.restype = ctypes.c_double
-fabm.variable_get_long_path.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p]
-fabm.variable_get_long_path.restype = None
-fabm.variable_get_output_name.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p]
-fabm.variable_get_output_name.restype = None
-fabm.variable_get_suitable_masters.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
-fabm.variable_get_suitable_masters.restype = ctypes.c_void_p
-fabm.variable_get_output.argtypes = [ctypes.c_void_p]
-fabm.variable_get_output.restype = ctypes.c_int
-fabm.variable_is_required.argtypes = [ctypes.c_void_p]
-fabm.variable_is_required.restype = ctypes.c_int
-fabm.variable_get_real_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_double]
-fabm.variable_get_real_property.restype = ctypes.c_double
+    # Read/write/reset access to parameters.
+    lib.get_real_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
+    lib.get_real_parameter.restype = ctypes.c_double
+    lib.get_integer_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
+    lib.get_integer_parameter.restype = ctypes.c_int
+    lib.get_logical_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
+    lib.get_logical_parameter.restype = ctypes.c_int
+    lib.get_string_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p]
+    lib.get_string_parameter.restype = None
+    lib.reset_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int]
+    lib.reset_parameter.restype = None
+    lib.set_real_parameter.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_double]
+    lib.set_real_parameter.restype = None
+    lib.set_integer_parameter.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    lib.set_integer_parameter.restype = None
+    lib.set_logical_parameter.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    lib.set_logical_parameter.restype = None
+    lib.set_string_parameter.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
+    lib.set_string_parameter.restype = None
 
-# Read/write/reset access to parameters.
-fabm.get_real_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
-fabm.get_real_parameter.restype = ctypes.c_double
-fabm.get_integer_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
-fabm.get_integer_parameter.restype = ctypes.c_int
-fabm.get_logical_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
-fabm.get_logical_parameter.restype = ctypes.c_int
-fabm.get_string_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p]
-fabm.get_string_parameter.restype = None
-fabm.reset_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int]
-fabm.reset_parameter.restype = None
-fabm.set_real_parameter.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_double]
-fabm.set_real_parameter.restype = None
-fabm.set_integer_parameter.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-fabm.set_integer_parameter.restype = None
-fabm.set_logical_parameter.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-fabm.set_logical_parameter.restype = None
-fabm.set_string_parameter.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
-fabm.set_string_parameter.restype = None
+    # Read access to lists of variables (e.g., suitable coupling targets).
+    lib.link_list_count.argtypes = [ctypes.c_void_p]
+    lib.link_list_count.restype = ctypes.c_int
+    lib.link_list_index.argtypes = [ctypes.c_void_p, ctypes.c_int]
+    lib.link_list_index.restype = ctypes.c_void_p
+    lib.link_list_finalize.argtypes = [ctypes.c_void_p]
+    lib.link_list_finalize.restype = None
 
-# Read access to lists of variables (e.g., suitable coupling targets).
-fabm.link_list_count.argtypes = [ctypes.c_void_p]
-fabm.link_list_count.restype = ctypes.c_int
-fabm.link_list_index.argtypes = [ctypes.c_void_p, ctypes.c_int]
-fabm.link_list_index.restype = ctypes.c_void_p
-fabm.link_list_finalize.argtypes = [ctypes.c_void_p]
-fabm.link_list_finalize.restype = None
+    # Routines for sending pointers to state and dependency data.
+    lib.link_interior_state_data.argtypes = [ctypes.c_void_p, ctypes.c_int, arrtypeInterior]
+    lib.link_interior_state_data.restype = None
+    lib.link_surface_state_data.argtypes = [ctypes.c_void_p, ctypes.c_int, arrtypeHorizontal]
+    lib.link_surface_state_data.restype = None
+    lib.link_bottom_state_data.argtypes = [ctypes.c_void_p, ctypes.c_int, arrtypeHorizontal]
+    lib.link_bottom_state_data.restype = None
+    lib.link_interior_data.argtypes = [ctypes.c_void_p, ctypes.c_void_p, arrtypeInterior]
+    lib.link_interior_data.restype = None
+    lib.link_horizontal_data.argtypes = [ctypes.c_void_p, ctypes.c_void_p, arrtypeHorizontal]
+    lib.link_horizontal_data.restype = None
+    lib.link_scalar.argtypes = [ctypes.c_void_p, ctypes.c_void_p, arrtype0D]
+    lib.link_scalar.restype = None
 
-# Routines for sending pointers to state and dependency data.
-fabm.link_interior_state_data.argtypes = [ctypes.c_void_p, ctypes.c_int, arrtypeInterior]
-fabm.link_interior_state_data.restype = None
-fabm.link_surface_state_data.argtypes = [ctypes.c_void_p, ctypes.c_int, arrtypeHorizontal]
-fabm.link_surface_state_data.restype = None
-fabm.link_bottom_state_data.argtypes = [ctypes.c_void_p, ctypes.c_int, arrtypeHorizontal]
-fabm.link_bottom_state_data.restype = None
-fabm.link_interior_data.argtypes = [ctypes.c_void_p, ctypes.c_void_p, arrtypeInterior]
-fabm.link_interior_data.restype = None
-fabm.link_horizontal_data.argtypes = [ctypes.c_void_p, ctypes.c_void_p, arrtypeHorizontal]
-fabm.link_horizontal_data.restype = None
-fabm.link_scalar.argtypes = [ctypes.c_void_p, ctypes.c_void_p, arrtype0D]
-fabm.link_scalar.restype = None
+    # Read access to diagnostic data.
+    lib.get_interior_diagnostic_data.argtypes = [ctypes.c_void_p, ctypes.c_int]
+    lib.get_interior_diagnostic_data.restype = ctypes.POINTER(ctypes.c_double)
+    lib.get_horizontal_diagnostic_data.argtypes = [ctypes.c_void_p, ctypes.c_int]
+    lib.get_horizontal_diagnostic_data.restype = ctypes.POINTER(ctypes.c_double)
 
-# Read access to diagnostic data.
-fabm.get_interior_diagnostic_data.argtypes = [ctypes.c_void_p, ctypes.c_int]
-fabm.get_interior_diagnostic_data.restype = ctypes.POINTER(ctypes.c_double)
-fabm.get_horizontal_diagnostic_data.argtypes = [ctypes.c_void_p, ctypes.c_int]
-fabm.get_horizontal_diagnostic_data.restype = ctypes.POINTER(ctypes.c_double)
+    lib.start.argtypes = [ctypes.c_void_p]
+    lib.start.restype = None
 
-fabm.start.argtypes = [ctypes.c_void_p]
-fabm.start.restype = None
+    # Routine for retrieving source-sink terms for the interior domain.
+    lib.get_sources.argtypes = [ctypes.c_void_p, ctypes.c_double, arrtypeInteriorExt, arrtypeHorizontalExt, arrtypeHorizontalExt, ctypes.c_int, ctypes.c_int, arrtypeInterior]
+    lib.get_sources.restype = None
+    lib.check_state.argtypes = [ctypes.c_void_p, ctypes.c_int]
+    lib.check_state.restype = ctypes.c_int
 
-# Routine for retrieving source-sink terms for the interior domain.
-fabm.get_sources.argtypes = [ctypes.c_void_p, ctypes.c_double, arrtypeInteriorExt, arrtypeHorizontalExt, arrtypeHorizontalExt, ctypes.c_int, ctypes.c_int, arrtypeInterior]
-fabm.get_sources.restype = None
-fabm.check_state.argtypes = [ctypes.c_void_p, ctypes.c_int]
-fabm.check_state.restype = ctypes.c_int
+    # Routine for getting git repository version information.
+    lib.get_version.argtypes = (ctypes.c_int, ctypes.c_char_p)
+    lib.get_version.restype = None
 
-# Routine for getting git repository version information.
-fabm.get_version.argtypes = (ctypes.c_int, ctypes.c_char_p)
-fabm.get_version.restype = None
+    if ndim_int == 0:
+        lib.integrate.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, arrtype1D, arrtypeInteriorExt, arrtypeInteriorExt2, ctypes.c_double, ctypes.c_int, ctypes.c_int, arrtypeInterior]
+        lib.integrate.restype = None
 
-if ndim_int == 0:
-    fabm.integrate.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, arrtype1D, arrtypeInteriorExt, arrtypeInteriorExt2, ctypes.c_double, ctypes.c_int, ctypes.c_int, arrtypeInterior]
-    fabm.integrate.restype = None
+    return lib
+
+fabm = wrap('fabm_0d')
+if fabm is None:
+    sys.exit(1)
 
 INTERIOR_STATE_VARIABLE        = 1
 SURFACE_STATE_VARIABLE         = 2
@@ -424,8 +431,8 @@ class SubModel(object):
 
 class Model(object):
     def __init__(self, path='fabm.yaml', shape=()):
-        if len(shape) != ndim_int:
-            raise FABMException('Domain shape %s has %i elements, but should have %i: one per spatial dimension.' % (shape, len(shape), ndim_int))
+        if len(shape) != fabm.ndim_int:
+            raise FABMException('Domain shape %s has %i elements, but should have %i: one per spatial dimension.' % (shape, len(shape), fabm.ndim_int))
         fabm.reset_error_state()
         self.lookup_tables = {}
         self._cell_thickness = None

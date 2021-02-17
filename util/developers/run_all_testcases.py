@@ -184,13 +184,24 @@ def test_gotm(args, testcases):
         test(args.gotm_setup, args.work_root, testcases, args.cmake, cmake_arguments=args.cmake_arguments)
 
 def test_pyfabm(args, testcases):
-    build_dir = os.path.join(args.work_root, 'build')
-    if not cmake('test_pyfabm', build_dir, os.path.join(fabm_base, 'src/drivers/python'), args.cmake, cmake_arguments=['-DCMAKE_BUILD_TYPE=debug', '-DPYTHON_EXECUTABLE=%s' % sys.executable] + args.cmake_arguments):
+    #sys.path.insert(0, os.path.join(args.work_root, 'lib/python'))
+    #os.makedirs(os.path.join(args.work_root, 'lib/python'))
+    #with open(os.path.join(args.work_root, 'lib/python/easy_install.pth'), 'w') as f:
+    #    pass
+    #if run('test/pyfabm/build', [sys.executable, 'setup.py', 'install', '--home', args.work_root], cwd=os.path.join(fabm_base, 'src/drivers/python'), verbose=True) != 0:
+    extra_args = []
+    if args.compiler is not None:
+        extra_args.append('--compiler=%s' % args.compiler)
+    if run('test/pyfabm/make_wheel', [sys.executable, 'setup.py', 'bdist_wheel'] + extra_args, cwd=os.path.join(fabm_base, 'src/drivers/python')) != 0:
         return
-    sys.path.insert(0, build_dir)
+    if run('test/pyfabm/install', [sys.executable, '-m', 'pip', 'install', 'pyfabm', '--no-index', '--find-links=dist', '--target=%s' % args.work_root], cwd=os.path.join(fabm_base, 'src/drivers/python')) != 0:
+        return
+    #if run('test/pyfabm/build', [sys.executable, '-m', 'pip', 'install', os.path.join(fabm_base, 'src/drivers/python'), '--target=%s' % args.work_root], cwd=os.path.join(fabm_base, 'src/drivers/python'), verbose=True) != 0:
+    #    return
+    sys.path.insert(0, args.work_root)
     import pyfabm
     dependency_names = set()
-    print('pyfabm loaded from %s (library = %s)' % (pyfabm.__file__, pyfabm.dllpath))
+    #print('pyfabm loaded from %s (library = %s)' % (pyfabm.__file__, pyfabm.dllpath))
     print('Running FABM testcases with pyfabm:')
     for case, path in testcases.items():
         print('  %s... ' % case, end='')
