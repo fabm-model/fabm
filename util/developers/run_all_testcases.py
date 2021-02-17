@@ -194,7 +194,7 @@ def test_pyfabm(args, testcases):
         build_args += ['build', '--compiler=%s' % args.compiler]
     if run('test/pyfabm/make_wheel', build_args + ['bdist_wheel'], cwd=os.path.join(fabm_base, 'src/drivers/python')) != 0:
         return
-    if run('test/pyfabm/install', [sys.executable, '-m', 'pip', 'install', 'pyfabm', '--no-index', '--find-links=dist', '--target=%s' % args.work_root], cwd=os.path.join(fabm_base, 'src/drivers/python')) != 0:
+    if run('test/pyfabm/install', [sys.executable, '-m', 'pip', 'install', 'pyfabm', '--no-index', '--find-links=dist', '--user'], cwd=os.path.join(fabm_base, 'src/drivers/python'), env={'PYTHONUSERBASE': args.work_root}) != 0:
         return
     #if run('test/pyfabm/build', [sys.executable, '-m', 'pip', 'install', os.path.join(fabm_base, 'src/drivers/python'), '--target=%s' % args.work_root], cwd=os.path.join(fabm_base, 'src/drivers/python'), verbose=True) != 0:
     #    return
