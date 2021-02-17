@@ -544,7 +544,8 @@ contains
       call model%p%link_bottom_state_data(index, dat_)
    end subroutine link_bottom_state_data
 
-   subroutine get_sources(pmodel, t, sources_interior, sources_surface, sources_bottom, do_surface, do_bottom, cell_thickness) bind(c)
+   subroutine get_sources(pmodel, t, sources_interior, sources_surface, sources_bottom, &
+      do_surface, do_bottom, cell_thickness) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_sources
       type (c_ptr),   value,  intent(in) :: pmodel
       real(c_double), value,  intent(in) :: t
@@ -587,11 +588,15 @@ contains
 
       surface = int2logical(do_surface)
       bottom = int2logical(do_bottom)
-      if ((surface .or. bottom) .and. size(model%p%interior_state_variables) > 0) cell_thickness_ => c_f_pointer_interior(model, cell_thickness)
+      if ((surface .or. bottom) .and. size(model%p%interior_state_variables) > 0) &
+         cell_thickness_ => c_f_pointer_interior(model, cell_thickness)
 
-      call c_f_pointer(c_loc(sources_interior), sources_interior_, (/_PREARG_LOCATION_ size(model%p%interior_state_variables)/))
-      call c_f_pointer(c_loc(sources_surface), sources_surface_, (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%surface_state_variables)/))
-      call c_f_pointer(c_loc(sources_bottom), sources_bottom_, (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%bottom_state_variables)/))
+      call c_f_pointer(c_loc(sources_interior), sources_interior_, &
+         (/_PREARG_LOCATION_ size(model%p%interior_state_variables)/))
+      call c_f_pointer(c_loc(sources_surface), sources_surface_, &
+         (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%surface_state_variables)/))
+      call c_f_pointer(c_loc(sources_bottom), sources_bottom_, &
+         (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%bottom_state_variables)/))
 #ifdef _HORIZONTAL_IS_VECTORIZED_
       allocate(fluxes(_ITERATOR_, size(model%p%interior_state_variables)))
 #else
