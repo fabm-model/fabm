@@ -190,6 +190,7 @@ def test_pyfabm(args, testcases):
         builder = venv.EnvBuilder(with_pip=True)
         builder.create(args.work_root)
         context = builder.ensure_directories(args.work_root)
+        sys.stdout.flush()
         subprocess.check_call([context.env_exe, '-m', 'pip', 'install', 'wheel', 'numpy', 'pyyaml'])
         return subprocess.call([context.env_exe] + sys.argv + ['--inplace'])
     build_args = [sys.executable, 'setup.py', 'build_ext']
