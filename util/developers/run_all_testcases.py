@@ -194,7 +194,7 @@ def test_pyfabm(args, testcases):
         return subprocess.call([context.env_exe] + sys.argv + ['--inplace'])
     build_args = [sys.executable, 'setup.py', 'build_ext']
     if len(args.cmake_arguments) > 0:
-        build_args.append('--cmake-opts="%s"' % ' '.join(args.cmake_arguments))
+        build_args.append('--cmake-opts=%s' % ' '.join(args.cmake_arguments))
     if run('test/pyfabm/make_wheel', build_args + ['bdist_wheel'], cwd=os.path.join(fabm_base, 'src/drivers/python')) != 0:
         return
     if run('test/pyfabm/install', [sys.executable, '-m', 'pip', 'install', 'pyfabm', '--no-index', '--find-links=dist'], cwd=os.path.join(fabm_base, 'src/drivers/python')) != 0:
