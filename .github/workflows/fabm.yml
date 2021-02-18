@@ -28,18 +28,18 @@ jobs:
    ifort:
       runs-on: ubuntu-latest
       steps:
-      - name: Install Python dependencies
-        run: python -m pip install --upgrade pip setuptools pyyaml
-      - name: Clone repository
-        uses: actions/checkout@v2
-      - name: Install compiler
-        run: |
-           wget --no-verbose https://registrationcenter-download.intel.com/akdlm/irc_nas/17508/l_fortran-compiler_p_2021.1.2.62_offline.sh
-           /bin/sh l_fortran-compiler_p_2021.1.2.62_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
            python-version: '3.x'
+      - name: Install Python dependencies
+        run: python -m pip install --upgrade pip setuptools pyyaml
+      - name: Install compiler
+        run: |
+           wget --no-verbose https://registrationcenter-download.intel.com/akdlm/irc_nas/17508/l_fortran-compiler_p_2021.1.2.62_offline.sh
+           /bin/sh l_fortran-compiler_p_2021.1.2.62_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
+      - name: Clone repository
+        uses: actions/checkout@v2
       - name: Run all test cases with host emulators
         run: |
            source ${HOME}/intel/setvars.sh
