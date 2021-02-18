@@ -1,4 +1,4 @@
-import os.path
+import os
 import subprocess
 import io
 import shutil
@@ -29,9 +29,17 @@ class CMakeExtension(Extension):
         self.cmake_args = cmake_args
 
 class CMakeBuild(build_ext):
+    user_options = build_ext.user_options + [
+        ('cmake-opts=', None, 'additional options to pass to cmake')
+    ]
+
     def run(self):
         for ext in self.extensions:
             self.build_extension(ext)
+
+    def initialize_options(self):
+        build_ext.initialize_options(self)
+        self.cmake_opts = None
 
     def build_extension(self, ext):
         if not os.path.isdir(self.build_temp):
@@ -52,6 +60,8 @@ class CMakeBuild(build_ext):
 
         build_type = 'Debug' if self.debug else 'Release'
         cmake_args = list(ext.cmake_args) + ['-DCMAKE_BUILD_TYPE=%s' % build_type]
+        if self.cmake_opts is not None:
+            cmake_args += self.cmake_opts.split(' ')
         if self.compiler is not None:
             cmake_args.append('-DCMAKE_Fortran_COMPILER=%s' % self.compiler)
         subprocess.check_call(['cmake', ext.sourcedir, '-DPYFABM_NAME=%s' % libname, '-DPYFABM_DIR=%s' % install_prefix] + cmake_args, cwd=build_dir)
