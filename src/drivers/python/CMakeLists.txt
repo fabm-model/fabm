@@ -34,8 +34,8 @@ add_definitions(-D_FABM_DIMENSION_COUNT_=${PYFABM_DIM_COUNT})
 
 # Force FABM_HOST to python and include FABM CMakeLists.txt.
 set(FABM_FORCED_HOST python)
-add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm EXCLUDE_FROM_ALL)
-add_subdirectory(${PROJECT_SOURCE_DIR}/../../c fabm_c)
+set(FABM_BUILD_C_API ON CACHE BOOL "Build C interfaces" FORCE)
+add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm)
 
 set_target_properties(fabm_c PROPERTIES
   OUTPUT_NAME "${PYFABM_NAME}"
