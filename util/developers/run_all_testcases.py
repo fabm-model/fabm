@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
-import os.path
+import os
 import tempfile
 import subprocess
 import shutil
@@ -12,6 +12,7 @@ import errno
 import atexit
 import collections
 import yaml
+import venv
 
 script_root = os.path.abspath(os.path.dirname(__file__))
 fabm_base = os.path.join(script_root, '../..')
@@ -45,7 +46,7 @@ def git_clone(phase, url, workdir, branch=None):
 
 def run_gotm(setup_dir, gotm_exe):
     start = timeit.default_timer()
-    p = subprocess.Popen([gotm_exe], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=setup_dir)
+    p = subprocess.Popen([gotm_exe], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, cwd=setup_dir)
     stdoutdata, _ = p.communicate()
     duration = timeit.default_timer() - start
     if p.returncode != 0:
@@ -184,24 +185,23 @@ def test_gotm(args, testcases):
         test(args.gotm_setup, args.work_root, testcases, args.cmake, cmake_arguments=args.cmake_arguments)
 
 def test_pyfabm(args, testcases):
-    #sys.path.insert(0, os.path.join(args.work_root, 'lib/python'))
-    #os.makedirs(os.path.join(args.work_root, 'lib/python'))
-    #with open(os.path.join(args.work_root, 'lib/python/easy_install.pth'), 'w') as f:
-    #    pass
-    #if run('test/pyfabm/build', [sys.executable, 'setup.py', 'install', '--home', args.work_root], cwd=os.path.join(fabm_base, 'src/drivers/python'), verbose=True) != 0:
+    if not args.inplace:
+        print('Setting up virtual environment in %s...' % args.work_root)
+        builder = venv.EnvBuilder(with_pip=True)
+        builder.create(args.work_root)
+        context = builder.ensure_directories(args.work_root)
+        subprocess.check_call([context.env_exe, '-m', 'pip', 'install', 'wheel', 'numpy', 'pyyaml'])
+        return subprocess.call([context.env_exe] + sys.argv + ['--inplace'])
     build_args = [sys.executable, 'setup.py']
     if args.compiler is not None:
         build_args += ['build', '--compiler=%s' % args.compiler]
     if run('test/pyfabm/make_wheel', build_args + ['bdist_wheel'], cwd=os.path.join(fabm_base, 'src/drivers/python')) != 0:
         return
-    if run('test/pyfabm/install', [sys.executable, '-m', 'pip', 'install', 'pyfabm', '--no-index', '--find-links=dist', '--user'], cwd=os.path.join(fabm_base, 'src/drivers/python'), env={'PYTHONUSERBASE': args.work_root}) != 0:
+    if run('test/pyfabm/install', [sys.executable, '-m', 'pip', 'install', 'pyfabm', '--no-index', '--find-links=dist'], cwd=os.path.join(fabm_base, 'src/drivers/python')) != 0:
         return
-    #if run('test/pyfabm/build', [sys.executable, '-m', 'pip', 'install', os.path.join(fabm_base, 'src/drivers/python'), '--target=%s' % args.work_root], cwd=os.path.join(fabm_base, 'src/drivers/python'), verbose=True) != 0:
-    #    return
-    sys.path.insert(0, args.work_root)
     import pyfabm
+    print('pyfabm loaded from %s (library = %s)' % (pyfabm.__file__, pyfabm.fabm._name))
     dependency_names = set()
-    #print('pyfabm loaded from %s (library = %s)' % (pyfabm.__file__, pyfabm.dllpath))
     print('Running FABM testcases with pyfabm:')
     for case, path in testcases.items():
         print('  %s... ' % case, end='')
@@ -271,6 +271,7 @@ if __name__ == '__main__':
     parser.add_argument('--cmake', help='path to cmake executable', default='cmake')
     parser.add_argument('--compiler', help='Fortran compiler executable')
     parser.add_argument('--show_logs', action='store_true', help='Show contents of log files for failures at end of testing')
+    parser.add_argument('--inplace', action='store_true', help='Use current python environment instead of new virtual environment for pyfabm testing')
     parser.add_argument('--ext', nargs=2, action='append', help='Additional institute (name + dir) to include', default=[])
     parser.add_argument('-v', '--verbose', action='store_true', help='Enable more detailed output')
     args, cmake_arguments = parser.parse_known_args()
@@ -306,7 +307,7 @@ if __name__ == '__main__':
         print('Additional cmake arguments: %s' % ' '.join(args.cmake_arguments))
 
     logs = []
-    host2function[args.host](args, testcases)
+    retcode = host2function[args.host](args, testcases)
     if logs:
         print('%i ERRORS! Check the logs:\n%s' % (len(logs), '\n'.join(logs)))
         if args.show_logs:
@@ -318,8 +319,9 @@ if __name__ == '__main__':
                 with open(path) as f:
                     print(f.read())
                 print()
-        sys.exit(1)
-    else:
+        retcode = 1
+    if not retcode:
         print('ALL TESTS SUCCEEDED')
+    sys.exit(retcode)
 
 

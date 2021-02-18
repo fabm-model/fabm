@@ -16,7 +16,7 @@ try:
             python, abi = 'py2.py3', 'none'
             return python, abi, plat
 except ImportError:
-    bdist_wheel = None
+    raise Exception('wheel must be installed to build pyfabm. Try "python -m pip install wheel".')
 
 def readme():
     with io.open(os.path.join(os.path.dirname(__file__), 'README.rst'), 'r') as f:
