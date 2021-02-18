@@ -11,8 +11,12 @@ jobs:
          fail-fast: false
       runs-on: ubuntu-latest
       steps:
-      - name: Install dependencies
-        run: sudo apt-get install gfortran-${{ matrix.version }} python-numpy python-wheel
+      - name: Install compiler
+        run: sudo apt-get install gfortran-${{ matrix.version }}
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+           python-version: '3.x'
       - name: Clone repository
         uses: actions/checkout@v2
       - name: Run all test cases with host emulators
@@ -26,8 +30,10 @@ jobs:
         run: |
            wget --no-verbose https://registrationcenter-download.intel.com/akdlm/irc_nas/17508/l_fortran-compiler_p_2021.1.2.62_offline.sh
            /bin/sh l_fortran-compiler_p_2021.1.2.62_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
-      - name: Install dependencies
-        run: sudo apt-get install python-numpy python-wheel
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+           python-version: '3.x'
       - name: Clone repository
         uses: actions/checkout@v2
       - name: Run all test cases with host emulators
@@ -50,8 +56,10 @@ jobs:
            NVHPC_SILENT: true
            NVHPC_INSTALL_DIR: /home/runner/nvhpc
            NVHPC_INSTALL_TYPE: single
-      - name: Install dependencies
-        run: sudo apt-get install python-numpy python-wheel
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+           python-version: '3.x'
       - name: Clone repository
         uses: actions/checkout@v2
       - name: Run all test cases with host emulators
