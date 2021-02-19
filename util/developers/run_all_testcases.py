@@ -200,6 +200,7 @@ def test_pyfabm(args, testcases):
         return
     if run('test/pyfabm/install', [sys.executable, '-m', 'pip', 'install', 'pyfabm', '--no-index', '--find-links=dist'], cwd=os.path.join(fabm_base, 'src/drivers/python')) != 0:
         return
+    import numpy
     import pyfabm
     print('pyfabm %s loaded from %s (0d=%s, 1d=%s)' % (pyfabm.get_version(), pyfabm.__file__, pyfabm.fabm_0d._name, pyfabm.fabm_1d._name))
     dependency_names = set()
@@ -207,13 +208,18 @@ def test_pyfabm(args, testcases):
     for case, path in testcases.items():
         print('  %s... ' % case, end='')
         sys.stdout.flush()
-        m = pyfabm.Model(path)
-        m.cell_thickness = 1.
-        for d in m.dependencies:
-            dependency_names.add(d.name)
-            d.value = 1.
-        m.start()
-        m.getRates()
+        m0d = pyfabm.Model(path)
+        m1d = pyfabm.Model(path, shape=(5,))
+        for m in (m0d, m1d):
+            m.cell_thickness = 1.
+            for d in m.dependencies:
+                dependency_names.add(d.name)
+                d.value = 1.
+            m.start()
+        r0d = m0d.getRates()
+        r1d = m1d.getRates()
+        assert numpy.allclose(r1d, r1d[:, :1], 1e-12, 1e-16), 'Variability among 1D results: %s' % (r1d,)
+        assert numpy.allclose(r1d[:, 0], r0d, 1e-12, 1e-16), 'Mismatch between 0D and 1D results: %s vs %s. Difference: %s' % (r0d, r1d[:, 0], r1d[:, 0] - r0d)
         print('SUCCESS')
     try:
         pyfabm.unload()
