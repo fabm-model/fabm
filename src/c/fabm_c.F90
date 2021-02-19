@@ -55,10 +55,12 @@ contains
 
       character(len=length-1) :: string
 
+      ! Initialize driver object used by FABM for logging/error reporting.
+      if (.not. associated(driver)) allocate(type_python_driver::driver)
+
       call fabm_get_version(string)
       call copy_to_c_string(string, version_string)
    end subroutine get_version
-
 
    subroutine get_driver_settings(ndim, idepthdim) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_driver_settings

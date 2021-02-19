@@ -201,7 +201,7 @@ def test_pyfabm(args, testcases):
     if run('test/pyfabm/install', [sys.executable, '-m', 'pip', 'install', 'pyfabm', '--no-index', '--find-links=dist'], cwd=os.path.join(fabm_base, 'src/drivers/python')) != 0:
         return
     import pyfabm
-    print('pyfabm loaded from %s (library = %s)' % (pyfabm.__file__, pyfabm.fabm._name))
+    print('pyfabm %s loaded from %s (0d=%s, 1d=%s)' % (pyfabm.get_version(), pyfabm.__file__, pyfabm.fabm_0d._name, pyfabm.fabm_1d._name))
     dependency_names = set()
     print('Running FABM testcases with pyfabm:')
     for case, path in testcases.items():

@@ -173,8 +173,9 @@ def wrap(name):
 
     return lib
 
-fabm = wrap('fabm_0d')
-if fabm is None:
+fabm_0d = wrap('fabm_0d')
+fabm_1d = wrap('fabm_1d')
+if fabm_0d is None or fabm_1d is None:
     sys.exit(1)
 
 INTERIOR_STATE_VARIABLE        = 1
@@ -223,12 +224,16 @@ class FABMException(Exception):
     pass
 
 def hasError():
-   return fabm.get_error_state() != 0
+   return fabm_0d.get_error_state() != 0 or fabm_1d.get_error_state() != 0
 
 def getError():
-    if hasError():
+    if fabm_0d.get_error_state() != 0:
         strmessage = ctypes.create_string_buffer(1024)
-        fabm.get_error(1024, strmessage)
+        fabm_0d.get_error(1024, strmessage)
+        return strmessage.value.decode('ascii')
+    if fabm_1d.get_error_state() != 0:
+        strmessage = ctypes.create_string_buffer(1024)
+        fabm_1d.get_error(1024, strmessage)
         return strmessage.value.decode('ascii')
 
 def printTree(root, stringmapper, indent=''):
@@ -243,13 +248,14 @@ def printTree(root, stringmapper, indent=''):
             print('%s%s = %s' % (indent, name, stringmapper(item)))
 
 class Variable(object):
-    def __init__(self, name=None, units=None, long_name=None, path=None, variable_pointer=None):
+    def __init__(self, model, name=None, units=None, long_name=None, path=None, variable_pointer=None):
+        self.model = model
         self.variable_pointer = variable_pointer
         if variable_pointer:
            strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
            strunits = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
            strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-           fabm.variable_get_metadata(variable_pointer, ATTRIBUTE_LENGTH, strname, strunits, strlong_name)
+           self.model.fabm.variable_get_metadata(variable_pointer, ATTRIBUTE_LENGTH, strname, strunits, strlong_name)
            name = strname.value.decode('ascii')
            units = strunits.value.decode('ascii')
            long_name = strlong_name.value.decode('ascii')
@@ -265,7 +271,7 @@ class Variable(object):
         if self.variable_pointer is None:
             return self.long_name
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        fabm.variable_get_long_path(self.variable_pointer, ATTRIBUTE_LENGTH, strlong_name)
+        self.model.fabm.variable_get_long_path(self.variable_pointer, ATTRIBUTE_LENGTH, strlong_name)
         return strlong_name.value.decode('ascii')
 
     @property
@@ -273,18 +279,18 @@ class Variable(object):
         if self.variable_pointer is None:
             return self.name
         stroutput_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        fabm.variable_get_output_name(self.variable_pointer, ATTRIBUTE_LENGTH, stroutput_name)
+        self.model.fabm.variable_get_output_name(self.variable_pointer, ATTRIBUTE_LENGTH, stroutput_name)
         return stroutput_name.value.decode('ascii')
 
     def getOptions(self):
         pass
 
     def getRealProperty(self, name, default=-1.0):
-        return fabm.variable_get_real_property(self.variable_pointer, name.encode('ascii'), default)
+        return self.model.fabm.variable_get_real_property(self.variable_pointer, name.encode('ascii'), default)
 
 class Dependency(Variable):
-    def __init__(self, variable_pointer, data):
-        Variable.__init__(self, variable_pointer=variable_pointer)
+    def __init__(self, model, variable_pointer, data):
+        Variable.__init__(self, model, variable_pointer=variable_pointer)
         self.data = data
         self.is_set = False
 
@@ -299,11 +305,11 @@ class Dependency(Variable):
 
     @property
     def required(self):
-        return fabm.variable_is_required(self.variable_pointer) != 0
+        return self.model.fabm.variable_is_required(self.variable_pointer) != 0
 
 class StateVariable(Variable):
-    def __init__(self, variable_pointer, data):
-        Variable.__init__(self, variable_pointer=variable_pointer)
+    def __init__(self, model, variable_pointer, data):
+        Variable.__init__(self, model, variable_pointer=variable_pointer)
         self.data = data
 
     def getValue(self):
@@ -316,15 +322,15 @@ class StateVariable(Variable):
 
     @property
     def background_value(self):
-        return fabm.variable_get_background_value(self.variable_pointer)
+        return self.model.fabm.variable_get_background_value(self.variable_pointer)
 
     @property
     def output(self):
-        return fabm.variable_get_output(self.variable_pointer) != 0
+        return self.model.fabm.variable_get_output(self.variable_pointer) != 0
 
 class DiagnosticVariable(Variable):
-    def __init__(self, variable_pointer, index, horizontal):
-        Variable.__init__(self, variable_pointer=variable_pointer)
+    def __init__(self, model, variable_pointer, index, horizontal):
+        Variable.__init__(self, model, variable_pointer=variable_pointer)
         self.data = None
 
     def getValue(self):
@@ -332,42 +338,41 @@ class DiagnosticVariable(Variable):
 
     @property
     def output(self):
-        return fabm.variable_get_output(self.variable_pointer) != 0
+        return self.model.fabm.variable_get_output(self.variable_pointer) != 0
 
     value = property(getValue)
 
 class Parameter(Variable):
-    def __init__(self,name,index,units=None,long_name=None,type=None,model=None,has_default=False):
-        Variable.__init__(self,name,units,long_name)
+    def __init__(self, model, name, index, units=None, long_name=None, type=None, has_default=False):
+        Variable.__init__(self, model, name, units, long_name)
         self.type = type
         self.index = index + 1
-        self.model = model
         self.has_default = has_default
 
     def getValue(self,default=False):
         default = 1 if default else 0
         if self.type == 1:
-            return fabm.get_real_parameter(self.model.pmodel, self.index, default)
+            return self.model.fabm.get_real_parameter(self.model.pmodel, self.index, default)
         elif self.type == 2:
-            return fabm.get_integer_parameter(self.model.pmodel, self.index, default)
+            return self.model.fabm.get_integer_parameter(self.model.pmodel, self.index, default)
         elif self.type == 3:
-            return fabm.get_logical_parameter(self.model.pmodel, self.index, default) != 0
+            return self.model.fabm.get_logical_parameter(self.model.pmodel, self.index, default) != 0
         elif self.type == 4:
             result = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-            fabm.get_string_parameter(self.model.pmodel, self.index, default, ATTRIBUTE_LENGTH, result)
+            self.model.fabm.get_string_parameter(self.model.pmodel, self.index, default, ATTRIBUTE_LENGTH, result)
             return result.value.decode('ascii')
 
     def setValue(self,value):
         settings = self.model.saveSettings()
 
         if self.type == 1:
-            fabm.set_real_parameter(self.model.pmodel, self.name.encode('ascii'), value)
+            self.model.fabm.set_real_parameter(self.model.pmodel, self.name.encode('ascii'), value)
         elif self.type == 2:
-            fabm.set_integer_parameter(self.model.pmodel, self.name.encode('ascii'), value)
+            self.model.fabm.set_integer_parameter(self.model.pmodel, self.name.encode('ascii'), value)
         elif self.type == 3:
-            fabm.set_logical_parameter(self.model.pmodel, self.name.encode('ascii'), value)
+            self.model.fabm.set_logical_parameter(self.model.pmodel, self.name.encode('ascii'), value)
         elif self.type == 4:
-            fabm.set_string_parameter(self.model.pmodel, self.name.encode('ascii'), value)
+            self.model.fabm.set_string_parameter(self.model.pmodel, self.name.encode('ascii'), value)
 
         # Update the model configuration (arrays with variables and parameters have changed)
         self.model.updateConfiguration(settings)
@@ -379,23 +384,23 @@ class Parameter(Variable):
 
     def reset(self):
         settings = self.model.saveSettings()
-        fabm.reset_parameter(self.model.pmodel, self.index)
+        self.model.fabm.reset_parameter(self.model.pmodel, self.index)
         self.model.updateConfiguration(settings)
 
     value = property(getValue, setValue)
     default = property(getDefault)
 
 class Coupling(Variable):
-    def __init__(self, pmodel, index):
-        self.pmodel = pmodel
+    def __init__(self, model, index):
+        self.model = model
         self.master = ctypes.c_void_p()
         self.slave = ctypes.c_void_p()
-        fabm.get_coupling(self.pmodel, index, ctypes.byref(self.slave), ctypes.byref(self.master))
-        Variable.__init__(self, variable_pointer=self.slave)
+        self.model.fabm.get_coupling(self.model.pmodel, index, ctypes.byref(self.slave), ctypes.byref(self.master))
+        Variable.__init__(self, model, variable_pointer=self.slave)
 
     def getValue(self):
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        fabm.variable_get_long_path(self.master,ATTRIBUTE_LENGTH,strlong_name)
+        self.model.fabm.variable_get_long_path(self.master, ATTRIBUTE_LENGTH, strlong_name)
         return strlong_name.value.decode('ascii')
 
     def setValue(self,value):
@@ -404,39 +409,40 @@ class Coupling(Variable):
 
     def getOptions(self):
         options = []
-        list = fabm.variable_get_suitable_masters(self.pmodel, self.slave)
+        list = self.model.fabm.variable_get_suitable_masters(self.model.pmodel, self.slave)
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        for i in range(fabm.link_list_count(list)):
-            variable = fabm.link_list_index(list, i + 1)
-            fabm.variable_get_long_path(variable, ATTRIBUTE_LENGTH, strlong_name)
+        for i in range(self.model.fabm.link_list_count(list)):
+            variable = self.model.fabm.link_list_index(list, i + 1)
+            self.model.fabm.variable_get_long_path(variable, ATTRIBUTE_LENGTH, strlong_name)
             options.append(strlong_name.value.decode('ascii'))
-        fabm.link_list_finalize(list)
+        self.model.fabm.link_list_finalize(list)
         return options
 
     @property
     def long_path(self):
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        fabm.variable_get_long_path(self.slave, ATTRIBUTE_LENGTH, strlong_name)
+        self.model.fabm.variable_get_long_path(self.slave, ATTRIBUTE_LENGTH, strlong_name)
         return strlong_name.value.decode('ascii')
 
     value = property(getValue, setValue)
 
 class SubModel(object):
-    def __init__(self, pmodel, name):
+    def __init__(self, model, name):
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         iuser = ctypes.c_int()
-        fabm.get_model_metadata(pmodel, name.encode('ascii'), ATTRIBUTE_LENGTH, strlong_name, iuser)
+        model.fabm.get_model_metadata(model.pmodel, name.encode('ascii'), ATTRIBUTE_LENGTH, strlong_name, iuser)
         self.long_name = strlong_name.value.decode('ascii')
         self.user_created = iuser.value != 0
 
 class Model(object):
     def __init__(self, path='fabm.yaml', shape=()):
-        if len(shape) != fabm.ndim_int:
-            raise FABMException('Domain shape %s has %i elements, but should have %i: one per spatial dimension.' % (shape, len(shape), fabm.ndim_int))
-        fabm.reset_error_state()
+        if len(shape) > 1:
+            raise FABMException('Invalid domain shape %s. Domain must have 0 or 1 dimensions.' % (shape,))
+        self.fabm = fabm_0d if len(shape) == 0 else fabm_1d
+        self.fabm.reset_error_state()
         self.lookup_tables = {}
         self._cell_thickness = None
-        self.pmodel = fabm.create_model(path.encode('ascii'), *shape)
+        self.pmodel = self.fabm.create_model(path.encode('ascii'), *shape)
         self.domain_shape = shape
         if hasError():
             raise FABMException('An error occurred while parsing %s:\n%s' % (path, getError()))
@@ -450,7 +456,7 @@ class Model(object):
     cell_thickness = property(fset=setCellThickness)
 
     def getSubModel(self,name):
-        return SubModel(self.pmodel, name)
+        return SubModel(self, name)
 
     def saveSettings(self):
         environment = dict([(dependency.name, dependency.value) for dependency in self.dependencies])
@@ -479,7 +485,7 @@ class Model(object):
         nconserved = ctypes.c_int()
         nparameters = ctypes.c_int()
         ncouplings = ctypes.c_int()
-        fabm.get_counts(self.pmodel,
+        self.fabm.get_counts(self.pmodel,
             ctypes.byref(nstate_interior), ctypes.byref(nstate_surface), ctypes.byref(nstate_bottom),
             ctypes.byref(ndiag_interior), ctypes.byref(ndiag_horizontal),
             ctypes.byref(ndependencies_interior), ctypes.byref(ndependencies_horizontal), ctypes.byref(ndependencies_scalar),
@@ -492,11 +498,11 @@ class Model(object):
         self.surface_state = self.state[nstate_interior.value:nstate_interior.value + nstate_surface.value, ...]
         self.bottom_state = self.state[nstate_interior.value + nstate_surface.value:, ...]
         for i in range(nstate_interior.value):
-            fabm.link_interior_state_data(self.pmodel, i + 1, self.interior_state[i, ...])
+            self.fabm.link_interior_state_data(self.pmodel, i + 1, self.interior_state[i, ...])
         for i in range(nstate_surface.value):
-            fabm.link_surface_state_data(self.pmodel, i + 1, self.surface_state[i, ...])
+            self.fabm.link_surface_state_data(self.pmodel, i + 1, self.surface_state[i, ...])
         for i in range(nstate_bottom.value):
-            fabm.link_bottom_state_data(self.pmodel, i + 1, self.bottom_state[i, ...])
+            self.fabm.link_bottom_state_data(self.pmodel, i + 1, self.bottom_state[i, ...])
 
         self.dependency_data = numpy.zeros((ndependencies_interior.value + ndependencies_horizontal.value + ndependencies_scalar.value,) + self.domain_shape, dtype=float)
         self.interior_dependency_data = self.dependency_data[:ndependencies_interior.value, ...]
@@ -522,37 +528,37 @@ class Model(object):
         self.horizontal_dependencies = []
         self.scalar_dependencies = []
         for i in range(nstate_interior.value):
-            ptr = fabm.get_variable(self.pmodel, INTERIOR_STATE_VARIABLE, i + 1)
-            self.interior_state_variables.append(StateVariable(ptr, self.interior_state[i, ...]))
+            ptr = self.fabm.get_variable(self.pmodel, INTERIOR_STATE_VARIABLE, i + 1)
+            self.interior_state_variables.append(StateVariable(self, ptr, self.interior_state[i, ...]))
         for i in range(nstate_surface.value):
-            ptr = fabm.get_variable(self.pmodel, SURFACE_STATE_VARIABLE, i + 1)
-            self.surface_state_variables.append(StateVariable(ptr, self.surface_state[i, ...]))
+            ptr = self.fabm.get_variable(self.pmodel, SURFACE_STATE_VARIABLE, i + 1)
+            self.surface_state_variables.append(StateVariable(self, ptr, self.surface_state[i, ...]))
         for i in range(nstate_bottom.value):
-            ptr = fabm.get_variable(self.pmodel, BOTTOM_STATE_VARIABLE, i + 1)
-            self.bottom_state_variables.append(StateVariable(ptr, self.bottom_state[i, ...]))
+            ptr = self.fabm.get_variable(self.pmodel, BOTTOM_STATE_VARIABLE, i + 1)
+            self.bottom_state_variables.append(StateVariable(self, ptr, self.bottom_state[i, ...]))
         for i in range(ndiag_interior.value):
-            ptr = fabm.get_variable(self.pmodel, INTERIOR_DIAGNOSTIC_VARIABLE, i + 1)
-            self.interior_diagnostic_variables.append(DiagnosticVariable(ptr, i, False))
+            ptr = self.fabm.get_variable(self.pmodel, INTERIOR_DIAGNOSTIC_VARIABLE, i + 1)
+            self.interior_diagnostic_variables.append(DiagnosticVariable(self, ptr, i, False))
         for i in range(ndiag_horizontal.value):
-            ptr = fabm.get_variable(self.pmodel, HORIZONTAL_DIAGNOSTIC_VARIABLE, i + 1)
-            self.horizontal_diagnostic_variables.append(DiagnosticVariable(ptr, i, True))
+            ptr = self.fabm.get_variable(self.pmodel, HORIZONTAL_DIAGNOSTIC_VARIABLE, i + 1)
+            self.horizontal_diagnostic_variables.append(DiagnosticVariable(self, ptr, i, True))
         for i in range(ndependencies_interior.value):
-            ptr = fabm.get_variable(self.pmodel, INTERIOR_DEPENDENCY, i + 1)
-            self.interior_dependencies.append(Dependency(ptr, self.interior_dependency_data[i, ...]))
+            ptr = self.fabm.get_variable(self.pmodel, INTERIOR_DEPENDENCY, i + 1)
+            self.interior_dependencies.append(Dependency(self, ptr, self.interior_dependency_data[i, ...]))
         for i in range(ndependencies_horizontal.value):
-            ptr = fabm.get_variable(self.pmodel, HORIZONTAL_DEPENDENCY, i + 1)
-            self.horizontal_dependencies.append(Dependency(ptr, self.horizontal_dependency_data[i, ...]))
+            ptr = self.fabm.get_variable(self.pmodel, HORIZONTAL_DEPENDENCY, i + 1)
+            self.horizontal_dependencies.append(Dependency(self, ptr, self.horizontal_dependency_data[i, ...]))
         for i in range(ndependencies_scalar.value):
-            ptr = fabm.get_variable(self.pmodel, SCALAR_DEPENDENCY, i + 1)
-            self.scalar_dependencies.append(Dependency(ptr, self.scalar_dependency_data[i, ...]))
+            ptr = self.fabm.get_variable(self.pmodel, SCALAR_DEPENDENCY, i + 1)
+            self.scalar_dependencies.append(Dependency(self, ptr, self.scalar_dependency_data[i, ...]))
         for i in range(nconserved.value):
-            fabm.get_variable_metadata(self.pmodel, CONSERVED_QUANTITY, i + 1, ATTRIBUTE_LENGTH, strname, strunits, strlong_name, strpath)
-            self.conserved_quantities.append(Variable(strname.value.decode('ascii'), strunits.value.decode('ascii'), strlong_name.value.decode('ascii'), strpath.value.decode('ascii')))
+            self.fabm.get_variable_metadata(self.pmodel, CONSERVED_QUANTITY, i + 1, ATTRIBUTE_LENGTH, strname, strunits, strlong_name, strpath)
+            self.conserved_quantities.append(Variable(self, strname.value.decode('ascii'), strunits.value.decode('ascii'), strlong_name.value.decode('ascii'), strpath.value.decode('ascii')))
         for i in range(nparameters.value):
-            fabm.get_parameter_metadata(self.pmodel, i + 1, ATTRIBUTE_LENGTH, strname, strunits, strlong_name, ctypes.byref(typecode), ctypes.byref(has_default))
-            self.parameters.append(Parameter(strname.value.decode('ascii'), i, type=typecode.value, units=strunits.value.decode('ascii'), long_name=strlong_name.value.decode('ascii'), model=self, has_default=has_default.value != 0))
+            self.fabm.get_parameter_metadata(self.pmodel, i + 1, ATTRIBUTE_LENGTH, strname, strunits, strlong_name, ctypes.byref(typecode), ctypes.byref(has_default))
+            self.parameters.append(Parameter(self, strname.value.decode('ascii'), i, type=typecode.value, units=strunits.value.decode('ascii'), long_name=strlong_name.value.decode('ascii'), has_default=has_default.value != 0))
 
-        self.couplings = [Coupling(self.pmodel, i + 1) for i in range(ncouplings.value)]
+        self.couplings = [Coupling(self, i + 1) for i in range(ncouplings.value)]
 
         # Arrays that combine variables from pelagic and boundary domains.
         self.state_variables = self.interior_state_variables + self.surface_state_variables + self.bottom_state_variables
@@ -579,13 +585,13 @@ class Model(object):
         sources_surface = sources[len(self.interior_state_variables):len(self.interior_state_variables) + len(self.surface_state_variables), ...]
         sources_bottom = sources[len(self.interior_state_variables) + len(self.surface_state_variables):, ...]
         assert not ((surface or bottom) and self._cell_thickness is None), 'You must assign model.cell_thickness to use getRates'
-        fabm.get_sources(self.pmodel, t, sources_interior, sources_surface, sources_bottom, surface, bottom, self._cell_thickness)
+        self.fabm.get_sources(self.pmodel, t, sources_interior, sources_surface, sources_bottom, surface, bottom, self._cell_thickness)
         if hasError():
             raise FABMException(getError())
         return sources
 
     def checkState(self, repair=False):
-        valid = fabm.check_state(self.pmodel, repair) != 0
+        valid = self.fabm.check_state(self.pmodel, repair) != 0
         if hasError():
             raise FABMException(getError())
         return valid
@@ -668,19 +674,19 @@ class Model(object):
                     ready = False
             return ready
 
-        ready = process_dependencies(self.interior_dependencies, fabm.link_interior_data)
-        ready = process_dependencies(self.horizontal_dependencies, fabm.link_horizontal_data) and ready
-        ready = process_dependencies(self.scalar_dependencies, fabm.link_scalar) and ready
+        ready = process_dependencies(self.interior_dependencies, self.fabm.link_interior_data)
+        ready = process_dependencies(self.horizontal_dependencies, self.fabm.link_horizontal_data) and ready
+        ready = process_dependencies(self.scalar_dependencies, self.fabm.link_scalar) and ready
         assert ready or not stop, 'Not all dependencies have been fulfilled.'
 
-        fabm.start(self.pmodel)
+        self.fabm.start(self.pmodel)
         if hasError():
             return False
         for i, variable in enumerate(self.interior_diagnostic_variables):
-            pdata = fabm.get_interior_diagnostic_data(self.pmodel, i + 1)
+            pdata = self.fabm.get_interior_diagnostic_data(self.pmodel, i + 1)
             variable.data = None if not pdata else numpy.ctypeslib.as_array(pdata, self.domain_shape)
         for i, variable in enumerate(self.horizontal_diagnostic_variables):
-            pdata = fabm.get_horizontal_diagnostic_data(self.pmodel, i + 1)
+            pdata = self.fabm.get_horizontal_diagnostic_data(self.pmodel, i + 1)
             variable.data = None if not pdata else numpy.ctypeslib.as_array(pdata, self.domain_shape)
         return ready
     checkReady = start
@@ -714,28 +720,30 @@ class Simulator(object):
 
     def integrate(self, y0, t, dt, surface=True, bottom=True):
         y = numpy.empty((t.size, self.model.state.size))
-        fabm.integrate(self.model.pmodel, t.size, self.model.state.size, t, y0, y, dt, surface, bottom, ctypes.byref(self.model._cell_thickness))
+        self.model.fabm.integrate(self.model.pmodel, t.size, self.model.state.size, t, y0, y, dt, surface, bottom, ctypes.byref(self.model._cell_thickness))
         if hasError():
             raise FABMException(getError())
         return y
 
 def unload():
-    global ctypes, fabm
-    handle = fabm._handle
-    if os.name == 'nt':
-        import ctypes.wintypes
-        ctypes.windll.kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
-        ctypes.windll.kernel32.FreeLibrary(handle)
-    else:
-        dlclose = ctypes.CDLL(None).dlclose
-        dlclose.argtypes = [ctypes.c_void_p]
-        dlclose.restype = ctypes.c_int
-        dlclose(handle)
-    fabm = None
+    global fabm_0d, fabm_1d
+
+    for lib in (fabm_0d, fabm_1d):
+        handle = lib._handle
+        if os.name == 'nt':
+            import ctypes.wintypes
+            ctypes.windll.kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
+            ctypes.windll.kernel32.FreeLibrary(handle)
+        else:
+            dlclose = ctypes.CDLL(None).dlclose
+            dlclose.argtypes = [ctypes.c_void_p]
+            dlclose.restype = ctypes.c_int
+            dlclose(handle)
+    fabm_0d, fabm_1d = None, None
 
 def get_version():
     version_length = 256
     strversion = ctypes.create_string_buffer(version_length)
-    fabm.get_version(version_length,strversion)
+    fabm_0d.get_version(version_length, strversion)
     return strversion.value.decode('ascii')
 
