@@ -49,7 +49,7 @@ jobs:
            source ${HOME}/intel/setvars.sh
            python util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifort
         env:
-           FFLAGS: –fp-model precise –fp-model source
+           FFLAGS: -fp-model precise -fp-model source
    nvfortran:
       runs-on: ubuntu-latest
       steps:
