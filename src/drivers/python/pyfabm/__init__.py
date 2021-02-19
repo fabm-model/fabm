@@ -504,10 +504,9 @@ class Model(object):
         for i in range(nstate_bottom.value):
             self.fabm.link_bottom_state_data(self.pmodel, i + 1, self.bottom_state[i, ...])
 
-        self.dependency_data = numpy.zeros((ndependencies_interior.value + ndependencies_horizontal.value + ndependencies_scalar.value,) + self.domain_shape, dtype=float)
-        self.interior_dependency_data = self.dependency_data[:ndependencies_interior.value, ...]
-        self.horizontal_dependency_data = self.dependency_data[ndependencies_interior.value:ndependencies_interior.value + ndependencies_horizontal.value, ...]
-        self.scalar_dependency_data = self.dependency_data[ndependencies_interior.value + ndependencies_horizontal.value:, ...]
+        self.interior_dependency_data = numpy.zeros((ndependencies_interior.value,) + self.domain_shape, dtype=float)
+        self.horizontal_dependency_data = numpy.zeros((ndependencies_horizontal.value,) + self.domain_shape, dtype=float)
+        self.scalar_dependency_data = numpy.zeros((ndependencies_scalar.value,), dtype=float)
 
         # Retrieve variable metadata
         strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
