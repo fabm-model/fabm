@@ -726,7 +726,7 @@ class Simulator(object):
         return y
 
 def unload():
-    global fabm_0d, fabm_1d
+    global fabm_0d, fabm_1d, ctypes
 
     for lib in (fabm_0d, fabm_1d):
         handle = lib._handle
