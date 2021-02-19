@@ -193,7 +193,7 @@ def test_pyfabm(args, testcases):
         sys.stdout.flush()
         subprocess.check_call([context.env_exe, '-m', 'pip', 'install', 'wheel', 'numpy', 'pyyaml'])
         return subprocess.call([context.env_exe] + sys.argv + ['--inplace'])
-    build_args = [sys.executable, 'setup.py', 'build_ext']
+    build_args = [sys.executable, 'setup.py', 'build_ext', '--debug']
     if len(args.cmake_arguments) > 0:
         build_args.append('--cmake-opts=%s' % ' '.join(args.cmake_arguments))
     if run('test/pyfabm/make_wheel', build_args + ['bdist_wheel'], cwd=os.path.join(fabm_base, 'src/drivers/python')) != 0:
@@ -218,8 +218,8 @@ def test_pyfabm(args, testcases):
             m.start()
         r0d = m0d.getRates()
         r1d = m1d.getRates()
-        assert numpy.allclose(r1d, r1d[:, :1], 1e-12, 1e-16), 'Variability among 1D results: %s' % (r1d,)
-        assert numpy.allclose(r1d[:, 0], r0d, 1e-12, 1e-16), 'Mismatch between 0D and 1D results: %s vs %s. Difference: %s' % (r0d, r1d[:, 0], r1d[:, 0] - r0d)
+        assert (r1d == r1d[:, :1]).all(), 'Variability among 1D results: %s' % (r1d,)
+        assert (r1d[:, 0] == r0d).all(), 'Mismatch between 0D and 1D results: %s vs %s. Difference: %s' % (r0d, r1d[:, 0], r1d[:, 0] - r0d)
         print('SUCCESS')
     try:
         pyfabm.unload()
