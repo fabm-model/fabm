@@ -200,7 +200,8 @@ def test_pyfabm(args, testcases):
         return
     if run('test/pyfabm/install', [sys.executable, '-m', 'pip', 'install', 'pyfabm', '--no-index', '--find-links=dist'], cwd=os.path.join(fabm_base, 'src/drivers/python')) != 0:
         return
-    import numpy
+    with open(os.path.join(script_root, 'environment.yaml')) as f:
+        environment = yaml.safe_load(f)
     import pyfabm
     print('pyfabm %s loaded from %s (0d=%s, 1d=%s)' % (pyfabm.get_version(), pyfabm.__file__, pyfabm.fabm_0d._name, pyfabm.fabm_1d._name))
     dependency_names = set()
@@ -211,10 +212,11 @@ def test_pyfabm(args, testcases):
         m0d = pyfabm.Model(path)
         m1d = pyfabm.Model(path, shape=(5,))
         for m in (m0d, m1d):
-            m.cell_thickness = 1.
+            m.cell_thickness = environment['cell_thickness']
             for d in m.dependencies:
                 dependency_names.add(d.name)
-                d.value = 1.
+                if d.required:
+                    d.value = environment[d.name]
             m.start()
         r0d = m0d.getRates()
         r1d = m1d.getRates()
