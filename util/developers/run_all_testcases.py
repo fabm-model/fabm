@@ -186,19 +186,20 @@ def test_gotm(args, testcases):
 
 def test_pyfabm(args, testcases):
     if not args.inplace:
-        print('Setting up virtual environment in %s...' % args.work_root)
+        env_root = os.path.join(args.work_root, 'python')
+        print('Setting up virtual environment in %s...' % env_root)
         builder = venv.EnvBuilder(with_pip=True)
-        builder.create(args.work_root)
-        context = builder.ensure_directories(args.work_root)
+        builder.create(env_root)
+        context = builder.ensure_directories(env_root)
         sys.stdout.flush()
         subprocess.check_call([context.env_exe, '-m', 'pip', 'install', 'wheel', 'numpy', 'pyyaml'])
-        return subprocess.call([context.env_exe] + sys.argv + ['--inplace'])
+        return subprocess.call([context.env_exe, os.path.abspath(sys.argv[0])] + sys.argv[1:] + ['--inplace'], cwd=args.work_root)
     build_args = [sys.executable, 'setup.py', 'build_ext', '--debug']
     if len(args.cmake_arguments) > 0:
         build_args.append('--cmake-opts=%s' % ' '.join(args.cmake_arguments))
     if run('test/pyfabm/make_wheel', build_args + ['bdist_wheel'], cwd=os.path.join(fabm_base, 'src/drivers/python')) != 0:
         return
-    if run('test/pyfabm/install', [sys.executable, '-m', 'pip', 'install', 'pyfabm', '--no-index', '--find-links=dist'], cwd=os.path.join(fabm_base, 'src/drivers/python')) != 0:
+    if run('test/pyfabm/install', [sys.executable, '-m', 'pip', 'install', 'pyfabm', '--no-index', '--find-links=%s' % os.path.join(fabm_base, 'src/drivers/python/dist')]) != 0:
         return
     with open(os.path.join(script_root, 'environment.yaml')) as f:
         environment = yaml.safe_load(f)
