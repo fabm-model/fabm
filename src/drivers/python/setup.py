@@ -30,7 +30,8 @@ class CMakeExtension(Extension):
 
 class CMakeBuild(build_ext):
     user_options = build_ext.user_options + [
-        ('cmake-opts=', None, 'additional options to pass to cmake')
+        ('cmake-opts=', None, 'additional options to pass to cmake'),
+        ('fabm-base=', None, 'path to FABM source directory')
     ]
 
     def run(self):
@@ -40,6 +41,7 @@ class CMakeBuild(build_ext):
     def initialize_options(self):
         build_ext.initialize_options(self)
         self.cmake_opts = None
+        self.fabm_base = os.path.abspath('../..')
 
     def build_extension(self, ext):
         if not os.path.isdir(self.build_temp):
@@ -54,6 +56,7 @@ class CMakeBuild(build_ext):
         # Temporary directory where all intermediate build files should go.
         build_dir = os.path.join(self.build_temp, ext.name)
         if self.force and os.path.isdir(build_dir):
+            print('Emptying existing build directory %s' % build_dir)
             shutil.rmtree(build_dir)
         if not os.path.isdir(build_dir):
             os.makedirs(build_dir)
@@ -64,7 +67,7 @@ class CMakeBuild(build_ext):
             cmake_args += self.cmake_opts.split(' ')
         if self.compiler is not None:
             cmake_args.append('-DCMAKE_Fortran_COMPILER=%s' % self.compiler)
-        subprocess.check_call(['cmake', ext.sourcedir, '-DPYFABM_NAME=%s' % libname, '-DPYFABM_DIR=%s' % install_prefix] + cmake_args, cwd=build_dir)
+        subprocess.check_call(['cmake', ext.sourcedir, '-DPYFABM_NAME=%s' % libname, '-DPYFABM_DIR=%s' % install_prefix, '-DFABM_BASE=%s' % self.fabm_base] + cmake_args, cwd=build_dir)
         subprocess.check_call(['cmake', '--build', '.', '--config', build_type], cwd=build_dir)
 
 setup(
