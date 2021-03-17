@@ -7,6 +7,8 @@ jobs:
             version: [7, 8, 9, 10]
             os: [ubuntu-latest]
             include:
+               - version: 4.8
+                 os: ubuntu-18.04
                - version: 5
                  os: ubuntu-18.04
                - version: 6
@@ -17,7 +19,7 @@ jobs:
       runs-on: ${{ matrix.os }}
       steps:
       - name: Install dependencies
-        run: sudo apt-get install gfortran-${{ matrix.version }} python3-numpy python3-wheel
+        run: sudo apt-get install gfortran-${{ matrix.version }} python3-numpy python3-setuptools python3-wheel
       - name: Clone repository
         uses: actions/checkout@v2
       - name: Run all test cases with host emulators
