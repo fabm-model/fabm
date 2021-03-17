@@ -9,7 +9,7 @@ jobs:
                - version: 8
                  cmake_args: -DFABM_USE_CONTIGUOUS=OFF
          fail-fast: false
-      runs-on: ubuntu-latest
+      runs-on: ubuntu-18.04
       steps:
       - name: Install dependencies
         run: sudo apt-get install gfortran-${{ matrix.version }} python3-numpy python3-wheel
@@ -20,7 +20,7 @@ jobs:
       - name: Run all test cases with pyfabm
         run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
    ifort:
-      runs-on: ubuntu-latest
+      runs-on: ubuntu-18.04
       steps:
       - name: Install compiler
         run: |
@@ -39,7 +39,7 @@ jobs:
            source ${HOME}/intel/setvars.sh
            python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifort
    nvfortran:
-      runs-on: ubuntu-latest
+      runs-on: ubuntu-18.04
       steps:
       - name: Install compiler
         run: |
