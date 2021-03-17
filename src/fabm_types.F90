@@ -33,7 +33,7 @@ module fabm_types
    public standard_variables
    public type_interior_standard_variable, type_horizontal_standard_variable, type_global_standard_variable, &
       type_universal_standard_variable, type_bottom_standard_variable, type_surface_standard_variable, type_domain_specific_standard_variable, &
-      initialize_standard_variables, type_standard_variable_node, type_base_standard_variable, type_standard_variable_set
+      type_standard_variable_node, type_base_standard_variable, type_standard_variable_set
 
    ! Variable identifier types used by biogeochemical models
    public type_variable_id
@@ -692,6 +692,7 @@ module fabm_types
       procedure :: add              => abstract_model_factory_add
       procedure :: create           => abstract_model_factory_create
       procedure :: register_version => abstract_model_factory_register_version
+      procedure :: finalize         => abstract_model_factory_finalize
    end type
 
    class (type_base_model_factory), pointer, save, public :: factory => null()
@@ -2928,6 +2929,21 @@ contains
       version%module_name = name
       version%version_string = version_string
    end subroutine abstract_model_factory_register_version
+
+   recursive subroutine abstract_model_factory_finalize(self)
+      class (type_base_model_factory), intent(inout) :: self
+
+      type (type_base_model_factory_node), pointer :: current, next
+
+      current => self%first_child
+      do while(associated(current))
+         next => current%next
+         call current%factory%finalize()
+         deallocate(current)
+         current => next
+      end do
+      self%first_child => null()
+   end subroutine abstract_model_factory_finalize
 
    subroutine coupling_task_list_remove(self, task)
       class (type_coupling_task_list), intent(inout) :: self

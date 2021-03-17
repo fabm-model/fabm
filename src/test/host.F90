@@ -473,6 +473,8 @@ program test_host
 
    deallocate(model)
 
+   call fabm_finalize_library()
+
 contains
 
    subroutine read_environment

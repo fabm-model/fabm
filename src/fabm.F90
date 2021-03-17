@@ -40,6 +40,7 @@ module fabm
    public fabm_initialize_library
    public fabm_get_version
    public fabm_create_model
+   public fabm_finalize_library
    public type_fabm_model
 
    ! Variable identifier types by external physical drivers.
@@ -64,6 +65,8 @@ module fabm
    integer, parameter, public :: data_source_fabm = 2
    integer, parameter, public :: data_source_user = 3
    integer, parameter, public :: data_source_default = data_source_host
+
+   logical, save :: default_driver = .false.
 
    ! --------------------------------------------------------------------------
    ! Derived typed for variable identifiers
@@ -333,15 +336,31 @@ contains
       if (associated(factory)) return
 
       ! If needed, create default object for communication (e.g., logging, error reporting) with host.
-      if (.not. associated(driver)) allocate(driver)
+      if (.not. associated(driver)) then
+         allocate(driver)
+         default_driver = .true.
+      end if
 
       ! Create all standard variable objects.
-      call initialize_standard_variables()
+      call fabm_standard_variables%initialize()
 
       ! Create the model factory.
       factory => fabm_model_factory
       call factory%initialize()
    end subroutine fabm_initialize_library
+
+   ! --------------------------------------------------------------------------
+   ! fabm_finalize_library: finalize FABM library
+   ! --------------------------------------------------------------------------
+   ! This deallocates all global variables created by fabm_initialize_library
+   ! --------------------------------------------------------------------------
+   subroutine fabm_finalize_library()
+      call fabm_standard_variables%finalize()
+
+      if (associated(driver) .and. default_driver) deallocate(driver)
+      if (associated(factory)) call factory%finalize()
+      factory => null()
+   end subroutine fabm_finalize_library
 
    ! --------------------------------------------------------------------------
    ! fabm_get_version: get FABM version string

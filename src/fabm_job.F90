@@ -93,7 +93,6 @@ module fabm_job
 
    type type_job_node
       class (type_job),     pointer :: p    => null()
-      logical                       :: owner = .false.
       type (type_job_node), pointer :: next => null()
    end type
 
@@ -145,6 +144,7 @@ module fabm_job
       procedure :: initialize  => job_manager_initialize
       procedure :: print       => job_manager_print
       procedure :: write_graph => job_manager_write_graph
+      procedure :: finalize    => job_manager_finalize
    end type
 
    type type_variable_register
@@ -503,9 +503,9 @@ contains
    subroutine job_finalize(self)
       class (type_job), intent(inout) :: self
 
-      type (type_task), pointer :: task, next_task
+      type (type_task),             pointer :: task, next_task
       type (type_variable_request), pointer :: variable_request, next_variable_request
-      type (type_call_request), pointer :: call_request, next_call_request
+      type (type_call_request),     pointer :: call_request, next_call_request
 
       task => self%first_task
       do while (associated(task))
@@ -1263,7 +1263,6 @@ contains
       job_node => self%first
       do while (associated(job_node))
          next => job_node%next
-         if (job_node%owner) call job_node%p%finalize()
          deallocate(job_node)
          job_node => next
       end do
@@ -1362,7 +1361,6 @@ contains
 
       allocate(node)
       node%p => job
-      node%owner = .true.
       node%next => self%first
       self%first => node
 
@@ -1497,7 +1495,6 @@ contains
             node => first_ordered
          end if
          node%p => job
-         node%owner = .true.
       end subroutine add_to_order
 
    end subroutine job_manager_initialize
@@ -1515,6 +1512,19 @@ contains
          node => node%next
       end do
    end subroutine job_manager_print
+
+   subroutine job_manager_finalize(self)
+      class (type_job_manager), intent(inout) :: self
+
+      type (type_job_node), pointer :: job_node
+
+      job_node => self%first
+      do while (associated(job_node))
+         call job_node%p%finalize()
+         job_node => job_node%next
+      end do
+      call self%type_job_set%finalize()
+   end subroutine
 
    subroutine job_manager_write_graph(self, unit)
       class (type_job_manager), intent(in) :: self

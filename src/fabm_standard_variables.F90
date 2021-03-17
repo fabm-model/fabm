@@ -35,7 +35,7 @@ module fabm_standard_variables
    public type_base_standard_variable
    public type_universal_standard_variable, type_domain_specific_standard_variable, type_interior_standard_variable, type_horizontal_standard_variable, type_surface_standard_variable, type_bottom_standard_variable, type_global_standard_variable
    public type_standard_variable_node, type_standard_variable_set
-   public standard_variables, initialize_standard_variables
+   public standard_variables
 
    ! ====================================================================================================
    ! Data types that contain all metadata needed to describe standard variables.
@@ -91,6 +91,7 @@ module fabm_standard_variables
 
    type type_standard_variable_node
       class (type_base_standard_variable), pointer :: p    => null()
+      logical, private                             :: own = .false.
       type (type_standard_variable_node),  pointer :: next => null()
    end type
 
@@ -108,6 +109,9 @@ module fabm_standard_variables
    type type_standard_variable_collection
       type (type_standard_variable_node), pointer :: first => null()
 #include "standard_variables.h"
+   contains
+      procedure :: initialize => standard_variable_collection_initialize
+      procedure :: finalize   => standard_variable_collection_finalize
    end type
 
    ! Single instance of the collection that contains all standard variables.
@@ -136,7 +140,7 @@ contains
       end do
 
       allocate(p, source=self)
-      call add(p)
+      call add(p, own=.true.)
 
    contains
 
@@ -153,8 +157,9 @@ contains
 
    end function base_standard_variable_resolve
 
-   recursive subroutine add(standard_variable)
+   recursive subroutine add(standard_variable, own)
       class (type_base_standard_variable), target, intent(inout) :: standard_variable
+      logical, optional,                           intent(in)    :: own
 
       type (type_standard_variable_node), pointer :: node
       type (type_interior_standard_variable)   :: in_interior
@@ -172,6 +177,7 @@ contains
 
       allocate(node)
       node%p => standard_variable
+      if (present(own)) node%own = own
       node%next => standard_variables%first
       standard_variables%first => node
       standard_variable%resolved = .true.
@@ -288,9 +294,25 @@ contains
       stop 1
    end subroutine
 
-   subroutine initialize_standard_variables()
+   subroutine standard_variable_collection_initialize(self)
+      class (type_standard_variable_collection), intent(inout) :: self
 #include "standard_variable_assignments.h"
    end subroutine
+
+   subroutine standard_variable_collection_finalize(self)
+      class (type_standard_variable_collection), intent(inout) :: self
+
+      type (type_standard_variable_node), pointer :: node, next
+
+      node => self%first
+      do while (associated(node))
+         next => node%next
+         if (node%own) deallocate(node%p)
+         deallocate(node)
+         node => next
+      end do
+      self%first => null()
+   end subroutine standard_variable_collection_finalize
 
    logical function standard_variable_set_contains_variable(self, standard_variable)
       class (type_standard_variable_set),  intent(in) :: self

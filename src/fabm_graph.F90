@@ -347,10 +347,14 @@ contains
       target_graph => self
 
       ! Check if this node is already in a graph of another job (recursive search from the root graph/very first job).
+      ! NB owner_graph and node are nullified only to make it clear to valgrind that the code path does not depend
+      ! on uninitialized values.
       root_graph => target_graph
       do while (associated(root_graph%previous%first))
          root_graph => root_graph%previous%first%p
       end do
+      owner_graph => null()
+      node => null()
       call find_node(root_graph, model, source, owner_graph, node)
 
       if (associated(node)) then
