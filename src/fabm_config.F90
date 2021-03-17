@@ -48,9 +48,16 @@ contains
 
       ! Parse YAML file.
       node => yaml_parse(trim(path_eff), unit_eff, yaml_error)
-      if (yaml_error /= '') call fatal_error('fabm_configure_model', trim(yaml_error))
-      if (.not. associated(node)) call fatal_error('fabm_configure_model', &
-         'No configuration information found in ' // trim(path_eff) // '.')
+      if (yaml_error /= '') then
+         call fatal_error('fabm_configure_model', trim(yaml_error))
+         return
+      end if
+
+      if (.not. associated(node)) then
+         call fatal_error('fabm_configure_model', 'No configuration information found in ' // trim(path_eff) // '.')
+         return
+      end if
+
       !call node%dump(output_unit,0)
 
       ! If custom parameter values were provided, transfer these to the root model.
@@ -92,8 +99,10 @@ contains
       if (associated(config_error)) call fatal_error('create_model_tree_from_dictionary', config_error%message)
 
       node => mapping%get('instances')
-      if (.not. associated(node)) &
+      if (.not. associated(node)) then
          call fatal_error('create_model_tree_from_dictionary', 'No "instances" dictionary found at root level.')
+         return
+      end if
       pair => null()
       select type (node)
       class is (type_dictionary)
@@ -102,6 +111,7 @@ contains
       class is (type_node)
          call fatal_error('create_model_tree_from_dictionary', trim(node%path) // &
             ' must be a dictionary with (model name : information) pairs, not a single value.')
+         return
       end select
 
       if (.not. associated(pair)) &
