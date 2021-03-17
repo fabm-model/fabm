@@ -7,7 +7,9 @@ jobs:
             version: [5, 6, 7, 8, 9, 10]
             os: [ubuntu-latest]
             include:
-               - version: [5, 6]
+               - version: 5
+                 os: ubuntu-18.04
+               - version: 6
                  os: ubuntu-18.04
                - version: 8
                  cmake_args: -DFABM_USE_CONTIGUOUS=OFF
