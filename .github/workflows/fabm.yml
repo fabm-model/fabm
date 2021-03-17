@@ -7,8 +7,8 @@ jobs:
             version: [7, 8, 9, 10]
             os: [ubuntu-latest]
             include:
-               - version: 4.8
-                 os: ubuntu-18.04
+               #- version: 4.8
+               #  os: ubuntu-18.04
                - version: 5
                  os: ubuntu-18.04
                - version: 6
