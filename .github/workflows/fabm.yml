@@ -65,3 +65,23 @@ jobs:
         run: python3 util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
       - name: Run all test cases with pyfabm
         run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
+   aocc:
+      runs-on: ubuntu-latest
+      steps:
+      - name: Install compiler
+        run: |
+           wget --no-verbose http://developer.amd.com/wordpress/media/files/aocc-compiler-3.0.0.tar
+           tar xpf aocc-compiler-3.0.0.tar
+           ./aocc-compiler-3.0.0/install.sh
+      - name: Install dependencies
+        run: sudo apt-get install python3-numpy python3-wheel
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Run all test cases with host emulators
+        run: |
+           source ~/setenv_AOCC.sh
+           python3 util/developers/run_all_testcases.py harness --show_logs --compiler flang
+      - name: Run all test cases with pyfabm
+        run: |
+           source ~/setenv_AOCC.sh
+           python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang
