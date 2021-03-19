@@ -70,6 +70,7 @@ jobs:
       steps:
       - name: Install compiler
         run: |
+           cd /home/runner
            wget --no-verbose http://developer.amd.com/wordpress/media/files/aocc-compiler-3.0.0.tar
            tar xpf aocc-compiler-3.0.0.tar
            ./aocc-compiler-3.0.0/install.sh
@@ -79,9 +80,9 @@ jobs:
         uses: actions/checkout@v2
       - name: Run all test cases with host emulators
         run: |
-           source $GITHUB_WORKSPACE/setenv_AOCC.sh
+           source /home/runner/setenv_AOCC.sh
            python3 util/developers/run_all_testcases.py harness --show_logs --compiler flang
       - name: Run all test cases with pyfabm
         run: |
-           source $GITHUB_WORKSPACE/setenv_AOCC.sh
+           source /home/runner/setenv_AOCC.sh
            python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang
