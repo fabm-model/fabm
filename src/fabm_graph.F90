@@ -410,7 +410,7 @@ contains
    contains
 
       logical function resolve(variable)
-         type (type_internal_variable), intent(in) :: variable
+         type (type_internal_variable), target, intent(in) :: variable
 
          resolve = .false.
          ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
