@@ -70,15 +70,14 @@ contains
       logical,                 target  :: active
 
       type (type_schedule),        pointer :: schedule
-      type (type_base_model),      pointer :: p1, p2
+      logical,                     pointer :: pmember
       type (type_logical_pointer), pointer :: pactive
 
       schedule => self%first
-      p1 => model
+      pmember => model%frozen
       do while (associated(schedule))
-         ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-         p2 => schedule%model
-         if (associated(p1, p2) .and. schedule%source == source) exit
+         ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+         if (associated(pmember, schedule%model%frozen) .and. schedule%source == source) exit
          schedule => schedule%next
       end do
 

@@ -1136,8 +1136,8 @@ contains
       real(rk), optional,                  intent(in)    :: scale_factor
       logical, optional,                   intent(in)    :: include_background
 
-      type (type_contribution),                      pointer :: contribution
-      type (type_domain_specific_standard_variable), pointer :: p1, p2
+      type (type_contribution), pointer :: contribution
+      logical,                  pointer :: pmember
 
       ! If the scale factor is 0, no need to register any contribution.
       if (present(scale_factor)) then
@@ -1146,11 +1146,10 @@ contains
 
       ! First look for existing contribution to this aggregate variable.
       contribution => self%first
-      p1 => standard_variable
+      pmember => standard_variable%aggregate_variable
       do while (associated(contribution))
-         ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-         p2 => contribution%target
-         if (associated(p1, p2)) exit
+         ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+         if (associated(pmember, contribution%target%aggregate_variable)) exit
          contribution => contribution%next
       end do
 
@@ -1232,14 +1231,13 @@ contains
       class (type_base_model), target, intent(in) :: model
 
       type (type_model_list_node), pointer :: node
-      type (type_base_model),      pointer :: p1, p2
+      logical,                     pointer :: pmember
 
       node => self%first
-      p1 => model
+      pmember => model%frozen
       do while (associated(node))
-         ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-         p2 => node%model
-         if (associated(p1, p2)) return
+         ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+         if (associated(pmember, node%model%frozen)) return
          node => node%next
       end do
    end function model_list_find_model
@@ -1263,15 +1261,14 @@ contains
       integer :: count
 
       type (type_model_list_node), pointer :: node
-      type (type_base_model),      pointer :: p1, p2
+      logical,                     pointer :: pmember
 
       count = 0
       node => self%first
-      p1 => model
+      pmember => model%frozen
       do while (associated(node))
-         ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-         p2 => node%model
-         if (associated(p1, p2)) count = count + 1
+         ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+         if (associated(pmember, node%model%frozen)) count = count + 1
          node => node%next
       end do
    end function
@@ -2795,16 +2792,15 @@ contains
       class (type_base_model),                        intent(inout) :: self
       class (type_domain_specific_standard_variable), target        :: standard_variable
 
-      type (type_aggregate_variable_access),         pointer :: aggregate_variable_access
-      type (type_domain_specific_standard_variable), pointer :: p1, p2
+      type (type_aggregate_variable_access), pointer :: aggregate_variable_access
+      logical,                               pointer :: pmember
 
       ! First try to locate existing requests object for the specified standard variable.
       aggregate_variable_access => self%first_aggregate_variable_access
-      p1 => standard_variable
+      pmember => standard_variable%aggregate_variable
       do while (associated(aggregate_variable_access))
-         ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-         p2 => aggregate_variable_access%standard_variable
-         if (associated(p1, p2)) return
+         ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+         if (associated(pmember, aggregate_variable_access%standard_variable%aggregate_variable)) return
          aggregate_variable_access => aggregate_variable_access%next
       end do
 

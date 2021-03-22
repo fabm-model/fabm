@@ -1183,14 +1183,13 @@ contains
       class (type_job), target            :: job
 
       type (type_job_node), pointer :: job_node
-      type (type_job),      pointer :: p1, p2
+      integer,              pointer :: pmember
 
       job_node => self%first
-      p1 => job
+      pmember => job%state
       do while (associated(job_node))
-         ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-         p2 => job_node%p
-         if (associated(p1, p2)) return
+         ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+         if (associated(pmember, job_node%p%state)) return
          job_node => job_node%next
       end do
       allocate(job_node)
@@ -1463,15 +1462,14 @@ contains
          class (type_job), target :: job
 
          type (type_job_node), pointer :: node
-         type (type_job),      pointer :: p1, p2
+         integer,              pointer :: pmember
 
          ! Make sure job is not yet in list
          node => first_ordered
-         p1 => job
+         pmember => job%state
          do while (associated(node))
-            ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-            p2 => node%p
-            if (associated(p1, p2)) return
+            ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+            if (associated(pmember, node%p%state)) return
             node => node%next
          end do
 
@@ -1626,16 +1624,15 @@ contains
       class (type_job), intent(inout), target :: self
       class (type_job), intent(inout), target :: next
 
-      type (type_job),      pointer :: p1, p2
+      integer,              pointer :: pmember
       type (type_job_node), pointer :: node
 
       _ASSERT_(self%state <= job_state_created, 'job_connect','This job (' // trim(self%name) // ') has already started initialization; it is too late to specify its place in the call order.')
       !_ASSERT_(.not. associated(self%previous), 'job_connect','This job ('//trim(self%name)//') has already been connected to a subsequent one.')
 
-      ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-      p1 => self
-      p2 => next
-      _ASSERT_(.not. associated(p1, p2), 'job_connect', 'Attempt to connect job ' // trim(self%name) // ' to itself.')
+      ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+      pmember => self%state
+      _ASSERT_(.not. associated(pmember, next%state), 'job_connect', 'Attempt to connect job ' // trim(self%name) // ' to itself.')
 
       allocate(node)
       node%p => self

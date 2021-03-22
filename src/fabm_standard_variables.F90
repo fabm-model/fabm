@@ -319,21 +319,20 @@ contains
       class (type_base_standard_variable), target     :: standard_variable
 
       type (type_standard_variable_node), pointer :: node
-      type (type_base_standard_variable), pointer :: p1, p2
+      logical,                            pointer :: pmember
 
 #ifndef NDEBUG
       call standard_variable%assert_resolved()
 #endif
       standard_variable_set_contains_variable = .true.
       node => self%first
-      p1 => standard_variable
+      pmember => standard_variable%aggregate_variable
       do while (associated(node))
 #ifndef NDEBUG
          call node%p%assert_resolved()
 #endif
-         ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-         p2 => node%p
-         if (associated(p2, p1)) return
+         ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+         if (associated(pmember, node%p%aggregate_variable)) return
          node => node%next
       end do
       standard_variable_set_contains_variable = .false.

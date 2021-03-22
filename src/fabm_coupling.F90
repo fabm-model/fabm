@@ -435,15 +435,14 @@ contains
       class (type_aggregate_variable_list), intent(inout)    :: self
       class (type_domain_specific_standard_variable), target :: standard_variable
 
-      type (type_aggregate_variable),                pointer :: aggregate_variable
-      type (type_domain_specific_standard_variable), pointer :: p1, p2
+      type (type_aggregate_variable), pointer :: aggregate_variable
+      logical,                        pointer :: pmember
 
-      p1 => standard_variable
+      pmember => standard_variable%aggregate_variable
       aggregate_variable => self%first
       do while (associated(aggregate_variable))
-         ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-         p2 => aggregate_variable%standard_variable
-         if (associated(p1, p2)) return
+         ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+         if (associated(pmember, aggregate_variable%standard_variable%aggregate_variable)) return
          aggregate_variable => aggregate_variable%next
       end do
       allocate(aggregate_variable)

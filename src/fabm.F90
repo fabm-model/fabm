@@ -873,7 +873,7 @@ contains
 
          type (type_model_reference), pointer :: first, current, next
          type (type_link),            pointer :: link
-         type (type_base_model),      pointer :: p1, p2
+         logical,                     pointer :: pmember
          character(len=attribute_length)      :: path
 
          call log_message('UNFULFILLED DEPENDENCY: ' // trim(variable%name))
@@ -895,11 +895,10 @@ contains
                 .and. associated(link%original%read_index) &                     ! the model that owns the link requests read access for it,
                 .and. link%original%presence /= presence_external_optional) then ! and this access is required, not optional
                current => first
-               p1 => link%original%owner
+               pmember => link%original%owner%frozen
                do while (associated(current))
-                  ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-                  p2 => current%p
-                  if (associated(p1, p2)) exit
+                  ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+                  if (associated(pmember, current%p%frozen)) exit
                   current => current%next
                end do
                if (.not. associated(current)) then

@@ -286,14 +286,13 @@ contains
       class (type_graph), pointer :: graph
       logical :: has_descendant
 
-      type (type_graph),            pointer :: p1, p2
+      logical,                      pointer :: pmember
       type (type_graph_set_member), pointer :: member
 
       has_descendant = .true.
-      ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-      p1 => self
-      p2 => graph
-      if (associated(p1, p2)) return
+      ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+      pmember => self%frozen
+      if (associated(pmember, graph%frozen)) return
       member => self%next%first
       do while (associated(member))
          if (graph_has_descendant(member%p, graph)) return
@@ -316,18 +315,17 @@ contains
       type (type_call_stack_node),  target  :: own_stack_node
       type (type_link),             pointer :: link
       type (type_input_variable),   pointer :: input_variable
-      type (type_base_model),       pointer :: pmodel, paltmodel
+      logical,                      pointer :: pownmember
 
       ! Circular dependency check:
       ! Search the stack, i.e., the list of calls that [indirectly] request the current call.
       ! If the current call is already on the stack, it is indirectly calling itself: there is a circular dependency.
       existing_stack_node => null()
       if (present(stack_top)) existing_stack_node => stack_top
-      pmodel => model
+      pownmember => model%frozen
       do while (associated(existing_stack_node))
-         ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-         paltmodel => existing_stack_node%model
-         if (associated(pmodel, paltmodel) .and. existing_stack_node%source == source) exit
+         ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+         if (associated(pownmember, existing_stack_node%model%frozen) .and. existing_stack_node%source == source) exit
          existing_stack_node => existing_stack_node%previous
       end do
       if (associated(existing_stack_node)) then
@@ -415,9 +413,8 @@ contains
          type (type_internal_variable), intent(in) :: variable
 
          resolve = .false.
-         ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-         paltmodel => variable%owner
-         if (associated(pmodel, paltmodel) .and. variable%source == source) return
+         ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+         if (associated(pownmember, variable%owner%frozen) .and. variable%source == source) return
          if (source == source_get_light_extinction .or. source == source_get_drag .or. source == source_get_albedo) return
          resolve = .true.
       end function
@@ -637,14 +634,13 @@ contains
       integer,                 intent(in)         :: source
       type (type_node_list_member), pointer       :: pnode
 
-      type (type_base_model), pointer :: p1, p2
+      logical, pointer :: pmember
 
-      p1 => model
+      pmember => model%frozen
       pnode => self%first
       do while (associated(pnode))
-         ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-         p2 => pnode%p%model
-         if (associated(p1, p2) .and. pnode%p%source == source) return
+         ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+         if (associated(pmember, pnode%p%model%frozen) .and. pnode%p%source == source) return
          pnode => pnode%next
       end do
    end function node_list_find_node
