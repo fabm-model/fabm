@@ -153,6 +153,18 @@ module fabm_builtin_models
       procedure :: initialize => horizontal_constant_initialize
    end type
 
+   type, extends(type_base_model) :: type_surface_constant
+      type (type_surface_diagnostic_variable_id) :: id_constant
+   contains
+      procedure :: initialize => surface_constant_initialize
+   end type
+
+   type, extends(type_base_model) :: type_bottom_constant
+      type (type_bottom_diagnostic_variable_id) :: id_constant
+   contains
+      procedure :: initialize => bottom_constant_initialize
+   end type
+
    type, extends(type_base_model) :: type_horizontal_layer
       type (type_dependency_id)                     :: id_source
       type (type_horizontal_diagnostic_variable_id) :: id_result
@@ -254,6 +266,8 @@ module fabm_builtin_models
          case ('bulk_constant');          allocate(type_interior_constant::model)
          case ('interior_constant');      allocate(type_interior_constant::model)
          case ('horizontal_constant');    allocate(type_horizontal_constant::model)
+         case ('bottom_constant');        allocate(type_bottom_constant::model)
+         case ('surface_constant');       allocate(type_surface_constant::model)
          case ('surface_flux');           allocate(type_constant_surface_flux::model)
          case ('constant_surface_flux');  allocate(type_constant_surface_flux::model)
          case ('external_surface_flux');  allocate(type_external_surface_flux::model)
@@ -924,17 +938,15 @@ module fabm_builtin_models
       class (type_interior_constant), intent(inout), target :: self
       integer,                        intent(in)            :: configunit
 
-      character(len=attribute_length)        :: standard_name
       real(rk)                               :: value
       type (type_interior_standard_variable) :: standard_variable
 
       call self%register_implemented_routines()
-      call self%get_parameter(standard_name, 'standard_name', '', 'standard name', default='')
+      call self%get_parameter(standard_variable%name, 'standard_name', '', 'standard name', default='')
       call self%get_parameter(value, 'value', '', 'value')
-      if (standard_name /= '') then
+      if (standard_variable%name /= '') then
          ! Note: for Cray 8.3.7, standard_variable needs to be declared separately.
-         ! It cannot be contructed on the fly within the function call
-         standard_variable%name = trim(standard_name)
+         ! It cannot be constructed on the fly within the function call
          call self%register_diagnostic_variable(self%id_constant, 'data', '', 'data', missing_value=value, &
             output=output_none, standard_variable=standard_variable, source=source_constant)
       else
@@ -943,21 +955,19 @@ module fabm_builtin_models
       end if
    end subroutine interior_constant_initialize
 
-   subroutine horizontal_constant_initialize(self,configunit)
+   subroutine horizontal_constant_initialize(self, configunit)
       class (type_horizontal_constant), intent(inout), target :: self
       integer,                          intent(in)            :: configunit
 
-      character(len=attribute_length)          :: standard_name
       real(rk)                                 :: value
       type (type_horizontal_standard_variable) :: standard_variable
 
       call self%register_implemented_routines()
-      call self%get_parameter(standard_name, 'standard_name', '', 'standard name', default='')
+      call self%get_parameter(standard_variable%name, 'standard_name', '', 'standard name', default='')
       call self%get_parameter(value, 'value', '', 'value')
-      if (standard_name /= '') then
+      if (standard_variable%name /= '') then
          ! Note: for Cray 8.3.7, standard_variable needs to be declared separately.
-         ! It cannot be contructed on the fly within the function call
-         standard_variable%name = trim(standard_name)
+         ! It cannot be constructed on the fly within the function call
          call self%register_diagnostic_variable(self%id_constant, 'data', '', 'data', missing_value=value, &
             output=output_none, standard_variable=standard_variable, source=source_constant)
       else
@@ -965,6 +975,48 @@ module fabm_builtin_models
             output=output_none, source=source_constant)
       end if
    end subroutine horizontal_constant_initialize
+
+   subroutine surface_constant_initialize(self, configunit)
+      class (type_surface_constant), intent(inout), target :: self
+      integer,                       intent(in)            :: configunit
+
+      real(rk)                              :: value
+      type (type_surface_standard_variable) :: standard_variable
+
+      call self%register_implemented_routines()
+      call self%get_parameter(standard_variable%name, 'standard_name', '', 'standard name', default='')
+      call self%get_parameter(value, 'value', '', 'value')
+      if (standard_variable%name /= '') then
+         ! Note: for Cray 8.3.7, standard_variable needs to be declared separately.
+         ! It cannot be constructed on the fly within the function call
+         call self%register_diagnostic_variable(self%id_constant, 'data', '', 'data', missing_value=value, &
+            output=output_none, standard_variable=standard_variable, source=source_constant)
+      else
+         call self%register_diagnostic_variable(self%id_constant, 'data', '', 'data', missing_value=value, &
+            output=output_none, source=source_constant)
+      end if
+   end subroutine surface_constant_initialize
+
+   subroutine bottom_constant_initialize(self, configunit)
+      class (type_bottom_constant), intent(inout), target :: self
+      integer,                      intent(in)            :: configunit
+
+      real(rk)                             :: value
+      type (type_bottom_standard_variable) :: standard_variable
+
+      call self%register_implemented_routines()
+      call self%get_parameter(standard_variable%name, 'standard_name', '', 'standard name', default='')
+      call self%get_parameter(value, 'value', '', 'value')
+      if (standard_variable%name /= '') then
+         ! Note: for Cray 8.3.7, standard_variable needs to be declared separately.
+         ! It cannot be constructed on the fly within the function call
+         call self%register_diagnostic_variable(self%id_constant, 'data', '', 'data', missing_value=value, &
+            output=output_none, standard_variable=standard_variable, source=source_constant)
+      else
+         call self%register_diagnostic_variable(self%id_constant, 'data', '', 'data', missing_value=value, &
+            output=output_none, source=source_constant)
+      end if
+   end subroutine bottom_constant_initialize
 
    subroutine horizontal_layer_after_coupling(self)
       class (type_horizontal_layer), intent(inout) :: self
