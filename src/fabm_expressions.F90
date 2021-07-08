@@ -154,9 +154,9 @@ contains
    end function
 
    function horizontal_temporal_mean(input, period, resolution) result(expression)
-      type (type_horizontal_dependency_id), intent(inout), target :: input
-      real(rk),                             intent(in)            :: period, resolution
-      type (type_horizontal_temporal_mean)                        :: expression
+      class (type_horizontal_dependency_id), intent(inout), target :: input
+      real(rk),                              intent(in)            :: period, resolution
+      type (type_horizontal_temporal_mean)                         :: expression
 
       character(len=attribute_length) :: prefix, postfix
 
