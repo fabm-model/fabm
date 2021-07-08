@@ -235,7 +235,7 @@ contains
                      link => link%next
                   end do
 
-                  if (stage == couple_final .and. .not. associated(link)) then
+                  if (stage == couple_final .and. .not. associated(link) .and. coupling%slave%target%source /= source_state) then
                      ! Target variable was not found, but this is our last chance.
                      ! Therefore, create a placeholder variable at the root level.
                      ! This variable will still need to be provided by the host.
