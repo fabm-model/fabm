@@ -2771,9 +2771,9 @@ contains
          do while (associated(found_model) .and. istart <= len(name))
             length = index(name(istart:), '/') - 1
             if (length == -1) length = len(name) - istart + 1
-            if (length == 2 .and. name(istart:istart + 1) == '..') then
+            if (length == 2 .and. name(istart:istart + length - 1) == '..') then
                found_model => found_model%parent
-            elseif (.not. (length == 1 .and. name(istart:istart) == '.')) then
+            elseif (.not. (length == 1 .and. name(istart:istart + length - 1) == '.')) then
                node => found_model%children%find(name(istart:istart + length - 1))
                found_model => null()
                if (associated(node)) found_model => node%model
