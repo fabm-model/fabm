@@ -2047,7 +2047,8 @@ contains
       class (type_base_model),                       intent(inout), target :: self
       type (type_horizontal_diagnostic_variable_id), intent(inout), target :: id
       character(len=*),                              intent(in)            :: name, units, long_name
-      integer,                                       intent(in), optional  :: output, source, domain
+      integer,                                       intent(in)            :: source
+      integer,                                       intent(in), optional  :: output, domain
       real(rk),                                      intent(in), optional  :: missing_value
       class (type_base_standard_variable),           intent(in), optional  :: standard_variable
       logical,                                       intent(in), optional  :: act_as_state_variable
