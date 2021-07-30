@@ -2,7 +2,7 @@
 
 module fabm_builtin_models
    use fabm_types
-   use fabm_builtin_scaled_variable
+   use fabm_builtin_scale
    use fabm_builtin_sum
    use fabm_builtin_constant
    use fabm_builtin_time_filter
