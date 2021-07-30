@@ -195,12 +195,21 @@ add_library(fabm_base OBJECT
             ${CMAKE_CURRENT_LIST_DIR}/fabm_types.F90
             ${CMAKE_CURRENT_LIST_DIR}/fabm_particle.F90
             ${CMAKE_CURRENT_LIST_DIR}/fabm_expressions.F90
+            ${CMAKE_CURRENT_LIST_DIR}/builtin/constant.F90
+            ${CMAKE_CURRENT_LIST_DIR}/builtin/reduction.F90
+            ${CMAKE_CURRENT_LIST_DIR}/builtin/sum.F90
+            ${CMAKE_CURRENT_LIST_DIR}/builtin/scale.F90
+            ${CMAKE_CURRENT_LIST_DIR}/builtin/source.F90
+            ${CMAKE_CURRENT_LIST_DIR}/builtin/time_filter.F90
+            ${CMAKE_CURRENT_LIST_DIR}/builtin/depth_integral.F90
+            ${CMAKE_CURRENT_LIST_DIR}/builtin/relaxation.F90
             ${CMAKE_CURRENT_LIST_DIR}/fabm_builtin_models.F90
             ${CMAKE_CURRENT_LIST_DIR}/../include/fabm.h
             ${CMAKE_CURRENT_LIST_DIR}/../include/fabm_private.h
             ${CMAKE_CURRENT_LIST_DIR}/../include/fabm_version.h
             ${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}/fabm_driver.h
            )
+source_group(builtin REGULAR_EXPRESSION /builtin/)
 
 # Create a list of institute-specific object libraries.
 foreach(institute ${ACTIVE_INSTITUTES})

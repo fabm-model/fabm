@@ -22,7 +22,8 @@ module fabm
    use fabm_expressions
    use fabm_driver
    use fabm_properties
-   use fabm_builtin_models
+   use fabm_builtin_depth_integral
+   use fabm_builtin_reduction
    use fabm_coupling
    use fabm_job
    use fabm_schedule
