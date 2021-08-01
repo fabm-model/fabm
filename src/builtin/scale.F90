@@ -48,8 +48,8 @@ contains
       real(rk) :: value
 
       _CONCURRENT_LOOP_BEGIN_
-         _GET_(self%id_source,value)
-         _SET_DIAGNOSTIC_(self%id_result, self%offset + self%weight*value)
+         _GET_(self%id_source, value)
+         _SET_DIAGNOSTIC_(self%id_result, self%offset + self%weight * value)
       _LOOP_END_
    end subroutine scaled_interior_variable_do
 

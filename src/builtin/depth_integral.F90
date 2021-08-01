@@ -49,7 +49,7 @@ contains
       class (type_depth_integral), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_COLUMN_
 
-      real(rk) :: h,value,result,depth
+      real(rk) :: h, value, result, depth
 
       result = 0
       depth = 0
@@ -68,15 +68,15 @@ contains
       class (type_bounded_depth_integral), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_COLUMN_
 
-      real(rk) :: h,value,cum,depth
+      real(rk) :: h, value, cum, depth
       logical :: started
 
       cum = 0
       depth = 0
       started = self%minimum_depth <= 0
       _VERTICAL_LOOP_BEGIN_
-         _GET_(self%id_thickness,h)
-         _GET_(self%id_input,value)
+         _GET_(self%id_thickness, h)
+         _GET_(self%id_input, value)
 
          depth = depth + h
          if (.not.started) then
@@ -91,13 +91,13 @@ contains
             h = h - (depth - self%maximum_depth)
             _VERTICAL_LOOP_EXIT_
          end if
-         cum = cum + h*value
+         cum = cum + h * value
       _VERTICAL_LOOP_END_
 
-      if (.not.self%average) then
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,cum)
-      elseif (depth>self%minimum_depth) then
-         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output,cum/(min(self%maximum_depth,depth)-self%minimum_depth))
+      if (.not. self%average) then
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output, cum)
+      elseif (depth > self%minimum_depth) then
+         _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output, cum / (min(self%maximum_depth, depth) - self%minimum_depth))
       endif
    end subroutine bounded_depth_integral_do_column
 

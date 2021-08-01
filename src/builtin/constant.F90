@@ -33,7 +33,7 @@ module fabm_builtin_constant
 
 contains
 
-   subroutine interior_constant_initialize(self,configunit)
+   subroutine interior_constant_initialize(self, configunit)
       class (type_interior_constant), intent(inout), target :: self
       integer,                        intent(in)            :: configunit
 

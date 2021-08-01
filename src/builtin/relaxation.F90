@@ -27,8 +27,8 @@ contains
       integer,                         intent(in)           :: configunit
 
       call self%register_implemented_routines((/source_do/))
-      call self%register_state_dependency(self%id_original,'original', '', 'variable that is to be relaxed')
-      call self%register_dependency(self%id_target,'target', '', 'target to relax towards')
+      call self%register_state_dependency(self%id_original, 'original', '', 'variable that is to be relaxed')
+      call self%register_dependency(self%id_target, 'target', '', 'target to relax towards')
       call self%get_parameter(self%rate_is_variable, 'rate_is_variable', '', 'use variable relaxation rate', default=.false.)
       if (self%rate_is_variable) then
          call self%register_dependency(self%id_rate, 'rate', 's-1', 'relaxation rate')
@@ -37,7 +37,7 @@ contains
       end if
    end subroutine interior_relaxation_initialize
 
-   subroutine interior_relaxation_do(self,_ARGUMENTS_DO_)
+   subroutine interior_relaxation_do(self, _ARGUMENTS_DO_)
       class (type_interior_relaxation), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
 
@@ -45,10 +45,10 @@ contains
 
       relaxation_rate = self%rate
       _LOOP_BEGIN_
-         _GET_(self%id_original,original_value)
-         _GET_(self%id_target,target_value)
+         _GET_(self%id_original, original_value)
+         _GET_(self%id_target, target_value)
          if (self%rate_is_variable) _GET_(self%id_rate, relaxation_rate)
-         _ADD_SOURCE_(self%id_original, relaxation_rate*(target_value - original_value))
+         _ADD_SOURCE_(self%id_original, relaxation_rate * (target_value - original_value))
       _LOOP_END_
    end subroutine interior_relaxation_do
 
