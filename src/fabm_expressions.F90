@@ -27,9 +27,11 @@ module fabm_expressions
       integer,  private :: icurrent = -1
       logical,  private :: complete = .false.
       real(rke), allocatable _DIMENSION_GLOBAL_PLUS_1_ :: history
-      real(rke), allocatable _DIMENSION_GLOBAL_ :: previous_value
-      real(rke), allocatable _DIMENSION_GLOBAL_ :: last_exact_mean
-      real(rke), allocatable _DIMENSION_GLOBAL_ :: mean
+#if _FABM_DIMENSION_COUNT_>0
+      real(rke), allocatable _DIMENSION_GLOBAL_ :: previous_value, last_exact_mean, mean
+#else   
+      real(rke) :: previous_value, last_exact_mean, mean
+#endif
    contains
       procedure :: update => interior_temporal_mean_update
    end type

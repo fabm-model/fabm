@@ -550,7 +550,10 @@ contains
             class is (type_interior_temporal_mean)
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / seconds_per_time_unit
-               allocate(expression%history(_PREARG_LOCATION_ expression%n + 1), expression%previous_value _INDEX_LOCATION_, expression%last_exact_mean _INDEX_LOCATION_, expression%mean _INDEX_LOCATION_)
+               allocate(expression%history(_PREARG_LOCATION_ expression%n + 1))
+#if _FABM_DIMENSION_COUNT_>0
+               allocate(expression%previous_value _INDEX_LOCATION_, expression%last_exact_mean _INDEX_LOCATION_, expression%mean _INDEX_LOCATION_)
+#endif
                expression%history = 0.0_rke
                expression%last_exact_mean = 0.0_rke
                expression%mean = expression%missing_value
