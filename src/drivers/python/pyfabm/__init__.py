@@ -424,6 +424,16 @@ class SubModel(object):
 
 class Model(object):
     def __init__(self, path='fabm.yaml', shape=()):
+        delete = False
+        if isinstance(path, dict):
+            import tempfile
+            import yaml
+            import io
+            with tempfile.NamedTemporaryFile(suffix='.yaml', prefix='fabm', delete=False) as f:
+                yaml.safe_dump(path, io.TextIOWrapper(f, encoding='ascii'))
+                path = f.name
+            delete = True
+
         if len(shape) != ndim_int:
             raise FABMException('Domain shape %s has %i elements, but should have %i: one per spatial dimension.' % (shape, len(shape), ndim_int))
         fabm.reset_error_state()
@@ -433,6 +443,8 @@ class Model(object):
         self.domain_shape = shape
         if hasError():
             raise FABMException('An error occurred while parsing %s:\n%s' % (path, getError()))
+        if delete:
+            os.remove(path)
         self.updateConfiguration()
 
     def setCellThickness(self, value):
