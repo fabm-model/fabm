@@ -551,10 +551,10 @@ contains
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / seconds_per_time_unit
                allocate(expression%history(_PREARG_LOCATION_ expression%n + 1))
+               expression%history = 0.0_rke
 #if _FABM_DIMENSION_COUNT_>0
                allocate(expression%previous_value _INDEX_LOCATION_, expression%last_exact_mean _INDEX_LOCATION_, expression%mean _INDEX_LOCATION_)
 #endif
-               expression%history = 0.0_rke
                expression%last_exact_mean = 0.0_rke
                expression%mean = expression%missing_value
                call self%link_interior_data(expression%output_name, expression%mean)
@@ -565,6 +565,16 @@ contains
                expression%history = 0.0_rke
                call self%link_horizontal_data(expression%output_name, &
                                               expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 3))
+            class is (type_horizontal_temporal_maximum)
+               expression%in = expression%link%target%catalog_index
+               expression%period = expression%period / seconds_per_time_unit
+               allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n))
+               expression%history = -huge(1.0_rke)
+#if _HORIZONTAL_DIMENSION_COUNT_>0
+               allocate(expression%previous_value _INDEX_HORIZONTAL_LOCATION_, expression%maximum _INDEX_HORIZONTAL_LOCATION_)
+#endif
+               expression%maximum = expression%missing_value
+               call self%link_horizontal_data(expression%output_name, expression%maximum)
             end select
             expression => expression%next
          end do
@@ -2162,9 +2172,13 @@ contains
       do while (associated(expression))
          select type (expression)
          class is (type_interior_temporal_mean)
+            _ASSERT_(associated(self%catalog%interior(expression%in)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
             call expression%update(t, self%catalog%interior(expression%in)%p _POSTARG_LOCATION_RANGE_)
          class is (type_horizontal_temporal_mean)
             call update_horizontal_temporal_mean(expression)
+         class is (type_horizontal_temporal_maximum)
+            _ASSERT_(associated(self%catalog%horizontal(expression%in)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
+            call expression%update(t, self%catalog%horizontal(expression%in)%p _POSTARG_HORIZONTAL_LOCATION_RANGE_)
          end select
          expression => expression%next
       end do
