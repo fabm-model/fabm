@@ -943,7 +943,7 @@ contains
       class (type_base_model), target, intent(inout) :: self, model
       character(len=*),                intent(in)    :: name
       character(len=*), optional,      intent(in)    :: long_name
-      integer,                         intent(in)    :: configunit
+      integer, optional,               intent(in)    :: configunit
 
       integer                              :: islash
       class (type_base_model),     pointer :: parent
@@ -1006,7 +1006,7 @@ contains
       call self%parameters%add_child(model%parameters, trim(model%name))
       call self%couplings%add_child(model%couplings, trim(model%name))
       call self%children%append(model)
-      call model%initialize(configunit)
+      call model%initialize(-1)
       model%rdt__ = 1._rk / model%dt
 
       if (model%implements(source_get_light_extinction)) then
