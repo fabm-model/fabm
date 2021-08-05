@@ -311,7 +311,7 @@ program test_host
        ! Unit testing with built-in model
        allocate(model)
        allocate(test_model)
-       call model%root%add_child(test_model, 'test_model', 'test model', configunit=-1)
+       call model%root%add_child(test_model, 'test_model', 'test model')
    case (2)
        ! Test with user-provided fabm.yaml
        model => fabm_create_model(initialize=.false.)

@@ -2824,7 +2824,7 @@ contains
                integral => bounded_integral
             end if
             integral%average = current%average
-            call self%root%add_child(integral, trim(current%output_name) // '_calculator', configunit=-1)
+            call self%root%add_child(integral, trim(current%output_name) // '_calculator')
             call integral%request_coupling(integral%id_input, current%input_name)
             call self%root%request_coupling(current%output_name, integral%id_output%link%target%name)
             filter = .true.

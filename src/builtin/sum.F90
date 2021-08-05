@@ -126,7 +126,7 @@ contains
          else
             ! One component with scale factor other than 1 (or a user-specified requirement NOT to make a direct link to the source variable)
             allocate(scaled_variable)
-            call parent%add_child(scaled_variable, trim(name) // '_calculator', configunit=-1)
+            call parent%add_child(scaled_variable, trim(name) // '_calculator')
             call scaled_variable%register_dependency(scaled_variable%id_source, 'source', self%units, 'source variable')
             call scaled_variable%request_coupling(scaled_variable%id_source, self%first%name)
             call scaled_variable%register_diagnostic_variable(scaled_variable%id_result, 'result', self%units, 'result', &
@@ -144,7 +144,7 @@ contains
          deallocate(self%first)
       else
          ! Multiple components. Create the sum.
-         call parent%add_child(self, trim(name) // '_calculator', configunit=-1)
+         call parent%add_child(self, trim(name) // '_calculator')
          call parent%request_coupling(link_, trim(name) // '_calculator/result')
          sum_used = .true.
       end if
@@ -188,9 +188,9 @@ contains
 
          ! The sum will act as a state variable. Any source terms will have to be distributed over the individual variables that contribute to the sum.
          allocate(sms_distributor)
-         call self%add_child(sms_distributor,'sms_distributor',configunit=-1)
-         call sms_distributor%register_dependency(sms_distributor%id_total_sms,'total_sms',trim(self%units)//'/s','sources-sinks of sum')
-         call sms_distributor%request_coupling(sms_distributor%id_total_sms,'result_sms_tot')
+         call self%add_child(sms_distributor, 'sms_distributor')
+         call sms_distributor%register_dependency(sms_distributor%id_total_sms, 'total_sms', trim(self%units) // '/s', 'sources-sinks of sum')
+         call sms_distributor%request_coupling(sms_distributor%id_total_sms, 'result_sms_tot')
          allocate(sms_distributor%weights(ncomponents))
          allocate(sms_distributor%id_targets(ncomponents))
 
@@ -199,8 +199,8 @@ contains
          do while (associated(component))
             ncomponents = ncomponents + 1
             write (temp,'(i0)') ncomponents
-            call sms_distributor%register_state_dependency(sms_distributor%id_targets(ncomponents),'target'//trim(temp),self%units,'target '//trim(temp))
-            call sms_distributor%request_coupling(sms_distributor%id_targets(ncomponents),trim(component%name))
+            call sms_distributor%register_state_dependency(sms_distributor%id_targets(ncomponents), 'target'//trim(temp), self%units, 'target '//trim(temp))
+            call sms_distributor%request_coupling(sms_distributor%id_targets(ncomponents), trim(component%name))
             sms_distributor%weights(ncomponents) = component%weight
             component => component%next
          end do
@@ -486,7 +486,7 @@ contains
          else
             ! One component with scale factor other than 1 (or a user-specified requirement NOT to make a direct link to the source variable)
             allocate(scaled_variable)
-            call parent%add_child(scaled_variable, trim(name) // '_calculator', configunit=-1)
+            call parent%add_child(scaled_variable, trim(name) // '_calculator')
             call scaled_variable%register_dependency(scaled_variable%id_source, 'source', self%units, 'source variable')
             call scaled_variable%request_coupling(scaled_variable%id_source, self%first%name)
             call scaled_variable%register_diagnostic_variable(scaled_variable%id_result, 'result', self%units, 'result', &
@@ -504,7 +504,7 @@ contains
          deallocate(self%first)
       else
          ! One component with scale factor unequal to 1, or multiple components. Create the sum.
-         call parent%add_child(self, trim(name) // '_calculator', configunit=-1)
+         call parent%add_child(self, trim(name) // '_calculator')
          call parent%request_coupling(link_, trim(name) // '_calculator/result')
          sum_used = .true.
       end if

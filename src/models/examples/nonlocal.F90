@@ -96,20 +96,20 @@ contains
       class (type_depth_integral_rate_distributor), pointer :: rate_distributor
 
       call self%register_state_dependency(self%id_target, 'target', '', 'variable to depth-integrate')
-      call self%register_dependency(self%id_weights,'weights','-','weights for vertical integration')
-      call self%register_diagnostic_variable(self%id_integral,'result','','result',missing_value=0.0_rk, &
-         act_as_state_variable=.true.,source=source_do_column)
-      call self%register_dependency(self%id_thickness,standard_variables%cell_thickness)
+      call self%register_dependency(self%id_weights,'weights', '-', 'weights for vertical integration')
+      call self%register_diagnostic_variable(self%id_integral, 'result', '','result', missing_value=0.0_rk, &
+         act_as_state_variable=.true., source=source_do_column)
+      call self%register_dependency(self%id_thickness, standard_variables%cell_thickness)
 
       ! Create a child model that receives the intended rate of the change of the depth-integrated variable,
       ! and redistributes that rate of change over the pelagic variable that the integral was originally computed from.
       ! All dependencies of the child model can be resolved by coupling to our own variables.
       allocate(rate_distributor)
-      call self%add_child(rate_distributor,'rate_distributor',configunit=-1)
-      call rate_distributor%request_coupling(rate_distributor%id_target,'target')
-      call rate_distributor%request_coupling(rate_distributor%id_weights,'weights')
-      call rate_distributor%request_coupling(rate_distributor%id_integral,'result')
-      call rate_distributor%request_coupling(rate_distributor%id_sms,'result_sms_tot')
+      call self%add_child(rate_distributor, 'rate_distributor')
+      call rate_distributor%request_coupling(rate_distributor%id_target, 'target')
+      call rate_distributor%request_coupling(rate_distributor%id_weights, 'weights')
+      call rate_distributor%request_coupling(rate_distributor%id_integral, 'result')
+      call rate_distributor%request_coupling(rate_distributor%id_sms, 'result_sms_tot')
    end subroutine depth_integral_initialize
 
    subroutine depth_integral_do_column(self, _ARGUMENTS_DO_COLUMN_)
