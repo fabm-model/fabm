@@ -1422,7 +1422,7 @@ contains
       end if
 
       link => self%links%find(slave)
-      if (.not.associated(link)) call self%fatal_error('request_coupling_for_name', &
+      if (.not. associated(link)) call self%fatal_error('request_coupling_for_name', &
          'Specified slave (' // trim(slave) // ') not found. Make sure the variable is registered before calling request_coupling.')
       call request_coupling_for_link(self, link, master)
    end subroutine request_coupling_for_name
@@ -2750,7 +2750,7 @@ contains
    function find_model(self, name, recursive) result(found_model)
       class (type_base_model), target, intent(in) :: self
       character(len=*),                intent(in) :: name
-      logical,optional,                intent(in) :: recursive
+      logical, optional,               intent(in) :: recursive
       class (type_base_model), pointer            :: found_model
 
       class (type_base_model), pointer     :: current_root
@@ -2762,7 +2762,8 @@ contains
 
       ! Determine whether to also try among ancestors
       recursive_eff = .false.
-      if (present(recursive)) recursive_eff = recursive
+      if (present(recursive)) recursive_eff = recursive .and. .not. (name == '.' .or. name == '..' &
+            .or. name(:min(2, len(name))) == './' .or. name(:min(3, len(name))) == '../')
 
       current_root => self
       do while (associated(current_root))
