@@ -102,8 +102,14 @@ fabm.variable_get_output.argtypes = [ctypes.c_void_p]
 fabm.variable_get_output.restype = ctypes.c_int
 fabm.variable_is_required.argtypes = [ctypes.c_void_p]
 fabm.variable_is_required.restype = ctypes.c_int
+fabm.variable_get_property_type.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+fabm.variable_get_property_type.restype = ctypes.c_int
 fabm.variable_get_real_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_double]
 fabm.variable_get_real_property.restype = ctypes.c_double
+fabm.variable_get_integer_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+fabm.variable_get_integer_property.restype = ctypes.c_int
+fabm.variable_get_logical_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+fabm.variable_get_logical_property.restype = ctypes.c_int
 
 # Read/write/reset access to parameters.
 fabm.get_real_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
@@ -271,6 +277,15 @@ class Variable(object):
 
     def getOptions(self):
         pass
+
+    def getProperty(self, name):
+        typecode = fabm.variable_get_property_type(self.variable_pointer, name.encode('ascii'))
+        if typecode == 1:
+            return fabm.variable_get_real_property(self.variable_pointer, name.encode('ascii'), -1.)
+        elif typecode == 2:
+            return fabm.variable_get_integer_property(self.variable_pointer, name.encode('ascii'), 0)
+        elif typecode == 3:
+            return fabm.variable_get_logical_property(self.variable_pointer, name.encode('ascii'), 0) != 0
 
     def getRealProperty(self, name, default=-1.0):
         return fabm.variable_get_real_property(self.variable_pointer, name.encode('ascii'), default)
