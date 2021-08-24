@@ -241,6 +241,20 @@ def printTree(root, stringmapper, indent=''):
         else:
             print('%s%s = %s' % (indent, name, stringmapper(item)))
 
+class VariableProperties:
+    def __init__(self, variable_pointer):
+        self.variable_pointer = variable_pointer
+
+    def __getitem__(self, key):
+        typecode = fabm.variable_get_property_type(self.variable_pointer, key.encode('ascii'))
+        if typecode == 1:
+            return fabm.variable_get_real_property(self.variable_pointer, key.encode('ascii'), -1.)
+        elif typecode == 2:
+            return fabm.variable_get_integer_property(self.variable_pointer, key.encode('ascii'), 0)
+        elif typecode == 3:
+            return fabm.variable_get_logical_property(self.variable_pointer, key.encode('ascii'), 0) != 0
+        raise KeyError()
+
 class Variable(object):
     def __init__(self, name=None, units=None, long_name=None, path=None, variable_pointer=None):
         self.variable_pointer = variable_pointer
@@ -258,6 +272,7 @@ class Variable(object):
         self.units_unicode = None if units is None else createPrettyUnit(units)
         self.long_name = long_name or name
         self.path = path or name
+        self.properties = VariableProperties(self.variable_pointer)
 
     @property
     def long_path(self):
@@ -277,15 +292,6 @@ class Variable(object):
 
     def getOptions(self):
         pass
-
-    def getProperty(self, name):
-        typecode = fabm.variable_get_property_type(self.variable_pointer, name.encode('ascii'))
-        if typecode == 1:
-            return fabm.variable_get_real_property(self.variable_pointer, name.encode('ascii'), -1.)
-        elif typecode == 2:
-            return fabm.variable_get_integer_property(self.variable_pointer, name.encode('ascii'), 0)
-        elif typecode == 3:
-            return fabm.variable_get_logical_property(self.variable_pointer, name.encode('ascii'), 0) != 0
 
     def getRealProperty(self, name, default=-1.0):
         return fabm.variable_get_real_property(self.variable_pointer, name.encode('ascii'), default)
