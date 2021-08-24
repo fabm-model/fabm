@@ -4,7 +4,7 @@ set -e
 
 WORK_DIR=`mktemp -d`
 cd ${WORK_DIR}
-cmake src/drivers/python
+cmake ${REPO_DIR}/src/drivers/python
 make install
 cd -
 rm -rf ${WORK_DIR}
