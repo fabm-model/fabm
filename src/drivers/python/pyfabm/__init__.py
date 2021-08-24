@@ -8,6 +8,11 @@ import ctypes
 import re
 
 try:
+    from collections.abc import Sequence
+except ImportError:
+    from collections import Sequence
+
+try:
    import numpy
 except ImportError:
    print('Unable to import NumPy. Please ensure it is installed.')
@@ -253,7 +258,7 @@ class VariableProperties:
             return fabm.variable_get_integer_property(self.variable_pointer, key.encode('ascii'), 0)
         elif typecode == 3:
             return fabm.variable_get_logical_property(self.variable_pointer, key.encode('ascii'), 0) != 0
-        raise KeyError()
+        raise KeyError
 
 class Variable(object):
     def __init__(self, name=None, units=None, long_name=None, path=None, variable_pointer=None):
@@ -296,6 +301,9 @@ class Variable(object):
     def getRealProperty(self, name, default=-1.0):
         return fabm.variable_get_real_property(self.variable_pointer, name.encode('ascii'), default)
 
+    def __repr__(self):
+        return '<%s=%s>' % (self.name, self.value)
+
 class Dependency(Variable):
     def __init__(self, variable_pointer, data):
         Variable.__init__(self, variable_pointer=variable_pointer)
@@ -303,7 +311,7 @@ class Dependency(Variable):
         self.is_set = False
 
     def getValue(self):
-        return self.data
+        return None if not self.is_set else self.data
 
     def setValue(self, value):
         self.is_set = True
@@ -399,6 +407,33 @@ class Parameter(Variable):
     value = property(getValue, setValue)
     default = property(getDefault)
 
+class NamedObjectList(Sequence):
+    def __init__(self, *data):
+        self._data = []
+        for d in data:
+            self._data.extend(d)
+        self._lookup = None
+        self._lookup_ci = None
+
+    def __len__(self):
+        return len(self._data)
+
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            return self.find(key)
+        return self._data[key]
+
+    def __repr__(self):
+        return repr(self._data)
+
+    def find(self, name, case_insensitive=False):
+        if self._lookup is None:
+            self._lookup = dict([(obj.name.lower(), obj) for obj in self._data])
+            self._lookup_ci = dict([(obj.name, obj) for obj in self._data])
+        if case_insensitive:
+            return self._lookup_ci[name.lower()]
+        return self._lookup[name]
+
 class Coupling(Variable):
     def __init__(self, pmodel, index):
         self.pmodel = pmodel
@@ -458,7 +493,6 @@ class Model(object):
         if len(shape) != ndim_int:
             raise FABMException('Domain shape %s has %i elements, but should have %i: one per spatial dimension.' % (shape, len(shape), ndim_int))
         fabm.reset_error_state()
-        self.lookup_tables = {}
         self._cell_thickness = None
         self.pmodel = fabm.create_model(path.encode('ascii'), *shape)
         self.domain_shape = shape
@@ -537,53 +571,53 @@ class Model(object):
         typecode = ctypes.c_int()
         has_default = ctypes.c_int()
         required = ctypes.c_int()
-        self.interior_state_variables = []
-        self.surface_state_variables = []
-        self.bottom_state_variables = []
-        self.interior_diagnostic_variables = []
-        self.horizontal_diagnostic_variables = []
-        self.conserved_quantities = []
-        self.parameters = []
-        self.interior_dependencies = []
-        self.horizontal_dependencies = []
-        self.scalar_dependencies = []
+        self.interior_state_variables = NamedObjectList()
+        self.surface_state_variables = NamedObjectList()
+        self.bottom_state_variables = NamedObjectList()
+        self.interior_diagnostic_variables = NamedObjectList()
+        self.horizontal_diagnostic_variables = NamedObjectList()
+        self.conserved_quantities = NamedObjectList()
+        self.parameters = NamedObjectList()
+        self.interior_dependencies = NamedObjectList()
+        self.horizontal_dependencies = NamedObjectList()
+        self.scalar_dependencies = NamedObjectList()
         for i in range(nstate_interior.value):
             ptr = fabm.get_variable(self.pmodel, INTERIOR_STATE_VARIABLE, i + 1)
-            self.interior_state_variables.append(StateVariable(ptr, self.interior_state[i, ...]))
+            self.interior_state_variables._data.append(StateVariable(ptr, self.interior_state[i, ...]))
         for i in range(nstate_surface.value):
             ptr = fabm.get_variable(self.pmodel, SURFACE_STATE_VARIABLE, i + 1)
-            self.surface_state_variables.append(StateVariable(ptr, self.surface_state[i, ...]))
+            self.surface_state_variables._data.append(StateVariable(ptr, self.surface_state[i, ...]))
         for i in range(nstate_bottom.value):
             ptr = fabm.get_variable(self.pmodel, BOTTOM_STATE_VARIABLE, i + 1)
-            self.bottom_state_variables.append(StateVariable(ptr, self.bottom_state[i, ...]))
+            self.bottom_state_variables._data.append(StateVariable(ptr, self.bottom_state[i, ...]))
         for i in range(ndiag_interior.value):
             ptr = fabm.get_variable(self.pmodel, INTERIOR_DIAGNOSTIC_VARIABLE, i + 1)
-            self.interior_diagnostic_variables.append(DiagnosticVariable(ptr, i, False))
+            self.interior_diagnostic_variables._data.append(DiagnosticVariable(ptr, i, False))
         for i in range(ndiag_horizontal.value):
             ptr = fabm.get_variable(self.pmodel, HORIZONTAL_DIAGNOSTIC_VARIABLE, i + 1)
-            self.horizontal_diagnostic_variables.append(DiagnosticVariable(ptr, i, True))
+            self.horizontal_diagnostic_variables._data.append(DiagnosticVariable(ptr, i, True))
         for i in range(ndependencies_interior.value):
             ptr = fabm.get_variable(self.pmodel, INTERIOR_DEPENDENCY, i + 1)
-            self.interior_dependencies.append(Dependency(ptr, self.interior_dependency_data[i, ...]))
+            self.interior_dependencies._data.append(Dependency(ptr, self.interior_dependency_data[i, ...]))
         for i in range(ndependencies_horizontal.value):
             ptr = fabm.get_variable(self.pmodel, HORIZONTAL_DEPENDENCY, i + 1)
-            self.horizontal_dependencies.append(Dependency(ptr, self.horizontal_dependency_data[i, ...]))
+            self.horizontal_dependencies._data.append(Dependency(ptr, self.horizontal_dependency_data[i, ...]))
         for i in range(ndependencies_scalar.value):
             ptr = fabm.get_variable(self.pmodel, SCALAR_DEPENDENCY, i + 1)
-            self.scalar_dependencies.append(Dependency(ptr, self.scalar_dependency_data[i, ...]))
+            self.scalar_dependencies._data.append(Dependency(ptr, self.scalar_dependency_data[i, ...]))
         for i in range(nconserved.value):
             fabm.get_variable_metadata(self.pmodel, CONSERVED_QUANTITY, i + 1, ATTRIBUTE_LENGTH, strname, strunits, strlong_name, strpath)
-            self.conserved_quantities.append(Variable(strname.value.decode('ascii'), strunits.value.decode('ascii'), strlong_name.value.decode('ascii'), strpath.value.decode('ascii')))
+            self.conserved_quantities._data.append(Variable(strname.value.decode('ascii'), strunits.value.decode('ascii'), strlong_name.value.decode('ascii'), strpath.value.decode('ascii')))
         for i in range(nparameters.value):
             fabm.get_parameter_metadata(self.pmodel, i + 1, ATTRIBUTE_LENGTH, strname, strunits, strlong_name, ctypes.byref(typecode), ctypes.byref(has_default))
-            self.parameters.append(Parameter(strname.value.decode('ascii'), i, type=typecode.value, units=strunits.value.decode('ascii'), long_name=strlong_name.value.decode('ascii'), model=self, has_default=has_default.value != 0))
+            self.parameters._data.append(Parameter(strname.value.decode('ascii'), i, type=typecode.value, units=strunits.value.decode('ascii'), long_name=strlong_name.value.decode('ascii'), model=self, has_default=has_default.value != 0))
 
-        self.couplings = [Coupling(self.pmodel, i + 1) for i in range(ncouplings.value)]
+        self.couplings = NamedObjectList([Coupling(self.pmodel, i + 1) for i in range(ncouplings.value)])
 
         # Arrays that combine variables from pelagic and boundary domains.
-        self.state_variables = self.interior_state_variables + self.surface_state_variables + self.bottom_state_variables
-        self.diagnostic_variables = self.interior_diagnostic_variables + self.horizontal_diagnostic_variables
-        self.dependencies = self.interior_dependencies + self.horizontal_dependencies + self.scalar_dependencies
+        self.state_variables = NamedObjectList(self.interior_state_variables, self.surface_state_variables, self.bottom_state_variables)
+        self.diagnostic_variables = NamedObjectList(self.interior_diagnostic_variables, self.horizontal_diagnostic_variables)
+        self.dependencies = NamedObjectList(self.interior_dependencies, self.horizontal_dependencies, self.scalar_dependencies)
 
         if settings is not None:
             self.restoreSettings(settings)
@@ -642,36 +676,20 @@ class Model(object):
 
         return Jac
 
-    def findObject(self, name, objecttype, case_insensitive=False):
-        tablename = str(objecttype)
-        if case_insensitive:
-            tablename += '_ci'
-        table = self.lookup_tables.get(tablename, None)
-        if table is None:
-           data = getattr(self, objecttype)
-           if case_insensitive:
-              table = dict([(obj.name.lower(), obj) for obj in data])
-           else:
-              table = dict([(obj.name, obj) for obj in data])
-           self.lookup_tables[tablename] = table
-        if case_insensitive:
-            name = name.lower()
-        return table[name]
+    def findParameter(self, name, case_insensitive=False):
+        return self.parameters.find(name, case_insensitive)
 
-    def findParameter(self,name,case_insensitive=False):
-        return self.findObject(name, 'parameters', case_insensitive)
+    def findDependency(self, name, case_insensitive=False):
+        return self.dependencies.find(name, case_insensitive)
 
-    def findDependency(self,name,case_insensitive=False):
-        return self.findObject(name, 'dependencies', case_insensitive)
+    def findStateVariable(self, name, case_insensitive=False):
+        return self.state_variables.find(name, case_insensitive)
 
-    def findStateVariable(self,name,case_insensitive=False):
-        return self.findObject(name, 'state_variables', case_insensitive)
+    def findDiagnosticVariable(self, name, case_insensitive=False):
+        return self.diagnostic_variables.find(name, case_insensitive)
 
-    def findDiagnosticVariable(self,name,case_insensitive=False):
-        return self.findObject(name, 'diagnostic_variables', case_insensitive)
-
-    def findCoupling(self,name,case_insensitive=False):
-        return self.findObject(name, 'couplings', case_insensitive)
+    def findCoupling(self, name, case_insensitive=False):
+        return self.couplings.find(name, case_insensitive)
 
     def getParameterTree(self):
         root = {}
