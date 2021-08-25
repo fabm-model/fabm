@@ -502,6 +502,34 @@ class Model(object):
             os.remove(path)
         self.updateConfiguration()
 
+    def _get_state(self):
+        return self._state
+    def _set_state(self, value):
+        if value is not self._state:
+            raise AttributeError('The state can only be modified in-place, not overwritten. You may want to operate on state[:] instead.')
+    state = property(_get_state, _set_state)
+
+    def _get_interior_state(self):
+        return self._interior_state
+    def _set_interior_state(self, value):
+        if value is not self._interior_state:
+            raise AttributeError('The state can only be modified in-place, not overwritten. You may want to operate on interior_state[:] instead.')
+    interior_state = property(_get_interior_state, _set_interior_state)
+
+    def _get_surface_state(self):
+        return self._surface_state
+    def _set_surface_state(self, value):
+        if value is not self._surface_state:
+            raise AttributeError('The state can only be modified in-place, not overwritten. You may want to operate on surface_state[:] instead.')
+    surface_state = property(_get_surface_state, _set_surface_state)
+
+    def _get_bottom_state(self):
+        return self._bottom_state
+    def _set_bottom_state(self, value):
+        if value is not self._bottom_state:
+            raise AttributeError('The state can only be modified in-place, not overwritten. You may want to operate on bottom_state[:] instead.')
+    bottom_state = property(_get_bottom_state, _set_bottom_state)
+
     def setCellThickness(self, value):
         if self._cell_thickness is None:
             self._cell_thickness = numpy.empty(self.domain_shape)
@@ -547,16 +575,16 @@ class Model(object):
         )
 
         # Allocate memory for state variable values, and send ctypes.pointer to this memory to FABM.
-        self.state = numpy.empty((nstate_interior.value + nstate_surface.value + nstate_bottom.value,) + self.domain_shape, dtype=float)
-        self.interior_state = self.state[:nstate_interior.value, ...]
-        self.surface_state = self.state[nstate_interior.value:nstate_interior.value + nstate_surface.value, ...]
-        self.bottom_state = self.state[nstate_interior.value + nstate_surface.value:, ...]
+        self._state = numpy.empty((nstate_interior.value + nstate_surface.value + nstate_bottom.value,) + self.domain_shape, dtype=float)
+        self._interior_state = self._state[:nstate_interior.value, ...]
+        self._surface_state = self._state[nstate_interior.value:nstate_interior.value + nstate_surface.value, ...]
+        self._bottom_state = self._state[nstate_interior.value + nstate_surface.value:, ...]
         for i in range(nstate_interior.value):
-            fabm.link_interior_state_data(self.pmodel, i + 1, self.interior_state[i, ...])
+            fabm.link_interior_state_data(self.pmodel, i + 1, self._interior_state[i, ...])
         for i in range(nstate_surface.value):
-            fabm.link_surface_state_data(self.pmodel, i + 1, self.surface_state[i, ...])
+            fabm.link_surface_state_data(self.pmodel, i + 1, self._surface_state[i, ...])
         for i in range(nstate_bottom.value):
-            fabm.link_bottom_state_data(self.pmodel, i + 1, self.bottom_state[i, ...])
+            fabm.link_bottom_state_data(self.pmodel, i + 1, self._bottom_state[i, ...])
 
         self.dependency_data = numpy.zeros((ndependencies_interior.value + ndependencies_horizontal.value + ndependencies_scalar.value,) + self.domain_shape, dtype=float)
         self.interior_dependency_data = self.dependency_data[:ndependencies_interior.value, ...]
@@ -583,13 +611,13 @@ class Model(object):
         self.scalar_dependencies = NamedObjectList()
         for i in range(nstate_interior.value):
             ptr = fabm.get_variable(self.pmodel, INTERIOR_STATE_VARIABLE, i + 1)
-            self.interior_state_variables._data.append(StateVariable(ptr, self.interior_state[i, ...]))
+            self.interior_state_variables._data.append(StateVariable(ptr, self._interior_state[i, ...]))
         for i in range(nstate_surface.value):
             ptr = fabm.get_variable(self.pmodel, SURFACE_STATE_VARIABLE, i + 1)
-            self.surface_state_variables._data.append(StateVariable(ptr, self.surface_state[i, ...]))
+            self.surface_state_variables._data.append(StateVariable(ptr, self._surface_state[i, ...]))
         for i in range(nstate_bottom.value):
             ptr = fabm.get_variable(self.pmodel, BOTTOM_STATE_VARIABLE, i + 1)
-            self.bottom_state_variables._data.append(StateVariable(ptr, self.bottom_state[i, ...]))
+            self.bottom_state_variables._data.append(StateVariable(ptr, self._bottom_state[i, ...]))
         for i in range(ndiag_interior.value):
             ptr = fabm.get_variable(self.pmodel, INTERIOR_DIAGNOSTIC_VARIABLE, i + 1)
             self.interior_diagnostic_variables._data.append(DiagnosticVariable(ptr, i, False))
