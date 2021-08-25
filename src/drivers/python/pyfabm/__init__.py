@@ -428,8 +428,8 @@ class NamedObjectList(Sequence):
 
     def find(self, name, case_insensitive=False):
         if self._lookup is None:
-            self._lookup = dict([(obj.name.lower(), obj) for obj in self._data])
-            self._lookup_ci = dict([(obj.name, obj) for obj in self._data])
+            self._lookup_ci = dict([(obj.name.lower(), obj) for obj in self._data])
+            self._lookup = dict([(obj.name, obj) for obj in self._data])
         if case_insensitive:
             return self._lookup_ci[name.lower()]
         return self._lookup[name]
