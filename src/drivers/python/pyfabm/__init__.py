@@ -506,28 +506,28 @@ class Model(object):
         return self._state
     def _set_state(self, value):
         if value is not self._state:
-            raise AttributeError('The state can only be modified in-place, not overwritten. You may want to operate on state[:] instead.')
+            self._state[...] = value
     state = property(_get_state, _set_state)
 
     def _get_interior_state(self):
         return self._interior_state
     def _set_interior_state(self, value):
         if value is not self._interior_state:
-            raise AttributeError('The state can only be modified in-place, not overwritten. You may want to operate on interior_state[:] instead.')
+            self._interior_state[...] = value
     interior_state = property(_get_interior_state, _set_interior_state)
 
     def _get_surface_state(self):
         return self._surface_state
     def _set_surface_state(self, value):
         if value is not self._surface_state:
-            raise AttributeError('The state can only be modified in-place, not overwritten. You may want to operate on surface_state[:] instead.')
+            self._surface_state[...] = value
     surface_state = property(_get_surface_state, _set_surface_state)
 
     def _get_bottom_state(self):
         return self._bottom_state
     def _set_bottom_state(self, value):
         if value is not self._bottom_state:
-            raise AttributeError('The state can only be modified in-place, not overwritten. You may want to operate on bottom_state[:] instead.')
+            self._bottom_state[...] = value
     bottom_state = property(_get_bottom_state, _set_bottom_state)
 
     def setCellThickness(self, value):
