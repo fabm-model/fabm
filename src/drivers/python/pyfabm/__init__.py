@@ -426,6 +426,9 @@ class NamedObjectList(Sequence):
     def __repr__(self):
         return repr(self._data)
 
+    def __add__(self, other):
+        return NamedObjectList(self._data, other._data)
+
     def find(self, name, case_insensitive=False):
         if self._lookup is None:
             self._lookup_ci = dict([(obj.name.lower(), obj) for obj in self._data])
@@ -643,9 +646,9 @@ class Model(object):
         self.couplings = NamedObjectList([Coupling(self.pmodel, i + 1) for i in range(ncouplings.value)])
 
         # Arrays that combine variables from pelagic and boundary domains.
-        self.state_variables = NamedObjectList(self.interior_state_variables, self.surface_state_variables, self.bottom_state_variables)
-        self.diagnostic_variables = NamedObjectList(self.interior_diagnostic_variables, self.horizontal_diagnostic_variables)
-        self.dependencies = NamedObjectList(self.interior_dependencies, self.horizontal_dependencies, self.scalar_dependencies)
+        self.state_variables = self.interior_state_variables + self.surface_state_variables + self.bottom_state_variables
+        self.diagnostic_variables = self.interior_diagnostic_variables + self.horizontal_diagnostic_variables
+        self.dependencies = self.interior_dependencies + self.horizontal_dependencies + self.scalar_dependencies
 
         if settings is not None:
             self.restoreSettings(settings)
