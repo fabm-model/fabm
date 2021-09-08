@@ -1557,6 +1557,7 @@ contains
          write (unit,'(A)') '  subgraph "cluster' // trim(job%name) // '" {'
          write (unit,'(A)') '    label="' // trim(job%name) // '";'
          task => job%first_task
+         if (.not. associated(task)) write (unit,'(A)') '    "' // trim(job%name) // ':dummy" [style=invis];'
          do while (associated(task))
             itask = itask + 1
             write (index,'(i0)') itask
@@ -1571,7 +1572,7 @@ contains
                write (unit,'(A)') '    "' // trim(task%calls(icall - 1)%graph_node%as_string()) // '" -> "' // trim(task%calls(icall)%graph_node%as_string()) // '";'
             end do
             write (unit,'(A)') '  }'
-            if (associated(previous_task)) write (unit,'(A)') '    ' // trim(get_endpoint_name(previous_task, .false.)) // ' -> ' // trim(get_endpoint_name(task, .true.)) // ';'
+            if (associated(previous_task)) write (unit,'(A)') '    ' // trim(get_endpoint_name(job, previous_task, .false.)) // ' -> ' // trim(get_endpoint_name(job, task, .true.)) // ';'
             previous_task => task
             task => task%next
          end do
@@ -1580,17 +1581,19 @@ contains
          node => job%previous%first
          do while (associated(node))
             task => node%p%first_task
-            do while (associated(task%next))
-               task => task%next
-            end do
-            write (index,'(i0)') itask
-            write (unit,'(A)') '    ' // trim(get_endpoint_name(task, .false.)) // ' -> ' // trim(get_endpoint_name(job%first_task, .true.)) // ';'
+            if (associated(task)) then
+               do while (associated(task%next))
+                  task => task%next
+               end do
+            end if
+            write (unit,'(A)') '    ' // trim(get_endpoint_name(node%p, task, .false.)) // ' -> ' // trim(get_endpoint_name(job, job%first_task, .true.)) // ';'
             node => node%next
          end do
       end subroutine
 
-      function get_endpoint_name(task, first) result(name)
-         type (type_task), target, intent(in) :: task
+      function get_endpoint_name(job, task, first) result(name)
+         class (type_job),         intent(in) :: job
+         type (type_task), pointer            :: task
          logical,                  intent(in) :: first
          character(len=attribute_length)      :: name
 
@@ -1598,17 +1601,19 @@ contains
          integer                   :: itask
          character(len=8)          :: index
 
-         if (size(task%calls) == 0) then
+         if (.not. associated(task)) then
+            name = '"' // trim(job%name) // ':dummy"'
+         elseif (size(task%calls) == 0) then
             ! No calls in this task - we need to use a dummy node name.
             ! First find the index of the task within the job (that's part of dummy name)
-            ptask => task%job%first_task
+            ptask => job%first_task
             itask = 1
             do while (.not. associated(ptask, task))
                itask = itask + 1
                ptask => ptask%next
             end do
             write (index,'(i0)') itask
-            name = '"' // trim(task%job%name) // ':' // index // ':dummy"'
+            name = '"' // trim(job%name) // ':' // index // ':dummy"'
          elseif (first) then
             ! First call
             name = '"' // trim(task%calls(1)%graph_node%as_string()) // '"'
