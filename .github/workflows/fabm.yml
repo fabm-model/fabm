@@ -4,12 +4,20 @@ jobs:
    gfortran:
       strategy:
          matrix:
-            version: [5, 6, 7, 8, 9, 10]
+            version: [7, 8, 9, 10]
+            os: [ubuntu-latest]
             include:
+               - version: 4.8
+                 os: ubuntu-18.04
+                 cmake_args: -DFABM_USE_IEEE_ARITHMETIC=OFF
+               - version: 5
+                 os: ubuntu-18.04
+               - version: 6
+                 os: ubuntu-18.04
                - version: 8
                  cmake_args: -DFABM_USE_CONTIGUOUS=OFF
          fail-fast: false
-      runs-on: ubuntu-latest
+      runs-on: ${{ matrix.os }}
       steps:
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -22,9 +30,9 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v2
       - name: Run all test cases with host emulators
-        run: python util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
+        run: python3 util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
       - name: Run all test cases with pyfabm
-        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
+        run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
    ifort:
       runs-on: ubuntu-latest
       steps:
@@ -43,11 +51,11 @@ jobs:
       - name: Run all test cases with host emulators
         run: |
            source ${HOME}/intel/setvars.sh
-           python util/developers/run_all_testcases.py harness --show_logs --compiler ifort
+           python3 util/developers/run_all_testcases.py harness --show_logs --compiler ifort
       - name: Run all test cases with pyfabm
         run: |
            source ${HOME}/intel/setvars.sh
-           python util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifort
+           python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifort
         env:
            FFLAGS: -fp-model precise -fp-model source
    nvfortran:
@@ -71,6 +79,31 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v2
       - name: Run all test cases with host emulators
-        run: python util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
+        run: python3 util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
       - name: Run all test cases with pyfabm
-        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
+        run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
+   aocc:
+      runs-on: ubuntu-latest
+      steps:
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+           python-version: '3.x'
+      - name: Install Python dependencies
+        run: python -m pip install --upgrade pip setuptools pyyaml
+      - name: Install compiler
+        run: |
+           cd /home/runner
+           wget --no-verbose http://developer.amd.com/wordpress/media/files/aocc-compiler-3.0.0.tar
+           tar xpf aocc-compiler-3.0.0.tar
+           ./aocc-compiler-3.0.0/install.sh
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Run all test cases with host emulators
+        run: |
+           source /home/runner/setenv_AOCC.sh
+           python3 util/developers/run_all_testcases.py harness --show_logs --compiler flang
+      - name: Run all test cases with pyfabm
+        run: |
+           source /home/runner/setenv_AOCC.sh
+           python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang

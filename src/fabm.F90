@@ -22,7 +22,8 @@ module fabm
    use fabm_expressions
    use fabm_driver
    use fabm_properties
-   use fabm_builtin_models
+   use fabm_builtin_depth_integral
+   use fabm_builtin_reduction
    use fabm_coupling
    use fabm_job
    use fabm_schedule
@@ -40,6 +41,7 @@ module fabm
    public fabm_initialize_library
    public fabm_get_version
    public fabm_create_model
+   public fabm_finalize_library
    public type_fabm_model
 
    ! Variable identifier types by external physical drivers.
@@ -64,6 +66,8 @@ module fabm
    integer, parameter, public :: data_source_fabm = 2
    integer, parameter, public :: data_source_user = 3
    integer, parameter, public :: data_source_default = data_source_host
+
+   logical, save :: default_driver = .false.
 
    ! --------------------------------------------------------------------------
    ! Derived typed for variable identifiers
@@ -333,15 +337,31 @@ contains
       if (associated(factory)) return
 
       ! If needed, create default object for communication (e.g., logging, error reporting) with host.
-      if (.not. associated(driver)) allocate(driver)
+      if (.not. associated(driver)) then
+         allocate(driver)
+         default_driver = .true.
+      end if
 
       ! Create all standard variable objects.
-      call initialize_standard_variables()
+      call fabm_standard_variables%initialize()
 
       ! Create the model factory.
       factory => fabm_model_factory
       call factory%initialize()
    end subroutine fabm_initialize_library
+
+   ! --------------------------------------------------------------------------
+   ! fabm_finalize_library: finalize FABM library
+   ! --------------------------------------------------------------------------
+   ! This deallocates all global variables created by fabm_initialize_library
+   ! --------------------------------------------------------------------------
+   subroutine fabm_finalize_library()
+      call fabm_standard_variables%finalize()
+
+      if (associated(driver) .and. default_driver) deallocate(driver)
+      if (associated(factory)) call factory%finalize()
+      factory => null()
+   end subroutine fabm_finalize_library
 
    ! --------------------------------------------------------------------------
    ! fabm_get_version: get FABM version string
@@ -530,10 +550,14 @@ contains
             class is (type_interior_temporal_mean)
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / seconds_per_time_unit
-               allocate(expression%history(_PREARG_LOCATION_ expression%n + 3))
+               allocate(expression%history(_PREARG_LOCATION_ expression%n + 1))
                expression%history = 0.0_rke
-               call self%link_interior_data(expression%output_name, &
-                                            expression%history(_PREARG_LOCATION_DIMENSIONS_ expression%n + 3))
+#if _FABM_DIMENSION_COUNT_>0
+               allocate(expression%previous_value _INDEX_LOCATION_, expression%last_exact_mean _INDEX_LOCATION_, expression%mean _INDEX_LOCATION_)
+#endif
+               expression%last_exact_mean = 0.0_rke
+               expression%mean = expression%missing_value
+               call self%link_interior_data(expression%output_name, expression%mean)
             class is (type_horizontal_temporal_mean)
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / seconds_per_time_unit
@@ -541,6 +565,16 @@ contains
                expression%history = 0.0_rke
                call self%link_horizontal_data(expression%output_name, &
                                               expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 3))
+            class is (type_horizontal_temporal_maximum)
+               expression%in = expression%link%target%catalog_index
+               expression%period = expression%period / seconds_per_time_unit
+               allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n))
+               expression%history = -huge(1.0_rke)
+#if _HORIZONTAL_DIMENSION_COUNT_>0
+               allocate(expression%previous_value _INDEX_HORIZONTAL_LOCATION_, expression%maximum _INDEX_HORIZONTAL_LOCATION_)
+#endif
+               expression%maximum = expression%missing_value
+               call self%link_horizontal_data(expression%output_name, expression%maximum)
             end select
             expression => expression%next
          end do
@@ -854,7 +888,7 @@ contains
 
          type (type_model_reference), pointer :: first, current, next
          type (type_link),            pointer :: link
-         type (type_base_model),      pointer :: p1, p2
+         logical,                     pointer :: pmember
          character(len=attribute_length)      :: path
 
          call log_message('UNFULFILLED DEPENDENCY: ' // trim(variable%name))
@@ -876,11 +910,10 @@ contains
                 .and. associated(link%original%read_index) &                     ! the model that owns the link requests read access for it,
                 .and. link%original%presence /= presence_external_optional) then ! and this access is required, not optional
                current => first
-               p1 => link%original%owner
+               pmember => link%original%owner%frozen
                do while (associated(current))
-                  ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-                  p2 => current%p
-                  if (associated(p1, p2)) exit
+                  ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+                  if (associated(pmember, current%p%frozen)) exit
                   current => current%next
                end do
                if (.not. associated(current)) then
@@ -2025,7 +2058,7 @@ contains
       end do
    end subroutine get_horizontal_conserved_quantities
 
-   subroutine process_job(self, job _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
+   subroutine process_job(self, job _POSTARG_HORIZONTAL_LOCATION_RANGE_)
       class (type_fabm_model), intent(inout), target :: self
       type (type_job),         intent(in)            :: job
       _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_RANGE_
@@ -2106,7 +2139,7 @@ contains
       kstart__ = self%domain%start(3)
       kstop__ = self%domain%stop(3)
 #  endif
-      call process_job(self, job _ARGUMENTS_HORIZONTAL_LOCATION_RANGE_)
+      call process_job(self, job _POSTARG_HORIZONTAL_LOCATION_RANGE_)
    end subroutine process_job_everywhere
 #endif
 
@@ -2139,93 +2172,18 @@ contains
       do while (associated(expression))
          select type (expression)
          class is (type_interior_temporal_mean)
-            call update_interior_temporal_mean(expression)
+            _ASSERT_(associated(self%catalog%interior(expression%in)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
+            call expression%update(t, self%catalog%interior(expression%in)%p _POSTARG_LOCATION_RANGE_)
          class is (type_horizontal_temporal_mean)
             call update_horizontal_temporal_mean(expression)
+         class is (type_horizontal_temporal_maximum)
+            _ASSERT_(associated(self%catalog%horizontal(expression%in)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
+            call expression%update(t, self%catalog%horizontal(expression%in)%p _POSTARG_HORIZONTAL_LOCATION_RANGE_)
          end select
          expression => expression%next
       end do
 
    contains
-
-      subroutine update_interior_temporal_mean(expression)
-         class (type_interior_temporal_mean), intent(inout) :: expression
-
-         integer  :: i
-         real(rke) :: weight_right, frac_outside
-
-         if (expression%ioldest == -1) then
-            ! Start of simulation
-            expression%next_save_time = t + expression%period / expression%n
-            expression%ioldest = 1
-         end if
-         do while (t >= expression%next_save_time)
-            ! Weight for linear interpolation between last stored point and current point, to get at values for desired time.
-            weight_right = (expression%next_save_time - expression%last_time) / (t - expression%last_time)
-
-            ! Remove contribution of oldest point from historical mean (@ n + 2)
-            _BEGIN_GLOBAL_LOOP_
-               expression%history(_PREARG_LOCATION_ expression%n + 2) = expression%history(_PREARG_LOCATION_ expression%n + 2) &
-                  - expression%history(_PREARG_LOCATION_ expression%ioldest) / expression%n
-            _END_GLOBAL_LOOP_
-
-            ! Linearly interpolate to desired time (@ ioldest), by computing a weighted mean of the current value (data(expression%in)%p) and the previous value (@ n + 1)
-            _BEGIN_GLOBAL_LOOP_
-               expression%history(_PREARG_LOCATION_ expression%ioldest) = (1.0_rke - weight_right) * expression%history(_PREARG_LOCATION_ expression%n + 1) &
-                  + weight_right * self%catalog%interior(expression%in)%p _INDEX_LOCATION_
-            _END_GLOBAL_LOOP_
-
-            ! Add contribution of new point to historical mean
-            _BEGIN_GLOBAL_LOOP_
-               expression%history(_PREARG_LOCATION_ expression%n + 2) = expression%history(_PREARG_LOCATION_ expression%n + 2) &
-                  + expression%history(_PREARG_LOCATION_ expression%ioldest) / expression%n
-            _END_GLOBAL_LOOP_
-
-            ! Compute next time for which we want to store output
-            expression%next_save_time = expression%next_save_time + expression%period / expression%n
-
-            ! If we just completed the first entire history, compute the running mean and record that it is now valid.
-            if (expression%ioldest == expression%n .and. .not. expression%valid) then
-               expression%valid = .true.
-               _BEGIN_GLOBAL_LOOP_
-                  expression%history(_PREARG_LOCATION_ expression%n + 2) = 0.0_rke
-                  do i = 1, expression%n
-                     expression%history(_PREARG_LOCATION_ expression%n + 2) = expression%history(_PREARG_LOCATION_ expression%n + 2) + expression%history(_PREARG_LOCATION_ i)
-                  end do
-                  expression%history(_PREARG_LOCATION_ expression%n + 2) = expression%history(_PREARG_LOCATION_ expression%n + 2) / expression%n
-               _END_GLOBAL_LOOP_
-            end if
-
-            ! Increment index for oldest time point
-            expression%ioldest = expression%ioldest + 1
-            if (expression%ioldest > expression%n) expression%ioldest = 1
-         end do
-
-         ! Store current value to enable linear interpolation to next output time in subsequent call.
-         _BEGIN_GLOBAL_LOOP_
-            expression%history(_PREARG_LOCATION_ expression%n + 1) = self%catalog%interior(expression%in)%p _INDEX_LOCATION_
-         _END_GLOBAL_LOOP_
-
-         if (expression%valid) then
-            ! We have a full history. Set temporal mean (@ n + 3) to historical mean (@ n + 2) but account for change since most recent point in history.
-
-            ! Compute extent of time period outside history
-            frac_outside = (t- (expression%next_save_time - expression%period / expression%n)) / expression%period
-
-            ! Set corrected running mean (move window by removing part of the start, and appending to the end)
-            _BEGIN_GLOBAL_LOOP_
-               expression%history(_PREARG_LOCATION_ expression%n + 3) = expression%history(_PREARG_LOCATION_ expression%n + 2) &
-                  + frac_outside * (- expression%history(_PREARG_LOCATION_ expression%ioldest) + expression%history(_PREARG_LOCATION_ expression%n + 1))
-            _END_GLOBAL_LOOP_
-         else
-            ! We do not have a full history yet; set temporal mean to missing value
-            _BEGIN_GLOBAL_LOOP_
-               expression%history(_PREARG_LOCATION_ expression%n + 3) = expression%missing_value
-            _END_GLOBAL_LOOP_
-         end if
-
-         expression%last_time = t
-      end subroutine
 
       subroutine update_horizontal_temporal_mean(expression)
          class (type_horizontal_temporal_mean), intent(inout) :: expression
@@ -2866,7 +2824,7 @@ contains
                integral => bounded_integral
             end if
             integral%average = current%average
-            call self%root%add_child(integral, trim(current%output_name) // '_calculator', configunit=-1)
+            call self%root%add_child(integral, trim(current%output_name) // '_calculator')
             call integral%request_coupling(integral%id_input, current%input_name)
             call self%root%request_coupling(current%output_name, integral%id_output%link%target%name)
             filter = .true.

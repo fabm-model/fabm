@@ -104,7 +104,7 @@
 
    call self%register_diagnostic_variable(self%id_psu,     'salt' ,   '-','salinity in PSU', standard_variable=standard_variables%practical_salinity)
    call self%register_diagnostic_variable(self%id_NaCl_sat,'NaCl_sat','-','sodium chloride saturation')
-   call self%register_diagnostic_variable(self%id_h_bot,   'h_bot',   'm','thickness of bottom salt layer')
+   call self%register_diagnostic_variable(self%id_h_bot,   'h_bot',   'm','thickness of bottom salt layer', source=source_do_bottom)
 
    call self%add_to_aggregate_variable(total_sodium, self%id_Na)
    call self%add_to_aggregate_variable(total_sodium, self%id_NaCl)

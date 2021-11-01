@@ -93,7 +93,6 @@ module fabm_job
 
    type type_job_node
       class (type_job),     pointer :: p    => null()
-      logical                       :: owner = .false.
       type (type_job_node), pointer :: next => null()
    end type
 
@@ -145,6 +144,7 @@ module fabm_job
       procedure :: initialize  => job_manager_initialize
       procedure :: print       => job_manager_print
       procedure :: write_graph => job_manager_write_graph
+      procedure :: finalize    => job_manager_finalize
    end type
 
    type type_variable_register
@@ -503,9 +503,9 @@ contains
    subroutine job_finalize(self)
       class (type_job), intent(inout) :: self
 
-      type (type_task), pointer :: task, next_task
+      type (type_task),             pointer :: task, next_task
       type (type_variable_request), pointer :: variable_request, next_variable_request
-      type (type_call_request), pointer :: call_request, next_call_request
+      type (type_call_request),     pointer :: call_request, next_call_request
 
       task => self%first_task
       do while (associated(task))
@@ -1183,14 +1183,13 @@ contains
       class (type_job), target            :: job
 
       type (type_job_node), pointer :: job_node
-      type (type_job),      pointer :: p1, p2
+      integer,              pointer :: pmember
 
       job_node => self%first
-      p1 => job
+      pmember => job%state
       do while (associated(job_node))
-         ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-         p2 => job_node%p
-         if (associated(p1, p2)) return
+         ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+         if (associated(pmember, job_node%p%state)) return
          job_node => job_node%next
       end do
       allocate(job_node)
@@ -1263,7 +1262,6 @@ contains
       job_node => self%first
       do while (associated(job_node))
          next => job_node%next
-         if (job_node%owner) call job_node%p%finalize()
          deallocate(job_node)
          job_node => next
       end do
@@ -1362,7 +1360,6 @@ contains
 
       allocate(node)
       node%p => job
-      node%owner = .true.
       node%next => self%first
       self%first => node
 
@@ -1465,15 +1462,14 @@ contains
          class (type_job), target :: job
 
          type (type_job_node), pointer :: node
-         type (type_job),      pointer :: p1, p2
+         integer,              pointer :: pmember
 
          ! Make sure job is not yet in list
          node => first_ordered
-         p1 => job
+         pmember => job%state
          do while (associated(node))
-            ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-            p2 => node%p
-            if (associated(p1, p2)) return
+            ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+            if (associated(pmember, node%p%state)) return
             node => node%next
          end do
 
@@ -1497,7 +1493,6 @@ contains
             node => first_ordered
          end if
          node%p => job
-         node%owner = .true.
       end subroutine add_to_order
 
    end subroutine job_manager_initialize
@@ -1515,6 +1510,19 @@ contains
          node => node%next
       end do
    end subroutine job_manager_print
+
+   subroutine job_manager_finalize(self)
+      class (type_job_manager), intent(inout) :: self
+
+      type (type_job_node), pointer :: job_node
+
+      job_node => self%first
+      do while (associated(job_node))
+         call job_node%p%finalize()
+         job_node => job_node%next
+      end do
+      call self%type_job_set%finalize()
+   end subroutine
 
    subroutine job_manager_write_graph(self, unit)
       class (type_job_manager), intent(in) :: self
@@ -1549,6 +1557,7 @@ contains
          write (unit,'(A)') '  subgraph "cluster' // trim(job%name) // '" {'
          write (unit,'(A)') '    label="' // trim(job%name) // '";'
          task => job%first_task
+         if (.not. associated(task)) write (unit,'(A)') '    "' // trim(job%name) // ':dummy" [style=invis];'
          do while (associated(task))
             itask = itask + 1
             write (index,'(i0)') itask
@@ -1563,7 +1572,7 @@ contains
                write (unit,'(A)') '    "' // trim(task%calls(icall - 1)%graph_node%as_string()) // '" -> "' // trim(task%calls(icall)%graph_node%as_string()) // '";'
             end do
             write (unit,'(A)') '  }'
-            if (associated(previous_task)) write (unit,'(A)') '    ' // trim(get_endpoint_name(previous_task, .false.)) // ' -> ' // trim(get_endpoint_name(task, .true.)) // ';'
+            if (associated(previous_task)) write (unit,'(A)') '    ' // trim(get_endpoint_name(job, previous_task, .false.)) // ' -> ' // trim(get_endpoint_name(job, task, .true.)) // ';'
             previous_task => task
             task => task%next
          end do
@@ -1572,17 +1581,19 @@ contains
          node => job%previous%first
          do while (associated(node))
             task => node%p%first_task
-            do while (associated(task%next))
-               task => task%next
-            end do
-            write (index,'(i0)') itask
-            write (unit,'(A)') '    ' // trim(get_endpoint_name(task, .false.)) // ' -> ' // trim(get_endpoint_name(job%first_task, .true.)) // ';'
+            if (associated(task)) then
+               do while (associated(task%next))
+                  task => task%next
+               end do
+            end if
+            write (unit,'(A)') '    ' // trim(get_endpoint_name(node%p, task, .false.)) // ' -> ' // trim(get_endpoint_name(job, job%first_task, .true.)) // ';'
             node => node%next
          end do
       end subroutine
 
-      function get_endpoint_name(task, first) result(name)
-         type (type_task), target, intent(in) :: task
+      function get_endpoint_name(job, task, first) result(name)
+         class (type_job),         intent(in) :: job
+         type (type_task), pointer            :: task
          logical,                  intent(in) :: first
          character(len=attribute_length)      :: name
 
@@ -1590,17 +1601,19 @@ contains
          integer                   :: itask
          character(len=8)          :: index
 
-         if (size(task%calls) == 0) then
+         if (.not. associated(task)) then
+            name = '"' // trim(job%name) // ':dummy"'
+         elseif (size(task%calls) == 0) then
             ! No calls in this task - we need to use a dummy node name.
             ! First find the index of the task within the job (that's part of dummy name)
-            ptask => task%job%first_task
+            ptask => job%first_task
             itask = 1
             do while (.not. associated(ptask, task))
                itask = itask + 1
                ptask => ptask%next
             end do
             write (index,'(i0)') itask
-            name = '"' // trim(task%job%name) // ':' // index // ':dummy"'
+            name = '"' // trim(job%name) // ':' // index // ':dummy"'
          elseif (first) then
             ! First call
             name = '"' // trim(task%calls(1)%graph_node%as_string()) // '"'
@@ -1616,16 +1629,15 @@ contains
       class (type_job), intent(inout), target :: self
       class (type_job), intent(inout), target :: next
 
-      type (type_job),      pointer :: p1, p2
+      integer,              pointer :: pmember
       type (type_job_node), pointer :: node
 
       _ASSERT_(self%state <= job_state_created, 'job_connect','This job (' // trim(self%name) // ') has already started initialization; it is too late to specify its place in the call order.')
       !_ASSERT_(.not. associated(self%previous), 'job_connect','This job ('//trim(self%name)//') has already been connected to a subsequent one.')
 
-      ! Note: for Cray 10.0.4, the comparison below must be done with type pointers. it fails on class pointers!
-      p1 => self
-      p2 => next
-      _ASSERT_(.not. associated(p1, p2), 'job_connect', 'Attempt to connect job ' // trim(self%name) // ' to itself.')
+      ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
+      pmember => self%state
+      _ASSERT_(.not. associated(pmember, next%state), 'job_connect', 'Attempt to connect job ' // trim(self%name) // ' to itself.')
 
       allocate(node)
       node%p => self

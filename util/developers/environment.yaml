@@ -25,3 +25,4 @@ atmosphere_mass_content_of_water_vapor: 0
 surface_specific_humidity: 0
 surface_temperature: 15
 surface_air_pressure: 100000
+vertical_tracer_diffusivity: 1e-5

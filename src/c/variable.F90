@@ -4,6 +4,7 @@ module fabm_c_variable
 
    use fabm_types
    use fabm_c_helper
+   use fabm_properties, only: type_property
 
    implicit none
 
@@ -92,6 +93,23 @@ contains
       value = logical2int(variable%presence /= presence_external_optional)
    end function variable_is_required
 
+   function variable_get_property_type(pvariable, name) bind(c) result(value)
+      !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_property_type
+      type (c_ptr), value,            intent(in) :: pvariable
+      character(kind=c_char), target, intent(in) :: name(*)
+      integer(kind=c_int)                        :: value
+
+      type (type_internal_variable),   pointer :: variable
+      character(len=attribute_length), pointer :: pname
+      class (type_property),           pointer :: property
+
+      value = -1
+      call c_f_pointer(pvariable, variable)
+      call c_f_pointer(c_loc(name), pname)
+      property => variable%properties%get_property(pname(:index(pname, C_NULL_CHAR) - 1))
+      if (associated(property)) value = property%typecode()
+   end function variable_get_property_type
+
    function variable_get_real_property(pvariable, name, default) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_real_property
       type (c_ptr), value,            intent(in) :: pvariable
@@ -106,5 +124,35 @@ contains
       call c_f_pointer(c_loc(name), pname)
       value = variable%properties%get_real(pname(:index(pname, C_NULL_CHAR) - 1), default=default)
    end function variable_get_real_property
+
+   function variable_get_integer_property(pvariable, name, default) bind(c) result(value)
+      !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_integer_property
+      type (c_ptr), value,            intent(in) :: pvariable
+      character(kind=c_char), target, intent(in) :: name(*)
+      integer(kind=c_int), value,     intent(in) :: default
+      integer(kind=c_int)                        :: value
+
+      type (type_internal_variable),   pointer :: variable
+      character(len=attribute_length), pointer :: pname
+
+      call c_f_pointer(pvariable, variable)
+      call c_f_pointer(c_loc(name), pname)
+      value = variable%properties%get_integer(pname(:index(pname, C_NULL_CHAR) - 1), default=default)
+   end function variable_get_integer_property
+
+   function variable_get_logical_property(pvariable, name, default) bind(c) result(value)
+      !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_logical_property
+      type (c_ptr), value,            intent(in) :: pvariable
+      character(kind=c_char), target, intent(in) :: name(*)
+      integer(kind=c_int), value,     intent(in) :: default
+      integer(kind=c_int)                        :: value
+
+      type (type_internal_variable),   pointer :: variable
+      character(len=attribute_length), pointer :: pname
+
+      call c_f_pointer(pvariable, variable)
+      call c_f_pointer(c_loc(name), pname)
+      value = logical2int(variable%properties%get_logical(pname(:index(pname, C_NULL_CHAR) - 1), default=int2logical(default)))
+   end function variable_get_logical_property
 
 end module fabm_c_variable

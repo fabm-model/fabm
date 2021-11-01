@@ -189,7 +189,7 @@
    call self%register_diagnostic_variable(self%id_loss,'loss','nmol/m**3/s', &
          ' loss rate', output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_surface_flux,'flux','nmol/m**2/s', &
-         ' surface flux', output=output_instantaneous)
+         ' surface flux', output=output_instantaneous, source=source_do_surface)
 
    return
 99 call self%fatal_error('fabm_uhh_halogen','Error reading namelist uhh_halogen')
