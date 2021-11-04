@@ -31,6 +31,7 @@ module fabm_c
    integer, parameter :: SCALAR_DEPENDENCY              = 9
 
    logical, save :: error_occurred = .false.
+   logical, save :: debug = .false.
    character(len=:), allocatable, save :: error_message
 
    type, extends(type_base_driver) :: type_python_driver
@@ -62,15 +63,27 @@ contains
       call copy_to_c_string(string, version_string)
    end subroutine get_version
 
-   subroutine get_driver_settings(ndim, idepthdim) bind(c)
+   subroutine configure(debug_) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: configure
+      integer(c_int), value, intent(in) :: debug_
+      debug = int2logical(debug_)
+   end subroutine configure
+
+   subroutine get_driver_settings(ndim, idepthdim, has_mask) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_driver_settings
-      integer(c_int), intent(out) :: ndim, idepthdim
+      integer(c_int), intent(out) :: ndim, idepthdim, has_mask
 
       ndim = _FABM_DIMENSION_COUNT_
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-      idepthdim = _FABM_DEPTH_DIMENSION_INDEX_
+      ! We convert from 1-based Fortran index to 0-based C index, accounting for reversal of dimemnsion order!
+      idepthdim = _FABM_DIMENSION_COUNT_ - _FABM_DEPTH_DIMENSION_INDEX_
 #else
       idepthdim = -1
+#endif
+#ifdef _HAS_MASK_
+      has_mask = logical2int(.true.)
+#else
+      has_mask = logical2int(.false.)
 #endif
    end subroutine get_driver_settings
 
@@ -120,6 +133,28 @@ contains
 
       ptr = c_loc(model)
    end function create_model
+
+#ifdef _HAS_MASK_
+#  ifndef _FABM_HORIZONTAL_MASK_
+#    error 'Not yet implemented'
+#  endif
+   subroutine set_mask(pmodel, horizontal_mask_) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: set_mask
+      type (c_ptr),   intent(in), value  :: pmodel
+      integer(c_int), intent(in), target :: horizontal_mask_(*)
+
+      type (type_model_wrapper),                     pointer :: model
+      integer(c_int) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: horizontal_mask
+
+      call c_f_pointer(pmodel, model)
+#if  _HORIZONTAL_DIMENSION_COUNT_ > 0
+      call c_f_pointer(c_loc(horizontal_mask_), horizontal_mask, model%p%domain%horizontal_shape)
+#else
+      call c_f_pointer(c_loc(horizontal_mask_), horizontal_mask)
+#endif
+      call model%p%set_mask(horizontal_mask)
+   end subroutine
+#endif
 
    subroutine reinitialize(model)
       type (type_model_wrapper), intent(inout) :: model
@@ -791,7 +826,7 @@ contains
       class (type_python_driver), intent(inout) :: self
       character(len=*),           intent(in)    :: message
 
-      !write (*,*) trim(message)
+      if (debug) write (*,*) trim(message)
    end subroutine python_driver_log_message
 
 end module fabm_c

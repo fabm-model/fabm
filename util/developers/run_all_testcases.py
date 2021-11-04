@@ -204,7 +204,6 @@ def test_pyfabm(args, testcases):
     with open(os.path.join(script_root, 'environment.yaml')) as f:
         environment = yaml.safe_load(f)
     import pyfabm
-    print('pyfabm %s loaded from %s (0d=%s, 1d=%s)' % (pyfabm.get_version(), pyfabm.__file__, pyfabm.fabm_0d._name, pyfabm.fabm_1d._name))
     dependency_names = set()
     print('Running FABM testcases with pyfabm:')
     for case, path in testcases.items():
@@ -224,6 +223,7 @@ def test_pyfabm(args, testcases):
         assert (r1d == r1d[:, :1]).all(), 'Variability among 1D results: %s' % (r1d,)
         assert (r1d[:, 0] == r0d).all(), 'Mismatch between 0D and 1D results: %s vs %s. Difference: %s' % (r0d, r1d[:, 0], r1d[:, 0] - r0d)
         print('SUCCESS')
+    print('pyfabm %s loaded from %s (%s)' % (pyfabm.get_version(), pyfabm.__file__, ', '.join(['%s=%s' % (n, l._name) for n, l in pyfabm.name2lib.items()])))
     try:
         pyfabm.unload()
     except Exception as e:

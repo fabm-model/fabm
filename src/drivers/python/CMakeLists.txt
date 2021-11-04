@@ -27,7 +27,7 @@ if(MSVC)
   add_compile_options("/libs:static")
 endif()
 
-set(FABM_BASE ${PROJECT_SOURCE_DIR}/../.. CACHE PATH "Directory to create library in")
+set(FABM_BASE ${PROJECT_SOURCE_DIR}/../.. CACHE PATH "Directory with FABM source code")
 
 set(PYFABM_NAME "fabm_c" CACHE STRING "Base name of library")
 set(PYFABM_DIR ${CMAKE_INSTALL_PREFIX} CACHE PATH "Directory to create library in")
@@ -41,9 +41,7 @@ add_subdirectory(${FABM_BASE} fabm)
 
 set_target_properties(fabm_c PROPERTIES
   OUTPUT_NAME "${PYFABM_NAME}"
-  RUNTIME_OUTPUT_DIRECTORY_RELEASE "${PYFABM_DIR}"
-  LIBRARY_OUTPUT_DIRECTORY_RELEASE "${PYFABM_DIR}"
-  RUNTIME_OUTPUT_DIRECTORY_DEBUG "${PYFABM_DIR}"
-  LIBRARY_OUTPUT_DIRECTORY_DEBUG "${PYFABM_DIR}"
+  RUNTIME_OUTPUT_DIRECTORY "$<1:${PYFABM_DIR}>"
+  LIBRARY_OUTPUT_DIRECTORY "$<1:${PYFABM_DIR}>"
 )
 

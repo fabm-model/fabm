@@ -24,7 +24,11 @@ def find_library(basedir, names):
         if os.path.isfile(path):
             return path
 
-def wrap(name):
+name2lib = {}
+def get_lib(name):
+    if name in name2lib:
+       return name2lib[name]
+
     # Determine potential names of dynamic library.
     if os.name == 'nt':
        names = ('%s.dll' % name, 'lib%s.dll' % name)
@@ -42,22 +46,25 @@ def wrap(name):
             if path:
                 break
         else:
-            print('Unable to locate dynamic library %s (tried %s).' % (name, ', '.join(names),))
-            return
+            raise Exception('Unable to locate dynamic library %s (tried %s).' % (name, ', '.join(names),))
 
     # Load FABM library.
     lib = ctypes.CDLL(str(path))
 
     # Driver settings (number of spatial dimensions, depth index)
-    lib.get_driver_settings.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
+    lib.get_driver_settings.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
     lib.get_driver_settings.restype = ctypes.c_void_p
 
     ndim_c = ctypes.c_int()
     idepthdim_c = ctypes.c_int()
-    lib.get_driver_settings(ctypes.byref(ndim_c), ctypes.byref(idepthdim_c))
-    assert idepthdim_c.value == -1, 'pyfabm currently only handles spatial domains without deph dimension'
-    ndim_int = ndim_hz = ndim_c.value
+    ihas_mask = ctypes.c_int()
+    lib.get_driver_settings(ctypes.byref(ndim_c), ctypes.byref(idepthdim_c), ctypes.byref(ihas_mask))
+    ndim_int = ndim_c.value
+    ndim_hz = ndim_int if idepthdim_c.value == -1 else ndim_int - 1
     lib.ndim_int = ndim_int
+    lib.ndim_hz = ndim_hz
+    lib.idepthdim = idepthdim_c.value
+    lib.has_mask = ihas_mask.value != 0
 
     CONTIGUOUS = str('CONTIGUOUS')
     arrtype0D = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=0, flags=CONTIGUOUS)
@@ -92,6 +99,11 @@ def wrap(name):
     lib.get_error.restype = None
     lib.reset_error_state.argtypes = []
     lib.reset_error_state.restype = None
+    lib.configure.argtypes = [ctypes.c_int]
+    lib.configure.restype = None
+    if lib.has_mask:
+        lib.set_mask.restype = None
+        lib.set_mask.argtypes = [ctypes.c_void_p, numpy.ctypeslib.ndpointer(dtype=ctypes.c_int, ndim=ndim_hz, flags=CONTIGUOUS)]
 
     # Read access to variable attributes
     lib.variable_get_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
@@ -182,12 +194,8 @@ def wrap(name):
         lib.integrate.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, arrtype1D, arrtypeInteriorExt, arrtypeInteriorExt2, ctypes.c_double, ctypes.c_int, ctypes.c_int, arrtypeInterior]
         lib.integrate.restype = None
 
+    name2lib[name] = lib
     return lib
-
-fabm_0d = wrap('fabm_0d')
-fabm_1d = wrap('fabm_1d')
-if fabm_0d is None or fabm_1d is None:
-    sys.exit(1)
 
 INTERIOR_STATE_VARIABLE        = 1
 SURFACE_STATE_VARIABLE         = 2
@@ -235,17 +243,17 @@ class FABMException(Exception):
     pass
 
 def hasError():
-   return fabm_0d.get_error_state() != 0 or fabm_1d.get_error_state() != 0
+   for lib in name2lib.values():
+       if lib.get_error_state() != 0:
+           return True
+   return False
 
 def getError():
-    if fabm_0d.get_error_state() != 0:
-        strmessage = ctypes.create_string_buffer(1024)
-        fabm_0d.get_error(1024, strmessage)
-        return strmessage.value.decode('ascii')
-    if fabm_1d.get_error_state() != 0:
-        strmessage = ctypes.create_string_buffer(1024)
-        fabm_1d.get_error(1024, strmessage)
-        return strmessage.value.decode('ascii')
+   for lib in name2lib.values():
+       if lib.get_error_state() != 0:
+           strmessage = ctypes.create_string_buffer(1024)
+           lib.get_error(1024, strmessage)
+           return strmessage.value.decode('ascii')
 
 def printTree(root, stringmapper, indent=''):
     """Print an indented tree of objects, encoded by dictionaries linking the names of children to
@@ -495,7 +503,7 @@ class SubModel(object):
         self.user_created = iuser.value != 0
 
 class Model(object):
-    def __init__(self, path='fabm.yaml', shape=()):
+    def __init__(self, path='fabm.yaml', shape=(), libname=None):
         delete = False
         if isinstance(path, dict):
             import tempfile
@@ -506,18 +514,31 @@ class Model(object):
                 path = f.name
             delete = True
 
-        if len(shape) > 1:
-            raise FABMException('Invalid domain shape %s. Domain must have 0 or 1 dimensions.' % (shape,))
-        self.fabm = fabm_0d if len(shape) == 0 else fabm_1d
+        if libname is None:
+            if len(shape) > 1:
+                raise FABMException('Invalid domain shape %s. Domain must have 0 or 1 dimensions.' % (shape,))
+            libname = {0: 'fabm_0d', 1: 'fabm_1d'}[len(shape)]
+        self.fabm = get_lib(libname)
         self.fabm.reset_error_state()
         self._cell_thickness = None
-        self.pmodel = self.fabm.create_model(path.encode('ascii'), *shape)
-        self.domain_shape = shape
+        self.pmodel = self.fabm.create_model(path.encode('ascii'), *shape[::-1])
         if hasError():
             raise FABMException('An error occurred while parsing %s:\n%s' % (path, getError()))
+        self.interior_domain_shape = tuple(shape)
+        self.horizontal_domain_shape = tuple([l for i, l in enumerate(self.interior_domain_shape) if i != self.fabm.idepthdim])
         if delete:
             os.remove(path)
         self.updateConfiguration()
+        if self.fabm.has_mask:
+            self._mask = numpy.ones(self.horizontal_domain_shape, dtype=numpy.intc)
+            self.fabm.set_mask(self.pmodel, self._mask)
+
+    def _get_mask(self):
+        return self._mask
+    def _set_mask(self, value):
+        if value is not self._mask:
+            self._mask[...] = value
+    mask = property(_get_mask, _set_mask)
 
     def _get_state(self):
         return self._state
@@ -549,7 +570,7 @@ class Model(object):
 
     def setCellThickness(self, value):
         if self._cell_thickness is None:
-            self._cell_thickness = numpy.empty(self.domain_shape)
+            self._cell_thickness = numpy.empty(self.interior_domain_shape)
         self._cell_thickness[...] = value
 
     cell_thickness = property(fset=setCellThickness)
@@ -592,10 +613,15 @@ class Model(object):
         )
 
         # Allocate memory for state variable values, and send ctypes.pointer to this memory to FABM.
-        self._state = numpy.empty((nstate_interior.value + nstate_surface.value + nstate_bottom.value,) + self.domain_shape, dtype=float)
-        self._interior_state = self._state[:nstate_interior.value, ...]
-        self._surface_state = self._state[nstate_interior.value:nstate_interior.value + nstate_surface.value, ...]
-        self._bottom_state = self._state[nstate_interior.value + nstate_surface.value:, ...]
+        if self.fabm.idepthdim == -1:
+            self._state = numpy.empty((nstate_interior.value + nstate_surface.value + nstate_bottom.value,) + self.interior_domain_shape, dtype=float)
+            self._interior_state = self._state[:nstate_interior.value, ...]
+            self._surface_state = self._state[nstate_interior.value:nstate_interior.value + nstate_surface.value, ...]
+            self._bottom_state = self._state[nstate_interior.value + nstate_surface.value:, ...]
+        else:
+            self._interior_state = numpy.empty((nstate_interior.value,) + self.interior_domain_shape, dtype=float)
+            self._surface_state = numpy.empty((nstate_surface.value,) + self.horizontal_domain_shape, dtype=float)
+            self._bottom_state = numpy.empty((nstate_bottom.value,) + self.horizontal_domain_shape, dtype=float)
         for i in range(nstate_interior.value):
             self.fabm.link_interior_state_data(self.pmodel, i + 1, self._interior_state[i, ...])
         for i in range(nstate_surface.value):
@@ -603,8 +629,8 @@ class Model(object):
         for i in range(nstate_bottom.value):
             self.fabm.link_bottom_state_data(self.pmodel, i + 1, self._bottom_state[i, ...])
 
-        self.interior_dependency_data = numpy.zeros((ndependencies_interior.value,) + self.domain_shape, dtype=float)
-        self.horizontal_dependency_data = numpy.zeros((ndependencies_horizontal.value,) + self.domain_shape, dtype=float)
+        self.interior_dependency_data = numpy.zeros((ndependencies_interior.value,) + self.interior_domain_shape, dtype=float)
+        self.horizontal_dependency_data = numpy.zeros((ndependencies_horizontal.value,) + self.horizontal_domain_shape, dtype=float)
         self.scalar_dependency_data = numpy.zeros((ndependencies_scalar.value,), dtype=float)
 
         # Retrieve variable metadata
@@ -676,9 +702,10 @@ class Model(object):
         """Returns the local rate of change in state variables,
         given the current state and environment.
         """
+        assert self.fabm.idepthdim == -1
         if t is None:
             t = self.itime
-        sources = numpy.empty_like(self.state)
+        sources = numpy.empty_like(self._state)
         sources_interior = sources[:len(self.interior_state_variables), ...]
         sources_surface = sources[len(self.interior_state_variables):len(self.interior_state_variables) + len(self.surface_state_variables), ...]
         sources_bottom = sources[len(self.interior_state_variables) + len(self.surface_state_variables):, ...]
@@ -687,6 +714,18 @@ class Model(object):
         if hasError():
             raise FABMException(getError())
         return sources
+
+    def get_sources(self, t=None):
+        if t is None:
+            t = self.itime
+        sources_interior = numpy.empty_like(self._interior_state)
+        sources_surface = numpy.empty_like(self._surface_state)
+        sources_bottom = numpy.empty_like(self._bottom_state)
+        assert self._cell_thickness is not None, 'You must assign model.cell_thickness to use get_sources'
+        self.fabm.get_sources(self.pmodel, t, sources_interior, sources_surface, sources_bottom, True, True, self._cell_thickness)
+        if hasError():
+            raise FABMException(getError())
+        return sources_interior, sources_surface, sources_bottom
 
     def checkState(self, repair=False):
         valid = self.fabm.check_state(self.pmodel, repair) != 0
@@ -766,10 +805,10 @@ class Model(object):
             return False
         for i, variable in enumerate(self.interior_diagnostic_variables):
             pdata = self.fabm.get_interior_diagnostic_data(self.pmodel, i + 1)
-            variable.data = None if not pdata else numpy.ctypeslib.as_array(pdata, self.domain_shape)
+            variable.data = None if not pdata else numpy.ctypeslib.as_array(pdata, self.interior_domain_shape)
         for i, variable in enumerate(self.horizontal_diagnostic_variables):
             pdata = self.fabm.get_horizontal_diagnostic_data(self.pmodel, i + 1)
-            variable.data = None if not pdata else numpy.ctypeslib.as_array(pdata, self.domain_shape)
+            variable.data = None if not pdata else numpy.ctypeslib.as_array(pdata, self.horizontal_domain_shape)
         return ready
     checkReady = start
 
@@ -808,9 +847,9 @@ class Simulator(object):
         return y
 
 def unload():
-    global fabm_0d, fabm_1d, ctypes
+    global name2lib, ctypes
 
-    for lib in (fabm_0d, fabm_1d):
+    for lib in name2lib.values():
         handle = lib._handle
         if os.name == 'nt':
             import ctypes.wintypes
@@ -821,11 +860,12 @@ def unload():
             dlclose.argtypes = [ctypes.c_void_p]
             dlclose.restype = ctypes.c_int
             dlclose(handle)
-    fabm_0d, fabm_1d = None, None
+    name2lib = {}
 
 def get_version():
-    version_length = 256
-    strversion = ctypes.create_string_buffer(version_length)
-    fabm_0d.get_version(version_length, strversion)
-    return strversion.value.decode('ascii')
+    for lib in name2lib.values():
+        version_length = 256
+        strversion = ctypes.create_string_buffer(version_length)
+        lib.get_version(version_length, strversion)
+        return strversion.value.decode('ascii')
 

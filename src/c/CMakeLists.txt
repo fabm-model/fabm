@@ -10,6 +10,9 @@ add_library(fabm_c SHARED
 
 # Link in FABM itself
 target_link_libraries(fabm_c fabm)
+if(NOT YAML_SOURCES) 
+  target_link_libraries(fabm_c yaml)
+endif()
 
 # Set module directory (where *.mod will be saved by the compiler)
 set_property(TARGET fabm_c PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
