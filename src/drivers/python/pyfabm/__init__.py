@@ -327,17 +327,25 @@ class Variable(object):
         return '<%s=%s>' % (self.name, self.value)
 
 class Dependency(Variable):
-    def __init__(self, model, variable_pointer, data):
+    def __init__(self, model, variable_pointer, shape, link_function):
         Variable.__init__(self, model, variable_pointer=variable_pointer)
-        self.data = data
         self.is_set = False
+        self.link_function = link_function
+        self.shape = shape
 
     def getValue(self):
         return None if not self.is_set else self.data
 
     def setValue(self, value):
-        self.is_set = True
+        if not self.is_set:
+            self.link(numpy.empty(self.shape, dtype=float))
         self.data[...] = value
+
+    def link(self, data):
+        assert data.shape == self.shape, '%s: shape of provided array %s does not match the shape required %s' % (self.name, data.shape, self.shape)
+        self.data = data
+        self.link_function(self.model.pmodel, self.variable_pointer, self.data)
+        self.is_set = True
 
     value = property(getValue, setValue)
 
@@ -529,13 +537,18 @@ class Model(object):
         if delete:
             os.remove(path)
         self.updateConfiguration()
-        if self.fabm.has_mask:
-            self._mask = numpy.ones(self.horizontal_domain_shape, dtype=numpy.intc)
-            self.fabm.set_mask(self.pmodel, self._mask)
+        self._mask = None
+
+    def link_mask(self, data):
+        assert data.shape == self.horizontal_domain_shape and data.dtype == numpy.intc and data.flags['C_CONTIGUOUS']
+        self._mask = data
+        self.fabm.set_mask(self.pmodel, self._mask)
 
     def _get_mask(self):
         return self._mask
     def _set_mask(self, value):
+        if self._mask is None:
+            self.link_mask(numpy.ones(self.horizontal_domain_shape, dtype=numpy.intc))
         if value is not self._mask:
             self._mask[...] = value
     mask = property(_get_mask, _set_mask)
@@ -568,9 +581,13 @@ class Model(object):
             self._bottom_state[...] = value
     bottom_state = property(_get_bottom_state, _set_bottom_state)
 
+    def link_cell_thickness(self, data):
+        assert data.shape == self.interior_domain_shape and data.dtype == numpy.dtype('double') and data.flags['C_CONTIGUOUS']
+        self._cell_thickness = data
+
     def setCellThickness(self, value):
         if self._cell_thickness is None:
-            self._cell_thickness = numpy.empty(self.interior_domain_shape)
+            self.link_cell_thickness(numpy.empty(self.interior_domain_shape))
         self._cell_thickness[...] = value
 
     cell_thickness = property(fset=setCellThickness)
@@ -629,10 +646,6 @@ class Model(object):
         for i in range(nstate_bottom.value):
             self.fabm.link_bottom_state_data(self.pmodel, i + 1, self._bottom_state[i, ...])
 
-        self.interior_dependency_data = numpy.zeros((ndependencies_interior.value,) + self.interior_domain_shape, dtype=float)
-        self.horizontal_dependency_data = numpy.zeros((ndependencies_horizontal.value,) + self.horizontal_domain_shape, dtype=float)
-        self.scalar_dependency_data = numpy.zeros((ndependencies_scalar.value,), dtype=float)
-
         # Retrieve variable metadata
         strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         strunits = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
@@ -668,13 +681,13 @@ class Model(object):
             self.horizontal_diagnostic_variables._data.append(DiagnosticVariable(self, ptr, i, True))
         for i in range(ndependencies_interior.value):
             ptr = self.fabm.get_variable(self.pmodel, INTERIOR_DEPENDENCY, i + 1)
-            self.interior_dependencies._data.append(Dependency(self, ptr, self.interior_dependency_data[i, ...]))
+            self.interior_dependencies._data.append(Dependency(self, ptr, self.interior_domain_shape, self.fabm.link_interior_data))
         for i in range(ndependencies_horizontal.value):
             ptr = self.fabm.get_variable(self.pmodel, HORIZONTAL_DEPENDENCY, i + 1)
-            self.horizontal_dependencies._data.append(Dependency(self, ptr, self.horizontal_dependency_data[i, ...]))
+            self.horizontal_dependencies._data.append(Dependency(self, ptr, self.horizontal_domain_shape, self.fabm.link_horizontal_data))
         for i in range(ndependencies_scalar.value):
             ptr = self.fabm.get_variable(self.pmodel, SCALAR_DEPENDENCY, i + 1)
-            self.scalar_dependencies._data.append(Dependency(self, ptr, self.scalar_dependency_data[i, ...]))
+            self.scalar_dependencies._data.append(Dependency(self, ptr, (), self.fabm.link_scalar))
         for i in range(nconserved.value):
             self.fabm.get_variable_metadata(self.pmodel, CONSERVED_QUANTITY, i + 1, ATTRIBUTE_LENGTH, strname, strunits, strlong_name, strpath)
             self.conserved_quantities._data.append(Variable(self, strname.value.decode('ascii'), strunits.value.decode('ascii'), strlong_name.value.decode('ascii'), strpath.value.decode('ascii')))
@@ -785,17 +798,21 @@ class Model(object):
         return root
 
     def start(self, verbose=True, stop=False):
+        ready = True
+        if self.fabm.has_mask:
+            if self._mask is None:
+                print('Mask not yet assigned')
+                ready = False
+
         def process_dependencies(dependencies, link_function):
             ready = True
             for dependency in dependencies:
-                if dependency.is_set:
-                    link_function(self.pmodel, dependency.variable_pointer, dependency.data)
-                elif dependency.required:
+                if dependency.required and not dependency.is_set:
                     print('Value for dependency %s is not set.' % dependency.name)
                     ready = False
             return ready
 
-        ready = process_dependencies(self.interior_dependencies, self.fabm.link_interior_data)
+        ready = process_dependencies(self.interior_dependencies, self.fabm.link_interior_data) and ready
         ready = process_dependencies(self.horizontal_dependencies, self.fabm.link_horizontal_data) and ready
         ready = process_dependencies(self.scalar_dependencies, self.fabm.link_scalar) and ready
         assert ready or not stop, 'Not all dependencies have been fulfilled.'
