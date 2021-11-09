@@ -3,12 +3,12 @@
 
 module fabm_c
 
-   use iso_c_binding, only: c_double, c_int, c_char, C_NULL_CHAR, c_f_pointer, c_loc, c_ptr, c_null_ptr
+   use iso_c_binding, only: c_int, c_char, C_NULL_CHAR, c_f_pointer, c_loc, c_ptr, c_null_ptr
 
    !DIR$ ATTRIBUTES DLLEXPORT :: STATE_VARIABLE,DIAGNOSTIC_VARIABLE,CONSERVED_QUANTITY
 
    use fabm, only: type_fabm_model, type_fabm_variable, fabm_get_version, status_start_done, fabm_create_model
-   use fabm_types, only: rk => rke, attribute_length, type_model_list_node, type_base_model, &
+   use fabm_types, only: rke, attribute_length, type_model_list_node, type_base_model, &
                          factory, type_link, type_link_list, type_internal_variable, type_variable_list, type_variable_node, &
                          domain_interior, domain_horizontal, domain_scalar
    use fabm_driver, only: type_base_driver, driver
@@ -124,7 +124,7 @@ contains
       end do
 
       ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
-      call model%p%set_domain(_PREARG_LOCATION_ 1._rk)
+      call model%p%set_domain(_PREARG_LOCATION_ 1._rke)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
       call get_environment_metadata(model%p, model%environment)
@@ -213,7 +213,7 @@ contains
       end do
 
       ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
-      call model%p%set_domain(_PREARG_LOCATION_ 1._rk)
+      call model%p%set_domain(_PREARG_LOCATION_ 1._rke)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
       call get_environment_metadata(model%p, model%environment)
@@ -468,8 +468,8 @@ contains
 
    function c_f_pointer_interior(model, ptr) result(pdata)
       type (type_model_wrapper), intent(in) :: model
-      real(c_double), intent(in), target :: ptr(*)
-      real(c_double) _ATTRIBUTES_GLOBAL_, pointer :: pdata
+      real(rke), target,         intent(in) :: ptr(*)
+      real(rke) _ATTRIBUTES_GLOBAL_, pointer :: pdata
 #if _FABM_DIMENSION_COUNT_ > 0
       call c_f_pointer(c_loc(ptr), pdata, model%p%domain%shape)
 #else
@@ -479,8 +479,8 @@ contains
 
    function c_f_pointer_horizontal(model, ptr) result(pdata)
       type (type_model_wrapper), intent(in) :: model
-      real(c_double), intent(in), target :: ptr(*)
-      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: pdata
+      real(rke), target,         intent(in) :: ptr(*)
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: pdata
 #if  _HORIZONTAL_DIMENSION_COUNT_ > 0
       call c_f_pointer(c_loc(ptr), pdata, model%p%domain%horizontal_shape)
 #else
@@ -490,13 +490,13 @@ contains
 
    subroutine link_interior_data(pmodel, pvariable, dat) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_interior_data
-      type (c_ptr),   intent(in), value  :: pmodel
-      type (c_ptr),   intent(in), value  :: pvariable
-      real(c_double), intent(in), target :: dat(*)
+      type (c_ptr), intent(in), value  :: pmodel
+      type (c_ptr), intent(in), value  :: pvariable
+      real(rke),    intent(in), target :: dat(*)
 
       type (type_model_wrapper),          pointer :: model
       type (type_internal_variable),      pointer :: variable
-      real(c_double) _ATTRIBUTES_GLOBAL_, pointer :: interior_data
+      real(rke) _ATTRIBUTES_GLOBAL_, pointer :: interior_data
 
       call c_f_pointer(pmodel, model)
       call c_f_pointer(pvariable, variable)
@@ -506,13 +506,13 @@ contains
 
    subroutine link_horizontal_data(pmodel, pvariable, dat) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_horizontal_data
-      type (c_ptr),   intent(in), value  :: pmodel
-      type (c_ptr),   intent(in), value  :: pvariable
-      real(c_double), intent(in), target :: dat(*)
+      type (c_ptr), intent(in), value  :: pmodel
+      type (c_ptr), intent(in), value  :: pvariable
+      real(rke),    intent(in), target :: dat(*)
 
-      type (type_model_wrapper),                     pointer :: model
-      type (type_internal_variable),                 pointer :: variable
-      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: horizontal_data
+      type (type_model_wrapper),                pointer :: model
+      type (type_internal_variable),            pointer :: variable
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: horizontal_data
 
       call c_f_pointer(pmodel, model)
       call c_f_pointer(pvariable, variable)
@@ -522,13 +522,13 @@ contains
 
    subroutine link_scalar(pmodel, pvariable, dat) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: link_scalar
-      type (c_ptr),   intent(in), value  :: pmodel
-      type (c_ptr),   intent(in), value  :: pvariable
-      real(c_double), intent(in), target :: dat(*)
+      type (c_ptr), intent(in), value  :: pmodel
+      type (c_ptr), intent(in), value  :: pvariable
+      real(rke),    intent(in), target :: dat(*)
 
       type (type_model_wrapper),     pointer :: model
       type (type_internal_variable), pointer :: variable
-      real(c_double),                pointer :: scalar_data
+      real(rke),                     pointer :: scalar_data
 
       call c_f_pointer(pmodel, model)
       call c_f_pointer(pvariable, variable)
@@ -540,10 +540,10 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: link_interior_state_data
       type (c_ptr),   intent(in), value  :: pmodel
       integer(c_int), intent(in), value  :: index
-      real(c_double), intent(in), target :: dat(*)
+      real(rke),      intent(in), target :: dat(*)
 
-      type (type_model_wrapper),          pointer :: model
-      real(c_double) _ATTRIBUTES_GLOBAL_, pointer :: dat_
+      type (type_model_wrapper),     pointer :: model
+      real(rke) _ATTRIBUTES_GLOBAL_, pointer :: dat_
 
       call c_f_pointer(pmodel, model)
       dat_ => c_f_pointer_interior(model, dat)
@@ -555,10 +555,10 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: link_surface_state_data
       type (c_ptr),   intent(in), value  :: pmodel
       integer(c_int), intent(in), value  :: index
-      real(c_double), intent(in), target :: dat(*)
+      real(rke),      intent(in), target :: dat(*)
 
-      type (type_model_wrapper),                     pointer :: model
-      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: dat_
+      type (type_model_wrapper),                pointer :: model
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: dat_
 
       call c_f_pointer(pmodel, model)
       dat_ => c_f_pointer_horizontal(model, dat)
@@ -570,10 +570,10 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: link_bottom_state_data
       type (c_ptr),   intent(in), value  :: pmodel
       integer(c_int), intent(in), value  :: index
-      real(c_double), intent(in), target :: dat(*)
+      real(rke),      intent(in), target :: dat(*)
 
-      type (type_model_wrapper),                     pointer :: model
-      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: dat_
+      type (type_model_wrapper),                pointer :: model
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: dat_
 
       call c_f_pointer(pmodel, model)
       dat_ => c_f_pointer_horizontal(model, dat)
@@ -585,17 +585,17 @@ contains
       do_surface, do_bottom, cell_thickness) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_sources
       type (c_ptr),   value,  intent(in) :: pmodel
-      real(c_double), value,  intent(in) :: t
-      real(c_double), target, intent(in) :: sources_interior(*), sources_surface(*), sources_bottom(*)
+      real(rke),      value,  intent(in) :: t
+      real(rke),      target, intent(in) :: sources_interior(*), sources_surface(*), sources_bottom(*)
       integer(c_int), value,  intent(in) :: do_surface, do_bottom
-      real(c_double), target, intent(in) :: cell_thickness(*)
+      real(rke),      target, intent(in) :: cell_thickness(*)
 
       logical :: surface, bottom
       type (type_model_wrapper), pointer :: model
-      real(c_double) _DIMENSION_GLOBAL_PLUS_1_, pointer :: sources_interior_
-      real(c_double) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_, pointer :: sources_surface_, sources_bottom_
-      real(c_double) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, allocatable :: fluxes
-      real(c_double) _ATTRIBUTES_GLOBAL_, pointer :: cell_thickness_
+      real(rke) _DIMENSION_GLOBAL_PLUS_1_, pointer :: sources_interior_
+      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_, pointer :: sources_surface_, sources_bottom_
+      real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, allocatable :: fluxes
+      real(rke) _ATTRIBUTES_GLOBAL_, pointer :: cell_thickness_
       _DECLARE_LOCATION_
 #  if _FABM_DIMENSION_COUNT_ > 0
       integer :: _LOCATION_RANGE_
@@ -646,9 +646,9 @@ contains
          call model%p%prepare_inputs(t)
       end if
 
-      sources_interior_ = 0.0_rk
-      sources_surface_ = 0.0_rk
-      sources_bottom_ = 0.0_rk
+      sources_interior_ = 0.0_rke
+      sources_surface_ = 0.0_rke
+      sources_bottom_ = 0.0_rke
 
       _BEGIN_OUTER_INTERIOR_LOOP_
          call model%p%get_interior_sources(_PREARG_INTERIOR_IN_ sources_interior_ _INDEX_GLOBAL_INTERIOR_PLUS_1_(_START_:_STOP_,:))
@@ -664,7 +664,7 @@ contains
 #endif
 
          _BEGIN_OUTER_HORIZONTAL_LOOP_
-            fluxes = 0.0_rk
+            fluxes = 0.0_rke
             call model%p%get_surface_sources(_PREARG_HORIZONTAL_IN_ fluxes, sources_surface_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_,:))
             if (size(model%p%interior_state_variables) > 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
@@ -694,7 +694,7 @@ contains
 #endif
 
          _BEGIN_OUTER_HORIZONTAL_LOOP_
-            fluxes = 0.0_rk
+            fluxes = 0.0_rke
             call model%p%get_bottom_sources_rhs(_PREARG_HORIZONTAL_IN_ fluxes, sources_bottom_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_,:))
             if (size(model%p%interior_state_variables) > 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
@@ -778,7 +778,8 @@ contains
       type (c_ptr),   intent(in), value :: pmodel
       integer(c_int), intent(in), value :: index
       type(c_ptr)                       :: ptr
-      real(rk) _ATTRIBUTES_GLOBAL_, pointer :: pvalue
+
+      real(rke) _ATTRIBUTES_GLOBAL_, pointer :: pvalue
 
       type (type_model_wrapper), pointer :: model
 
@@ -793,7 +794,8 @@ contains
       type (c_ptr),   intent(in), value :: pmodel
       integer(c_int), intent(in), value :: index
       type(c_ptr)                       :: ptr
-      real(rk) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: pvalue
+
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: pvalue
 
       type (type_model_wrapper), pointer :: model
 

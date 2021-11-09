@@ -50,6 +50,7 @@ def get_lib(name):
 
     # Load FABM library.
     lib = ctypes.CDLL(str(path))
+    lib.dtype = ctypes.c_double
 
     # Driver settings (number of spatial dimensions, depth index)
     lib.get_driver_settings.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
@@ -67,14 +68,14 @@ def get_lib(name):
     lib.has_mask = ihas_mask.value != 0
 
     CONTIGUOUS = str('CONTIGUOUS')
-    arrtype0D = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=0, flags=CONTIGUOUS)
-    arrtype1D = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=1, flags=CONTIGUOUS)
-    arrtypeInterior = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_int, flags=CONTIGUOUS)
-    arrtypeHorizontal = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_hz, flags=CONTIGUOUS)
-    arrtypeInteriorExt = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_int + 1, flags=CONTIGUOUS)
-    arrtypeHorizontalExt = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_hz + 1, flags=CONTIGUOUS)
-    arrtypeInteriorExt2 = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_int + 2, flags=CONTIGUOUS)
-    arrtypeHorizontalExt2 = numpy.ctypeslib.ndpointer(dtype=ctypes.c_double, ndim=ndim_hz + 2, flags=CONTIGUOUS)
+    arrtype0D = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=0, flags=CONTIGUOUS)
+    arrtype1D = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=1, flags=CONTIGUOUS)
+    arrtypeInterior = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=ndim_int, flags=CONTIGUOUS)
+    arrtypeHorizontal = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=ndim_hz, flags=CONTIGUOUS)
+    arrtypeInteriorExt = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=ndim_int + 1, flags=CONTIGUOUS)
+    arrtypeHorizontalExt = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=ndim_hz + 1, flags=CONTIGUOUS)
+    arrtypeInteriorExt2 = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=ndim_int + 2, flags=CONTIGUOUS)
+    arrtypeHorizontalExt2 = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=ndim_hz + 2, flags=CONTIGUOUS)
 
     # Initialization
     lib.create_model.argtypes = [ctypes.c_char_p] + [ctypes.c_int] * ndim_int
@@ -109,7 +110,9 @@ def get_lib(name):
     lib.variable_get_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
     lib.variable_get_metadata.restype = None
     lib.variable_get_background_value.argtypes = [ctypes.c_void_p]
-    lib.variable_get_background_value.restype = ctypes.c_double
+    lib.variable_get_background_value.restype = lib.dtype
+    lib.variable_get_missing_value.argtypes = [ctypes.c_void_p]
+    lib.variable_get_missing_value.restype = lib.dtype
     lib.variable_get_long_path.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p]
     lib.variable_get_long_path.restype = None
     lib.variable_get_output_name.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p]
@@ -122,8 +125,8 @@ def get_lib(name):
     lib.variable_is_required.restype = ctypes.c_int
     lib.variable_get_property_type.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
     lib.variable_get_property_type.restype = ctypes.c_int
-    lib.variable_get_real_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_double]
-    lib.variable_get_real_property.restype = ctypes.c_double
+    lib.variable_get_real_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, lib.dtype]
+    lib.variable_get_real_property.restype = lib.dtype
     lib.variable_get_integer_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
     lib.variable_get_integer_property.restype = ctypes.c_int
     lib.variable_get_logical_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
@@ -131,7 +134,7 @@ def get_lib(name):
 
     # Read/write/reset access to parameters.
     lib.get_real_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
-    lib.get_real_parameter.restype = ctypes.c_double
+    lib.get_real_parameter.restype = lib.dtype
     lib.get_integer_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
     lib.get_integer_parameter.restype = ctypes.c_int
     lib.get_logical_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
@@ -140,7 +143,7 @@ def get_lib(name):
     lib.get_string_parameter.restype = None
     lib.reset_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int]
     lib.reset_parameter.restype = None
-    lib.set_real_parameter.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_double]
+    lib.set_real_parameter.argtypes = [ctypes.c_void_p, ctypes.c_char_p, lib.dtype]
     lib.set_real_parameter.restype = None
     lib.set_integer_parameter.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
     lib.set_integer_parameter.restype = None
@@ -173,15 +176,15 @@ def get_lib(name):
 
     # Read access to diagnostic data.
     lib.get_interior_diagnostic_data.argtypes = [ctypes.c_void_p, ctypes.c_int]
-    lib.get_interior_diagnostic_data.restype = ctypes.POINTER(ctypes.c_double)
+    lib.get_interior_diagnostic_data.restype = ctypes.POINTER(lib.dtype)
     lib.get_horizontal_diagnostic_data.argtypes = [ctypes.c_void_p, ctypes.c_int]
-    lib.get_horizontal_diagnostic_data.restype = ctypes.POINTER(ctypes.c_double)
+    lib.get_horizontal_diagnostic_data.restype = ctypes.POINTER(lib.dtype)
 
     lib.start.argtypes = [ctypes.c_void_p]
     lib.start.restype = None
 
     # Routine for retrieving source-sink terms for the interior domain.
-    lib.get_sources.argtypes = [ctypes.c_void_p, ctypes.c_double, arrtypeInteriorExt, arrtypeHorizontalExt, arrtypeHorizontalExt, ctypes.c_int, ctypes.c_int, arrtypeInterior]
+    lib.get_sources.argtypes = [ctypes.c_void_p, lib.dtype, arrtypeInteriorExt, arrtypeHorizontalExt, arrtypeHorizontalExt, ctypes.c_int, ctypes.c_int, arrtypeInterior]
     lib.get_sources.restype = None
     lib.check_state.argtypes = [ctypes.c_void_p, ctypes.c_int]
     lib.check_state.restype = ctypes.c_int
@@ -191,7 +194,7 @@ def get_lib(name):
     lib.get_version.restype = None
 
     if ndim_int == 0:
-        lib.integrate.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, arrtype1D, arrtypeInteriorExt, arrtypeInteriorExt2, ctypes.c_double, ctypes.c_int, ctypes.c_int, arrtypeInterior]
+        lib.integrate.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, arrtype1D, arrtypeInteriorExt, arrtypeInteriorExt2, lib.dtype, ctypes.c_int, ctypes.c_int, arrtypeInterior]
         lib.integrate.restype = None
 
     name2lib[name] = lib
@@ -316,6 +319,11 @@ class Variable(object):
         stroutput_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         self.model.fabm.variable_get_output_name(self.variable_pointer, ATTRIBUTE_LENGTH, stroutput_name)
         return stroutput_name.value.decode('ascii')
+
+    @property
+    def missing_value(self):
+        if self.variable_pointer is not None:
+            return self.model.fabm.variable_get_missing_value(self.variable_pointer)
 
     def getOptions(self):
         pass

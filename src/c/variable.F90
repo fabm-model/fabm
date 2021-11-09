@@ -1,6 +1,6 @@
 module fabm_c_variable
 
-   use iso_c_binding, only: c_double, c_int, c_char, c_f_pointer, c_loc, c_ptr
+   use iso_c_binding, only: c_int, c_char, c_f_pointer, c_loc, c_ptr
 
    use fabm_types
    use fabm_c_helper
@@ -62,7 +62,7 @@ contains
    function variable_get_background_value(pvariable) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_background_value
       type (c_ptr), value, intent(in) :: pvariable
-      real(kind=c_double)             :: value
+      real(kind=rke)                  :: value
 
       type (type_internal_variable), pointer :: variable
 
@@ -70,6 +70,17 @@ contains
       value = 0.0_rk
       if (size(variable%background_values%pointers) > 0) value = variable%background_values%pointers(1)%p
    end function variable_get_background_value
+
+   function variable_get_missing_value(pvariable) bind(c) result(value)
+      !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_missing_value
+      type (c_ptr), value, intent(in) :: pvariable
+      real(kind=rke)                  :: value
+
+      type (type_internal_variable), pointer :: variable
+
+      call c_f_pointer(pvariable, variable)
+      value = variable%missing_value
+   end function variable_get_missing_value
 
    function variable_get_output(pvariable) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_output
@@ -114,8 +125,8 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_real_property
       type (c_ptr), value,            intent(in) :: pvariable
       character(kind=c_char), target, intent(in) :: name(*)
-      real(kind=c_double), value,     intent(in) :: default
-      real(kind=c_double)                        :: value
+      real(kind=rke), value,          intent(in) :: default
+      real(kind=rke)                             :: value
 
       type (type_internal_variable),   pointer :: variable
       character(len=attribute_length), pointer :: pname
