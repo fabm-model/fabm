@@ -334,6 +334,24 @@ contains
       call copy_to_c_string(variable%path,            path)
    end subroutine get_variable_metadata
 
+   subroutine set_variable_save(pmodel, category, index, value) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: set_variable_save
+      type (c_ptr),           intent(in), value :: pmodel
+      integer(c_int),         intent(in), value :: category, index, value
+
+      type (type_model_wrapper),  pointer :: model
+      class (type_fabm_variable), pointer :: variable
+
+      call c_f_pointer(pmodel, model)
+
+      select case (category)
+      case (INTERIOR_DIAGNOSTIC_VARIABLE)
+         model%p%interior_diagnostic_variables(index)%save = int2logical(value)
+      case (HORIZONTAL_DIAGNOSTIC_VARIABLE)
+         model%p%horizontal_diagnostic_variables(index)%save = int2logical(value)
+      end select
+   end subroutine set_variable_save
+
    function get_variable(pmodel, category, index) bind(c) result(pvariable)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_variable
       type (c_ptr),   intent(in), value :: pmodel

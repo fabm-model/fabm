@@ -86,6 +86,8 @@ def get_lib(name):
     lib.get_counts.restype = None
     lib.get_variable_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
     lib.get_variable_metadata.restype = None
+    lib.set_variable_save.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int]
+    lib.set_variable_save.restype = None
     lib.get_variable.argtypes = [ctypes.c_void_p, ctypes.c_int,ctypes.c_int]
     lib.get_variable.restype = ctypes.c_void_p
     lib.get_parameter_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
@@ -386,15 +388,20 @@ class DiagnosticVariable(Variable):
     def __init__(self, model, variable_pointer, index, horizontal):
         Variable.__init__(self, model, variable_pointer=variable_pointer)
         self.data = None
+        self.horizontal = horizontal
+        self.index = index
 
     def getValue(self):
         return self.data
+    value = property(getValue)
 
     @property
     def output(self):
         return self.model.fabm.variable_get_output(self.variable_pointer) != 0
 
-    value = property(getValue)
+    def setSave(self, value):
+        self.model.fabm.set_variable_save(self.model.pmodel, HORIZONTAL_DIAGNOSTIC_VARIABLE if self.horizontal else INTERIOR_DIAGNOSTIC_VARIABLE, self.index, value)
+    save = property(fset=setSave)
 
 class Parameter(Variable):
     def __init__(self, model, name, index, units=None, long_name=None, type=None, has_default=False):
@@ -403,7 +410,7 @@ class Parameter(Variable):
         self.index = index + 1
         self.has_default = has_default
 
-    def getValue(self,default=False):
+    def getValue(self, default=False):
         default = 1 if default else 0
         if self.type == 1:
             return self.model.fabm.get_real_parameter(self.model.pmodel, self.index, default)
@@ -416,7 +423,7 @@ class Parameter(Variable):
             self.model.fabm.get_string_parameter(self.model.pmodel, self.index, default, ATTRIBUTE_LENGTH, result)
             return result.value.decode('ascii')
 
-    def setValue(self,value):
+    def setValue(self, value):
         settings = self.model.saveSettings()
 
         if self.type == 1:
