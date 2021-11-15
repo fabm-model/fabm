@@ -400,7 +400,7 @@ class DiagnosticVariable(Variable):
         return self.model.fabm.variable_get_output(self.variable_pointer) != 0
 
     def setSave(self, value):
-        self.model.fabm.set_variable_save(self.model.pmodel, HORIZONTAL_DIAGNOSTIC_VARIABLE if self.horizontal else INTERIOR_DIAGNOSTIC_VARIABLE, self.index, value)
+        self.model.fabm.set_variable_save(self.model.pmodel, HORIZONTAL_DIAGNOSTIC_VARIABLE if self.horizontal else INTERIOR_DIAGNOSTIC_VARIABLE, self.index, 1 if value else 0)
     save = property(fset=setSave)
 
 class Parameter(Variable):
@@ -690,10 +690,10 @@ class Model(object):
             self.bottom_state_variables._data.append(StateVariable(self, ptr, self._bottom_state[i, ...]))
         for i in range(ndiag_interior.value):
             ptr = self.fabm.get_variable(self.pmodel, INTERIOR_DIAGNOSTIC_VARIABLE, i + 1)
-            self.interior_diagnostic_variables._data.append(DiagnosticVariable(self, ptr, i, False))
+            self.interior_diagnostic_variables._data.append(DiagnosticVariable(self, ptr, i + 1, False))
         for i in range(ndiag_horizontal.value):
             ptr = self.fabm.get_variable(self.pmodel, HORIZONTAL_DIAGNOSTIC_VARIABLE, i + 1)
-            self.horizontal_diagnostic_variables._data.append(DiagnosticVariable(self, ptr, i, True))
+            self.horizontal_diagnostic_variables._data.append(DiagnosticVariable(self, ptr, i + 1, True))
         for i in range(ndependencies_interior.value):
             ptr = self.fabm.get_variable(self.pmodel, INTERIOR_DEPENDENCY, i + 1)
             self.interior_dependencies._data.append(Dependency(self, ptr, self.interior_domain_shape, self.fabm.link_interior_data))
