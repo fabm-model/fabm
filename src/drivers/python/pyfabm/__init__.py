@@ -51,6 +51,7 @@ def get_lib(name):
     # Load FABM library.
     lib = ctypes.CDLL(str(path))
     lib.dtype = ctypes.c_double
+    lib.numpy_dtype = numpy.dtype(lib.dtype).newbyteorder('=')
 
     # Driver settings (number of spatial dimensions, depth index)
     lib.get_driver_settings.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
@@ -597,7 +598,7 @@ class Model(object):
     bottom_state = property(_get_bottom_state, _set_bottom_state)
 
     def link_cell_thickness(self, data):
-        assert data.shape == self.interior_domain_shape and data.dtype == numpy.dtype('double') and data.flags['C_CONTIGUOUS']
+        assert data.shape == self.interior_domain_shape and data.dtype == self.fabm.numpy_dtype and data.flags['C_CONTIGUOUS']
         self._cell_thickness = data
 
     def setCellThickness(self, value):
@@ -646,14 +647,14 @@ class Model(object):
 
         # Allocate memory for state variable values, and send ctypes.pointer to this memory to FABM.
         if self.fabm.idepthdim == -1:
-            self._state = numpy.empty((nstate_interior.value + nstate_surface.value + nstate_bottom.value,) + self.interior_domain_shape, dtype=float)
+            self._state = numpy.empty((nstate_interior.value + nstate_surface.value + nstate_bottom.value,) + self.interior_domain_shape, dtype=self.fabm.numpy_dtype)
             self._interior_state = self._state[:nstate_interior.value, ...]
             self._surface_state = self._state[nstate_interior.value:nstate_interior.value + nstate_surface.value, ...]
             self._bottom_state = self._state[nstate_interior.value + nstate_surface.value:, ...]
         else:
-            self._interior_state = numpy.empty((nstate_interior.value,) + self.interior_domain_shape, dtype=float)
-            self._surface_state = numpy.empty((nstate_surface.value,) + self.horizontal_domain_shape, dtype=float)
-            self._bottom_state = numpy.empty((nstate_bottom.value,) + self.horizontal_domain_shape, dtype=float)
+            self._interior_state = numpy.empty((nstate_interior.value,) + self.interior_domain_shape, dtype=self.fabm.numpy_dtype)
+            self._surface_state = numpy.empty((nstate_surface.value,) + self.horizontal_domain_shape, dtype=self.fabm.numpy_dtype)
+            self._bottom_state = numpy.empty((nstate_bottom.value,) + self.horizontal_domain_shape, dtype=self.fabm.numpy_dtype)
         for i in range(nstate_interior.value):
             self.fabm.link_interior_state_data(self.pmodel, i + 1, self._interior_state[i, ...])
         for i in range(nstate_surface.value):
@@ -840,10 +841,10 @@ class Model(object):
             return False
         for i, variable in enumerate(self.interior_diagnostic_variables):
             pdata = self.fabm.get_interior_diagnostic_data(self.pmodel, i + 1)
-            variable.data = None if not pdata else numpy.ctypeslib.as_array(pdata, self.interior_domain_shape)
+            variable.data = None if not pdata else numpy.ctypeslib.as_array(pdata, self.interior_domain_shape).newbyteorder('=')
         for i, variable in enumerate(self.horizontal_diagnostic_variables):
             pdata = self.fabm.get_horizontal_diagnostic_data(self.pmodel, i + 1)
-            variable.data = None if not pdata else numpy.ctypeslib.as_array(pdata, self.horizontal_domain_shape)
+            variable.data = None if not pdata else numpy.ctypeslib.as_array(pdata, self.horizontal_domain_shape).newbyteorder('=')
         return ready
     checkReady = start
 
