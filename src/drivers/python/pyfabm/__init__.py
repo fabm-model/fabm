@@ -743,12 +743,15 @@ class Model(object):
             raise FABMException(getError())
         return sources
 
-    def get_sources(self, t=None):
+    def get_sources(self, t=None, out=None):
         if t is None:
             t = self.itime
-        sources_interior = numpy.empty_like(self._interior_state)
-        sources_surface = numpy.empty_like(self._surface_state)
-        sources_bottom = numpy.empty_like(self._bottom_state)
+        if out is None:
+            sources_interior = numpy.empty_like(self._interior_state)
+            sources_surface = numpy.empty_like(self._surface_state)
+            sources_bottom = numpy.empty_like(self._bottom_state)
+        else:
+            sources_interior, sources_surface, sources_bottom = out
         assert self._cell_thickness is not None, 'You must assign model.cell_thickness to use get_sources'
         self.fabm.get_sources(self.pmodel, t, sources_interior, sources_surface, sources_bottom, True, True, self._cell_thickness)
         if hasError():
