@@ -26,6 +26,7 @@
       type (type_state_variable_id)        :: id_c,id_s,id_g
       type (type_state_variable_id)        :: id_nitrate,id_ammonium
       type (type_state_variable_id)        :: id_phosphate,id_detritus,id_oxygen
+      type (type_state_variable_id)        :: id_dic
       type (type_dependency_id)            :: id_par,id_temp, id_pml_carbonate_pH
       type (type_dependency_id)            :: id_salt
       type (type_state_variable_id)        :: id_nextc,id_nexts,id_nextg
@@ -157,6 +158,7 @@
    character(len=64)         :: detritus_variable
    character(len=64)         :: oxygen_variable
    character(len=64)         :: lifestage_name
+   character(len=64)         :: dic_variable=''
    real(rk)                  :: minimum_C=0.0_rk
    real(rk)                  :: minimum_nitrate=0.0_rk
 
@@ -167,15 +169,14 @@
              e_max,e_min,q_max,q_min,Sflux_per_Cflux, Gflux_per_Cflux, &
              mortality_rate, next_in_cycle, n_fixation, m, depo, &
              uptake_factor, growth_factor, lightcapture_factor, &
-             ammonium_variable,nitrate_variable, use_ph, &
+             ammonium_variable,nitrate_variable, dic_variable, use_ph, &
              use_salinity_dependence,                    &
              fpH_const, phosphate_variable, detritus_variable, &
              oxygen_variable, lifestage_name, minimum_C, minimum_nitrate
 !EOP
 !-----------------------------------------------------------------------
 !BOC
-
-   background_concentration = 0.0225_rk
+!   background_concentration = 0.0225_rk
    w         = 0.1_rk !sinking rate
    kc        = 0.03_rk !Self-shading kd
    sr        = 0.0625_rk
@@ -196,6 +197,7 @@
    theta_q   = 0.0_rk
    scale     = 8.0_rk !omega
    rmatscale = 45.0_rk
+   !omega0    = 2.8e-6_rk
    omega0    = 3.7e-6_rk
    n_fixation=.false.
    m         = 3.0_rk !grhs
@@ -212,6 +214,7 @@
    phosphate_variable = 'uhh_ergom_split_base_pho'
    detritus_variable = 'uhh_ergom_split_base_det'
    oxygen_variable = 'uhh_ergom_split_base_oxy'
+   dic_variable = ''
    lifestage_name = ''
    next_in_cycle = ''
 
@@ -250,8 +253,6 @@
    call self%get_parameter(self%q_min,  'q_min',  default=q_min)
    call self%get_parameter(self%scale,  'scale',  default=scale)
    call self%get_parameter(self%use_salinity_dependence,  'use_salinity_dependence',  default=use_salinity_dependence)
-
-   ! set default S,G flux scales depending on E,Q range:
    call self%get_parameter(self%Sflux_per_Cflux, 'Sflux_per_Cflux', default=Sflux_per_Cflux)
    call self%get_parameter(self%Gflux_per_Cflux, 'Gflux_per_Cflux', default=Gflux_per_Cflux)
 
@@ -278,8 +279,6 @@
    call self%get_parameter(self%minimum_nitrate,'minimum_nitrate', default=minimum_nitrate)
    call self%get_parameter(self%lifestage_name,'lifestage_name', default=lifestage_name)
    call self%get_parameter(self%next_in_cycle,'next_in_cycle', default=next_in_cycle)
-   call self%get_parameter(self%use_ph,'use_ph', default=use_ph)   
-   ! Register state variables
 
    call self%register_state_variable(self%id_c,'C', &
          'mmol n/m**3',trim(self%lifestage_name)//' biomass',  &
@@ -305,6 +304,10 @@
    if (self%use_oxygen) &
      call self%register_state_dependency(self%id_oxygen,   'oxygen_target'   ,'mmol-O2/m**3','dissolved oxygen pool')
 
+   ! Register optional link to external DIC pool
+   call self%register_state_dependency(self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon',required=.false.)
+   if (dic_variable/='') call self%request_coupling(self%id_dic,dic_variable)   
+
    ! Register environmental dependencies
    if (self%lifecycling) then
       call self%register_state_dependency(self%id_nextc,'next_C','mmol-N/m**3','next clc biomass')
@@ -314,7 +317,7 @@
       call self%request_coupling(self%id_nextg,'uhh_clc'//self%next_in_cycle(1:3)//'_G')
       call self%request_coupling(self%id_nexts,'uhh_clc'//self%next_in_cycle(1:3)//'_S')
    end if
- 
+
    if (self%use_ammonium) &
      call self%request_coupling(self%id_ammonium, ammonium_variable)
    call self%request_coupling(self%id_nitrate, nitrate_variable)
@@ -430,7 +433,7 @@
    _GET_(self%id_salt,salt)           ! local salinity
    if (self%use_ph) then
      _GET_(self%id_pml_carbonate_pH,pHval)           ! local pH
-     ! pH dependency
+     !! pH dependency
      f_pH = exp(-((pHval - 8.1_rk)**2)/(0.6_rk**2))
    else
      f_pH = self%fpH_const
@@ -489,31 +492,35 @@
    if (self%lifecycling) call self%calculate_lifecycle_flux(e,q,c_flux,s_flux,g_flux)
 
      ! Set temporal derivatives in next lifecycle
-   _ADD_SOURCE_(self%id_nextc, c*c_flux)
-   _ADD_SOURCE_(self%id_nexts, s*s_flux)
-   _ADD_SOURCE_(self%id_nextg, g*g_flux)
+   _SET_ODE_(self%id_nextc, c*c_flux)
+   _SET_ODE_(self%id_nexts, s*s_flux)
+   _SET_ODE_(self%id_nextg, g*g_flux)
 
    ! Set temporal derivatives
-   _ADD_SOURCE_(self%id_c,c*(growth + self%growth_factor*fixation - self%mort - c_flux))
-   _ADD_SOURCE_(self%id_s,c*(uptake - growth) - s*(self%mort + s_flux))
+   _SET_ODE_(self%id_c,c*(growth + self%growth_factor*fixation - self%mort - c_flux))
+   _SET_ODE_(self%id_s,c*(uptake - growth) - s*(self%mort + s_flux))
     grhs = c*(light_capture - uptake - &
            (self%m + self%growth_factor)*fixation - growth) - &
            g*(self%mort + g_flux)
-   _ADD_SOURCE_(self%id_g,grhs)
+   _SET_ODE_(self%id_g,grhs)
 
    ni = max(ni, self%minimum_nitrate)
    
    ! external nutrients
-   _ADD_SOURCE_(self%id_nitrate,-c*uptake * ni/(ni+am))
+   _SET_ODE_(self%id_nitrate,-c*uptake * ni/(ni+am))
    if (self%use_ammonium) then
-     _ADD_SOURCE_(self%id_ammonium,-c*uptake * am/(ni+am))
+     _SET_ODE_(self%id_ammonium,-c*uptake * am/(ni+am))
    end if
-   _ADD_SOURCE_(self%id_detritus,c*self%mort+s*self%mort)
+   _SET_ODE_(self%id_detritus,c*self%mort+s*self%mort)
    if (self%use_phosphate) then
-      _ADD_SOURCE_(self%id_phosphate, -self%sr*c*(uptake + self%growth_factor*fixation))
+   _SET_ODE_(self%id_phosphate, -self%sr*c*(uptake + self%growth_factor*fixation))
    end if
    ! add oxygen dynamics
-   _ADD_SOURCE_(self%id_oxygen, self%s3*c* ni/(am+ni)*(growth + self%growth_factor*fixation))  
+   _SET_ODE_(self%id_oxygen, self%s3*c* ni/(am+ni)*(growth + self%growth_factor*fixation))  
+
+   ! set DIC sink, if available
+   if (_AVAILABLE_(self%id_dic)) &
+     _SET_ODE_(self%id_dic,-self%s2*c*(growth + self%growth_factor*fixation))
 
    ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_diagcflux,c*c_flux*86400.0_rk)
@@ -696,6 +703,14 @@
    if (self%use_ammonium) then
      _SET_DD_(self%id_ammonium,self%id_ammonium,c*uptake*am/(ni+am))
    end if
+   if (self%use_phosphate) then
+     _SET_DD_(self%id_phosphate,self%id_phosphate,self%sr*c*(uptake+self%growth_factor*fixation))
+   end if
+
+   ! DIC sink, if avaiable
+   if (_AVAILABLE_(self%id_dic)) &
+     _SET_DD_(self%id_dic,self%id_dic,self%s2*c*(growth+self%growth_factor*fixation))
+
    ! fixation
    _SET_DD_SYM_(self%id_g,self%id_c,self%growth_factor*c*fixation)
    _SET_DD_(self%id_g,self%id_g,c*self%m*fixation)
@@ -740,9 +755,9 @@
    ! here, self%depo is of units m/s per mmol-N/m3 biomass. The results should
    ! be comparable, since the bottom layer height in the calibrated setup
    ! is appr. 1.03 m.
-   _ADD_BOTTOM_FLUX_(self%id_c,-self%depo*c*c)
-   _ADD_BOTTOM_FLUX_(self%id_s,-self%depo*c*s)
-   _ADD_BOTTOM_FLUX_(self%id_g,-self%depo*c*g)
+   _SET_BOTTOM_EXCHANGE_(self%id_c,-self%depo*c*c)
+   _SET_BOTTOM_EXCHANGE_(self%id_s,-self%depo*c*s)
+   _SET_BOTTOM_EXCHANGE_(self%id_g,-self%depo*c*g)
 
    ! Export diagnostic variables
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sediment_depo,(self%depo*c*c)*86400.0_rk)
@@ -763,9 +778,9 @@
    _GET_(self%id_g,g)                ! energy
    _GET_(self%id_s,s)                ! quota
 
-   _ADD_BOTTOM_FLUX_(self%id_c,self%depo*c*c)
-   _ADD_BOTTOM_FLUX_(self%id_s,self%depo*c*s)
-   _ADD_BOTTOM_FLUX_(self%id_g,self%depo*c*g)
+   _SET_BOTTOM_EXCHANGE_(self%id_c,self%depo*c*c)
+   _SET_BOTTOM_EXCHANGE_(self%id_s,self%depo*c*s)
+   _SET_BOTTOM_EXCHANGE_(self%id_g,self%depo*c*g)
 
    ! Export diagnostic variables
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_sediment_depo,(self%depo*c*c)*86400.0_rk)
@@ -776,4 +791,3 @@
 
 
    end module fabm_uhh_clcbase
-
