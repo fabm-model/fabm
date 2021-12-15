@@ -523,6 +523,12 @@ contains
    ! --------------------------------------------------------------------------
    ! set_domain: set extents of spatial domain and optionally time step length
    ! --------------------------------------------------------------------------
+   ! The time step length, seconds_per_time_unit, is the scale factor that
+   ! converts the time value provided to prepare_inputs to seconds.
+   ! The combination of this scale factor and the time value allows
+   ! FABM to determine the number of seconds that has passed between calls
+   ! to prepare_inputs. In turn this enables calculation of moving averages
+   ! --------------------------------------------------------------------------
    subroutine set_domain(self _POSTARG_LOCATION_, seconds_per_time_unit)
       class (type_fabm_model), target, intent(inout) :: self
       _DECLARE_ARGUMENTS_LOCATION_
@@ -544,10 +550,13 @@ contains
 #endif
 
       if (present(seconds_per_time_unit)) then
+         ! Since the host provides information about time, we will support time filters.
+         ! These includes moving average and moving maximum filters.
          expression => self%root%first_expression
          do while (associated(expression))
             select type (expression)
             class is (type_interior_temporal_mean)
+               ! Moving average of interior variable
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / seconds_per_time_unit
                allocate(expression%history(_PREARG_LOCATION_ expression%n + 1))
@@ -559,6 +568,7 @@ contains
                expression%mean = expression%missing_value
                call self%link_interior_data(expression%output_name, expression%mean)
             class is (type_horizontal_temporal_mean)
+               ! Moving average of horizontal variable
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / seconds_per_time_unit
                allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 3))
@@ -566,6 +576,7 @@ contains
                call self%link_horizontal_data(expression%output_name, &
                                               expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 3))
             class is (type_horizontal_temporal_maximum)
+               ! Moving maximum of horizontal variable
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / seconds_per_time_unit
                allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n))
@@ -761,7 +772,7 @@ contains
 
       ! Merge write indices when operations can be done in place
       ! This must be done after all variables are requested from the different jobs, so we know which variables
-      ! will be retrieved (such variables cannot be merged)
+      ! will be needed separately (such variables cannot be merged)
       if (self%log) then
          open(unit=log_unit, file=log_prefix // 'merges.log', action='write', status='replace', iostat=ios)
          if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'merges.log')
@@ -2166,22 +2177,23 @@ contains
 
       call self%process(self%prepare_inputs_job)
 
-      if (.not. present(t)) return
-
-      expression => self%root%first_expression
-      do while (associated(expression))
-         select type (expression)
-         class is (type_interior_temporal_mean)
-            _ASSERT_(associated(self%catalog%interior(expression%in)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
-            call expression%update(t, self%catalog%interior(expression%in)%p _POSTARG_LOCATION_RANGE_)
-         class is (type_horizontal_temporal_mean)
-            call update_horizontal_temporal_mean(expression)
-         class is (type_horizontal_temporal_maximum)
-            _ASSERT_(associated(self%catalog%horizontal(expression%in)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
-            call expression%update(t, self%catalog%horizontal(expression%in)%p _POSTARG_HORIZONTAL_LOCATION_RANGE_)
-         end select
-         expression => expression%next
-      end do
+      if (present(t)) then
+         ! The host has provided information about time. Use this to update moving averages, maxima (if any)
+         expression => self%root%first_expression
+         do while (associated(expression))
+            select type (expression)
+            class is (type_interior_temporal_mean)
+               _ASSERT_(associated(self%catalog%interior(expression%in)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
+               call expression%update(t, self%catalog%interior(expression%in)%p _POSTARG_LOCATION_RANGE_)
+            class is (type_horizontal_temporal_mean)
+               call update_horizontal_temporal_mean(expression)
+            class is (type_horizontal_temporal_maximum)
+               _ASSERT_(associated(self%catalog%horizontal(expression%in)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
+               call expression%update(t, self%catalog%horizontal(expression%in)%p _POSTARG_HORIZONTAL_LOCATION_RANGE_)
+            end select
+            expression => expression%next
+         end do
+      end if
 
    contains
 
