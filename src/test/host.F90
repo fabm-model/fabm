@@ -23,9 +23,9 @@ contains
 
    subroutine test_driver_fatal_error(self, location, message)
       class (type_test_driver), intent(inout) :: self
-      character(len=*),         intent(in)    :: location,message
+      character(len=*),         intent(in)    :: location, message
 
-      write (*,'(a)') trim(location)//': '//trim(message)
+      write (*,'(a)') trim(location) // ': ' // trim(message)
       stop 1
    end subroutine
 
@@ -207,6 +207,7 @@ program test_host
    integer :: mode = 1
    integer :: ntest = -1
    logical :: no_mask = .false.
+   logical :: no_diag = .false.
 
 #if _FABM_DIMENSION_COUNT_>0
    i__ = 50
@@ -234,6 +235,8 @@ program test_host
          mode = 2
       case ('--nomask')
          no_mask = .true.
+      case ('--nodiag')
+         no_diag = .true.
 #if _FABM_DIMENSION_COUNT_>0
       case ('--nx')
          i = i + 1
@@ -264,9 +267,14 @@ program test_host
          write (*,'(a)') 'Accepted arguments:'
          write (*,'(a)') '-s/--simulate: simulate using provided fabm.yaml/environment.yaml'
          write (*,'(a)') '-n:            number of replicates when simulating'
+         write (*,'(a)') '--nomask:      unmask all points when simulating'
+         write (*,'(a)') '--nodiag:      flag all diagnostics as not required by the host'
          stop 0
       case default
+         write (*,'(a)') 'ERROR'
+         write (*,'(a)') ''
          write (*,'(a)') 'Unknown command line argument: ' // trim(arg)
+         write (*,'(a)') 'To see supported arguments, run with -h.'
          stop 2
       end select
       i = i + 1
@@ -327,6 +335,11 @@ program test_host
       call assert(size(model%conserved_quantities) == 1, 'model%initialize', 'Incorrect number of conserved quantities.')
    end if
    call report_test_result()
+
+   if (no_diag) then
+      model%interior_diagnostic_variables%save = .false.
+      model%horizontal_diagnostic_variables%save = .false.
+   end if
 
    ! ======================================================================
    ! Provide extents of the spatial domain.
@@ -1063,8 +1076,13 @@ contains
       call start_test('finalize_outputs')
       call model%finalize_outputs()
 
-      call assert(column_loop_count == interior_count, 'finalize_outputs', &
-         'call count does not match number of (unmasked) interior points')
+      if (no_diag) then
+         call assert(column_loop_count == 0, 'finalize_outputs', &
+            'column loop was called even though none of its outputs (diagnostics) are required')
+      else
+         call assert(column_loop_count == interior_count, 'finalize_outputs', &
+            'call count does not match number of (unmasked) interior points')
+      end if
 
       do ivar = 1, size(model%interior_diagnostic_variables)
          if (model%interior_diagnostic_variables(ivar)%save .and. model%interior_diagnostic_variables(ivar)%target%source == source_do_column) then
