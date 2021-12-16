@@ -1140,6 +1140,50 @@ contains
       call report_test_result()
 
       ! ======================================================================
+      ! Retrieve totals of conserved quantities
+      ! ======================================================================
+
+      call start_test('get_interior_conserved_quantities')
+      _BEGIN_OUTER_INTERIOR_LOOP_
+#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
+         ! We are looping over depth, but as we have a non-constant bottom index (yet no mask), we need to skip everything below bottom
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+         _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
+#  else
+         _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
+#  endif
+#endif
+         call model%get_interior_conserved_quantities(_PREARG_INTERIOR_IN_ total_int _INTERIOR_SLICE_RANGE_PLUS_1_)
+         do ivar = 1, size(model%conserved_quantities)
+            call check_interior_slice_plus_1(total_int _INTERIOR_SLICE_RANGE_PLUS_1_, ivar, model%conserved_quantities(ivar)%missing_value, &
+               (interior_state_offset + 0.5_rke * (test_model%nstate + 1)) * test_model%nstate _POSTARG_INTERIOR_IN_)
+         end do
+      _END_OUTER_INTERIOR_LOOP_
+
+#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
+      _START_ = domain_start(_FABM_VECTORIZED_DIMENSION_INDEX_)
+      _STOP_ = domain_stop(_FABM_VECTORIZED_DIMENSION_INDEX_)
+#  endif
+      call report_test_result()
+
+      call start_test('get_horizontal_conserved_quantities')
+      _BEGIN_OUTER_HORIZONTAL_LOOP_
+#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
+         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ >= domain_start(_FABM_DEPTH_DIMENSION_INDEX_) .and. bottom_index _INDEX_HORIZONTAL_LOCATION_ <= domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)) then
+#endif
+         call model%get_horizontal_conserved_quantities(_PREARG_HORIZONTAL_IN_ total_hz _HORIZONTAL_SLICE_RANGE_PLUS_1_)
+         do ivar = 1, size(model%conserved_quantities)
+            call check_horizontal_slice_plus_1(total_hz _HORIZONTAL_SLICE_RANGE_PLUS_1_, ivar, model%conserved_quantities(ivar)%missing_value, &
+               (surface_state_offset + 0.5_rke * (test_model%nsurface_state + 1)) * test_model%nsurface_state + &
+               (bottom_state_offset + 0.5_rke * (test_model%nbottom_state + 1)) * test_model%nbottom_state _POSTARG_HORIZONTAL_IN_)
+         end do
+#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
+         endif
+#endif
+      _END_OUTER_HORIZONTAL_LOOP_
+      call report_test_result()
+
+      ! ======================================================================
       ! Check state with valid state
       ! ======================================================================
 
@@ -1296,50 +1340,6 @@ contains
          call check_horizontal(bottom_state(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ ivar), &
             model%bottom_state_variables(ivar)%missing_value, model%bottom_state_variables(ivar)%maximum)
       end do
-      call report_test_result()
-
-      ! ======================================================================
-      ! Retrieve totals of conserved quantities
-      ! ======================================================================
-
-      call start_test('get_interior_conserved_quantities')
-      _BEGIN_OUTER_INTERIOR_LOOP_
-#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         ! We are looping over depth, but as we have a non-constant bottom index (yet no mask), we need to skip everything below bottom
-#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-         _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  else
-         _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  endif
-#endif
-         call model%get_interior_conserved_quantities(_PREARG_INTERIOR_IN_ total_int _INTERIOR_SLICE_RANGE_PLUS_1_)
-         do ivar = 1, size(model%conserved_quantities)
-            call check_interior_slice_plus_1(total_int _INTERIOR_SLICE_RANGE_PLUS_1_, ivar, model%conserved_quantities(ivar)%missing_value, &
-               (interior_state_offset + 0.5_rke * (test_model%nstate + 1)) * test_model%nstate _POSTARG_INTERIOR_IN_)
-         end do
-      _END_OUTER_INTERIOR_LOOP_
-
-#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-      _START_ = domain_start(_FABM_VECTORIZED_DIMENSION_INDEX_)
-      _STOP_ = domain_stop(_FABM_VECTORIZED_DIMENSION_INDEX_)
-#  endif
-      call report_test_result()
-
-      call start_test('get_horizontal_conserved_quantities')
-      _BEGIN_OUTER_HORIZONTAL_LOOP_
-#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
-         if (bottom_index _INDEX_HORIZONTAL_LOCATION_ >= domain_start(_FABM_DEPTH_DIMENSION_INDEX_) .and. bottom_index _INDEX_HORIZONTAL_LOCATION_ <= domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)) then
-#endif
-         call model%get_horizontal_conserved_quantities(_PREARG_HORIZONTAL_IN_ total_hz _HORIZONTAL_SLICE_RANGE_PLUS_1_)
-         do ivar = 1, size(model%conserved_quantities)
-            call check_horizontal_slice_plus_1(total_hz _HORIZONTAL_SLICE_RANGE_PLUS_1_, ivar, model%conserved_quantities(ivar)%missing_value, &
-               (surface_state_offset + 0.5_rke * (test_model%nsurface_state + 1)) * test_model%nsurface_state + &
-               (bottom_state_offset + 0.5_rke * (test_model%nbottom_state + 1)) * test_model%nbottom_state _POSTARG_HORIZONTAL_IN_)
-         end do
-#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_)
-         endif
-#endif
-      _END_OUTER_HORIZONTAL_LOOP_
       call report_test_result()
 
    end subroutine test_update
