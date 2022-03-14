@@ -1,9 +1,23 @@
+!-----------------------------------------------------------------------
+! OXYDEP is free software: you can redistribute it and/or modify it under
+! the terms of the GNU General Public License as published by the Free
+! Software Foundation (https://www.gnu.org/licenses/gpl.html).
+! It is distributed in the hope that it will be useful, but WITHOUT ANY
+! WARRANTY; without even the implied warranty of MERCHANTABILITY or
+! FITNESS FOR A PARTICULAR PURPOSE. A copy of the license is provided in
+! the COPYING file at the root of the FABM distribution.
+!-----------------------------------------------------------------------
+! Original author(s): Evgeniy Yakushev, Jorn Bruggeman
+!-----------------------------------------------------------------------
+
 #include "fabm_driver.h"
 
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE:
+! !MODULE: fabm_niva_oxydep --- OXYDEP biogeochemical model based upon
+! Yakushev et al, 2013  with  modifications by Jorn Bruggeman
+! and adapted for FABM by Jorn Bruggeman
 !
 ! !INTERFACE:
    module fabm_niva_oxydep
@@ -14,18 +28,18 @@
 ! It has a simplified ecosystem, and simulates production of DO due to photosynthesis and consumation of DO for biota respiraion,
 ! OM mineralization, nitrification, and oxidation of reduced specied of S, Mn, Fe, present in suboxic conditions.
 ! OXYDEP consists of 6 state variables ( in N-units):
-! - PHY - all the phototrophic organisms (phytoplankton and bacteria).
-!   PHY grows due to photosynthesis, loses inorganic matter
+! - Phy - all the phototrophic organisms (phytoplankton and bacteria).
+!   Phy grows due to photosynthesis, loses inorganic matter
 !   due to respiraion, and loses organic matter in dissolved (DOM) and particulate (POM)
-!   forms due to metabolism and mortality. PHY growth is limited by irradiance, temperature and NUT availability.
-! - ZOO - heterotrophs, can consume PHY and POP,  produce DOM and DON and respirate NUT.
+!   forms due to metabolism and mortality. Phy growth is limited by irradiance, temperature and NUT availability.
+! - Het - heterotrophs, can consume Phy and POM,  produce DOM and POM and respirate NUT.
 ! - NUT - represents oxydized forms of nutrients (i.e. NO3 and NO2 for N),
 !   that doesn't need additional  oxygen for nitrification.
 ! - DOM - is dissolved organic matter. DOM  includes all kinds of labile dissolved organic matter
 !   and reduced forms of inorganic nutrients (i.e. NH4 and Urea for N).
 ! - POM - is particular organic matter (less labile than DOM). Temperature affects DOM and POM mineralization.
-! - OXY - is dissolved oxygen.
-! For the details of  OXYDEP  implemented here (actually, a previous version withour ZOO), see (Yakushev et al, 2013)
+! - Oxy - is dissolved oxygen.
+! For the details of  OxyDEP  implemented here (actually, a previous version withour Het), see (Yakushev et al, 2013)
 !
 ! !USES:
    use fabm_types
@@ -41,38 +55,34 @@
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_niva_oxydep
 !     Variable identifiers
-      type (type_state_variable_id)        :: id_oxy,id_phy,id_zoo,id_nut,id_pom,id_dom
-      type (type_state_variable_id)        :: id_dic,id_alk
-
+      type (type_state_variable_id)        :: id_oxy,id_phy,id_het,id_nut,id_pom,id_dom
+      type (type_state_variable_id)        :: id_dic, id_alk
       type (type_dependency_id)            :: id_par,id_temp, id_salt
-      type (type_horizontal_dependency_id) :: id_I_0
-      !type (type_diagnostic_variable_id)   :: id_GPP,id_NCP,id_PPR,id_NPR,id_dPAR
-
+      type (type_horizontal_dependency_id) :: id_windspeed
+      type (type_diagnostic_variable_id)   :: id_MortHet,id_RespHet,id_GrazPhy,id_GrazPOM,id_GrowthPhy,id_MortPhy,id_ExcrPhy,id_RespPhy
+      type (type_diagnostic_variable_id)   :: id_DOM_decay_ox,id_DOM_decay_denitr,id_POM_decay_ox,id_POM_decay_denitr
+      type (type_diagnostic_variable_id)   :: id_LimT,id_LimP,id_LimN,id_LimLight, id_N_fixation, id_Autolys
 !     Model parameters
       !----Phy -----------!
-       real(rk) :: Max_uptake,bm,cm,Knut, r_phy_nut, r_phy_pom,r_phy_dom,r_phy_om_anox,i_min
-          !real(rk) :: Io		     = 80.          ! Optimal Irradiance at the surface
-          !real(rk) :: k_Erlov      = 0.10         ! Extinction coefficient
-          ! real(rk) :: Iopt         = 25 !0.25     ! Optimal irradiance
-          !real(rk) :: LatLight     = 50 !57.       ! Latitude of the region			[degree]
-      !----Zoo -----------!
-       real(rk) :: r_phy_zoo,Kphy,r_pop_zoo,Kpop,r_zoo_nut,r_zoo_pom,Uz,Hz
-      !---Organic matter mineralization---- !
-       real(rk) :: r_pom_dom,r_pom_nut_oxy,r_pom_nut_nut,r_dom_nut_oxy, r_dom_nut_nut, Tda, beta_da
-      ! real(rk) :: r_om_nut_sul  = 0.005    ! Specific rate of OM anoxic decay   	[1/d]
+       real(rk) :: Max_uptake, bm, cm, Knut, r_phy_nut, r_phy_pom, r_phy_dom, r_phy_pom_anox,ir_min, Iopt, O2_add_mor_phy
+       real(rk) :: q10, t_upt_min, t_upt_max
+      !----Het -----------!
+       real(rk) :: r_phy_het, Kphy, r_pop_het, Kpop, r_het_nut, r_het_pom, Uz, Hz, r_het_pom_anox
+      !----DOM, POM   --- !
+       real(rk) :: r_pom_dom, r_pom_nut_oxy, r_pom_nut_nut, r_dom_nut_oxy, r_dom_nut_nut, Tda, beta_da
+      ! real(rk) :: r_om_nut_sul  = 0.005    ! Specific rate of OM anoxic decay   [1/d]
+      !----Oxy -----------!
+       real(rk) :: O2_suboxic
       !  Lower boundary
-       real(rk) :: Bu,Trel,O2LimC,b_ox,b_dom_ox,b_dom_anox,b_nut
-      ! Upper boundary	 ! for oxygen flux calculations
+       real(rk) :: Bu,Trel,b_ox,b_dom_ox,b_dom_anox,b_nut
+      ! Upper boundary for oxygen flux calculations
        real(rk) :: pvel,a0,a1,a2
       !  Stochiometric coefficients
-       real(rk) :: NtoB   = 0.016    ! N[uM]/BIOMASS [mg/m3] [uM(N)/mgWW/m3]
-       real(rk) :: OtoN   = 8.625    ! Redfield' (138/16) to NO3 [uM(O)/uM(N)]
-      ! real(rk) :: OtoN  = -6.625    ! Redfield' (106/16) [uM(O)/uM(N)]
-       real(rk) :: NtoN   = 5.3      ! Richards' denitrification (84.8/16.) [uM(N)/uM(N)]
+       real(rk) :: NtoB, OtoN, NtoN
       !---sinking-------------------------------!
-       real(rk) :: w_phy  = -1.5     ! PHY sinkng rate    [m/d]
-       real(rk) :: w_zoo  = -0.1     ! ZOO sinkng rate    [m/d]
-       real(rk) :: w_pom  = -1.5     ! POM sinkng rate    [m/d]
+       real(rk) :: Wphy, Whet, Wpom
+       !--Type of transport model
+       real(rk) :: transmodel
    contains
       procedure :: initialize
       procedure :: do
@@ -93,45 +103,49 @@
    subroutine initialize(self,configunit)
 !
 ! !DESCRIPTION:
-!
+!  Here, the OXYDEP namelist is read and the variables exported
+!  by the model are registered with FABM.
 !
 ! !INPUT PARAMETERS:
    class (type_niva_oxydep), intent(inout), target :: self
    integer,                  intent(in)            :: configunit
 !
 ! !REVISION HISTORY:
-!  Original author(s):
+!  Original author(s): Evgeniy Yakushev, Jorn Bruggeman
 !
 ! !LOCAL VARIABLES:
-       real(rk),parameter :: d_per_s = 1.0_rk/86400.0_rk
+   real(rk),parameter ::  d_per_s = 1.0_rk/86400.0_rk
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
-   call self%get_parameter(self%w_phy,     'w_phy',     'm/s', 'vertical velocity of PHY (<0 for sinking)',default=-1.5_rk,scale_factor=d_per_s)
-   call self%get_parameter(self%w_zoo,     'w_zoo',     'm/s', 'vertical velocity of ZOO (<0 for sinking)',  default=-0.1_rk,scale_factor=d_per_s)
-   call self%get_parameter(self%w_pom,     'w_pom',     'm/s', 'vertical velocity of POM (<0 for sinking)',          default=-1.5_rk,scale_factor=d_per_s)
-  ! PHY
-   call self%get_parameter(self%Max_uptake,'Max_uptake','1/d', 'Maximum nutrient uptake rate',                       default=5.0_rk,scale_factor=d_per_s)
-   call self%get_parameter(self%Knut,      'Knut',      'nd',  'Half-sat.const. for uptake of NUT by PHY for NUT/PHY ratio', default=0.1_rk)
+  ! Phy
+   call self%get_parameter(self%Max_uptake,'Max_uptake','1/d', 'Maximum nutrient uptake rate',                               default=5.0_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%Knut,      'Knut',      'nd',  'Half-sat.const. for uptake of NUT by Phy for NUT/Phy ratio', default=0.1_rk)
    call self%get_parameter(self%bm,        'bm',      '1/gradC',     'Coefficient for uptake rate dependence on t',          default=0.12_rk)
    call self%get_parameter(self%cm,        'cm',      'nd',          'Coefficient for uptake rate dependence on t',          default=1.4_rk)
-   call self%get_parameter(self%i_min,      'i_min',      'nd',      'bioshading parameter ',                                default=25._rk)
-   call self%get_parameter(self%r_phy_nut,     'r_phy_nut',     '1/d',    'Specific respiration rate',                       default=0.04_rk,scale_factor=d_per_s)
-   call self%get_parameter(self%r_phy_pom,     'r_phy_pom',     '1/d',    'Specific rate of mortality',                      default=0.05_rk,scale_factor=d_per_s)
-   call self%get_parameter(self%r_phy_dom,     'r_phy_dom',     '1/d',    'Specific rate of excretion',                      default=0.01_rk,scale_factor=d_per_s)
-   call self%get_parameter(self%r_phy_om_anox, 'r_phy_om_anox', '1/d',    'Specific rate of mortality',                      default=0.4_rk,scale_factor=d_per_s)
-  ! ZOO
-   call self%get_parameter(self%r_phy_zoo, 'r_phy_zoo', '1/d', 'Max.spec. rate of grazing of ZOO on PHY',                    default=2.0_rk,scale_factor=d_per_s)
-   call self%get_parameter(self%Kphy,      'Kphy',      'nd',  'Half-sat.const.for grazing of Zoo on Phy for Phy/Zoo ratio ',default=0.1_rk)
-   call self%get_parameter(self%r_pop_zoo, 'r_pop_zoo', '1/d', ' Max.spec. rate of grazing of ZOO on POM ',                  default=0.7_rk,scale_factor=d_per_s)
-   call self%get_parameter(self%Kpop,      'Kpop',      'nd',  'Half-sat.const.for grazing of ZOO on POM for POM/ZOO ratio ',default=2._rk)
-   call self%get_parameter(self%r_zoo_nut, 'r_zoo_nut', '1/d', 'Specific ZOO respiration rate ',                             default=0.02_rk,scale_factor=d_per_s)
-   call self%get_parameter(self%r_zoo_pom, 'r_zoo_pom', '1/d', 'Specific ZOO mortality rate ',                               default=0.05_rk,scale_factor=d_per_s)
-   call self%get_parameter(self%Uz,        'Uz',        'nd',  'Food absorbency for Zoo',                                    default=0.5_rk)
-   call self%get_parameter(self%Hz,        'Hz',        'nd',  'Ratio betw. diss. and part. excretes of Zoo ',               default=0.5_rk)
+   call self%get_parameter(self%q10,       'q10',       'nd',        'Coefficient for uptake rate dependence on t',          default=2.0_rk)
+   call self%get_parameter(self%t_upt_min, 't_upt_min', 'gradC',     'Low t limit for uptake rate dependence on t',          default=10.0_rk)
+   call self%get_parameter(self%t_upt_max, 't_upt_max', 'gradC',     'High t limit for uptake rate dependence on t',         default=32.0_rk)
+   call self%get_parameter(self%ir_min,    'ir_min',      'nd',      'bioshading parameter ',                                default=25._rk)
+   call self%get_parameter(self%Iopt,      'Iopt',    'Watts/m**2/h',  'Optimal irradiance',                                 default=25.0_rk)
+   call self%get_parameter(self%r_phy_nut,     'r_phy_nut',     '1/d', 'Specific Phy  respiration rate',                          default=0.04_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%r_phy_pom,     'r_phy_pom',     '1/d', 'Specific Phy rate of mortality',                         default=0.05_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%r_phy_dom,     'r_phy_dom',     '1/d', 'Specific Phy rate of excretion',                         default=0.01_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%r_phy_pom_anox, 'r_phy_pom_anox', '1/d', 'Specific additional Phy mortality in suboxic/anoxic conditions', default=0.4_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%r_het_pom_anox, 'r_het_pom_anox', '1/d', 'Specific additional Het mortality in suboxic/anoxic conditions', default=0.4_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%O2_add_mor_phy, 'O2_add_mor_phy', 'mmol/m3', 'Threshold O2 value for additional Phy mortality', default=20._rk)
+  ! Het
+   call self%get_parameter(self%r_phy_het, 'r_phy_het', '1/d', 'Max.spec. rate of grazing of Het on Phy',                    default=2.0_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%Kphy,      'Kphy',      'nd',  'Half-sat.const.for grazing of Het on Phy for Phy/Het ratio ',default=0.1_rk)
+   call self%get_parameter(self%r_pop_het, 'r_pop_het', '1/d', 'Max.spec. rate of grazing of Het on POM ',                   default=0.7_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%Kpop,      'Kpop',      'nd',  'Half-sat.const.for grazing of Het on POM for POM/Het ratio ',default=2._rk)
+   call self%get_parameter(self%r_het_nut, 'r_het_nut', '1/d', 'Specific Het respiration rate ',                             default=0.02_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%r_het_pom, 'r_het_pom', '1/d', 'Specific Het mortality rate ',                               default=0.05_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%Uz,        'Uz',        'nd',  'Food absorbency for Het',                                    default=0.5_rk)
+   call self%get_parameter(self%Hz,        'Hz',        'nd',  'Ratio betw. diss. and part. excretes of Het ',               default=0.5_rk)
   ! POM
    call self%get_parameter(self%r_pom_dom,     'r_pom_dom',     '1/d', 'Specific rate of POM decomposition ',                default=0.10_rk,scale_factor=d_per_s)
    call self%get_parameter(self%r_pom_nut_oxy, 'r_pom_nut_oxy', '1/d', 'Specific rate of POM oxic decay  ',                  default=0.03_rk,scale_factor=d_per_s)
@@ -139,58 +153,74 @@
   ! DOM
    call self%get_parameter(self%r_dom_nut_oxy, 'r_dom_nut_oxy', '1/d', 'Specific rate of DOM oxic decay  ',                  default=0.01_rk,scale_factor=d_per_s)
    call self%get_parameter(self%r_dom_nut_nut, 'r_dom_nut_nut', '1/d', 'Specific rate of DOM denitrification  ',             default=0.002_rk,scale_factor=d_per_s)
-   call self%get_parameter(self%Tda,           'Tda',           'nd',  'Coefficient for dependence on t ',                   default=13._rk)
-   call self%get_parameter(self%beta_da,       'beta_da',       'nd',  'Coefficient for dependence on t ',                   default=20._rk)
+   call self%get_parameter(self%Tda,           'Tda',           'nd',  'Coefficient for dependence of mineralization on t ', default=13._rk)
+   call self%get_parameter(self%beta_da,       'beta_da',       'nd',  'Coefficient for dependence of mineralization on t ', default=20._rk)
+  !---sinking-------------------------------!
+   call self%get_parameter(self%Wphy,     'Wphy',     'm/s', 'vertical velocity of Phy (<0 for sinking)',           default=-0.1_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%Whet,     'Whet',     'm/s', 'vertical velocity of het (<0 for sinking)',           default=-0.1_rk,scale_factor=d_per_s)
+   call self%get_parameter(self%Wpom,     'Wpom',     'm/s', 'vertical velocity of POM (<0 for sinking)',           default=-1.0_rk,scale_factor=d_per_s)
   !  Lower boundary
    call self%get_parameter(self%Bu,        'Bu',         'nd',      'Burial coeficient for lower boundary',                  default=0.25_rk)
    call self%get_parameter(self%Trel,      'Trel',       's/m',     'Relaxation time for exchange with teh sediments',       default=1e5_rk)
-   call self%get_parameter(self%O2LimC,    'O2LimC',     'mmol/m3', 'Limiting O2 value for oxic/suboxic switch',             default=40._rk)
-   call self%get_parameter(self%b_ox,      'b_ox',       'mmol/m3', 'OXY in the sediment',                                   default=0._rk)
+   call self%get_parameter(self%O2_suboxic,    'O2_suboxic',     'mmol/m3', 'Limiting O2 value for oxic/suboxic switch',     default=40._rk)
+   call self%get_parameter(self%b_ox,      'b_ox',       'mmol/m3', 'Oxy in the sediment',                                   default=0._rk)
    call self%get_parameter(self%b_dom_ox,  'b_dom_ox',   'mmol/m3', 'OM in the sediment (oxic conditions)',                  default=2._rk)
    call self%get_parameter(self%b_dom_anox,'b_dom_anox', 'mmol/m3', 'OM in the sediment (anoxic conditions) ',               default=6._rk)
    call self%get_parameter(self%b_nut,     'b_nut',      'mmol/m3', 'NUT in the sediment',                                   default=0._rk)
-     ! Upper boundary	 ! for oxygen flux calculations
-   call self%get_parameter(self%pvel,       'pvel',       'm/s',     'wind speed',                                            default=5._rk)
-   call self%get_parameter(self%a0,         'a0',         'mmol/m3', 'oxygen saturation parameter  ',                         default=31.25_rk)
-   call self%get_parameter(self%a1,         'a1',         'nd',      'oxygen saturation parameter  ',                         default=14.603_rk)
-   call self%get_parameter(self%a2,         'a2',         '1/degC',  'oxygen saturation parameter  ',                         default=0.4025_rk)
+  ! Upper boundary for oxygen flux calculations
+   call self%get_parameter(self%pvel,       'pvel',       'm/s',     'wind speed',                                           default=5._rk)
+   call self%get_parameter(self%a0,         'a0',         'mmol/m3', 'oxygen saturation parameter  ',                        default=31.25_rk)
+   call self%get_parameter(self%a1,         'a1',         'nd',      'oxygen saturation parameter  ',                        default=14.603_rk)
+   call self%get_parameter(self%a2,         'a2',         '1/degC',  'oxygen saturation parameter  ',                        default=0.4025_rk)
      !  Stochiometric coefficients
-   call self%get_parameter(self%NtoB,     'NtoB',         'uM(N) / mgWW/m3', 'N[uM]/BIOMASS [mg/m3]',                         default=0.016_rk)
-   call self%get_parameter(self%OtoN,     'OtoN',         'uM(O)/uM(N)',    ' Redfield (138/16) to NO3',                      default=8.625_rk)
-   call self%get_parameter(self%NtoN,     'NtoN',         'uM(N)/uM(N)',    '  Richards denitrification (84.8/16.)',          default=5.3_rk)
-      !---sinking-------------------------------!
-   !call self%get_parameter(self%w_phy,     'w_phy',         'm/d',    ' PHY sinking rate ',         default=-1.5_rk , scale_factor=d_per_s )
-   !call self%get_parameter(self%w_zoo,     'w_zoo',         'm/d',    ' ZOO sinking rate',          default=-0.1_rk, scale_factor=d_per_s )
-   !call self%get_parameter(self%w_pom,     'w_pom',         'm/d',    ' POM sinking rate',          default=-1.5_rk, scale_factor=d_per_s )
+   call self%get_parameter(self%NtoB,     'NtoB',         'uM(N)/mgWW/m3', 'N[uM]/BIOMASS [mg/m3]',                         default=0.016_rk)
+   call self%get_parameter(self%OtoN,     'OtoN',         'uM(O)/uM(N)',   'Redfield (138/16) to NO3',                      default=8.625_rk)
+   call self%get_parameter(self%NtoN,     'NtoN',         'uM(N)/uM(N)',   'Richards denitrification (84.8/16.)',           default=5.3_rk)
+
+   call self%get_parameter(self%transmodel, 'transmodel', 'na', 'Type of transport model', default=0.0_rk)
 
    ! Register state variables
-   call self%register_state_variable(self%id_oxy,'oxy','mmol/m**3','Dissolved Oxygen',        150.0_rk, minimum=0.0_rk)
-   call self%register_state_variable(self%id_phy,'phy','mmol/m**3','Phytoplankton',             0.1_rk, minimum=0.0_rk, vertical_movement=self%w_phy)
-   call self%register_state_variable(self%id_nut,'nut','mmol/m**3','Inorganic Nutrient',        1.0_rk, minimum=0.0_rk)
-   call self%register_state_variable(self%id_pom,'pom','mmol/m**3','Particulate Organic Matter',0.1_rk, minimum=0.0_rk, vertical_movement=self%w_pom)
-   call self%register_state_variable(self%id_dom,'dom','mmol/m**3','Dissolved Organic Matter',  0.1_rk, minimum=0.0_rk)
-   call self%register_state_variable(self%id_zoo,'zoo','mmol/m**3','Zooplankton',               0.1_rk, minimum=0.0_rk, vertical_movement=self%w_zoo)
-
+   call self%register_state_variable(self%id_oxy,'Oxy','mmol/m**3','Oxy: Oxygen',  150.0_rk, minimum=0.0_rk)
+   call self%register_state_variable(self%id_phy,'Phy','mmol/m**3','Phy: Autotrophs/Phytoplankton',  0.1_rk, minimum=0.0_rk, vertical_movement=self%Wphy)
+   call self%register_state_variable(self%id_nut,'NUT','mmol/m**3','NUT: Nutrient',  1.0_rk, minimum=0.0_rk)
+   call self%register_state_variable(self%id_pom,'POM','mmol/m**3','POM: Particulate organic matter',  0.1_rk, minimum=0.0_rk, vertical_movement=self%Wpom)
+   call self%register_state_variable(self%id_dom,'DOM','mmol/m**3','DOM: Dissolved organic matter',  0.1_rk, minimum=0.0_rk)
+   call self%register_state_variable(self%id_het,'Het','mmol/m**3','Het: Heterotrophs/Zooplankton',  0.1_rk, minimum=0.0_rk, vertical_movement=self%Whet)
    ! Register the contribution of all state variables to total nitrogen
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_phy)
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_nut)
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_pom)
    call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_dom)
-   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_zoo)
+   call self%add_to_aggregate_variable(standard_variables%total_nitrogen,self%id_het)
 
    ! Register link to external DIC pool, if DIC variable name is provided in namelist.
    !call self%register_state_dependency(self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon',required=.false.)
    !call self%register_state_dependency(self%id_alk,'alk','mmol/m**3','total alkalinity',required=.false.)
 
    ! Register diagnostic variables
-   !call self%register_diagnostic_variable(self%id_GPP,'GPP','mmol/m**3',  'gross primary production',           &
-   !                  output=output_time_step_integrated)
+call self%register_diagnostic_variable(self%id_MortHet,'MortHet','mmol/m**3/d',  'MortHet,  Mortality of Het')
+call self%register_diagnostic_variable(self%id_RespHet,'RespHet','mmol/m**3/d',  'RespHet, Respiration rate of Het')
+call self%register_diagnostic_variable(self%id_GrazPhy,'GrazPhy','mmol/m**3/d',  'GrazPhy')
+call self%register_diagnostic_variable(self%id_GrazPOM,'GrazPOM','mmol/m**3/d',  'GrazPOM')
+call self%register_diagnostic_variable(self%id_MortPhy,'MortPhy','mmol/m**3/d',  'MortPhy')
+call self%register_diagnostic_variable(self%id_ExcrPhy,'ExcrPhy','mmol/m**3/d',  'ExcrPhy')
+call self%register_diagnostic_variable(self%id_RespPhy,'RespPhy','mmol/m**3/d',  'RespPhy')
+call self%register_diagnostic_variable(self%id_LimN,'LimN','nd',  'LimN')
+call self%register_diagnostic_variable(self%id_GrowthPhy,'GrowthPhy','mmol/m**3/d', 'GrowthPhy')
+call self%register_diagnostic_variable(self%id_LimT,'LimT','nd',  'LimT')
+call self%register_diagnostic_variable(self%id_LimLight,'LimLight','nd',  'LimLight')
+call self%register_diagnostic_variable(self%id_DOM_decay_ox,'DOM_decay_ox','mmol/m**3/d',  'DOM_decay_ox')
+call self%register_diagnostic_variable(self%id_DOM_decay_denitr,'DOM_decay_denitr','mmol/m**3/d',  'DOM_decay_denitr')
+call self%register_diagnostic_variable(self%id_POM_decay_ox,'POM_decay_ox','mmol/m**3/d',  'POM_decay_ox')
+call self%register_diagnostic_variable(self%id_POM_decay_denitr,'POM_decay_denitr','mmol/m**3/d',  'POM_decay_denitr')
+call self%register_diagnostic_variable(self%id_Autolys,'Autolys','mmol/m**3/d',  'Autolys')
+!call self%register_diagnostic_variable(self%id_N_fixation,'N_fixation','mmol/m**3/d',  'N_fixation')
 
    ! Register environmental dependencies
-   call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
    call self%register_dependency(self%id_temp,standard_variables%temperature)
-   call self%register_dependency(self%id_I_0, standard_variables%surface_downwelling_shortwave_flux)
    call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
+   call self%register_dependency(self%id_windspeed,standard_variables%wind_speed)
+   call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
 
    end subroutine initialize
 !EOC
@@ -214,21 +244,21 @@
 !  Original author(s):
 !
 ! !LOCAL VARIABLES:
-   real(rk)                   :: oxy,nut,pom,dom,phy,zoo,t,iopt,I_0
+   real(rk) :: oxy, nut, pom, dom, phy, het, t, iopt
 
-   real(rk) :: doxy,dnut,ddom,dpom,dphy,dzoo
+   real(rk) :: doxy, dnut, ddom, dpom, dphy, dhet
  ! Rates of biogeochemical processes
  ! Phy
-   real(rk) :: Growthphy               ! Nutrient uptake rate			(1/d)
+   real(rk) :: GrowthPhy               ! Nutrient uptake rate (1/d)
    real(rk) :: Iz                      ! Irradiance at certain depth
    real(rk) :: LimLight                ! Photosynthesis dependencs on irradiance
    real(rk) :: LimT                    ! Photosynthesis dependencs on temperature
-   real(rk) :: LimNut                  ! Photosynthesis dependencs on nutrient
+   real(rk) :: LimN                    ! Photosynthesis dependencs on nutrient
    real(rk) :: MortPhy                 ! Mortality of Phy (1/d)
    real(rk) :: ExcrPhy                 ! Excretion of Phy (1/d)
    real(rk) :: RespPhy                 ! Respiration of Phy (1/d)
- ! Zoo
-   real(rk) :: GrazPhy,GrazPOM,RespZoo,MortZoo
+ ! Het
+   real(rk) :: GrazPhy, GrazPOM, RespHet, MortHet
  ! POM
    real(rk) :: Autolys                 ! Autolysis of POM to DOM (1/d)
    real(rk) :: POM_decay_ox            ! oxic mineralization of POM and ammonification (1/d)
@@ -245,122 +275,141 @@
    ! Retrieve current (local) state variable values.
    _GET_(self%id_oxy,oxy)
    _GET_(self%id_phy,phy)
-   _GET_(self%id_zoo,zoo)
+   _GET_(self%id_het,het)
    _GET_(self%id_pom,pom)
    _GET_(self%id_nut,nut)
    _GET_(self%id_dom,dom)
 
    ! Retrieve current environmental conditions.
    _GET_(self%id_par,Iz)              ! local photosynthetically active radiation
-   _GET_HORIZONTAL_(self%id_I_0,I_0)  ! surface short wave radiation
    _GET_(self%id_temp,t)              ! temperature
 
 !--------------------------------------------------------------
 ! Phy
 !--------------------------------------------------------------
-! Growth of Phy and uptake of NUT
-          iopt=max(0.25*I_0,self%I_min)
-! change "julianday"!!!  *cos((LatLight+(23.5*sin(2*3.14*julianday/365.)))*3.14/180.)
-          LimLight = Iz/Iopt*exp(1-Iz/Iopt)       ! Dependence on Irradiance
-          LimT     = exp(self%bm*t-self%cm)             ! Dependence on Temperature
-          LimNut   = yy(self%Knut,nut/phy) !Dependence on nutrients
-     Growthphy = self%Max_uptake*LimLight*LimT*LimNut*phy
-!--------------------------------------------------------------
-! Respiraion of phy and increase of NUT
+   ! Growth of Phy and uptake of NUT
+       LimLight = Iz/self%Iopt*exp(1-Iz/self%Iopt)  !Dependence on Irradiance
+       LimT     = self%q10**((t-self%t_upt_min)/10.) - self%q10**((t-self%t_upt_max)/3.) !Dependence on Temperature (ERSEM)
+ !      LimT     = 0.5(1+tanh((t-tmin)/smin)) (1-0.5(1+th((t-tmax)/smax))) !Smin= 15  Smax= 15  Tmin=  10 Tmax= 35 !Dependence on Temperature   (Deb et al., .09)
+ !      LimT     = exp(self%bm*temp-self%cm))        !Dependence on Temperature (used in (Ya,So, 2011) for Arctic)  
+ !      LimT     = 1./(1.+exp(10.-temp))             !Dependence on Temperature (ERGOM for cya)
+ !      LimT     = 1.-temp*temp/(temp*temp +12.*12.) !Dependence on Temperature (ERGOM for dia)
+ !      LimT     = 2.**((temp- 10.)/10.) -2**((temp-32.)/3.) !(ERSEM
+ !      LimT     =q10*(T-20)/10 !Q10=1.88 (Gr., 2000)       
+       LimN     = yy(self%Knut,nut/(max(0.0001,phy)))             !Dependence on nutrients
+     GrowthPhy = self%Max_uptake*LimLight*LimT*LimN*phy
+
+   ! Respiraion of Phy and increase of NUT
      RespPhy=self%r_phy_nut*phy
-!--------------------------------------------------------------
-! Methabolism of phy and increase of DOM
+
+   ! Methabolism of Phy and increase of DOM
      ExcrPhy=self%r_phy_dom*phy
-!--------------------------------------------------------------
-! Mortality of phy and increase of POM
+
+   ! Mortality of Phy and increase of POM
      MortPhy = phy*(self%r_phy_pom &
-!            additional  mortaliny in suboxic/anoxic conditions
-                +(0.5-0.5*tanh(oxy-15))**self%r_phy_om_anox)
+   ! Additional  mortaliny in suboxic/anoxic conditions
+              +(0.5-0.5*tanh(oxy-self%O2_add_mor_phy))*phy*self%r_phy_pom_anox)
 
 !--------------------------------------------------------------
-! Zoo
+! Het
 !--------------------------------------------------------------
-!    grazing of Zoo on Phy
-!    if (phy>1) then
-         GrazPhy = zoo*self%r_phy_zoo*yy(self%Kphy,(max(0.0_rk,phy-0.01))/(zoo+0.0001))
-       !else
-       !    GrazPhy=0.
-       !    endif
-!--------------------------------------------------------------
-!    grazing of Zoo on POM
-     GrazPOM = self%r_pop_zoo*zoo*yy(self%Kpop,(max(0.0_rk,pom-0.01))/(zoo+0.0001))
-!--------------------------------------------------------------
-! Respiraion of ZOO and increase of NUT
-     RespZoo = self%r_zoo_nut*zoo !*(0.5+0.5*tanh(oxy-20))
-!--------------------------------------------------------------
-! Mortality of ZOO and increase of POM
-     MortZoo = zoo*(self%r_zoo_pom+(0.5-0.5*tanh(oxy-15))*0.3) !+ &     (0.5+0.4*tanh(H2S-10.))*0.45)
+   ! Grazing of Het on Phy
+    GrazPhy = het*self%r_phy_het*yy(self%Kphy,(max(0.0_rk,phy-0.01))/max(het,0.0001))
+
+   ! Grazing of Het on POM
+    GrazPOM = self%r_pop_het*het*yy(self%Kpop,(max(0.0_rk,pom-0.01))/max(het,0.0001))
+
+   ! Respiraion of Het and increase of NUT
+    RespHet = self%r_het_nut*het !*(0.5+0.5*tanh(oxy-self%O2_suboxic))
+
+   ! Mortality of Het and increase of POM
+    MortHet = het*(self%r_het_pom+(0.5-0.5*tanh(oxy-self%O2_suboxic))*self%r_het_pom_anox) 
 
 !--------------------------------------------------------------
 ! POM
 !--------------------------------------------------------------
-! Decomposition of POM and increase of DOM
-      Autolys = self%r_pom_dom*pom
-!--------------------------------------------------------------
-! Oxic mineralization of POM and ammonification depend on T
-   POM_decay_ox   = self%r_pom_nut_oxy*(1.+self%beta_da*yy(self%tda,t))*pom
-! Suboxic mineralization of OM (denitrification and anammox), depends on T,O2,NO3/NO2
-   POM_decay_denitr = self%r_pom_nut_nut*(1.+self%beta_da*yy(self%tda,t)) &
-                           * (0.5-0.5*tanh(self%O2LimC-oxy)) &
-                           * (1-tanh(1.-nut))*pom
-! Mineralization of OM, ammonification and growth of NUT
+   ! Decomposition of POM and increase of DOM
+    Autolys = self%r_pom_dom*pom
+
+   ! Oxic mineralization of POM and ammonification depend on T
+    POM_decay_ox   = self%r_pom_nut_oxy*(1.+self%beta_da*yy(self%tda,t))*pom
+   ! Suboxic mineralization of OM (denitrification and anammox)
+   ! denitrification: (CH2O)106(NH3)16H3PO4 + 84.8HNO3 -> 106CO2 + 42.4N2 + 148.4H2O + 16NH3 + H3PO4 (Richards, 1965)
+   ! anammox: NO2- + NH4+ -> N2 + 2H2O (Canfield,2005)
+    POM_decay_denitr = self%r_pom_nut_nut*pom &              ! depends on NUT (NO3+NO2) and DOM (NH4+Urea+"real"DON)
+                      *(1.+self%beta_da*yy(self%tda,t)) &    ! depends on T
+                      *(0.5+0.5*tanh(self%O2_suboxic-oxy)) & ! starts when O2<O2_suboxic
+                      *nut*(0.5-0.5*tanh(0.01-nut))          ! stops at NUT<0.01
 
 !--------------------------------------------------------------
 ! DOM
 !--------------------------------------------------------------
 ! Oxic mineralization of DOM and ammonification depend on T
-   DOM_decay_ox   = self%r_dom_nut_oxy*(1.+self%beta_da*yy(self%tda,t))*dom
-! Suboxic mineralization of OM (denitrification and anammox), depends on T,O2,NO3/NO2
-   DOM_decay_denitr = self%r_dom_nut_nut*(1.+self%beta_da*yy(self%tda,t)) &
-                           * (0.5-0.5*tanh(self%O2LimC-oxy)) &
-                           * (1-tanh(10.-nut))*dom
-! Mineralization of OM, ammonification and growth of NUT
+    DOM_decay_ox   = self%r_dom_nut_oxy*(1.+self%beta_da*yy(self%tda,t))*dom
+! Suboxic mineralization of OM (denitrification and anammox)
+    DOM_decay_denitr = self%r_dom_nut_nut*dom &              ! depends on NUT (NO3+NO2) and DOM (NH4+Urea+"real"DON)
+                      *(1.+self%beta_da*yy(self%tda,t)) &    ! depends on T
+                      *(0.5+0.5*tanh(self%O2_suboxic-oxy)) & ! starts when O2<O2_suboxic
+                      *nut*(0.5-0.5*tanh(0.01-nut))          ! stops at NUT<0.01
 
-! Now we can summarize processes and write state variables sink/sources:
+   ! Now we can summarize processes and write state variables sink/sources:
+
 !--------------------------------------------------------------
-! OXY
+! Oxy
 !--------------------------------------------------------------
-! Changes of OXY due to OM production and decay!
-   doxy = -self%OtoN*(POM_decay_ox + DOM_decay_ox +  &
-           (POM_decay_denitr + DOM_decay_denitr) &
-           - GrowthPhy*phy + RespPhy)
-! additional consumption of OXY due to oxidation of reduced froms of S,Mn,Fe etc.
-! in suboxia equales condumption for NH4 oxidation (Yakushev et al, 2008 in Nauka Kubani)
-!                     + dd(dom,nut,ci)*(1.-0.5*(1.-tanh(O2LimC-oxy)))
-   if (oxy.lt.30.) doxy = doxy-self%OtoN*DOM_decay_ox
+   ! Changes of Oxy due to OM production and decay!
+    doxy = -self%OtoN*(POM_decay_ox + DOM_decay_ox &
+   !        + (POM_decay_denitr + DOM_decay_denitr) &
+           - GrowthPhy*phy + RespPhy) &
+   ! additional consumption of Oxy due to oxidation of reduced froms of S,Mn,Fe etc.
+   ! in suboxic conditions  equales consumption for NH4 oxidation (Yakushev et al, 2008 in Nauka Kubani)
+           - (0.5-0.5*tanh(oxy-self%O2_add_mor_phy))*self%OtoN*DOM_decay_ox
 !--------------------------------------------------------------
 ! NUT
 !--------------------------------------------------------------
-   dnut = -Growthphy + RespPhy + POM_decay_ox + POM_decay_denitr + DOM_decay_ox + DOM_decay_denitr &
-          - self%NtoN*(POM_decay_denitr+DOM_decay_denitr) ! Changes of NUT (as NO3+NO2) due to denitrification!
-
-!--------------------------------------------------------------
-   ddom = ExcrPhy + Autolys -DOM_decay_ox - DOM_decay_denitr + (GrazPhy+GrazPOM)*(1.-self%Uz)*self%Hz
-   dpom = MortPhy-Autolys-POM_decay_ox - POM_decay_denitr + (GrazPhy+GrazPOM)*(1.-self%Uz)*(1.-self%Hz)-GrazPOM
+   dnut = -GrowthPhy+RespPhy+POM_decay_ox+DOM_decay_ox-self%NtoN*(POM_decay_denitr+DOM_decay_denitr)+RespHet ! Decrease of NUT (as NO3+NO2) due to denitrification
+   ddom = ExcrPhy+Autolys-DOM_decay_ox-DOM_decay_denitr+(GrazPhy+GrazPOM)*(1.-self%Uz)*self%Hz &
+         + POM_decay_denitr ! Denitrification of "real" DOM into NH4 will not change state variable DOM, but anammox will
+   dpom = MortPhy-Autolys-POM_decay_ox-POM_decay_denitr+(GrazPhy+GrazPOM)*(1.-self%Uz)*(1.-self%Hz)-GrazPOM+MortHet
    dphy = GrowthPhy-RespPhy-ExcrPhy-MortPhy-GrazPhy
-   dzoo = self%Uz*(GrazPhy+GrazPOM)-MortZoo-RespZoo
+   dhet = self%Uz*(GrazPhy+GrazPOM)-MortHet-RespHet
 !--------------------------------------------------------------
    ! If an externally maintained DIC pool is present, change the DIC pool according to the
    ! the change in nutrients (assuming constant C:N ratio)
-   !if (_AVAILABLE_(self%id_dic)) _ADD_SOURCE_(self%id_dic,self%dic_per_n*dn)
+   !if (_AVAILABLE_(self%id_dic)) _ADD_SOURCE_(self%id_dic,self%dic_per_n*dnut)
 
-   ! Export diagnostic variables
-   !_SET_DIAGNOSTIC_(self%id_dPAR,par)
+
 !derivatives for FABM
    _ADD_SOURCE_(self%id_oxy,doxy)
    _ADD_SOURCE_(self%id_nut,dnut)
    _ADD_SOURCE_(self%id_dom,ddom)
    _ADD_SOURCE_(self%id_pom,dpom)
    _ADD_SOURCE_(self%id_phy,dphy)
-   _ADD_SOURCE_(self%id_zoo,dzoo)
+   _ADD_SOURCE_(self%id_het,dhet)
 
+   ! If an externally maintained DIC pool is present, change the DIC pool according to the
+   ! the change in nutrients (assuming constant C:N ratio)
+   !if (_AVAILABLE_(self%id_dic)) _ADD_SOURCE_(self%id_dic,self%dic_per_n*dn)
    !if (_AVAILABLE_(self%id_dic)) _ADD_SOURCE_(self%id_dic,dnut*106._rk/16._rk)
    !if (_AVAILABLE_(self%id_alk)) _ADD_SOURCE_(self%id_alk,ddom)
+
+   ! Export diagnostic variables
+   _SET_DIAGNOSTIC_(self%id_MortHet,MortHet)
+   _SET_DIAGNOSTIC_(self%id_RespHet,RespHet)
+   _SET_DIAGNOSTIC_(self%id_GrazPhy,GrazPhy)
+   _SET_DIAGNOSTIC_(self%id_GrazPOM,GrazPOM)
+   _SET_DIAGNOSTIC_(self%id_MortPhy,MortPhy)
+   _SET_DIAGNOSTIC_(self%id_RespPhy,RespPhy)
+   _SET_DIAGNOSTIC_(self%id_ExcrPhy,ExcrPhy)
+   _SET_DIAGNOSTIC_(self%id_LimN,LimN)
+   _SET_DIAGNOSTIC_(self%id_LimT,LimT)
+   _SET_DIAGNOSTIC_(self%id_LimLight,LimLight)
+   _SET_DIAGNOSTIC_(self%id_GrowthPhy,GrowthPhy)
+   _SET_DIAGNOSTIC_(self%id_DOM_decay_ox,DOM_decay_ox)
+   _SET_DIAGNOSTIC_(self%id_DOM_decay_denitr,DOM_decay_denitr)
+   _SET_DIAGNOSTIC_(self%id_POM_decay_ox,POM_decay_ox)
+   _SET_DIAGNOSTIC_(self%id_POM_decay_denitr,POM_decay_denitr)
+   _SET_DIAGNOSTIC_(self%id_Autolys,Autolys)
 
    ! Leave spatial loops (if any)
    _LOOP_END_
@@ -377,44 +426,41 @@
    subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
 !
 ! !DESCRIPTION:
-!
+!  Oxygen air-water flux. Adopted from ERSEM
+
 ! !INPUT PARAMETERS:
    class (type_niva_oxydep),intent(in) :: self
    _DECLARE_ARGUMENTS_DO_SURFACE_
 
 ! !LOCAL VARIABLES:
-   real(rk)                   :: O2, temp,salt
-   real(rk)                   :: Ox,Oa,TempT,Obe, Q_O2
+   real(rk)                   :: O2, temp, salt, windspeed
+   real(rk)                   :: Ox, Oa, TempT, Obe, Q_O2
 
    _HORIZONTAL_LOOP_BEGIN_
-   _GET_(self%id_oxy,O2)
-   _GET_(self%id_temp,temp)              ! temperature
-   _GET_(self%id_salt,salt)              ! salinity
+    _GET_(self%id_oxy,O2)
+    _GET_(self%id_temp,temp)              ! temperature
+    _GET_(self%id_salt,salt)              ! salinity
+    _GET_HORIZONTAL_(self%id_windspeed,windspeed)
 
-!/*---------------------------------------------------O2 exchange with air */
-   Ox = 1800.6-120.1*temp+3.7818*temp*temp &
-       -0.047608*temp*temp*temp !Ox=Sc, Schmidt number
-   if (Ox>0) then
-    !    Oa = 0.028*7.6*7.6*7.6*sqrt(660/Ox)   ! Pvel for the Baltic Sea by Schneider
-      Oa = 0.028*6.*6.*6.*sqrt(660/Ox)       ! Pvel for the Black Sea
-   else
-      Oa = 0.
-   end if
-
-      ! Calculation of O2 saturation Obe according to UNESCO, 1986
+   Ox = 1953.4-128*temp+3.9918*temp*temp-0.050091*temp*temp*temp !(Wanninkoff, 1992)
+     if (Ox>0) then
+       Oa = 0.028*(windspeed**3.)*sqrt(400/Ox)   !
+     else
+       Oa = 0.
+     endif
+   ! Calculation of O2 saturation Obe according to UNESCO, 1986
    TempT = (temp+273.15)/100.
    Obe = exp(-173.4292+249.6339/TempT+143.3483*log(TempT)-21.8492*TempT+salt*(-0.033096+0.014259*TempT-0.0017*TempT*TempT)) !Osat
-   Obe = Obe*1000./22.4  ! - in uM
+   Obe = Obe*1000./22.4  ! convert from ml/l into uM
 
-   Q_O2 = Oa*(Obe-O2)*0.24/86400. ! 0,24 is to transform from [cm/h] to [m/day]
+!  Q_O2 = Oa*(Obe-O2)*0.24 ! 0.24 is to convert from [cm/h] to [m/day]
+   Q_O2 = windspeed*(Obe-O2)/86400. !After (Burchard et al., 2005)
 
-   _ADD_SURFACE_FLUX_(self%id_oxy,Q_O2)
+  _ADD_SURFACE_FLUX_(self%id_oxy,Q_O2)
 
-   _HORIZONTAL_LOOP_END_
+_HORIZONTAL_LOOP_END_
 
    end subroutine
-!-----------------------------------------------------------------------
-
 
 !-----------------------------------------------------------------------
 !BOP
@@ -432,48 +478,39 @@
    _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
 ! !LOCAL VARIABLES:
-   real(rk)                   :: t,oxy,pom,dom,phy,zoo,nut
+   real(rk)                   :: oxy,pom,dom,phy,het,nut
+   real(rk) :: transmodel
 
    _HORIZONTAL_LOOP_BEGIN_
    _GET_(self%id_nut,nut)
    _GET_(self%id_phy,phy)
-   _GET_(self%id_zoo,zoo)
+   _GET_(self%id_het,het)
    _GET_(self%id_pom,pom)
    _GET_(self%id_dom,dom)
    _GET_(self%id_oxy,oxy)
-   _GET_(self%id_temp,t)              ! temperature
 
-      !----------------------------------------
-      !-burying into the sediments (sinking rates "w_xxx" are in m/s and positive upward)
-   _ADD_BOTTOM_FLUX_(self%id_pom,self%Bu*self%w_pom*pom)   ! mmol/m2/s
-   _ADD_BOTTOM_FLUX_(self%id_phy,self%Bu*self%w_phy*phy)   ! mmol/m2/s
-   _ADD_BOTTOM_FLUX_(self%id_zoo,self%Bu*self%w_zoo*zoo)   ! mmol/m2/s
-      !   cc(pon,1)=cc(pon,1)+w_pon/h(1)*cc(pon,1)*Bu from ROLM
+   ! BURYING into the sediments, mmol/m2/s (sinking rates "Wxxx" are in m/s and positive upward)
+   _ADD_BOTTOM_FLUX_(self%id_pom,self%Bu*self%Wpom*pom)
+   _ADD_BOTTOM_FLUX_(self%id_phy,self%Bu*self%Wphy*phy)
+   _ADD_BOTTOM_FLUX_(self%id_het,self%Bu*self%Whet*het)
 
-      ! we use here the relaxation condition with relaxation time Trel
-      !---------------------------------------- upward fluxes of dissolved parameters
-      !---------------------------------------- independent on redox conditions
-   _ADD_BOTTOM_FLUX_(self%id_dom,-(dom-self%b_dom_ox)/self%Trel)   ! mmol/m2/s
+   ! we use here the relaxation condition with relaxation time Trel
+    if (self%transmodel.ge.0) then
+       ! UPWARD fluxes of dissolved parameters
+       !--- independent on redox conditions
+       _ADD_BOTTOM_FLUX_(self%id_dom,-(dom-self%b_dom_ox)/self%Trel)
 
-      !---------------------------------------- dependent on redox conditions
-      !in suboxic and anoxic conditions upward flux of DOM increases
-   _ADD_BOTTOM_FLUX_(self%id_dom,-(1.-0.5*(1.-tanh(self%O2LimC-oxy)))*(dom-self%b_dom_anox)/self%Trel)
-   _ADD_BOTTOM_FLUX_(self%id_oxy,-(1.-0.5*(1.-tanh(self%O2LimC-oxy)))*(oxy-0.)/self%Trel)
+       !--- dependent on redox conditions, in suboxic and anoxic conditions upward flux of DOM increases, and Oxy=0 in the pore water
+       _ADD_BOTTOM_FLUX_(self%id_dom,-(1.-0.5*(1.-tanh(self%O2_suboxic-oxy)))*(dom-self%b_dom_anox)/self%Trel)
+       _ADD_BOTTOM_FLUX_(self%id_oxy,-(1.-0.5*(1.-tanh(self%O2_suboxic-oxy)))*(oxy-0.)/self%Trel)
 
-!    cc(oxy,1) =cc(oxy,1) -(1-tanh(O2LimC-cc(oxy,1)))*(cc( oxy,1)-min(b_ox,cc(oxy,1))) &
-!				/(Trel*timestep) !/86400)
+       ! DOWNWARD flux of dissolved oxygen
+       !--- dependent on redox conditions: in oxic conditions Oxy is additionally consumed due to its flux from water to sediments
+       _ADD_BOTTOM_FLUX_(self%id_oxy,-(1-tanh(self%O2_suboxic-oxy))*(oxy-min(self%b_ox,oxy))/self%Trel)
 
-!---------------------------------------- dependent on redox conditions downward fluxes
-
-! if (h(1).gt.0.75) then ! that is NOT valid in the channel (<5 m)!
-!! in oxic conditions OXY is additionally consumed due to its flux from water to sediments
-   _ADD_BOTTOM_FLUX_(self%id_oxy,-(1-tanh(self%O2LimC-oxy))*(oxy-min(self%b_ox,oxy))/self%Trel)
-!				/(Trel*timestep) !/86400)
-!! in oxic conditions fluxes of NO3/NO2 for denitrification in the sediments
-   _ADD_BOTTOM_FLUX_(self%id_nut,-(1-tanh(self%O2LimC-oxy))*(nut-min(self%b_nut,nut))/self%Trel)
-!				/(Trel*timestep) !/86400)
-! endif
-
+       ! DOWNWARD flux of Nut (NO3+NO2) for denitrification in the sediments
+       _ADD_BOTTOM_FLUX_(self%id_nut,-(1-tanh(self%O2_suboxic-oxy))*(nut-min(self%b_nut,nut))/self%Trel)
+    endif
    _HORIZONTAL_LOOP_END_
 
    end subroutine
@@ -507,7 +544,3 @@
 !EOC
 
    end module fabm_niva_oxydep
-
-!-----------------------------------------------------------------------
-! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
-!-----------------------------------------------------------------------
