@@ -56,7 +56,7 @@ contains
       call self%register_diagnostic_variable(self%id_free2biof,'free2biof','g/m^3',  'free2biof: MP_free to MP_biof')
       call self%register_diagnostic_variable(self%id_free2het,'free2het','g/m^3',  'free2het: MP_free to MP_het')
       call self%register_diagnostic_variable(self%id_biof2het,'biof2het','g/m^3',  'biof2het: MP_biof to MP_het')
-      call self%register_diagnostic_variable(self%id_det2het,'det2het','g/m^3',  'det2het: MP_det to MP_het')
+      !call self%register_diagnostic_variable(self%id_det2het,'det2het','g/m^3',  'det2het: MP_det to MP_het')
       call self%register_diagnostic_variable(self%id_het2det,'het2det','g/m^3',  'het2det: MP_het to MP_det')
       call self%register_diagnostic_variable(self%id_het2biof,'het2biof','g/m^3',  'het2biof: MP_het to MP_biof')
       call self%register_diagnostic_variable(self%id_det2free,'det2free','g/m^3',  'det2free: MP_det to MP_free')
