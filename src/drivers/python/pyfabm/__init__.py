@@ -189,6 +189,8 @@ def get_lib(name):
     # Routine for retrieving source-sink terms for the interior domain.
     lib.get_sources.argtypes = [ctypes.c_void_p, lib.dtype, arrtypeInteriorExt, arrtypeHorizontalExt, arrtypeHorizontalExt, ctypes.c_int, ctypes.c_int, arrtypeInterior]
     lib.get_sources.restype = None
+    lib.get_vertical_movement.argtypes = [ctypes.c_void_p, arrtypeInteriorExt]
+    lib.get_vertical_movement.restype = None
     lib.check_state.argtypes = [ctypes.c_void_p, ctypes.c_int]
     lib.check_state.restype = ctypes.c_int
 
@@ -758,6 +760,14 @@ class Model(object):
         if hasError():
             raise FABMException(getError())
         return sources_interior, sources_surface, sources_bottom
+
+    def get_vertical_movement(self, out=None):
+        if out is None:
+            out = numpy.empty_like(self._interior_state)
+        self.fabm.get_vertical_movement(self.pmodel, out)
+        if hasError():
+            raise FABMException(getError())
+        return out
 
     def checkState(self, repair=False):
         valid = self.fabm.check_state(self.pmodel, repair) != 0

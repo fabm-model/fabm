@@ -737,6 +737,47 @@ contains
       call model%p%finalize_outputs()
    end subroutine get_sources
 
+   subroutine get_vertical_movement(pmodel, velocity) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_vertical_movement
+      type (c_ptr),   value,  intent(in) :: pmodel
+      real(rke),      target, intent(in) :: velocity(*)
+
+      type (type_model_wrapper), pointer :: model
+      real(rke) _DIMENSION_GLOBAL_PLUS_1_, pointer :: velocity_
+      _DECLARE_LOCATION_
+#  if _FABM_DIMENSION_COUNT_ > 0
+      integer :: _LOCATION_RANGE_
+#  endif
+
+      call c_f_pointer(pmodel, model)
+      if (model%p%status < status_start_done) then
+         call driver%fatal_error('get_vertical_movement', 'start has not been called yet.')
+         return
+      end if
+
+#  if _FABM_DIMENSION_COUNT_ > 0
+      istart__ = model%p%domain%start(1)
+      istop__ = model%p%domain%stop(1)
+      i__ = model%p%domain%shape(1)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 1
+      jstart__ = model%p%domain%start(2)
+      jstop__ = model%p%domain%stop(2)
+      j__ = model%p%domain%shape(2)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 2
+      kstart__ = model%p%domain%start(3)
+      kstop__ = model%p%domain%stop(3)
+      k__ = model%p%domain%shape(3)
+#  endif
+
+      call c_f_pointer(c_loc(velocity), velocity_, (/_PREARG_LOCATION_ size(model%p%interior_state_variables)/))
+
+      _BEGIN_OUTER_INTERIOR_LOOP_
+         call model%p%get_vertical_movement(_PREARG_INTERIOR_IN_ velocity_ _INDEX_GLOBAL_INTERIOR_PLUS_1_(_START_:_STOP_,:))
+      _END_OUTER_INTERIOR_LOOP_
+   end subroutine get_vertical_movement
+
    function check_state(pmodel, repair_) bind(c) result(valid_)
       !DIR$ ATTRIBUTES DLLEXPORT :: check_state
       type (c_ptr),         intent(in), value :: pmodel
