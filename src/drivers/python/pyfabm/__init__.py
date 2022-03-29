@@ -191,6 +191,8 @@ def get_lib(name):
     lib.get_sources.restype = None
     lib.get_vertical_movement.argtypes = [ctypes.c_void_p, arrtypeInteriorExt]
     lib.get_vertical_movement.restype = None
+    lib.get_conserved_quantities.argtypes = [ctypes.c_void_p, arrtypeHorizontalExt, arrtypeInterior]
+    lib.get_conserved_quantities.restype = None
     lib.check_state.argtypes = [ctypes.c_void_p, ctypes.c_int]
     lib.check_state.restype = ctypes.c_int
 
@@ -765,6 +767,15 @@ class Model(object):
         if out is None:
             out = numpy.empty_like(self._interior_state)
         self.fabm.get_vertical_movement(self.pmodel, out)
+        if hasError():
+            raise FABMException(getError())
+        return out
+
+    def get_conserved_quantities(self, out=None):
+        assert self._cell_thickness is not None, 'You must assign model.cell_thickness to use get_conserved_quantities'
+        if out is None:
+            out = numpy.empty((len(self.conserved_quantities),) + self.horizontal_domain_shape, dtype=self.fabm.numpy_dtype)
+        self.fabm.get_conserved_quantities(self.pmodel, out, self._cell_thickness)
         if hasError():
             raise FABMException(getError())
         return out

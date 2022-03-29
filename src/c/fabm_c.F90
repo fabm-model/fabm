@@ -778,6 +778,73 @@ contains
       _END_OUTER_INTERIOR_LOOP_
    end subroutine get_vertical_movement
 
+   subroutine get_conserved_quantities(pmodel, sums, cell_thickness) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_conserved_quantities
+      type (c_ptr),   value,  intent(in) :: pmodel
+      real(rke),      target, intent(in) :: sums(*)
+      real(rke),      target, intent(in) :: cell_thickness(*)
+
+      type (type_model_wrapper), pointer :: model
+      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_, pointer :: sums_
+      real(rke) _ATTRIBUTES_GLOBAL_, pointer :: cell_thickness_
+      real(rke) _DIMENSION_SLICE_PLUS_1_, allocatable :: sums_int
+      integer :: ivar
+      _DECLARE_LOCATION_
+#  if _FABM_DIMENSION_COUNT_ > 0
+      integer :: _LOCATION_RANGE_
+#  endif
+
+      call c_f_pointer(pmodel, model)
+      if (model%p%status < status_start_done) then
+         call driver%fatal_error('get_conserved_quantities', 'start has not been called yet.')
+         return
+      end if
+
+#  if _FABM_DIMENSION_COUNT_ > 0
+      istart__ = model%p%domain%start(1)
+      istop__ = model%p%domain%stop(1)
+      i__ = model%p%domain%shape(1)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 1
+      jstart__ = model%p%domain%start(2)
+      jstop__ = model%p%domain%stop(2)
+      j__ = model%p%domain%shape(2)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 2
+      kstart__ = model%p%domain%start(3)
+      kstop__ = model%p%domain%stop(3)
+      k__ = model%p%domain%shape(3)
+#  endif
+      cell_thickness_ => c_f_pointer_interior(model, cell_thickness)
+      call c_f_pointer(c_loc(sums), sums_, &
+         (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%conserved_quantities)/))
+
+#ifdef _INTERIOR_IS_VECTORIZED_
+      allocate(sums_int(_ITERATOR_, size(model%p%conserved_quantities)))
+#else
+      allocate(sums_int(size(model%p%conserved_quantities)))
+#endif
+
+      _BEGIN_OUTER_HORIZONTAL_LOOP_
+         call model%p%get_horizontal_conserved_quantities(_PREARG_HORIZONTAL_IN_ sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_,:))
+      _END_OUTER_HORIZONTAL_LOOP_
+
+      _BEGIN_OUTER_INTERIOR_LOOP_
+         call model%p%get_interior_conserved_quantities(_PREARG_INTERIOR_IN_ sums_int)
+         _DO_CONCURRENT_(ivar,1,size(model%p%conserved_quantities))
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+            do _ITERATOR_ = _START_, _STOP_
+               sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) = sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) &
+                  + cell_thickness_ _INDEX_GLOBAL_INTERIOR_(_ITERATOR_) * sums_int(_ITERATOR_,ivar)
+            end do
+#else
+            sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) = sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) &
+               + cell_thickness_ _INDEX_GLOBAL_INTERIOR_(_ITERATOR_) * sums_int(ivar)
+#endif
+         end do
+      _END_OUTER_INTERIOR_LOOP_
+   end subroutine get_conserved_quantities
+
    function check_state(pmodel, repair_) bind(c) result(valid_)
       !DIR$ ATTRIBUTES DLLEXPORT :: check_state
       type (c_ptr),         intent(in), value :: pmodel
