@@ -81,6 +81,10 @@ def get_lib(name):
     # Initialization
     lib.create_model.argtypes = [ctypes.c_char_p] + [ctypes.c_int] * ndim_int
     lib.create_model.restype = ctypes.c_void_p
+    lib.set_domain_start.argtypes = [ctypes.c_void_p] + [ctypes.c_int] * ndim_int
+    lib.set_domain_start.restype = ctypes.c_void_p
+    lib.set_domain_stop.argtypes = [ctypes.c_void_p] + [ctypes.c_int] * ndim_int
+    lib.set_domain_stop.restype = ctypes.c_void_p
 
     # Access to model objects (variables, parameters, dependencies, couplings, model instances)
     lib.get_counts.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
@@ -531,7 +535,7 @@ class SubModel(object):
         self.user_created = iuser.value != 0
 
 class Model(object):
-    def __init__(self, path='fabm.yaml', shape=(), libname=None):
+    def __init__(self, path='fabm.yaml', shape=(), libname=None, start=None, stop=None):
         delete = False
         if isinstance(path, dict):
             import tempfile
@@ -552,6 +556,10 @@ class Model(object):
         self.pmodel = self.fabm.create_model(path.encode('ascii'), *shape[::-1])
         if hasError():
             raise FABMException('An error occurred while parsing %s:\n%s' % (path, getError()))
+        if start is not None:
+            self.fabm.set_domain_start(self.pmodel, *[s + 1 for s in start[::-1]])
+        if stop is not None:
+            self.fabm.set_domain_stop(self.pmodel, *stop[::-1])
         self.interior_domain_shape = tuple(shape)
         self.horizontal_domain_shape = tuple([l for i, l in enumerate(self.interior_domain_shape) if i != self.fabm.idepthdim])
         if delete:

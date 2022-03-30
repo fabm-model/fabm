@@ -134,6 +134,26 @@ contains
       ptr = c_loc(model)
    end function create_model
 
+#  if _FABM_DIMENSION_COUNT_ > 0
+   subroutine set_domain_start(pmodel _POSTARG_LOCATION_) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: set_domain_start
+      type (c_ptr),   intent(in), value  :: pmodel
+      integer (kind=c_int), value, intent(in) :: _LOCATION_
+      type (type_model_wrapper), pointer :: model
+      call c_f_pointer(pmodel, model)
+      call model%p%set_domain_start(_LOCATION_)
+   end subroutine
+
+   subroutine set_domain_stop(pmodel _POSTARG_LOCATION_) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: set_domain_stop
+      type (c_ptr),   intent(in), value  :: pmodel
+      integer (kind=c_int), value, intent(in) :: _LOCATION_
+      type (type_model_wrapper), pointer :: model
+      call c_f_pointer(pmodel, model)
+      call model%p%set_domain_stop(_LOCATION_)
+   end subroutine
+#endif
+
 #ifdef _HAS_MASK_
 #  ifndef _FABM_HORIZONTAL_MASK_
 #    error 'Not yet implemented'
@@ -626,25 +646,14 @@ contains
       end if
 
 #  if _FABM_DIMENSION_COUNT_ > 0
-      istart__ = model%p%domain%start(1)
-      istop__ = model%p%domain%stop(1)
       i__ = model%p%domain%shape(1)
 #  endif
 #  if _FABM_DIMENSION_COUNT_ > 1
-      jstart__ = model%p%domain%start(2)
-      jstop__ = model%p%domain%stop(2)
       j__ = model%p%domain%shape(2)
 #  endif
 #  if _FABM_DIMENSION_COUNT_ > 2
-      kstart__ = model%p%domain%start(3)
-      kstop__ = model%p%domain%stop(3)
       k__ = model%p%domain%shape(3)
 #  endif
-
-      surface = int2logical(do_surface)
-      bottom = int2logical(do_bottom)
-      if ((surface .or. bottom) .and. size(model%p%interior_state_variables) > 0) &
-         cell_thickness_ => c_f_pointer_interior(model, cell_thickness)
 
       call c_f_pointer(c_loc(sources_interior), sources_interior_, &
          (/_PREARG_LOCATION_ size(model%p%interior_state_variables)/))
@@ -652,6 +661,29 @@ contains
          (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%surface_state_variables)/))
       call c_f_pointer(c_loc(sources_bottom), sources_bottom_, &
          (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%bottom_state_variables)/))
+
+      surface = int2logical(do_surface)
+      bottom = int2logical(do_bottom)
+      if ((surface .or. bottom) .and. size(model%p%interior_state_variables) > 0) &
+         cell_thickness_ => c_f_pointer_interior(model, cell_thickness)
+
+#  if _FABM_DIMENSION_COUNT_ > 0
+      istart__ = model%p%domain%start(1)
+      istop__ = model%p%domain%stop(1)
+      i__ = istop__ - istart__ + 1
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 1
+      jstart__ = model%p%domain%start(2)
+      jstop__ = model%p%domain%stop(2)
+      j__ = jstop__ - jstart__ + 1
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 2
+      kstart__ = model%p%domain%start(3)
+      kstop__ = model%p%domain%stop(3)
+      k__ = kstop__ - kstart__ + 1
+#  endif
+
+
 #ifdef _HORIZONTAL_IS_VECTORIZED_
       allocate(fluxes(_ITERATOR_, size(model%p%interior_state_variables)))
 #else
@@ -688,7 +720,7 @@ contains
 #ifdef _HORIZONTAL_IS_VECTORIZED_
                _DO_CONCURRENT_(_ITERATOR_,_START_,_STOP_)
                   sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
-                     + fluxes(_ITERATOR_,:) / cell_thickness_ _INDEX_LOCATION_
+                     + fluxes(_ITERATOR_ - _START_ + 1,:) / cell_thickness_ _INDEX_LOCATION_
                end do
 #else
                sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
@@ -721,7 +753,7 @@ contains
                   _VERTICAL_ITERATOR_ = model%p%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #endif
                   sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
-                     + fluxes(_ITERATOR_,:) / cell_thickness_ _INDEX_LOCATION_
+                     + fluxes(_ITERATOR_ - _START_ + 1,:) / cell_thickness_ _INDEX_LOCATION_
                end do
 #else
 #if _FABM_BOTTOM_INDEX_==-1
@@ -801,23 +833,34 @@ contains
       end if
 
 #  if _FABM_DIMENSION_COUNT_ > 0
+      i__ = model%p%domain%shape(1)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 1
+      j__ = model%p%domain%shape(2)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 2
+      k__ = model%p%domain%shape(3)
+#  endif
+
+      cell_thickness_ => c_f_pointer_interior(model, cell_thickness)
+      call c_f_pointer(c_loc(sums), sums_, &
+         (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%conserved_quantities)/))
+
+#  if _FABM_DIMENSION_COUNT_ > 0
       istart__ = model%p%domain%start(1)
       istop__ = model%p%domain%stop(1)
-      i__ = model%p%domain%shape(1)
+      i__ = istop__ - istart__ + 1
 #  endif
 #  if _FABM_DIMENSION_COUNT_ > 1
       jstart__ = model%p%domain%start(2)
       jstop__ = model%p%domain%stop(2)
-      j__ = model%p%domain%shape(2)
+      j__ = jstop__ - jstart__ + 1
 #  endif
 #  if _FABM_DIMENSION_COUNT_ > 2
       kstart__ = model%p%domain%start(3)
       kstop__ = model%p%domain%stop(3)
-      k__ = model%p%domain%shape(3)
+      k__ = kstop__ - kstart__ + 1
 #  endif
-      cell_thickness_ => c_f_pointer_interior(model, cell_thickness)
-      call c_f_pointer(c_loc(sums), sums_, &
-         (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%conserved_quantities)/))
 
 #ifdef _INTERIOR_IS_VECTORIZED_
       allocate(sums_int(_ITERATOR_, size(model%p%conserved_quantities)))
@@ -835,7 +878,7 @@ contains
 #ifdef _HORIZONTAL_IS_VECTORIZED_
             do _ITERATOR_ = _START_, _STOP_
                sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) = sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) &
-                  + cell_thickness_ _INDEX_GLOBAL_INTERIOR_(_ITERATOR_) * sums_int(_ITERATOR_,ivar)
+                  + cell_thickness_ _INDEX_GLOBAL_INTERIOR_(_ITERATOR_) * sums_int(_ITERATOR_ - _START_ + 1,ivar)
             end do
 #else
             sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) = sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) &
