@@ -130,6 +130,8 @@ def get_lib(name):
     lib.variable_get_output.restype = ctypes.c_int
     lib.variable_is_required.argtypes = [ctypes.c_void_p]
     lib.variable_is_required.restype = ctypes.c_int
+    lib.variable_get_no_river_dilution.argtypes = [ctypes.c_void_p]
+    lib.variable_get_no_river_dilution.restype = ctypes.c_int
     lib.variable_get_property_type.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
     lib.variable_get_property_type.restype = ctypes.c_int
     lib.variable_get_real_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, lib.dtype]
@@ -392,6 +394,10 @@ class StateVariable(Variable):
     @property
     def output(self):
         return self.model.fabm.variable_get_output(self.variable_pointer) != 0
+
+    @property
+    def no_river_dilution(self):
+        return self.model.fabm.variable_get_no_river_dilution(self.variable_pointer) != 0
 
 class DiagnosticVariable(Variable):
     def __init__(self, model, variable_pointer, index, horizontal):
