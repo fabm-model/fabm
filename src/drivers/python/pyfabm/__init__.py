@@ -81,10 +81,11 @@ def get_lib(name):
     # Initialization
     lib.create_model.argtypes = [ctypes.c_char_p] + [ctypes.c_int] * ndim_int
     lib.create_model.restype = ctypes.c_void_p
-    lib.set_domain_start.argtypes = [ctypes.c_void_p] + [ctypes.c_int] * ndim_int
-    lib.set_domain_start.restype = ctypes.c_void_p
-    lib.set_domain_stop.argtypes = [ctypes.c_void_p] + [ctypes.c_int] * ndim_int
-    lib.set_domain_stop.restype = ctypes.c_void_p
+    if ndim_int > 0:
+        lib.set_domain_start.argtypes = [ctypes.c_void_p] + [ctypes.c_int] * ndim_int
+        lib.set_domain_start.restype = ctypes.c_void_p
+        lib.set_domain_stop.argtypes = [ctypes.c_void_p] + [ctypes.c_int] * ndim_int
+        lib.set_domain_stop.restype = ctypes.c_void_p
 
     # Access to model objects (variables, parameters, dependencies, couplings, model instances)
     lib.get_counts.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
