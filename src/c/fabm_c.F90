@@ -897,26 +897,28 @@ contains
       type (type_model_wrapper), pointer :: model
       logical :: repair, all_valid, interior_valid, surface_valid, bottom_valid
       _DECLARE_LOCATION_
-
-#  if _FABM_DIMENSION_COUNT_ > 0
+#if _FABM_DIMENSION_COUNT_ > 0
       integer :: _LOCATION_RANGE_
-      istart__ = model%p%domain%start(1)
-      istop__ = model%p%domain%stop(1)
-#  endif
-#  if _FABM_DIMENSION_COUNT_ > 1
-      jstart__ = model%p%domain%start(2)
-      jstop__ = model%p%domain%stop(2)
-#  endif
-#  if _FABM_DIMENSION_COUNT_ > 2
-      kstart__ = model%p%domain%start(3)
-      kstop__ = model%p%domain%stop(3)
-#  endif
+#endif
 
       call c_f_pointer(pmodel, model)
       if (model%p%status < status_start_done) then
          call driver%fatal_error('check_state', 'start has not been called yet.')
          return
       end if
+
+#if _FABM_DIMENSION_COUNT_ > 0
+      istart__ = model%p%domain%start(1)
+      istop__ = model%p%domain%stop(1)
+#endif
+#if _FABM_DIMENSION_COUNT_ > 1
+      jstart__ = model%p%domain%start(2)
+      jstop__ = model%p%domain%stop(2)
+#endif
+#if _FABM_DIMENSION_COUNT_ > 2
+      kstart__ = model%p%domain%start(3)
+      kstop__ = model%p%domain%stop(3)
+#endif
 
       repair = int2logical(repair_)
 

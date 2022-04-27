@@ -795,11 +795,12 @@ class Model(object):
             raise FABMException(getError())
         return out
 
-    def checkState(self, repair=False):
+    def check_state(self, repair=False):
         valid = self.fabm.check_state(self.pmodel, repair) != 0
         if hasError():
             raise FABMException(getError())
         return valid
+    checkState = check_state
 
     def getJacobian(self,pert=None):
         # Define perturbation per state variable.
