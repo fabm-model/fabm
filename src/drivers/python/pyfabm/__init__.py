@@ -24,6 +24,8 @@ def find_library(basedir, names):
         if os.path.isfile(path):
             return path
 
+LOG_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_char_p)
+
 name2lib = {}
 def get_lib(name):
     if name in name2lib:
@@ -110,6 +112,8 @@ def get_lib(name):
     lib.reset_error_state.restype = None
     lib.configure.argtypes = [ctypes.c_int]
     lib.configure.restype = None
+    lib.set_log_callback.argtypes = [LOG_CALLBACK]
+    lib.set_log_callback.restype = None
     if lib.has_mask:
         lib.set_mask.restype = None
         lib.set_mask.argtypes = [ctypes.c_void_p, numpy.ctypeslib.ndpointer(dtype=ctypes.c_int, ndim=ndim_hz, flags=CONTIGUOUS)]
@@ -211,8 +215,17 @@ def get_lib(name):
         lib.integrate.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, arrtype1D, arrtypeInteriorExt, arrtypeInteriorExt2, lib.dtype, ctypes.c_int, ctypes.c_int, arrtypeInterior]
         lib.integrate.restype = None
 
+    lib.set_log_callback(log_callback)
+
     name2lib[name] = lib
     return lib
+
+logger = None
+
+@LOG_CALLBACK
+def log_callback(msg):
+    if logger is not None:
+        logger.info(msg.decode('ascii'))
 
 INTERIOR_STATE_VARIABLE        = 1
 SURFACE_STATE_VARIABLE         = 2

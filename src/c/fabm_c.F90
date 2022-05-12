@@ -3,7 +3,7 @@
 
 module fabm_c
 
-   use iso_c_binding, only: c_int, c_char, C_NULL_CHAR, c_f_pointer, c_loc, c_ptr, c_null_ptr
+   use iso_c_binding, only: c_int, c_char, C_NULL_CHAR, c_f_pointer, c_loc, c_ptr, c_null_ptr, c_funptr, c_f_procpointer
 
    !DIR$ ATTRIBUTES DLLEXPORT :: STATE_VARIABLE,DIAGNOSTIC_VARIABLE,CONSERVED_QUANTITY
 
@@ -47,6 +47,14 @@ module fabm_c
       type (type_property_dictionary)  :: forced_parameters, forced_couplings
    end type
 
+   interface
+      subroutine log_callback_interface(msg) bind(c)
+         import c_char
+         character(kind=c_char), intent(in) :: msg(*)
+      end subroutine
+   end interface
+   procedure (log_callback_interface), pointer, save :: log_callback => null()
+
 contains
 
    subroutine get_version(length, version_string) bind(c)
@@ -68,6 +76,12 @@ contains
       integer(c_int), value, intent(in) :: debug_
       debug = int2logical(debug_)
    end subroutine configure
+
+   subroutine set_log_callback(cb) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: set_log_callback
+      type(c_funptr), intent(in), value :: cb
+      call c_f_procpointer(cb, log_callback)
+   end subroutine
 
    subroutine get_driver_settings(ndim, idepthdim, has_mask) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_driver_settings
@@ -999,7 +1013,13 @@ contains
       class (type_python_driver), intent(inout) :: self
       character(len=*),           intent(in)    :: message
 
+      character(kind=c_char) :: cmessage(len(message) + 1)
+
       if (debug) write (*,*) trim(message)
+      if (associated(log_callback)) then
+         call copy_to_c_string(message, cmessage)
+         call log_callback(cmessage)
+      end if
    end subroutine python_driver_log_message
 
 end module fabm_c
