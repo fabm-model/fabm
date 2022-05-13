@@ -110,8 +110,6 @@ def get_lib(name):
     lib.get_error.restype = None
     lib.reset_error_state.argtypes = []
     lib.reset_error_state.restype = None
-    lib.configure.argtypes = [ctypes.c_int]
-    lib.configure.restype = None
     lib.set_log_callback.argtypes = [LOG_CALLBACK]
     lib.set_log_callback.restype = None
     if lib.has_mask:
@@ -224,8 +222,11 @@ logger = None
 
 @LOG_CALLBACK
 def log_callback(msg):
+    msg = msg.decode('ascii')
     if logger is not None:
-        logger.info(msg.decode('ascii'))
+        logger.info(msg)
+    else:
+        print(msg)
 
 INTERIOR_STATE_VARIABLE        = 1
 SURFACE_STATE_VARIABLE         = 2

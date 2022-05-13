@@ -31,7 +31,6 @@ module fabm_c
    integer, parameter :: SCALAR_DEPENDENCY              = 9
 
    logical, save :: error_occurred = .false.
-   logical, save :: debug = .false.
    character(len=:), allocatable, save :: error_message
 
    type, extends(type_base_driver) :: type_python_driver
@@ -70,12 +69,6 @@ contains
       call fabm_get_version(string)
       call copy_to_c_string(string, version_string)
    end subroutine get_version
-
-   subroutine configure(debug_) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: configure
-      integer(c_int), value, intent(in) :: debug_
-      debug = int2logical(debug_)
-   end subroutine configure
 
    subroutine set_log_callback(cb) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: set_log_callback
@@ -1015,10 +1008,11 @@ contains
 
       character(kind=c_char) :: cmessage(len(message) + 1)
 
-      if (debug) write (*,*) trim(message)
       if (associated(log_callback)) then
          call copy_to_c_string(message, cmessage)
          call log_callback(cmessage)
+      else
+         write (*,*) trim(message)
       end if
    end subroutine python_driver_log_message
 
