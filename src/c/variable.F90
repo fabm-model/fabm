@@ -115,6 +115,17 @@ contains
       value = logical2int(variable%no_river_dilution)
    end function variable_get_no_river_dilution
 
+   function variable_get_no_precipitation_dilution(pvariable) bind(c) result(value)
+      !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_no_precipitation_dilution
+      type (c_ptr), value, intent(in) :: pvariable
+      integer(kind=c_int)             :: value
+
+      type (type_internal_variable), pointer :: variable
+
+      call c_f_pointer(pvariable, variable)
+      value = logical2int(variable%no_precipitation_dilution)
+   end function variable_get_no_precipitation_dilution
+
    function variable_get_property_type(pvariable, name) bind(c) result(value)
       !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_property_type
       type (c_ptr), value,            intent(in) :: pvariable
