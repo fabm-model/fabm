@@ -38,15 +38,19 @@ def testRangePresence(ranges, variables, vary, found_variables):
             except ValueError:
                 print('Invalid maximum value "%s" specified for %s.' % (variable_range[1], variable.name))
                 sys.exit(1)
-            value = float(variable.value)
-            if value < variable_range[0]:
-                print('Raising default value of %s to prescribed minimum %s (previous default was %s).' % (variable.name, variable_range[0], value))
-                variable.value = variable_range[0]
-            elif value > variable_range[1]:
-                print('Lowering default value of %s to prescribed maximum %s (previous default was %s).' % (variable.name, variable_range[1], value))
-                variable.value = variable_range[1]
+            if variable.value is not None:
+                value = float(variable.value)
+                if value < variable_range[0]:
+                    print('Raising default value of %s to prescribed minimum %s (previous default was %s).' % (variable.name, variable_range[0], value))
+                    variable.value = variable_range[0]
+                elif value > variable_range[1]:
+                    print('Lowering default value of %s to prescribed maximum %s (previous default was %s).' % (variable.name, variable_range[1], value))
+                    variable.value = variable_range[1]
+            else:
+                variable.value = 0.5 * (variable_range[0] + variable_range[1])
+                print('Setting default value of %s to mean %s of prescribed range %s - %s (no previous default was set).' % (variable.name, variable.value, variable_range[0], variable_range[1]))
             if variable_range[0] == variable_range[1]:
-               variable.value = float(variable_range[0])
+               variable.value = variable_range[0]
             else:
                vary.append((variable, variable_range))
         found_variables.add(variable.name)
@@ -68,13 +72,13 @@ def check(model):
        print('MODEL STATE:')
        for variable in model.state_variables:
            print('- %s = %s' % (variable.name, variable.value))
-           values[variable.name] = variable.value
+           values[variable.name] = float(variable.value)
        print('ENVIRONMENT:')
        for variable in model.dependencies:
            print('- %s = %s' % (variable.name, variable.value))
-           values[variable.name] = variable.value
+           values[variable.name] = float(variable.value)
        with open('last_error.yaml', 'w') as f:
-           yaml.dump(values, f, default_flow_style=False)
+           yaml.safe_dump(values, f, default_flow_style=False)
        print('This model state and environment has been saved in last_error.yaml.')
        print('To retest with these exact inputs (e.g., after introducing model fixes),')
        print('specify this file as the "ranges" argument.')
@@ -152,14 +156,15 @@ def main():
         with open(args.ranges_path, 'w') as f:
             def writeRanges(variables):
                 for variable in variables:
-                    f.write('%s: [0,%s]\n' % (variable.name, 10*variable.value))
+                    strmax = '?' if variable.value is None else 10*variable.value
+                    f.write('%s: [0,%s]\n' % (variable.name, strmax))
             writeRanges(model.state_variables)
             writeRanges(model.dependencies)
         print('Default ranges have been written to %s.' % args.ranges_path)
         sys.exit(0)
 
     with open(args.ranges_path, 'rU') as f:
-        ranges = yaml.load(f)
+        ranges = yaml.safe_load(f)
     if not isinstance(ranges, dict):
         print('Range file %s should contain a dictionary mapping each variable to its range (or constant value).' % args.ranges_path)
         sys.exit(1)
@@ -172,6 +177,9 @@ def main():
     for variable_name in ranges.keys():
         if variable_name not in found_variables:
             print('WARNING: range specification for unknown variable %s in %s will be ignored.' % (variable_name, args.ranges_path))
+
+    model.cell_thickness = 1
+    model.start()
 
     if args.test is None:
         check(model)
