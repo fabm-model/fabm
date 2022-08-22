@@ -503,6 +503,15 @@ class NamedObjectList(Sequence):
             return self.find(key)
         return self._data[key]
 
+    def __contains__(self, key):
+        if isinstance(key, str):
+            try:
+                self.find(key)
+                return True
+            except KeyError:
+                return False
+        return Sequence.__contains__(self, key)
+
     def __repr__(self):
         return repr(self._data)
 
@@ -756,6 +765,7 @@ class Model(object):
         self.state_variables = self.interior_state_variables + self.surface_state_variables + self.bottom_state_variables
         self.diagnostic_variables = self.interior_diagnostic_variables + self.horizontal_diagnostic_variables
         self.dependencies = self.interior_dependencies + self.horizontal_dependencies + self.scalar_dependencies
+        self.variables = self.state_variables + self.diagnostic_variables + self.dependencies
 
         if settings is not None:
             self.restoreSettings(settings)

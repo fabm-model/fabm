@@ -80,6 +80,7 @@ contains
          case ('bottom_layer');             allocate(type_bottom_field::model)
          case ('surface_layer');            allocate(type_surface_field::model)
          case ('vertical_integral');        allocate(type_depth_integral::model)
+         case ('bounded_vertical_integral');allocate(type_bounded_depth_integral::model)
          case ('interior_temporal_mean');   allocate(type_interior_temporal_mean::model)
          case ('surface_temporal_mean');    allocate(type_surface_temporal_mean::model)
          case ('surface_temporal_maximum'); allocate(type_surface_temporal_maximum::model)

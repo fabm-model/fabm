@@ -616,7 +616,7 @@
       if (model_type==1) column_depth = mixed_layer_depth%value
 
       ! Compute density from temperature and salinity, if required by biogeochemistry.
-      if (compute_density) dens = rho_feistel(salt%value,temp%value,5._rk*column_depth,.true.)
+      if (compute_density) dens = rho_feistel(salt%value,temp%value,0.5_rk*column_depth,.true.)
    end subroutine update_environment
 
    subroutine update_light()

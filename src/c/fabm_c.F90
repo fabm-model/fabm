@@ -221,7 +221,7 @@ contains
       end do
 
       ! Clean up old model
-      call finalize(model)
+      call finalize(model, keep_forced=.true.)
       model%p => newmodel
 
       ! Initialize new model
@@ -983,13 +983,21 @@ contains
       if (associated(pvalue)) ptr = c_loc(pvalue)
    end function get_horizontal_diagnostic_data
 
-   subroutine finalize(model)
+   subroutine finalize(model, keep_forced)
       type (type_model_wrapper), intent(inout) :: model
+      logical, optional,         intent(in)    :: keep_forced
+
+      logical :: keep_forced_
+
+      keep_forced_ = .false.
+      if (present(keep_forced)) keep_forced_ = keep_forced
 
       call model%p%finalize()
       call model%environment%finalize()
-      call model%forced_parameters%finalize()
-      call model%forced_couplings%finalize()
+      if (.not. keep_forced) then
+         call model%forced_parameters%finalize()
+         call model%forced_couplings%finalize()
+      end if
       deallocate(model%p)
    end subroutine finalize
 

@@ -74,3 +74,50 @@ instances:
       Wphy: -0.25        # PHY sinking rate, (m/d), negative for downward movement
       Whet: -0.4         # HET sinking rate, (m/d)
       Wpom: -15.         # POM sinking rate, (m/d)
+##----------------------------------------------------------------------
+  B_BIOPLAST:
+##----------------------------------------------------------------------
+    long_name: bioplast
+    model: niva/brom_bioplast
+    initialization:
+      MP_free: 0.0
+      MP_biof: 0.0
+      MP_het: 0.0
+      MP_det: 0.0
+    coupling:
+      HET:    B_OXYDEP/Het
+      PHY:    B_OXYDEP/Phy
+      POM:    B_OXYDEP/POM
+      DOM:    B_OXYDEP/DOM
+      MortHet:          B_OXYDEP/MortHet
+      POM_decay_ox:     B_OXYDEP/POM_decay_ox
+      POM_decay_denitr: B_OXYDEP/POM_decay_denitr
+      GrowthPhy:        B_OXYDEP/GrowthPhy
+      RespPhy:          B_OXYDEP/RespPhy
+      ExcrPhy:          B_OXYDEP/ExcrPhy
+      MortPhy:          B_OXYDEP/MortPhy
+      GrazPhy:          B_OXYDEP/GrazPhy
+      GrazPOM:          B_OXYDEP/GrazPOM
+      RespHet:          B_OXYDEP/RespHet
+      Autolys:          B_OXYDEP/Autolys
+    parameters:
+# Degradation
+      MP_free_decay: 0.0000  # maximum rate of photodegradation in seawater 0.00017 (1/d) reported (Andrady, 2011, Brandon et al., 2016)
+      MP_biof_decay: 0.0000  # mean rate of degradation (weight loss) due to biofouling 0.00012 (1/d) (Muthukumar et al., 2011. Table 2)
+      MP_det_decay:  0.0000  # maximum rate of degradation of plastic in detrit (1/d) CHANGE
+# Biofouling and ingestion parameters
+      MP_free_biof:  0.00 #0.5    # maximum rate of biofouling of MP_free (1/d) CHANGE NO
+#      rate_het_filtr: 7 #00001     # NOT THIS: rate of filtration by het ((m3/mmolN/m3)/d) FIND IN SAVCHUK BOOK
+      max_free_het: 1. #1.9 #0.50 #17   # maximum rate of ingestion of MP_free by het
+      thr_free: 0.01       # threshold constant for ingestion of MP_free by het
+      max_biof_het: 0. #0.50 #17   # maximum rate of ingestion of MP_biof by het
+      thr_biof: 0.01    # threshold constant for ingestion of MP_biof by het 
+      Kmp_phy: 10.     # "partitioning" coefficient for MP at Phy
+# Sinking
+      Wfree: -0.0  #-0.0        # MP free sinking rate, (m /d) "-" is needed for using with FVCOM
+      Wbiof: -0.25 # -0.1        # MP biofouled sinking rate, (m/d) "-" is needed for using with FVCOM
+      Whet: -0.4         # HET sinking rate, (m/d)  
+      Wpom: -15.         # POM sinking rate, (m/d)
+# from OxyDep
+      uz: 0.6             # Food absorbance for Zoo (nd)
+      hz: 0.5             # Ratio between diss. and part. excretes of Zoo (nd)

@@ -19,6 +19,7 @@ contains
 
       use fabm_niva_oxydep
       use fabm_niva_brom_bio
+      use fabm_niva_brom_bioplast
       use fabm_niva_brom_carb
       use fabm_niva_brom_eqconst
       use fabm_niva_brom_redox
@@ -34,6 +35,7 @@ contains
       select case (name)
          case ('oxydep');       allocate(type_niva_oxydep::model)
          case ('brom_bio');     allocate(type_niva_brom_bio::model)
+         case ('brom_bioplast');allocate(type_niva_brom_bioplast::model)
          case ('brom_carb');    allocate(type_niva_brom_carb::model)
          case ('brom_eqconst'); allocate(type_niva_brom_eqconst::model)
          case ('brom_redox');   allocate(type_niva_brom_redox::model)
