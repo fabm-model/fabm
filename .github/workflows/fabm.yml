@@ -4,7 +4,7 @@ jobs:
    gfortran:
       strategy:
          matrix:
-            version: [7, 8, 9, 10]
+            version: [7, 8, 9, 10, 11, 12]
             os: [ubuntu-latest]
             include:
                - version: 4.8
