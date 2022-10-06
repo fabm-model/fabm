@@ -30,6 +30,8 @@ module fabm
    use fabm_debug
    use fabm_work
 
+   use yaml_settings, only: type_settings
+
    implicit none
 
    private
@@ -166,6 +168,8 @@ module fabm
       character(len=attribute_length), allocatable, dimension(:) :: dependencies
       character(len=attribute_length), allocatable, dimension(:) :: dependencies_hz
       character(len=attribute_length), allocatable, dimension(:) :: dependencies_scalar
+
+      type (type_settings) :: settings
 
       ! Individual jobs
       type (type_job) :: get_interior_sources_job
@@ -399,7 +403,7 @@ contains
       call fabm_initialize_library()
 
       allocate(model)
-      call fabm_configure_model(model%root, model%schedules, model%log, path, parameters=parameters, unit=unit)
+      call fabm_configure_model(model%root, model%settings, model%schedules, model%log, path, parameters=parameters, unit=unit)
 
       ! Initialize model tree
       initialize_ = .true.

@@ -176,21 +176,18 @@ contains
       class (type_base_model), intent(inout) :: self
 
       type (type_link),           pointer :: link
-      class (type_property),      pointer :: master_name
+      character(len=:), allocatable       :: master_name
       class (type_coupling_task), pointer :: task
 
       link => self%links%first
       do while (associated(link))
          ! Only process own links (those without slash in the name)
          if (index(link%name, '/') == 0) then
-            master_name => self%couplings%find_in_tree(link%name)
-            if (associated(master_name)) then
+            master_name = self%couplings%get_string(trim(link%name), trim(link%name))
+            if (allocated(master_name)) then
                call self%coupling_task_list%add(link, .true., task)
                task%user_specified = .true.
-               select type (master_name)
-               class is (type_string_property)
-                  task%master_name = master_name%value
-               end select
+               task%master_name = master_name
             end if    ! Coupling provided
          end if   ! Our own link, which may be coupled
          link => link%next

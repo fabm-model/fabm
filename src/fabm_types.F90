@@ -17,6 +17,7 @@ module fabm_types
       type_universal_standard_variable => type_universal_standard_variable
    use fabm_properties
    use fabm_driver, only: driver
+   use yaml_settings
 
    implicit none
 
@@ -436,8 +437,8 @@ module fabm_types
       type (type_link_list) :: links
       type (type_aggregate_variable_access), pointer :: first_aggregate_variable_access => null()
 
-      type (type_hierarchical_dictionary) :: couplings
-      type (type_hierarchical_dictionary) :: parameters
+      type (type_settings), pointer :: couplings
+      type (type_settings), pointer :: parameters
 
       class (type_expression), pointer :: first_expression => null()
 
@@ -788,9 +789,6 @@ contains
       end do
       call self%children%finalize()
 
-      call self%couplings%finalize()
-      call self%parameters%finalize()
-
       aggregate_variable_access => self%first_aggregate_variable_access
       do while (associated(aggregate_variable_access))
          next_aggregate_variable_access => aggregate_variable_access%next
@@ -1003,8 +1001,8 @@ contains
          model%long_name = trim(model%name)
       end if
       model%parent => self
-      call self%parameters%add_child(model%parameters, trim(model%name))
-      call self%couplings%add_child(model%couplings, trim(model%name))
+      if (.not. associated(model%parameters)) model%parameters => self%parameters%get_child(trim(model%name))
+      if (.not. associated(model%couplings)) model%couplings => self%couplings%get_child(trim(model%name))
       call self%children%append(model)
       call model%initialize(-1)
       model%rdt__ = 1._rk / model%dt
@@ -2495,64 +2493,9 @@ contains
       character(len=*),        intent(in),   optional :: units, long_name
       real(rk),                intent(in),   optional :: default, scale_factor, minimum, maximum
 
-      class (type_property), pointer :: property
-      logical                        :: success
-      type (type_real_property)      :: current_parameter
-      character(len=13)              :: text1, text2
-
-      if (present(default)) then
-         current_parameter%has_default = .true.
-         current_parameter%default = default
-         value = default
-      end if
-
-      ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-      property => self%parameters%find_in_tree(name)
-      if (associated(property)) then
-         ! Value found - try to convert to real.
-         value = property%to_real(success=success)
-         if (.not. success) call self%fatal_error('get_real_parameter', &
-            'Value "' // trim(property%to_string()) // '" for parameter "' // trim(name) // '" is not a real number.')
-      elseif (.not.present(default)) then
-         call self%fatal_error('get_real_parameter', 'No value provided for parameter "' // trim(name) // '".')
-      end if
-
-      if (present(minimum)) then
-         if (value < minimum) then
-            write (text1,'(G13.6)') value
-            write (text2,'(G13.6)') minimum
-            call self%fatal_error('get_real_parameter', 'Value ' // trim(adjustl(text1)) // ' for parameter "' // trim(name) &
-               // '" is less than prescribed minimum of ' // trim(adjustl(text2)) // '.')
-         end if
-      end if
-      if (present(maximum)) then
-         if (value > maximum) then
-            write (text1,'(G13.6)') value
-            write (text2,'(G13.6)') maximum
-            call self%fatal_error('get_real_parameter','Value ' // trim(adjustl(text1)) // ' for parameter "' // trim(name) &
-               // '" exceeds prescribed maximum of ' // trim(adjustl(text2)) // '.')
-         end if
-      end if
-
-      ! Store parameter settings
-      current_parameter%value = value
-      call set_parameter(self, current_parameter, name, units, long_name)
-
-      ! Apply scale factor to value provided to the model (if requested).
+      value = self%parameters%get_real(name, long_name, units, default, minimum, maximum)
       if (present(scale_factor)) value = value * scale_factor
    end subroutine get_real_parameter
-
-   subroutine set_parameter(self, parameter, name, units, long_name)
-      class (type_base_model), intent(inout), target :: self
-      class (type_property),   intent(inout)         :: parameter
-      character(len=*),        intent(in)            :: name
-      character(len=*),        intent(in), optional  :: units, long_name
-
-      parameter%name = name
-      if (present(units))     parameter%units     = units
-      if (present(long_name)) parameter%long_name = long_name
-      call self%parameters%set_in_tree(parameter)
-   end subroutine set_parameter
 
    subroutine get_integer_parameter(self, value, name, units, long_name, default, minimum, maximum)
       class (type_base_model), intent(inout), target :: self
@@ -2561,48 +2504,7 @@ contains
       character(len=*),        intent(in), optional  :: units, long_name
       integer,                 intent(in), optional  :: default, minimum, maximum
 
-      class (type_property), pointer :: property
-      type (type_integer_property)   :: current_parameter
-      logical                        :: success
-      character(len=8)               :: text1, text2
-
-      if (present(default)) then
-         current_parameter%has_default = .true.
-         current_parameter%default = default
-         value = default
-      end if
-
-      ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-      property => self%parameters%find_in_tree(name)
-      if (associated(property)) then
-         ! Value found - try to convert to integer.
-         value = property%to_integer(success=success)
-         if (.not. success) call self%fatal_error('get_integer_parameter', &
-            'Value "' // trim(property%to_string()) // '" for parameter "' // trim(name) // '" is not an integer number.')
-      elseif (.not.present(default)) then
-         call self%fatal_error('get_integer_parameter', 'No value provided for parameter "' // trim(name) // '".')
-      end if
-
-      if (present(minimum)) then
-         if (value < minimum) then
-            write (text1,'(I0)') value
-            write (text2,'(I0)') minimum
-            call self%fatal_error('get_integer_parameter','Value ' // trim(adjustl(text1)) // ' for parameter "' // trim(name) &
-               // '" is less than prescribed minimum of ' // trim(adjustl(text2)) // '.')
-         end if
-      end if
-      if (present(maximum)) then
-         if (value > maximum) then
-            write (text1,'(I0)') value
-            write (text2,'(I0)') maximum
-            call self%fatal_error('get_integer_parameter','Value ' // trim(adjustl(text1)) // ' for parameter "' // trim(name) &
-               //'" exceeds prescribed maximum of ' // trim(adjustl(text2)) // '.')
-         end if
-      end if
-
-      ! Store parameter settings
-      current_parameter%value = value
-      call set_parameter(self, current_parameter, name, units, long_name)
+      value = self%parameters%get_integer(name, long_name, units, default, minimum, maximum)
    end subroutine get_integer_parameter
 
    subroutine get_logical_parameter(self, value, name, units, long_name, default)
@@ -2612,30 +2514,7 @@ contains
       character(len=*),        intent(in), optional  :: units, long_name
       logical,                 intent(in), optional  :: default
 
-      class (type_property), pointer :: property
-      type (type_logical_property)   :: current_parameter
-      logical                        :: success
-
-      if (present(default)) then
-         current_parameter%has_default = .true.
-         current_parameter%default = default
-         value = default
-      end if
-
-      ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-      property => self%parameters%find_in_tree(name)
-      if (associated(property)) then
-         ! Value found - try to convert to logical.
-         value = property%to_logical(success=success)
-         if (.not. success) call self%fatal_error('get_logical_parameter', &
-            'Value "' // trim(property%to_string()) // '" for parameter "' // trim(name) // '" is not a Boolean value.')
-      elseif (.not. present(default)) then
-         call self%fatal_error('get_logical_parameter', 'No value provided for parameter "' // trim(name) // '".')
-      end if
-
-      ! Store parameter settings
-      current_parameter%value = value
-      call set_parameter(self, current_parameter, name, units, long_name)
+      value = self%parameters%get_logical(name, long_name, default)
    end subroutine get_logical_parameter
 
    recursive subroutine get_string_parameter(self, value, name, units, long_name, default)
@@ -2645,30 +2524,7 @@ contains
       character(len=*),        intent(in), optional  :: units, long_name
       character(len=*),        intent(in), optional  :: default
 
-      class (type_property), pointer :: property
-      type (type_string_property)    :: current_parameter
-      logical                        :: success
-
-      if (present(default)) then
-         current_parameter%has_default = .true.
-         current_parameter%default = default
-         value = default
-      end if
-
-      ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-      property => self%parameters%find_in_tree(name)
-      if (associated(property)) then
-         ! Value found - try to convert to string.
-         value = property%to_string(success=success)
-         if (.not. success) call self%fatal_error('get_string_parameter', &
-            'Value for parameter "' // trim(name) // '" cannot be converted to string.')
-      elseif (.not. present(default)) then
-         call self%fatal_error('get_string_parameter','No value provided for parameter "' // trim(name) // '".')
-      end if
-
-      ! Store parameter settings
-      current_parameter%value = value
-      call set_parameter(self, current_parameter, name, units, long_name)
+      value = self%parameters%get_string(name, long_name, units, default)
    end subroutine get_string_parameter
 
    function find_object(self, name, recursive, exact) result(object)

@@ -97,7 +97,7 @@ contains
       ! Make sure the library is initialized.
       call fabm_initialize_library()
 
-      call fabm_configure_model(model%root, model%schedules, model%log, path, parameters, unit)
+      call fabm_configure_model(model%root, model%settings, model%schedules, model%log, path, parameters, unit)
 
       ! Initialize model tree
       initialize = .true.

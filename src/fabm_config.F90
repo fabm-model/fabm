@@ -7,8 +7,7 @@ module fabm_config
    use fabm_driver
    use fabm_schedule
 
-   use yaml_types
-   use yaml, yaml_parse=>parse, yaml_error_length=>error_length
+   use yaml_settings
 
    implicit none
 
@@ -16,21 +15,27 @@ module fabm_config
 
    public fabm_configure_model
 
+   type, extends(type_dictionary_populator) :: type_instances_populator
+      class (type_base_model), pointer :: root => null()
+      class (type_schedules), pointer :: schedules => null()
+      logical :: check_conservation, require_initialization, require_all_parameters
+   contains
+      procedure :: create => create_instance
+   end type
+
 contains
 
-   subroutine fabm_configure_model(root, schedules, log, path, parameters, unit)
+   subroutine fabm_configure_model(root, settings, schedules, log, path, parameters, unit)
       class (type_base_model),                   intent(inout) :: root
+      type (type_settings),                      intent(out)   :: settings
       class (type_schedules),                    intent(inout) :: schedules
       logical,                                   intent(out)   :: log
       character(len=*),                optional, intent(in)    :: path
       type (type_property_dictionary), optional, intent(in)    :: parameters
       integer,                         optional, intent(in)    :: unit
 
-      class (type_node), pointer       :: node
-      character(len=yaml_error_length) :: yaml_error
       integer                          :: unit_eff
       character(len=256)               :: path_eff
-      type (type_error), pointer       :: config_error
 
       ! Determine the path to use for YAML file.
       if (present(path)) then
@@ -47,115 +52,47 @@ contains
       end if
 
       ! Parse YAML file.
-      node => yaml_parse(trim(path_eff), unit_eff, yaml_error)
-      if (yaml_error /= '') then
-         call fatal_error('fabm_configure_model', trim(yaml_error))
-         return
-      end if
-
-      if (.not. associated(node)) then
-         call fatal_error('fabm_configure_model', 'No configuration information found in ' // trim(path_eff) // '.')
-         return
-      end if
-
-      !call node%dump(output_unit,0)
+      call settings%load(trim(path_eff), unit_eff)
+      ! TODO :check for errors
 
       ! If custom parameter values were provided, transfer these to the root model.
-      if (present(parameters)) call root%parameters%update(parameters)
+      !TODO if (present(parameters)) call root%parameters%update(parameters)
 
-      ! Create model tree from YAML root node.
-      select type (node)
-      class is (type_dictionary)
-         log = node%get_logical('log', default=.false., error=config_error)
-         if (associated(config_error)) call fatal_error('fabm_configure_model', config_error%message)
-         call create_model_tree_from_dictionary(root, node, schedules)
-      class is (type_node)
-         call fatal_error('fabm_configure_model', trim(path_eff) // ' must contain a dictionary &
-            &at the root (non-indented) level, not a single value. Are you missing a trailing colon?')
-      end select
-
-      call node%finalize()
-      deallocate(node)
+      log = settings%get_logical('log', 'write log files for debugging FABM', default=.false.)
+      ! TODO :check for errors
+      call create_model_tree_from_dictionary(root, settings, schedules)
    end subroutine fabm_configure_model
 
-   subroutine create_model_tree_from_dictionary(root, mapping, schedules)
-      class (type_base_model), intent(inout) :: root
-      class (type_dictionary), intent(in)    :: mapping
-      class (type_schedules),  intent(inout) :: schedules
+   subroutine create_model_tree_from_dictionary(root, settings, schedules)
+      class (type_base_model), intent(inout), target :: root
+      class (type_settings),   intent(inout) :: settings
+      class (type_schedules),  intent(inout), target :: schedules
 
-      class (type_node),          pointer :: node
-      type (type_dictionary)              :: empty_dict
-      character(len=64)                   :: instancename
-      type (type_key_value_pair), pointer :: pair
-      logical                             :: check_conservation, require_initialization, require_all_parameters
-      type (type_error),          pointer :: config_error
+      type (type_instances_populator) :: instances_populator
+      class (type_settings), pointer  :: instances
 
-      config_error => null()
-      check_conservation = mapping%get_logical('check_conservation', default=.false., error=config_error)
-      if (associated(config_error)) call fatal_error('create_model_tree_from_dictionary', config_error%message)
-      require_initialization = mapping%get_logical('require_initialization', default=.false., error=config_error)
-      if (associated(config_error)) call fatal_error('create_model_tree_from_dictionary', config_error%message)
-      require_all_parameters = mapping%get_logical('require_all_parameters', default=.false., error=config_error)
-      if (associated(config_error)) call fatal_error('create_model_tree_from_dictionary', config_error%message)
+      instances_populator%root => root
+      instances_populator%schedules => schedules
+      instances_populator%check_conservation = settings%get_logical('check_conservation', 'add diagnostics for the rate of change of conserved quantities', default=.false.)
+      ! TODO :check for errors
+      instances_populator%require_initialization = settings%get_logical('require_initialization', 'require initial values for all state variables', default=.false.)
+      ! TODO :check for errors
+      instances_populator%require_all_parameters = settings%get_logical('require_all_parameters', 'require values for all parameters', default=.false.)
+      ! TODO :check for errors
 
-      node => mapping%get('instances')
-      if (.not. associated(node)) then
-         call fatal_error('create_model_tree_from_dictionary', 'No "instances" dictionary found at root level.')
-         return
-      end if
-      pair => null()
-      select type (node)
-      class is (type_dictionary)
-         pair => node%first
-      class is (type_null)
-      class is (type_node)
-         call fatal_error('create_model_tree_from_dictionary', trim(node%path) // &
-            ' must be a dictionary with (model name : information) pairs, not a single value.')
-         return
-      end select
-
-      if (.not. associated(pair)) &
-         call log_message('WARNING: no model instances specified. FABM is effectively disabled.')
-
-      ! Iterate over all models (key:value pairs below "instances" node at root level) and
-      ! create corresponding objects.
-      do while (associated(pair))
-         instancename = trim(pair%key)
-         select type (dict => pair%value)
-         class is (type_dictionary)
-            call create_model_from_dictionary(instancename, dict, root, &
-                                              require_initialization, require_all_parameters, check_conservation, schedules)
-         class is (type_null)
-            call create_model_from_dictionary(instancename, empty_dict, root, &
-                                              require_initialization, require_all_parameters, check_conservation, schedules)
-         class is (type_node)
-            call fatal_error('create_model_tree_from_dictionary', 'Configuration information for model "' // &
-               trim(instancename) // '" must be a dictionary, not a single value.')
-         end select
-         pair => pair%next
-      end do
-
-      ! Check whether any keys at the root level remain unused.
-      pair => mapping%first
-      do while (associated(pair))
-         if (.not. pair%accessed) call fatal_error('create_model_tree_from_dictionary', 'Unrecognized option "' // &
-            trim(pair%key) // '" found at root level.')
-         pair => pair%next
-      end do
+      instances => settings%get_child('instances', populator=instances_populator)
+      ! TODO :check for errors
    end subroutine create_model_tree_from_dictionary
 
-   subroutine create_model_from_dictionary(instancename, node, parent, &
-                                           require_initialization, require_all_parameters, check_conservation, schedules)
-      character(len=*),        intent(in)            :: instancename
-      class (type_dictionary), intent(in)            :: node
-      class (type_base_model), intent(inout), target :: parent
-      logical,                 intent(in)            :: require_initialization, require_all_parameters, check_conservation
-      class (type_schedules),  intent(inout)         :: schedules
-      class (type_base_model), pointer               :: model
+   recursive subroutine create_instance(self, pair)
+      class (type_instances_populator), intent(inout) :: self
+      type (type_key_value_pair),       intent(inout) :: pair
 
+      class (type_settings), pointer :: instance_settings
       logical                             :: use_model
-      character(len=64)                   :: modelname
-      character(len=256)                  :: long_name
+      character(len=:), allocatable       :: modelname
+      character(len=:), allocatable       :: long_name
+      class (type_settings), pointer :: parameters, schedule
       type (type_dictionary)              :: parametermap
       class (type_dictionary),    pointer :: childmap
       class (type_property),      pointer :: property
@@ -165,80 +102,45 @@ contains
       type (type_error),          pointer :: config_error
       integer                             :: schedule_pattern, source
       character(len=64)                   :: pattern
+      class (type_base_model), pointer :: model
 
-      config_error => null()
+      instance_settings => type_settings_create(pair)
 
-      use_model = node%get_logical('use', default=.true., error=config_error)
-      if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
+      use_model = instance_settings%get_logical('use', 'use this model', default=.true.)
+      ! TODO :check for errors
       if (.not. use_model) then
-         call log_message('SKIPPING model instance ' // trim(instancename) // ' because it has use=false set.')
+         call log_message('SKIPPING model instance ' // pair%name // ' because it has use=false set.')
          return
       end if
 
       ! Retrieve model name (default to instance name if not provided).
-      modelname = trim(node%get_string('model', default=instancename, error=config_error))
-      if (associated(config_error)) then
-         call fatal_error('create_model_from_dictionary', config_error%message)
-         return
-      end if
+      modelname = instance_settings%get_string('model', 'model type', default=pair%name)
+      ! TODO :check for errors
 
       ! Retrieve descriptive name for the model instance (default to instance name if not provided).
-      long_name = trim(node%get_string('long_name', default=instancename, error=config_error))
-      if (associated(config_error)) then
-         call fatal_error('create_model_from_dictionary', config_error%message)
-         return
-      end if
+      long_name = instance_settings%get_string('long_name', 'descriptive name for model instance', default=pair%name)
+      ! TODO :check for errors
 
       ! Try to create the model based on name.
-      call factory%create(trim(modelname), model)
+      call factory%create(modelname, model)
       if (.not. associated(model)) then
          call fatal_error('create_model_from_dictionary', &
-            trim(instancename) // ': "' // trim(modelname) // '" is not a valid model name.')
+            pair%name // ': "' // modelname // '" is not a valid model name.')
          return
       end if
       model%user_created = .true.
 
       ! Transfer user-specified parameter values to the model.
-      childmap => node%get_dictionary('parameters', required=.false., error=config_error)
-      if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
-      if (associated(childmap)) then
-         call childmap%flatten(parametermap, '')
-         pair => parametermap%first
-         do while (associated(pair))
-            select type (value => pair%value)
-            class is (type_scalar)
-               call model%parameters%set_string(trim(pair%key), trim(value%string))
-            class is (type_node)
-               call fatal_error('create_model_from_dictionary', 'BUG: "flatten" should &
-                  &have ensured that the value of ' // trim(value%path) // ' is scalar, not a nested dictionary.')
-            end select
-            pair => pair%next
-         end do
-         call parametermap%finalize()
-      end if
+      model%parameters => instance_settings%get_child('parameters')
+      model%couplings => instance_settings%get_child('coupling')
+      ! TODO :check for errors
 
       ! Add the model to its parent.
       call log_message('Initializing ' // trim(instancename) // '...')
       call log_message('   model type: ' // trim(modelname))
       call parent%add_child(model, instancename, long_name)
 
-      ! Check for parameters requested by the model, but not present in the configuration file.
-      if (require_all_parameters .and. associated(model%parameters%missing%first)) then
-         call fatal_error('create_model_from_dictionary', 'Value for parameter "'// &
-            trim(model%parameters%missing%first%string) // '" of model "' // trim(instancename) // '" is not provided.')
-         return
-      end if
-
-      ! Check for parameters present in configuration file, but not interpreted by the models.
-      property => model%parameters%first
-      do while (associated(property))
-         if (.not. model%parameters%retrieved%contains(property%name)) then
-            call fatal_error('create_model_from_dictionary', &
-               'Unrecognized parameter "' // trim(property%name) // '" found below ' // trim(childmap%path) // '.')
-            return
-         end if
-         property => property%next
-      end do
+      ! TODO Check for parameters requested by the model, but not present in the configuration file.
 
       call log_message('   initialization succeeded.')
 
@@ -263,8 +165,8 @@ contains
       end if
 
       ! Parse scheduling instructions
-      childmap => node%get_dictionary('schedule', required=.false., error=config_error)
-      if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
+      schedule => instance_settings%get_child('schedule')
+      ! TODO: check errors
       if (associated(childmap)) then
          pair => childmap%first
          do while (associated(pair))
@@ -331,17 +233,8 @@ contains
       !end do
       call initialized_set%finalize()
 
-      model%check_conservation = node%get_logical('check_conservation', default=check_conservation, error=config_error)
-      if (associated(config_error)) call fatal_error('create_model_from_dictionary', config_error%message)
-
-      ! Check whether any keys at the model level remain unused.
-      pair => node%first
-      do while (associated(pair))
-         if (.not. pair%accessed) call fatal_error('create_model_from_dictionary', &
-            'Unrecognized option "' // trim(pair%key) // '" found below ' // trim(node%path) // '.')
-         pair => pair%next
-      end do
-
+      model%check_conservation = node%get_logical('check_conservation', default=self%check_conservation)
+      ! TODO: check errors
    end subroutine create_model_from_dictionary
 
    subroutine parse_initialization(model, node, initialized_set, get_background)

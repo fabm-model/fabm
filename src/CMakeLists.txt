@@ -250,6 +250,7 @@ add_library(fabm
             ${CMAKE_CURRENT_LIST_DIR}/fabm_v0_compatibility.F90
            )
 add_dependencies(fabm yaml)
+add_dependencies(fabm_base yaml)
 
 if(FABM_EMBED_VERSION)
   add_dependencies(fabm fabm_version)
