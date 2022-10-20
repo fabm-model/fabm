@@ -145,6 +145,8 @@ def get_lib(name):
     lib.variable_get_integer_property.restype = ctypes.c_int
     lib.variable_get_logical_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
     lib.variable_get_logical_property.restype = ctypes.c_int
+    lib.find_standard_variable.argtypes = [ctypes.c_char_p]
+    lib.find_standard_variable.restype = ctypes.c_void_p
 
     # Read/write/reset access to parameters.
     lib.get_real_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
@@ -193,6 +195,10 @@ def get_lib(name):
     lib.get_interior_diagnostic_data.restype = ctypes.POINTER(lib.dtype)
     lib.get_horizontal_diagnostic_data.argtypes = [ctypes.c_void_p, ctypes.c_int]
     lib.get_horizontal_diagnostic_data.restype = ctypes.POINTER(lib.dtype)
+    lib.require_data.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    lib.require_data.restype = None
+    lib.get_standard_variable_data.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)]
+    lib.get_standard_variable_data.restype = ctypes.POINTER(lib.dtype)
 
     lib.start.argtypes = [ctypes.c_void_p]
     lib.start.restype = None
@@ -326,13 +332,13 @@ class Variable(object):
            name = strname.value.decode('ascii')
            units = strunits.value.decode('ascii')
            long_name = strlong_name.value.decode('ascii')
+           self.properties = VariableProperties(self.model, self.variable_pointer)
 
         self.name = name
         self.units = units
         self.units_unicode = None if units is None else createPrettyUnit(units)
         self.long_name = long_name or name
         self.path = path or name
-        self.properties = VariableProperties(self.model, self.variable_pointer)
 
     @property
     def long_path(self):
@@ -486,6 +492,21 @@ class Parameter(Variable):
 
     value = property(getValue, setValue)
     default = property(getDefault)
+
+
+class StandardVariable():
+    def __init__(self, model, pointer):
+        self.model = model
+        self.pointer = pointer
+
+    @property
+    def value(self):
+        horizontal = ctypes.c_int()
+        pdata = self.model.fabm.get_standard_variable_data(self.model.pmodel, self.pointer, horizontal)
+        if horizontal.value == 0:
+            return numpy.ctypeslib.as_array(pdata, self.model.interior_domain_shape).newbyteorder('=')
+        else:
+            return numpy.ctypeslib.as_array(pdata, self.model.horizontal_domain.shape).newbyteorder('=')
 
 class NamedObjectList(Sequence):
     def __init__(self, *data):
@@ -873,6 +894,14 @@ class Model(object):
 
     def findCoupling(self,name,case_insensitive=False):
         return self.couplings.find(name, case_insensitive)
+
+    def find_standard_variable(self, name):
+        pointer = self.fabm.find_standard_variable(name.encode('ascii'))
+        if pointer:
+            return StandardVariable(self, pointer)
+
+    def require_data(self, standard_variable):
+        return self.fabm.require_data(self.pmodel, standard_variable.pointer)
 
     def getParameterTree(self):
         root = {}

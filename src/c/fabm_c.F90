@@ -10,9 +10,11 @@ module fabm_c
    use fabm, only: type_fabm_model, type_fabm_variable, fabm_get_version, status_start_done, fabm_create_model
    use fabm_types, only: rke, attribute_length, type_model_list_node, type_base_model, &
                          factory, type_link, type_link_list, type_internal_variable, type_variable_list, type_variable_node, &
-                         domain_interior, domain_horizontal, domain_scalar
+                         domain_interior, domain_horizontal, domain_scalar, &
+                         type_interior_standard_variable, type_horizontal_standard_variable
    use fabm_driver, only: type_base_driver, driver
    use fabm_properties, only: type_property, type_property_dictionary
+   use fabm_c_variable, only: type_standard_variable_wrapper
    use fabm_python_helper
    use fabm_c_helper
 
@@ -982,6 +984,48 @@ contains
       pvalue => model%p%get_horizontal_diagnostic_data(index)
       if (associated(pvalue)) ptr = c_loc(pvalue)
    end function get_horizontal_diagnostic_data
+
+   function get_standard_variable_data(pmodel, pstandard_variable, horizontal) result(ptr) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_standard_variable_data
+      type (c_ptr),   intent(in), value :: pmodel, pstandard_variable
+      integer(c_int), intent(out)       :: horizontal
+      type(c_ptr)                       :: ptr
+
+      type (type_model_wrapper),                pointer :: model
+      type (type_standard_variable_wrapper),    pointer :: standard_variable
+      real(rke) _ATTRIBUTES_GLOBAL_,            pointer :: pvalue
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: pvalue_hz
+
+      call c_f_pointer(pmodel, model)
+      call c_f_pointer(pstandard_variable, standard_variable)
+      select type (p => standard_variable%p)
+      class is (type_interior_standard_variable)
+         pvalue => model%p%get_data(model%p%get_interior_variable_id(p))
+         if (associated(pvalue)) ptr = c_loc(pvalue)
+         horizontal = 0
+      class is (type_horizontal_standard_variable)
+         pvalue_hz => model%p%get_data(model%p%get_horizontal_variable_id(p))
+         if (associated(pvalue_hz)) ptr = c_loc(pvalue_hz)
+         horizontal = 1
+      end select
+   end function get_standard_variable_data
+
+   subroutine require_data(pmodel, pstandard_variable) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: require_data
+      type (c_ptr),   intent(in), value :: pmodel, pstandard_variable
+
+      type (type_model_wrapper),             pointer :: model
+      type (type_standard_variable_wrapper), pointer :: standard_variable
+
+      call c_f_pointer(pmodel, model)
+      call c_f_pointer(pstandard_variable, standard_variable)
+      select type (p => standard_variable%p)
+      class is (type_interior_standard_variable)
+         call model%p%require_data(p)
+      class is (type_horizontal_standard_variable)
+         call model%p%require_data(p)
+      end select
+   end subroutine require_data
 
    subroutine finalize(model, keep_forced)
       type (type_model_wrapper), intent(inout) :: model

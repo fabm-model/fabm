@@ -1,12 +1,16 @@
 module fabm_c_variable
 
-   use iso_c_binding, only: c_int, c_char, c_f_pointer, c_loc, c_ptr
+   use iso_c_binding, only: c_int, c_char, c_f_pointer, c_loc, c_ptr, c_null_ptr
 
    use fabm_types
    use fabm_c_helper
    use fabm_properties, only: type_property
 
    implicit none
+
+   type type_standard_variable_wrapper
+      class (type_base_standard_variable), pointer :: p
+   end type
 
 contains
 
@@ -187,5 +191,24 @@ contains
       call c_f_pointer(c_loc(name), pname)
       value = logical2int(variable%properties%get_logical(pname(:index(pname, C_NULL_CHAR) - 1), default=int2logical(default)))
    end function variable_get_logical_property
+
+   function find_standard_variable(name) bind(c) result(pvariable)
+      !DIR$ ATTRIBUTES DLLEXPORT :: find_standard_variable
+      character(kind=c_char), target, intent(in) :: name(*)
+      type (c_ptr) :: pvariable
+
+      character(len=attribute_length), pointer :: pname
+      type (type_standard_variable_wrapper), pointer :: wrapper
+
+      call c_f_pointer(c_loc(name), pname)
+      allocate(wrapper)
+      wrapper%p => standard_variables%find(pname(:index(pname, C_NULL_CHAR) - 1))
+      if (associated(wrapper%p)) then
+         pvariable = c_loc(wrapper)
+      else
+         deallocate(wrapper)
+         pvariable = c_null_ptr
+      end if
+   end function
 
 end module fabm_c_variable
