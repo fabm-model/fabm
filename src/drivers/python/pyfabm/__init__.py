@@ -578,7 +578,8 @@ class Model(object):
             import yaml
             import io
             with tempfile.NamedTemporaryFile(suffix='.yaml', prefix='fabm', delete=False) as f:
-                yaml.safe_dump(path, io.TextIOWrapper(f, encoding='ascii'))
+                with io.TextIOWrapper(f, encoding="ascii") as wrapper:
+                    yaml.safe_dump(path, wrapper)
                 path = f.name
             delete = True
 
