@@ -82,6 +82,7 @@ module fabm_graph
    type type_input_variable
       type (type_internal_variable), pointer :: target  => null()
       type (type_output_variable_set)        :: sources
+      logical                                :: update
    end type
 
    type type_input_variable_set_node
@@ -339,6 +340,7 @@ contains
             stack_node => stack_node%previous
          end do
          call driver%fatal_error('graph::add_call', 'circular dependency found: ' // trim(chain))
+         return
       end if
 
       ! By default we add the call to the current graph (but if necessary we will target an ancestor instead)
@@ -396,7 +398,8 @@ contains
             ! This is the model's own variable (not inherited from child model) and the model itself originally requested read access to it.
             _ASSERT_(.not. associated(link%target%write_owner), 'graph::add_call', 'BUG: required input variable is co-written.')
             input_variable => node%inputs%add(link%target)
-            if (resolve(link%target)) then
+            input_variable%update = resolve(link%target)
+            if (input_variable%update) then
                own_stack_node%requested_variable => link%target
                call target_graph%add_variable(link%target, input_variable%sources, stack_top=own_stack_node, caller=node)
             end if

@@ -1153,7 +1153,7 @@ contains
                final_output_variable => null()
                output_variable => input_variable%p%sources%first
                do while (associated(output_variable))
-                  if (task_is_responsible(task, output_variable%p)) then
+                  if (task_is_responsible(task, output_variable%p) .and. input_variable%p%update) then
                      ! The call that is responsible for computing this input is part of the same task.
                      ! Therefore the output needs to be copied to the read cache.
                      ! But only if it is the last variable in this task contributing to this input.
@@ -1387,13 +1387,16 @@ contains
       call global_call_list%finalize()
    end subroutine check_graph_duplicates
 
-   subroutine job_manager_initialize(self, variable_register, schedules, log_unit)
+   subroutine job_manager_initialize(self, variable_register, schedules, log_unit, finalize_job)
       class (type_job_manager),             intent(inout) :: self
       type (type_global_variable_register), intent(inout) :: variable_register
       type (type_schedules),                intent(inout) :: schedules
       integer,                              intent(in)    :: log_unit
+      type (type_job),                      intent(inout) :: finalize_job
 
-      type (type_job_node), pointer :: node, first_ordered
+      type (type_job_node),                 pointer :: node, first_ordered
+      type (type_node_list_member),         pointer :: graph_node
+      type (type_input_variable_set_node),  pointer :: input_variable
 
       ! Order jobs according to call order.
       ! This ensures that jobs that are scheduled to run earlier are also initialized earlier.
@@ -1424,6 +1427,23 @@ contains
       node => self%first
       do while (associated(node))
          call job_create_tasks(node%p, log_unit)
+         node => node%next
+      end do
+
+      ! Make sure all stale inputs are still calculated somewhere
+      node => self%first
+      do while (associated(node))
+         graph_node => node%p%graph%first
+         do while (associated(graph_node))
+            input_variable => graph_node%p%inputs%first
+            do while (associated(input_variable))
+               if (.not. input_variable%p%update) then
+                  call finalize_job%graph%add_variable(input_variable%p%target, input_variable%p%sources)
+               end if
+               input_variable => input_variable%next
+            end do
+            graph_node => graph_node%next
+         end do
          node => node%next
       end do
 
