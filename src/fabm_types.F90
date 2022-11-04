@@ -61,6 +61,8 @@ module fabm_types
 
    public type_coupling_task
 
+   public type_fabm_settings
+
    ! For backward compatibility (20200302, pre 1.0)
    public type_bulk_standard_variable
 
@@ -171,6 +173,13 @@ module fabm_types
       procedure :: remove     => coupling_task_list_remove
       procedure :: add        => coupling_task_list_add
       procedure :: add_object => coupling_task_list_add_object
+   end type
+
+   type,extends(type_settings) :: type_fabm_settings
+   contains
+      procedure :: create_child    => settings_create_child
+      procedure :: get_typed_child => settings_get_typed_child
+      procedure :: set_string      => settings_set_string
    end type
 
    ! --------------------------------------------------------------------------
@@ -437,8 +446,8 @@ module fabm_types
       type (type_link_list) :: links
       type (type_aggregate_variable_access), pointer :: first_aggregate_variable_access => null()
 
-      type (type_settings), pointer :: couplings
-      type (type_settings), pointer :: parameters
+      type (type_fabm_settings), pointer :: couplings
+      type (type_fabm_settings), pointer :: parameters
 
       class (type_expression), pointer :: first_expression => null()
 
@@ -1001,8 +1010,8 @@ contains
          model%long_name = trim(model%name)
       end if
       model%parent => self
-      if (.not. associated(model%parameters)) model%parameters => self%parameters%get_child(trim(model%name))
-      if (.not. associated(model%couplings)) model%couplings => self%couplings%get_child(trim(model%name))
+      if (.not. associated(model%parameters)) model%parameters => self%parameters%get_typed_child(trim(model%name))
+      if (.not. associated(model%couplings)) model%couplings => self%couplings%get_typed_child(trim(model%name))
       call self%children%append(model)
       call model%initialize(-1)
       model%rdt__ = 1._rk / model%dt
@@ -3024,6 +3033,36 @@ contains
       self%first => null()
       self%count = 0
    end subroutine
+
+   function settings_create_child(self) result(child)
+      class (type_fabm_settings), intent(in) :: self
+      class (type_settings),  pointer        :: child
+      allocate(type_fabm_settings::child)
+   end function settings_create_child
+
+   subroutine settings_set_string(self, key, value)
+      class (type_fabm_settings), intent(inout) :: self
+      character(len=*),           intent(in)    :: key, value
+      character(len=:), allocatable :: final_value
+      final_value = self%get_string(key, key, default=value)
+   end subroutine settings_set_string
+
+   function settings_get_typed_child(self, name, long_name, display) result(child)
+      class (type_fabm_settings), intent(inout) :: self
+      character(len=*),           intent(in)    :: name
+      character(len=*), optional, intent(in)    :: long_name
+      integer,          optional, intent(in)    :: display
+      class (type_fabm_settings),  pointer      :: child
+
+      class (type_settings),  pointer :: generic_child
+
+      child => null()
+      generic_child => self%get_child(name, long_name, display=display)
+      select type (generic_child)
+      class is (type_fabm_settings)
+         child => generic_child
+      end select
+   end function settings_get_typed_child
 
 end module fabm_types
 

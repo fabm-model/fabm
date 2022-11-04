@@ -30,8 +30,6 @@ module fabm
    use fabm_debug
    use fabm_work
 
-   use yaml_settings, only: type_settings
-
    implicit none
 
    private
@@ -169,7 +167,7 @@ module fabm
       character(len=attribute_length), allocatable, dimension(:) :: dependencies_hz
       character(len=attribute_length), allocatable, dimension(:) :: dependencies_scalar
 
-      type (type_settings) :: settings
+      type (type_fabm_settings) :: settings
 
       ! Individual jobs
       type (type_job) :: get_interior_sources_job
@@ -421,9 +419,7 @@ contains
    subroutine initialize(self)
       class (type_fabm_model), target, intent(inout) :: self
 
-      class (type_property), pointer :: property => null()
-      integer                        :: islash
-      integer                        :: ivar
+      integer :: ivar
 
       if (self%status >= status_initialize_done) &
          call fatal_error('initialize', 'initialize has already been called on this model object.')
@@ -439,15 +435,7 @@ contains
       ! This will resolve all FABM dependencies and generate final authoritative lists of variables of different types.
       call freeze_model_info(self%root)
 
-      ! Raise error for unused coupling commands.
-      property => self%root%couplings%first
-      do while (associated(property))
-         if (.not.self%root%couplings%retrieved%contains(trim(property%name))) then
-            islash = index(property%name, '/', .true.)
-            call fatal_error('initialize', 'model ' // property%name(1:islash-1) // ' does not contain variable "' // trim(property%name(islash+1:)) // '" mentioned in coupling section.')
-         end if
-         property => property%next
-      end do
+      if (.not. self%settings%check_all_used()) call fatal_error('initialize', 'invalid configuration')
 
       ! Build final authoritative arrays with variable metadata.
       call classify_variables(self)

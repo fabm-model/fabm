@@ -183,8 +183,8 @@ contains
       do while (associated(link))
          ! Only process own links (those without slash in the name)
          if (index(link%name, '/') == 0) then
-            master_name = self%couplings%get_string(trim(link%name), trim(link%name))
-            if (allocated(master_name)) then
+            master_name = self%couplings%get_string(trim(link%name), trim(link%name), default='')
+            if (master_name /= '') then
                call self%coupling_task_list%add(link, .true., task)
                task%user_specified = .true.
                task%master_name = master_name
