@@ -172,7 +172,7 @@ contains
          if (index(link%name, '/') == 0 .and. link%target%source == source_state &
              .and. allocated(link%target%background_values%pointers)) then
             realvalue = subsettings%get_real(trim(link%name), trim(link%target%long_name), trim(link%target%units), &
-               minimum=link%target%minimum, maximum=link%target%maximum, default=link%target%background_values%pointers(1)%p)
+               default=link%target%background_values%pointers(1)%p)
             call link%target%background_values%set_value(realvalue)
          end if
          link => link%next
