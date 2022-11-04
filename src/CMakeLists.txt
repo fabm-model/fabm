@@ -215,7 +215,6 @@ add_library(fabm_base OBJECT
             ${CMAKE_CURRENT_LIST_DIR}/../include/fabm_private.h
             ${CMAKE_CURRENT_LIST_DIR}/../include/fabm_version.h
             ${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}/fabm_driver.h
-            ${YAML_SOURCES}
            )
 source_group(builtin REGULAR_EXPRESSION /builtin/)
 
@@ -234,6 +233,7 @@ foreach(institute ${ACTIVE_INSTITUTES})
 endforeach(institute)
 
 add_library(fabm
+            ${YAML_SOURCES}
             $<TARGET_OBJECTS:fabm_base>
             ${MODEL_OBJECTS}
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90
