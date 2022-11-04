@@ -120,7 +120,9 @@ module yaml_settings
       procedure :: check_all_used
       generic :: get => get_real2, get_integer2, get_logical2, get_string2
       procedure :: populate => settings_populate
-      procedure :: ignore
+      procedure :: ignore_node
+      procedure :: ignore_child
+      generic :: ignore => ignore_node, ignore_child
       procedure :: finalize
    end type type_settings
 
@@ -319,7 +321,7 @@ contains
       call settings_set_data(self)
    end subroutine load
 
-   function ignore(self, name) result(found)
+   function ignore_child(self, name) result(found)
       class (type_settings), intent(inout) :: self
       character(len=*),      intent(in)    :: name
       logical                              :: found
@@ -348,33 +350,36 @@ contains
          found = associated(node)
          if (found) call touch(node)
       end if
-
-   contains
-
-      recursive subroutine touch(self)
-         class (type_yaml_node), intent(inout) :: self
-
-         type (type_yaml_key_value_pair), pointer :: pair
-         type (type_yaml_list_item),      pointer :: item
-
-         select type (self)
-         class is (type_yaml_dictionary)
-            pair => self%first
-            do while (associated(pair))
-               pair%accessed = .true.
-               call touch(pair%value)
-               pair => pair%next
-            end do
-         class is (type_yaml_list)
-            item => self%first
-            do while (associated(item))
-               call touch(item%node)
-               item => item%next
-            end do
-         end select
-      end subroutine
-
    end function
+
+   logical function ignore_node(self)
+      class (type_settings), intent(inout) :: self
+      call touch(self%backing_store)
+      ignore_node = .true.
+   end function
+
+   recursive subroutine touch(self)
+      class (type_yaml_node), intent(inout) :: self
+
+      type (type_yaml_key_value_pair), pointer :: pair
+      type (type_yaml_list_item),      pointer :: item
+
+      select type (self)
+      class is (type_yaml_dictionary)
+         pair => self%first
+         do while (associated(pair))
+            pair%accessed = .true.
+            call touch(pair%value)
+            pair => pair%next
+         end do
+      class is (type_yaml_list)
+         item => self%first
+         do while (associated(item))
+            call touch(item%node)
+            item => item%next
+         end do
+      end select
+   end subroutine
 
    logical function check_all_used(self)
       class (type_settings), intent(inout) :: self

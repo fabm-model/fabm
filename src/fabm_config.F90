@@ -87,7 +87,7 @@ contains
 
       class (type_settings),      pointer :: subsettings
       class (type_fabm_settings), pointer :: instance_settings
-      logical                             :: use_model
+      logical                             :: use_model, found
       character(len=:), allocatable       :: modelname
       character(len=:), allocatable       :: long_name
       type (type_link),           pointer :: link
@@ -106,6 +106,7 @@ contains
 
       if (.not. use_model) then
          call log_message('SKIPPING model instance ' // pair%name // ' because it has use=false set.')
+         found = instance_settings%ignore()
          return
       end if
 
