@@ -180,8 +180,8 @@ contains
             if (file%indent>firstindent) then
                call file%set_error('unexpected increase in indentation following list item.')
                return
-            elseif (file%eof .or. file%indent<firstindent) then
-               ! End-of-file or decrease in indentation signifies that the list has ended.
+            elseif (file%eof .or. file%indent<firstindent .or. file%line(1:2)/='- ') then
+               ! End-of-file, decrease in indentation, or missing "- " signifies that the list has ended.
                return
             end if
          end do

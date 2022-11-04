@@ -95,6 +95,7 @@ module yaml_types
       procedure :: append   => list_append
       procedure :: dump     => list_dump
       procedure :: set_path => list_set_path
+      procedure :: finalize => list_finalize
    end type
 
    type type_error
@@ -252,12 +253,11 @@ contains
       logical,optional,   intent(out) :: success
       logical                         :: value
 
-      value = default
-      if (present(success)) success = .true.
+      integer :: ios
 
-      read(self%string,*,err=99,end=99) value
-      return
-99    if (present(success)) success = .false.
+      value = default
+      read(self%string,*,iostat=ios) value
+      if (present(success)) success = (ios == 0)
    end function
 
    function scalar_to_integer(self,default,success) result(value)
@@ -266,12 +266,11 @@ contains
       logical,optional,   intent(out) :: success
       integer                         :: value
 
-      value = default
-      if (present(success)) success = .true.
+      integer :: ios
 
-      read(self%string,*,err=99,end=99) value
-      return
-99    if (present(success)) success = .false.
+      value = default
+      read(self%string,*,iostat=ios) value
+      if (present(success)) success = (ios == 0)
    end function
 
    function scalar_to_real(self,default,success) result(value)
@@ -280,12 +279,11 @@ contains
       logical,optional,   intent(out) :: success
       real(real_kind)                 :: value
 
-      value = default
-      if (present(success)) success = .true.
+      integer :: ios
 
-      read(self%string,*,err=99,end=99) value
-      return
-99    if (present(success)) success = .false.
+      value = default
+      read(self%string,*,iostat=ios) value
+      if (present(success)) success = (ios == 0)
    end function
 
    recursive subroutine node_set_path(self,path)
@@ -554,5 +552,21 @@ contains
          item => item%next
       end do
    end subroutine list_set_path
+
+   recursive subroutine list_finalize(self)
+      class (type_list),intent(inout) :: self
+
+      type (type_list_item),pointer :: item, next
+
+      item => self%first
+      do while (associated(item))
+         next => item%next
+         call item%node%finalize()
+         deallocate(item%node)
+         deallocate(item)
+         item => next
+      end do
+      nullify(self%first)
+   end subroutine list_finalize
 
 end module yaml_types
