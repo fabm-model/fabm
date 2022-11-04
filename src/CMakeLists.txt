@@ -272,6 +272,7 @@ target_include_directories(fabm PUBLIC
 )
 
 # Add directories with model-specific *.mod to include directories of main FABM library.
+target_include_directories(fabm_base PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
 target_include_directories(fabm PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
 foreach(institute ${ACTIVE_INSTITUTES})
   target_include_directories(fabm PRIVATE $<TARGET_PROPERTY:fabm_models_${institute},INTERFACE_INCLUDE_DIRECTORIES>)
