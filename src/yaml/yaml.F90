@@ -22,7 +22,7 @@ module yaml
 
    private
 
-   public parse,error_length
+   public parse, error_length
 
    integer,parameter :: line_length  = 2048
    integer,parameter :: error_length = 2048
@@ -33,6 +33,7 @@ module yaml
       integer                 :: indent = 0
       logical                 :: eof    = .false.
       integer                 :: iline  = 0
+      logical                 :: case_sensitive = .true.
       character(error_length) :: error_message = ''
       logical                 :: has_error     = .false.
    contains
@@ -42,10 +43,11 @@ module yaml
 
 contains
 
-   function parse(path,unit,error) result(root)
+   function parse(path, unit, error, case_sensitive) result(root)
       integer,                intent(in)  :: unit
       character(len=*),       intent(in)  :: path
       character(error_length),intent(out) :: error
+      logical, optional,      intent(in)  :: case_sensitive
       class (type_node),pointer           :: root
 
       type (type_file) :: file
@@ -58,6 +60,7 @@ contains
       if (.not.already_open) open(unit=unit,file=path,status='old',action='read',err=90)
       file%unit = unit
       file%eof = .false.
+      if (present(case_sensitive)) file%case_sensitive = case_sensitive
       call file%next_line()
       if (.not.file%has_error) root => read_value(file)
       if (.not.already_open) close(file%unit)
@@ -238,7 +241,11 @@ contains
 
       istop = len_trim(file%line)
 
-      pair%key = file%line(:icolon-1)
+      if (file%case_sensitive) then
+         pair%key = file%line(:icolon-1)
+      else
+         pair%key = string_lower(file%line(:icolon-1))
+      end if
       if (icolon_stop==istop) then
          ! Colon ends the line; we need to read the value from the next line.
          baseindent = file%indent

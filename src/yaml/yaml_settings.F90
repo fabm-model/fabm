@@ -4,7 +4,8 @@ module yaml_settings
 
    use yaml_types, only: yaml_real_kind => real_kind, type_yaml_node => type_node, type_yaml_null => type_null, &
       type_yaml_scalar => type_scalar, type_yaml_dictionary => type_dictionary, type_yaml_list => type_list, &
-      type_yaml_list_item => type_list_item, type_yaml_error => type_error, type_yaml_key_value_pair => type_key_value_pair
+      type_yaml_list_item => type_list_item, type_yaml_error => type_error, type_yaml_key_value_pair => type_key_value_pair, &
+      string_lower
    use yaml, only: yaml_parse => parse, yaml_error_length => error_length
 
    implicit none
@@ -314,7 +315,7 @@ contains
       class (type_yaml_node),pointer   :: root
       character(len=yaml_error_length) :: error
 
-      root => yaml_parse(path, unit, error)
+      root => yaml_parse(path, unit, error, case_sensitive=.false.)
       if (error /= '') call report_error(error)
       if (.not. allocated(self%path)) self%path = ''
       self%backing_store_node => root
@@ -545,7 +546,7 @@ contains
          allocate(type_value::pair%value)
          pair%value%parent => self
          pair%value%path = self%path//'/'//name
-         if (associated(self%backing_store)) pair%value%backing_store_node  => self%backing_store%get(name)
+         if (associated(self%backing_store)) pair%value%backing_store_node  => self%backing_store%get(key)
       end if
 
       pair%name = name
@@ -1238,22 +1239,6 @@ contains
       self%first => null()
       if (allocated(self%path)) deallocate(self%path)
    end subroutine finalize
-
-   function string_lower(string) result (lowerstring)
-       character(len=*),intent(in) :: string
-       character(len=len(string))  :: lowerstring
-
-       integer                     :: i,k
-
-       lowerstring = string
-       do i = 1,len(string)
-           k = iachar(string(i:i))
-           if (k>=iachar('A').and.k<=iachar('Z')) then
-               k = k + iachar('a') - iachar('A')
-               lowerstring(i:i) = achar(k)
-           end if
-       end do
-   end function string_lower
 
    subroutine report_error(message)
       character(len=*), intent(in) :: message

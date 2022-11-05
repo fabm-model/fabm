@@ -22,7 +22,7 @@ module yaml_types
 
    public type_node,type_scalar,type_null,type_error,real_kind
    public type_dictionary,type_key_value_pair
-   public type_list,type_list_item
+   public type_list,type_list_item, string_lower
 
    integer,parameter :: string_length = 1024
    integer,parameter :: real_kind = kind(1.0d0)
@@ -568,5 +568,21 @@ contains
       end do
       nullify(self%first)
    end subroutine list_finalize
+
+   function string_lower(string) result (lowerstring)
+       character(len=*),intent(in) :: string
+       character(len=len(string))  :: lowerstring
+
+       integer :: i,k
+
+       lowerstring = string
+       do i = 1,len(string)
+           k = iachar(string(i:i))
+           if (k>=iachar('A').and.k<=iachar('Z')) then
+               k = k + iachar('a') - iachar('A')
+               lowerstring(i:i) = achar(k)
+           end if
+       end do
+   end function string_lower
 
 end module yaml_types
