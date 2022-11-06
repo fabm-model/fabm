@@ -315,7 +315,7 @@ contains
       class (type_yaml_node),pointer   :: root
       character(len=yaml_error_length) :: error
 
-      root => yaml_parse(path, unit, error, case_sensitive=.false.)
+      root => yaml_parse(path, unit, error)
       if (error /= '') call report_error(error)
       if (.not. allocated(self%path)) self%path = ''
       self%backing_store_node => root
@@ -355,7 +355,7 @@ contains
 
    logical function ignore_node(self)
       class (type_settings), intent(inout) :: self
-      call touch(self%backing_store)
+      if (associated(self%backing_store)) call touch(self%backing_store)
       ignore_node = .true.
    end function
 
@@ -546,7 +546,7 @@ contains
          allocate(type_value::pair%value)
          pair%value%parent => self
          pair%value%path = self%path//'/'//name
-         if (associated(self%backing_store)) pair%value%backing_store_node  => self%backing_store%get(key)
+         if (associated(self%backing_store)) pair%value%backing_store_node  => self%backing_store%get(key, case_sensitive=.false.)
       end if
 
       pair%name = name

@@ -118,17 +118,27 @@ contains
       end do
    end subroutine
 
-   function dictionary_get(self,key) result(value)
+   function dictionary_get(self,key,case_sensitive) result(value)
       class (type_dictionary),intent(in) :: self
       character(len=*),       intent(in) :: key
+      logical, optional,      intent(in) :: case_sensitive
       class(type_node),pointer           :: value
 
+      logical                            :: case_sensitive_
       type (type_key_value_pair),pointer :: pair
+      character(len=len(key))            :: lkey
 
+      case_sensitive_ = .true.
+      if (present(case_sensitive)) case_sensitive_ = case_sensitive
+      if (.not. case_sensitive_) lkey = string_lower(key)
       nullify(value)
       pair => self%first
       do while (associated(pair))
-         if (pair%key==key) exit
+         if (case_sensitive_) then
+            if (pair%key == key) exit
+         else
+            if (string_lower(pair%key) == lkey) exit
+         end if
          pair => pair%next
       end do
       if (associated(pair)) then
