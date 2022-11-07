@@ -231,6 +231,7 @@ foreach(institute ${ACTIVE_INSTITUTES})
   list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:fabm_models_${institute}>)
   set_property(TARGET fabm_models_${institute} PROPERTY FOLDER fabm/models)
 endforeach(institute)
+target_include_directories(fabm_base PUBLIC $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_library(fabm
             ${YAML_SOURCES}
@@ -272,7 +273,6 @@ target_include_directories(fabm PUBLIC
 )
 
 # Add directories with model-specific *.mod to include directories of main FABM library.
-target_include_directories(fabm_base PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
 target_include_directories(fabm PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
 foreach(institute ${ACTIVE_INSTITUTES})
   target_include_directories(fabm PRIVATE $<TARGET_PROPERTY:fabm_models_${institute},INTERFACE_INCLUDE_DIRECTORIES>)
