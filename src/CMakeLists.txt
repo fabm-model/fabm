@@ -217,6 +217,7 @@ add_library(fabm_base OBJECT
             ${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}/fabm_driver.h
            )
 source_group(builtin REGULAR_EXPRESSION /builtin/)
+target_include_directories(fabm_base PUBLIC $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Create a list of institute-specific object libraries.
 foreach(institute ${ACTIVE_INSTITUTES})
@@ -227,11 +228,13 @@ foreach(institute ${ACTIVE_INSTITUTES})
   set(CMAKE_FOLDER fabm/models)
   add_subdirectory(${FABM_${INSTITUTE_UC}_BASE} ${CMAKE_CURRENT_BINARY_DIR}/models/${institute})
   set_property(TARGET fabm_models_${institute} PROPERTY Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
-  target_include_directories(fabm_models_${institute} PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
+  target_include_directories(fabm_models_${institute} PUBLIC
+    "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}"
+    $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>
+  )
   list(APPEND MODEL_OBJECTS $<TARGET_OBJECTS:fabm_models_${institute}>)
   set_property(TARGET fabm_models_${institute} PROPERTY FOLDER fabm/models)
 endforeach(institute)
-target_include_directories(fabm_base PUBLIC $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_library(fabm
             ${YAML_SOURCES}
