@@ -446,8 +446,8 @@ module fabm_types
       type (type_link_list) :: links
       type (type_aggregate_variable_access), pointer :: first_aggregate_variable_access => null()
 
-      class (type_fabm_settings), pointer :: couplings
-      class (type_fabm_settings), pointer :: parameters
+      class (type_fabm_settings), pointer :: couplings  => null()
+      class (type_fabm_settings), pointer :: parameters => null()
 
       class (type_expression), pointer :: first_expression => null()
 

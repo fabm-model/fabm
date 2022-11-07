@@ -1089,7 +1089,9 @@ contains
       self%value => value
    end subroutine
 
-   function type_settings_create(node, long_name, populator, display) result(child)
+   recursive function type_settings_create(node, long_name, populator, display) result(child)
+      ! this function is recursive because the populator called via settings_set_data
+      ! can do anything, including call type_settings_create
       class (type_settings_node),        optional, intent(inout) :: node
       character(len=*),                  optional, intent(in)    :: long_name
       class (type_dictionary_populator), optional, intent(inout) :: populator
