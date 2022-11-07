@@ -2497,12 +2497,12 @@ contains
 
    subroutine get_real_parameter(self, value, name, units, long_name, default, scale_factor, minimum, maximum)
       class (type_base_model), intent(inout), target  :: self
-      real(rk),                intent(inout)          :: value
+      real(rk),                intent(inout), target  :: value
       character(len=*),        intent(in)             :: name
       character(len=*),        intent(in),   optional :: units, long_name
       real(rk),                intent(in),   optional :: default, scale_factor, minimum, maximum
 
-      value = self%parameters%get_real(name, long_name, units, default, minimum, maximum)
+      call self%parameters%get(value, name, long_name, units, default, minimum, maximum)
       if (present(scale_factor)) value = value * scale_factor
    end subroutine get_real_parameter
 
