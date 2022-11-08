@@ -19,7 +19,7 @@ jobs:
          fail-fast: false
       runs-on: ${{ matrix.os }}
       env:
-          FFLAGS: -fcheck=all
+        FFLAGS: -fcheck=all
       steps:
       - name: Install dependencies
         run: sudo apt-get install gfortran-${{ matrix.version }} python3-numpy python3-setuptools python3-wheel
@@ -50,6 +50,8 @@ jobs:
            python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifort
    nvfortran:
       runs-on: ubuntu-latest
+      env:
+        FFLAGS: -Mbounds -Mchkptr
       steps:
       - name: Install compiler
         run: |
