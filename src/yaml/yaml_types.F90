@@ -31,8 +31,9 @@ module yaml_types
       character(len=string_length) :: path = ''
    contains
       procedure (node_dump),deferred :: dump
-      procedure                      :: set_path => node_set_path
-      procedure                      :: finalize => node_finalize
+      procedure                      :: set_path     => node_set_path
+      procedure                      :: set_accessed => node_set_accessed
+      procedure                      :: finalize     => node_finalize
    end type
 
    abstract interface
@@ -81,6 +82,7 @@ module yaml_types
       procedure :: flatten        => dictionary_flatten
       procedure :: reset_accessed => dictionary_reset_accessed
       procedure :: set_path       => dictionary_set_path
+      procedure :: set_accessed   => dictionary_set_accessed
       procedure :: finalize       => dictionary_finalize
    end type
 
@@ -92,10 +94,11 @@ module yaml_types
    type,extends(type_node) :: type_list
       type (type_list_item),pointer :: first => null()
    contains
-      procedure :: append   => list_append
-      procedure :: dump     => list_dump
-      procedure :: set_path => list_set_path
-      procedure :: finalize => list_finalize
+      procedure :: append       => list_append
+      procedure :: dump         => list_dump
+      procedure :: set_path     => list_set_path
+      procedure :: set_accessed => list_set_accessed
+      procedure :: finalize     => list_finalize
    end type
 
    type type_error
@@ -109,16 +112,11 @@ contains
    end subroutine
 
    subroutine dictionary_reset_accessed(self)
-      class (type_dictionary),intent(in) :: self
-      type (type_key_value_pair),pointer :: pair
-      pair => self%first
-      do while (associated(pair))
-         pair%accessed = .false.
-         pair => pair%next
-      end do
+      class (type_dictionary), intent(inout) :: self
+      call self%set_accessed(.false., .false.)
    end subroutine
 
-   function dictionary_get(self,key,case_sensitive) result(value)
+   function dictionary_get(self, key, case_sensitive) result(value)
       class (type_dictionary),intent(in) :: self
       character(len=*),       intent(in) :: key
       logical, optional,      intent(in) :: case_sensitive
@@ -594,5 +592,42 @@ contains
            end if
        end do
    end function string_lower
+
+   recursive subroutine node_set_accessed(self, value, recursive)
+      class (type_node), intent(inout) :: self
+      logical,           intent(in)    :: value
+      logical,           intent(in)    :: recursive
+   end subroutine node_set_accessed
+
+   recursive subroutine dictionary_set_accessed(self, value, recursive)
+      class (type_dictionary), intent(inout) :: self
+      logical,                 intent(in)    :: value
+      logical,                 intent(in)    :: recursive
+
+      type (type_key_value_pair), pointer :: pair
+
+      pair => self%first
+      do while (associated(pair))
+         pair%accessed = value
+         if (recursive) call pair%value%set_accessed(value, recursive)
+         pair => pair%next
+      end do
+   end subroutine dictionary_set_accessed
+
+   recursive subroutine list_set_accessed(self, value, recursive)
+      class (type_list), intent(inout) :: self
+      logical,           intent(in)    :: value
+      logical,           intent(in)    :: recursive
+
+      type (type_list_item), pointer :: item
+
+      if (.not. recursive) return
+
+      item => self%first
+      do while (associated(item))
+         call item%node%set_accessed(value, recursive)
+         item => item%next
+      end do
+   end subroutine list_set_accessed
 
 end module yaml_types

@@ -65,9 +65,6 @@ contains
       call settings%get(log, 'log', 'write log files for debugging FABM', default=.false.)
       ! TODO :check for errors
 
-      allocate(root%parameters)
-      allocate(root%couplings)
-
       instances_populator%root => root
       instances_populator%schedules => schedules
       instances_populator%check_conservation = settings%get_logical('check_conservation', 'add diagnostics for the rate of change of conserved quantities', default=.false.)
@@ -131,8 +128,8 @@ contains
       ! TODO: check errors
 
       ! Transfer user-specified parameter values to the model.
-      model%parameters => instance_settings%get_typed_child('parameters')
-      model%couplings => instance_settings%get_typed_child('coupling')
+      call instance_settings%attach_child(model%parameters, 'parameters')
+      call instance_settings%attach_child(model%couplings, 'coupling')
       ! TODO :check for errors
 
       ! Add the model to its parent.

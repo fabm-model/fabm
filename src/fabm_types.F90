@@ -178,8 +178,11 @@ module fabm_types
    type,extends(type_settings) :: type_fabm_settings
    contains
       procedure :: create_child    => settings_create_child
-      procedure :: get_typed_child => settings_get_typed_child
+      procedure :: set_real        => settings_set_real
+      procedure :: set_integer     => settings_set_integer
+      procedure :: set_logical     => settings_set_logical
       procedure :: set_string      => settings_set_string
+      generic :: set => set_real, set_integer, set_logical, set_string
    end type
 
    ! --------------------------------------------------------------------------
@@ -446,8 +449,8 @@ module fabm_types
       type (type_link_list) :: links
       type (type_aggregate_variable_access), pointer :: first_aggregate_variable_access => null()
 
-      class (type_fabm_settings), pointer :: couplings  => null()
-      class (type_fabm_settings), pointer :: parameters => null()
+      type (type_fabm_settings) :: couplings
+      type (type_fabm_settings) :: parameters
 
       class (type_expression), pointer :: first_expression => null()
 
@@ -1010,8 +1013,8 @@ contains
          model%long_name = trim(model%name)
       end if
       model%parent => self
-      if (.not. associated(model%parameters)) model%parameters => self%parameters%get_typed_child(trim(model%name))
-      if (.not. associated(model%couplings)) model%couplings => self%couplings%get_typed_child(trim(model%name))
+      call self%parameters%attach_child(model%parameters, trim(model%name))
+      call self%couplings%attach_child(model%couplings, trim(model%name))
       call self%children%append(model)
       call model%initialize(-1)
       model%rdt__ = 1._rk / model%dt
@@ -3040,29 +3043,45 @@ contains
       allocate(type_fabm_settings::child)
    end function settings_create_child
 
+   subroutine settings_set_real(self, key, value)
+      class (type_fabm_settings), intent(inout) :: self
+      character(len=*),           intent(in)    :: key
+      real(rk),                   intent(in)    :: value
+
+      real(rk) :: final_value
+
+      final_value = self%get_real(key, key, '', default=value)
+   end subroutine settings_set_real
+
+   subroutine settings_set_integer(self, key, value)
+      class (type_fabm_settings), intent(inout) :: self
+      character(len=*),           intent(in)    :: key
+      integer,                    intent(in)    :: value
+
+      integer :: final_value
+
+      final_value = self%get_integer(key, key, default=value)
+   end subroutine settings_set_integer
+
+   subroutine settings_set_logical(self, key, value)
+      class (type_fabm_settings), intent(inout) :: self
+      character(len=*),           intent(in)    :: key
+      logical,                    intent(in)    :: value
+
+      logical :: final_value
+
+      final_value = self%get_logical(key, key, default=value)
+   end subroutine settings_set_logical
+
    subroutine settings_set_string(self, key, value)
       class (type_fabm_settings), intent(inout) :: self
-      character(len=*),           intent(in)    :: key, value
+      character(len=*),           intent(in)    :: key
+      character(len=*),           intent(in)    :: value
+
       character(len=:), allocatable :: final_value
+
       final_value = self%get_string(key, key, default=value)
    end subroutine settings_set_string
-
-   function settings_get_typed_child(self, name, long_name, display) result(child)
-      class (type_fabm_settings), intent(inout) :: self
-      character(len=*),           intent(in)    :: name
-      character(len=*), optional, intent(in)    :: long_name
-      integer,          optional, intent(in)    :: display
-      class (type_fabm_settings),  pointer      :: child
-
-      class (type_settings),  pointer :: generic_child
-
-      child => null()
-      generic_child => self%get_child(name, long_name, display=display)
-      select type (generic_child)
-      class is (type_fabm_settings)
-         child => generic_child
-      end select
-   end function settings_get_typed_child
 
 end module fabm_types
 

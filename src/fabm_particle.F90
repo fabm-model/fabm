@@ -443,7 +443,7 @@ contains
 
    end subroutine build_state_id_list
 
-   subroutine finalize(self)
+   recursive subroutine finalize(self)
       class (type_particle_model),  intent(inout) :: self
 
       type (type_model_reference), pointer :: reference, next_reference
