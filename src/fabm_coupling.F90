@@ -1,6 +1,5 @@
 module fabm_coupling
    use fabm_types
-   use fabm_properties
    use fabm_builtin_models
    use fabm_driver
 

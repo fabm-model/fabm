@@ -28,7 +28,6 @@
 module fabm_particle
 
    use fabm_types
-   use fabm_properties
 
    implicit none
 

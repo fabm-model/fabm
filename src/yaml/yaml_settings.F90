@@ -12,10 +12,11 @@ module yaml_settings
 
    private
 
-   public type_settings, type_option, option, report_error, type_settings_create, type_header
+   public type_settings, type_option, option, report_error, type_settings_create, type_header, type_scalar_value
    public type_dictionary_populator, type_list_populator, type_settings_node, type_key_value_pair, type_list_item
    public type_real_setting, type_logical_setting, type_integer_setting, type_string_setting
    public type_real_setting_create, type_logical_setting_create, type_integer_setting_create, type_string_setting_create
+   public format_real, format_integer
 
    integer, parameter :: rk = yaml_real_kind
 

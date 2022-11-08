@@ -12,7 +12,7 @@ module fabm_properties
 
    private
 
-   public type_property, type_property_dictionary, type_set, type_hierarchical_dictionary
+   public type_property, type_property_dictionary, type_set !, type_hierarchical_dictionary
    public type_integer_property, type_real_property, type_logical_property, type_string_property
 
    integer, parameter :: metadata_string_length = 256
@@ -102,18 +102,18 @@ module fabm_properties
       procedure :: to_array => set_to_array
       procedure :: finalize => set_finalize
    end type
-
-   type, extends(type_property_dictionary) :: type_hierarchical_dictionary
-      type (type_set)                               :: retrieved
-      type (type_set)                               :: missing
-      character(len=metadata_string_length)         :: name = ''
-      class (type_hierarchical_dictionary), pointer :: parent => null()
-   contains
-      procedure :: find_in_tree => hierarchical_dictionary_find_in_tree
-      procedure :: set_in_tree  => hierarchical_dictionary_set_in_tree
-      procedure :: add_child    => hierarchical_dictionary_add_child
-      procedure :: finalize     => hierarchical_dictionary_finalize
-   end type
+   !
+   !type, extends(type_property_dictionary) :: type_hierarchical_dictionary
+   !   type (type_set)                               :: retrieved
+   !   type (type_set)                               :: missing
+   !   character(len=metadata_string_length)         :: name = ''
+   !   class (type_hierarchical_dictionary), pointer :: parent => null()
+   !contains
+   !   procedure :: find_in_tree => hierarchical_dictionary_find_in_tree
+   !   procedure :: set_in_tree  => hierarchical_dictionary_set_in_tree
+   !   procedure :: add_child    => hierarchical_dictionary_add_child
+   !   procedure :: finalize     => hierarchical_dictionary_finalize
+   !end type
 
 contains
 
@@ -628,73 +628,73 @@ contains
       end do
       self%first => null()
    end subroutine
-
-   function hierarchical_dictionary_find_in_tree(self, name) result(property)
-      class (type_hierarchical_dictionary), intent(inout), target :: self
-      character(len=*),                     intent(in)            :: name
-      class (type_property), pointer                              :: property
-
-      class (type_hierarchical_dictionary), pointer :: current_dictionary
-      class (type_property),                pointer :: current_property
-      character(len=metadata_string_length)         :: localname
-
-      property => null()
-      current_dictionary => self
-      localname = name
-      do while (associated(current_dictionary))
-         ! Register that the value of this parameter was requested (i.e., used) by a biogeochemical model.
-         call current_dictionary%retrieved%add(localname)
-
-         current_property => current_dictionary%get_property(localname)
-         if (associated(current_property)) property => current_property
-         localname = trim(current_dictionary%name) // '/' // localname
-         current_dictionary => current_dictionary%parent
-      end do
-      if (associated(property)) return
-
-      ! Value not found. Register at all levels of the hierarchy that this parameter is missing.
-      current_dictionary => self
-      localname = name
-      do while (associated(current_dictionary))
-         call current_dictionary%missing%add(localname)
-         localname = trim(current_dictionary%name) // '/' // localname
-         current_dictionary => current_dictionary%parent
-      end do
-   end function hierarchical_dictionary_find_in_tree
-
-   subroutine hierarchical_dictionary_set_in_tree(self, parameter)
-      class (type_hierarchical_dictionary), intent(inout), target :: self
-      class (type_property),                intent(inout)         :: parameter
-
-      class (type_hierarchical_dictionary), pointer :: current_dictionary
-      character(len=metadata_string_length)         :: oldname
-
-      current_dictionary => self
-      oldname = parameter%name
-      do while (associated(current_dictionary))
-         ! Store metadata
-         call current_dictionary%set_property(parameter)
-         parameter%name = trim(current_dictionary%name) // '/' // parameter%name
-         current_dictionary => current_dictionary%parent
-      end do
-      parameter%name = oldname
-   end subroutine hierarchical_dictionary_set_in_tree
-
-   subroutine hierarchical_dictionary_add_child(self, child, name)
-      class (type_hierarchical_dictionary), intent(in), target :: self
-      class (type_hierarchical_dictionary), intent(inout)      :: child
-      character(len=*),                     intent(in)         :: name
-
-      child%parent => self
-      child%name = name
-   end subroutine hierarchical_dictionary_add_child
-
-   subroutine hierarchical_dictionary_finalize(self)
-      class (type_hierarchical_dictionary), intent(inout) :: self
-
-      call self%retrieved%finalize()
-      call self%missing%finalize()
-      call self%type_property_dictionary%finalize()
-   end subroutine hierarchical_dictionary_finalize
+   !
+   !function hierarchical_dictionary_find_in_tree(self, name) result(property)
+   !   class (type_hierarchical_dictionary), intent(inout), target :: self
+   !   character(len=*),                     intent(in)            :: name
+   !   class (type_property), pointer                              :: property
+   !
+   !   class (type_hierarchical_dictionary), pointer :: current_dictionary
+   !   class (type_property),                pointer :: current_property
+   !   character(len=metadata_string_length)         :: localname
+   !
+   !   property => null()
+   !   current_dictionary => self
+   !   localname = name
+   !   do while (associated(current_dictionary))
+   !      ! Register that the value of this parameter was requested (i.e., used) by a biogeochemical model.
+   !      call current_dictionary%retrieved%add(localname)
+   !
+   !      current_property => current_dictionary%get_property(localname)
+   !      if (associated(current_property)) property => current_property
+   !      localname = trim(current_dictionary%name) // '/' // localname
+   !      current_dictionary => current_dictionary%parent
+   !   end do
+   !   if (associated(property)) return
+   !
+   !   ! Value not found. Register at all levels of the hierarchy that this parameter is missing.
+   !   current_dictionary => self
+   !   localname = name
+   !   do while (associated(current_dictionary))
+   !      call current_dictionary%missing%add(localname)
+   !      localname = trim(current_dictionary%name) // '/' // localname
+   !      current_dictionary => current_dictionary%parent
+   !   end do
+   !end function hierarchical_dictionary_find_in_tree
+   !
+   !subroutine hierarchical_dictionary_set_in_tree(self, parameter)
+   !   class (type_hierarchical_dictionary), intent(inout), target :: self
+   !   class (type_property),                intent(inout)         :: parameter
+   !
+   !   class (type_hierarchical_dictionary), pointer :: current_dictionary
+   !   character(len=metadata_string_length)         :: oldname
+   !
+   !   current_dictionary => self
+   !   oldname = parameter%name
+   !   do while (associated(current_dictionary))
+   !      ! Store metadata
+   !      call current_dictionary%set_property(parameter)
+   !      parameter%name = trim(current_dictionary%name) // '/' // parameter%name
+   !      current_dictionary => current_dictionary%parent
+   !   end do
+   !   parameter%name = oldname
+   !end subroutine hierarchical_dictionary_set_in_tree
+   !
+   !subroutine hierarchical_dictionary_add_child(self, child, name)
+   !   class (type_hierarchical_dictionary), intent(in), target :: self
+   !   class (type_hierarchical_dictionary), intent(inout)      :: child
+   !   character(len=*),                     intent(in)         :: name
+   !
+   !   child%parent => self
+   !   child%name = name
+   !end subroutine hierarchical_dictionary_add_child
+   !
+   !subroutine hierarchical_dictionary_finalize(self)
+   !   class (type_hierarchical_dictionary), intent(inout) :: self
+   !
+   !   call self%retrieved%finalize()
+   !   call self%missing%finalize()
+   !   call self%type_property_dictionary%finalize()
+   !end subroutine hierarchical_dictionary_finalize
 
 end module fabm_properties
