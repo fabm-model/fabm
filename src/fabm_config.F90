@@ -13,7 +13,7 @@ module fabm_config
 
    private
 
-   public fabm_configure_model
+   public fabm_configure_model, fabm_load_settings
 
    type, extends(type_dictionary_populator) :: type_instances_populator
       class (type_base_model), pointer :: root      => null()
@@ -27,19 +27,13 @@ module fabm_config
 
 contains
 
-   subroutine fabm_configure_model(root, settings, schedules, log, path, parameters, unit)
-      class (type_base_model), target,           intent(inout) :: root
-      type (type_fabm_settings),                 intent(out)   :: settings
-      class (type_schedules), target,            intent(inout) :: schedules
-      logical, target,                           intent(inout) :: log
-      character(len=*),                optional, intent(in)    :: path
-      type (type_property_dictionary), optional, intent(in)    :: parameters
-      integer,                         optional, intent(in)    :: unit
+   subroutine fabm_load_settings(settings, path, unit)
+      class (type_fabm_settings), intent(inout) :: settings
+      character(len=*), optional, intent(in)    :: path
+      integer,          optional, intent(in)    :: unit
 
       integer            :: unit_eff
       character(len=256) :: path_eff
-      type (type_instances_populator) :: instances_populator
-      class (type_settings), pointer  :: instances
 
       ! Determine the path to use for YAML file.
       if (present(path)) then
@@ -58,9 +52,16 @@ contains
       ! Parse YAML file.
       call settings%load(trim(path_eff), unit_eff)
       ! TODO :check for errors
+   end subroutine fabm_load_settings
 
-      ! If custom parameter values were provided, transfer these to the root model.
-      !TODO if (present(parameters)) call root%parameters%update(parameters)
+   subroutine fabm_configure_model(root, settings, schedules, log)
+      class (type_base_model), target,           intent(inout) :: root
+      class (type_fabm_settings),                intent(inout) :: settings
+      class (type_schedules), target,            intent(inout) :: schedules
+      logical, target,                           intent(inout) :: log
+
+      type (type_instances_populator) :: instances_populator
+      class (type_settings), pointer  :: instances
 
       call settings%get(log, 'log', 'write log files for debugging FABM', default=.false.)
       ! TODO :check for errors
@@ -84,7 +85,7 @@ contains
 
       class (type_settings),      pointer :: subsettings
       class (type_fabm_settings), pointer :: instance_settings
-      logical                             :: use_model, found
+      logical                             :: use_model, ignored
       character(len=:), allocatable       :: modelname
       character(len=:), allocatable       :: long_name
       type (type_link),           pointer :: link
@@ -103,7 +104,7 @@ contains
 
       if (.not. use_model) then
          call log_message('SKIPPING model instance ' // pair%name // ' because it has use=false set.')
-         found = instance_settings%ignore()
+         ignored = instance_settings%ignore()
          return
       end if
 

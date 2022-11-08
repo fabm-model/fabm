@@ -168,6 +168,7 @@ module fabm
       character(len=attribute_length), allocatable, dimension(:) :: dependencies_scalar
 
       type (type_fabm_settings) :: settings
+      logical :: own_settings_store = .true.
 
       ! Individual jobs
       type (type_job) :: get_interior_sources_job
@@ -387,13 +388,13 @@ contains
    ! --------------------------------------------------------------------------
    ! fabm_create_model: create a model from a yaml-based configuration file
    ! --------------------------------------------------------------------------
-   function fabm_create_model(path, initialize, parameters, unit) result(model)
-      use fabm_config, only: fabm_configure_model
-      character(len=*),                optional, intent(in) :: path
-      logical,                         optional, intent(in) :: initialize
-      type (type_property_dictionary), optional, intent(in) :: parameters
-      integer,                         optional, intent(in) :: unit
-      class (type_fabm_model), pointer                      :: model
+   function fabm_create_model(path, initialize, settings, unit) result(model)
+      use fabm_config, only: fabm_configure_model, fabm_load_settings
+      character(len=*),                  optional, intent(in)    :: path
+      logical,                           optional, intent(in)    :: initialize
+      type (type_fabm_settings), target, optional, intent(inout) :: settings
+      integer,                           optional, intent(in)    :: unit
+      class (type_fabm_model), pointer                           :: model
 
       logical :: initialize_
 
@@ -401,7 +402,13 @@ contains
       call fabm_initialize_library()
 
       allocate(model)
-      call fabm_configure_model(model%root, model%settings, model%schedules, model%log, path, parameters=parameters, unit=unit)
+      if (present(settings)) then
+         call model%settings%take_values(settings)
+         model%own_settings_store = .false.
+      else
+         call fabm_load_settings(model%settings, path, unit=unit)
+      end if
+      call fabm_configure_model(model%root, model%settings, model%schedules, model%log)
 
       ! Initialize model tree
       initialize_ = .true.
@@ -435,7 +442,8 @@ contains
       ! This will resolve all FABM dependencies and generate final authoritative lists of variables of different types.
       call freeze_model_info(self%root)
 
-      if (.not. self%settings%check_all_used()) call fatal_error('initialize', 'invalid configuration')
+      if (.not. self%settings%check_all_used(finalize_store=self%own_settings_store)) &
+         call fatal_error('initialize', 'invalid configuration')
 
       ! Build final authoritative arrays with variable metadata.
       call classify_variables(self)

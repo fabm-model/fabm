@@ -4,7 +4,7 @@
 module fabm_v0_compatibility
 
    use fabm, type_bulk_variable_id => type_fabm_interior_variable_id, type_horizontal_variable_id => type_fabm_horizontal_variable_id, type_scalar_variable_id => type_fabm_scalar_variable_id, type_external_variable => type_fabm_variable, type_horizontal_state_variable_info => type_fabm_horizontal_state_variable
-   use fabm_config, only: fabm_configure_model
+   use fabm_config, only: fabm_configure_model, fabm_load_settings
    use fabm_properties, only: type_property_dictionary
    use fabm_types, only: rke, attribute_length, source_get_light_extinction, source_get_albedo, source_get_drag, type_base_model, type_model_list_node, type_bulk_standard_variable, type_interior_standard_variable, standard_variables
    use fabm_debug
@@ -97,7 +97,8 @@ contains
       ! Make sure the library is initialized.
       call fabm_initialize_library()
 
-      call fabm_configure_model(model%root, model%settings, model%schedules, model%log, path, parameters, unit)
+      call fabm_load_settings(model%settings, path, unit=unit)
+      call fabm_configure_model(model%root, model%settings, model%schedules, model%log)
 
       ! Initialize model tree
       initialize = .true.

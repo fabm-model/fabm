@@ -108,6 +108,7 @@ module yaml_settings
       procedure :: is_visible => settings_is_visible
       procedure :: get_yaml_style => settings_get_yaml_style
       procedure :: load
+      procedure :: take_values
       procedure :: save
       procedure :: write_schema_file
       procedure :: get_real2
@@ -325,6 +326,15 @@ contains
       call settings_set_data(self)
    end subroutine load
 
+   subroutine take_values(self, other)
+      class (type_settings), intent(inout) :: self
+      class (type_settings), intent(inout) :: other
+
+      if (.not. allocated(self%path)) self%path = ''
+      self%backing_store_node => other%backing_store_node
+      call settings_set_data(self)
+   end subroutine take_values
+
    function ignore_child(self, name) result(found)
       class (type_settings), intent(inout) :: self
       character(len=*),      intent(in)    :: name
@@ -351,8 +361,10 @@ contains
       end do
       if (associated(parent)) then
          node => parent%get(name(istart_:))
-         found = associated(node)
-         if (found) call node%set_accessed(.true., .true.)
+         if (associated(node)) then
+            found = .true.
+            call node%set_accessed(.true., .true.)
+         end if
       end if
    end function
 
@@ -363,18 +375,24 @@ contains
       ignore_node = .true.
    end function
 
-   logical function check_all_used(self)
+   logical function check_all_used(self, finalize_store)
       class (type_settings), intent(inout) :: self
+      logical, optional,     intent(in)    :: finalize_store
 
+      logical :: finalize_store_
       integer :: n
 
+      finalize_store_ = .true.
+      if (present(finalize_store)) finalize_store_ = finalize_store
       n = 0
       if (associated(self%backing_store_node)) then
          if (self%backing_store_node%path /= '') &
             call report_error('BUG: check_all_used can only be called on settings initialized by load')
          call node_check(self%backing_store_node, n)
-         call self%backing_store_node%finalize()
-         deallocate(self%backing_store_node)
+         if (finalize_store_) then
+            call self%backing_store_node%finalize()
+            deallocate(self%backing_store_node)
+         end if
       end if
       check_all_used = n == 0
 
