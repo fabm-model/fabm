@@ -18,6 +18,8 @@ jobs:
                  cmake_args: -DFABM_USE_CONTIGUOUS=OFF
          fail-fast: false
       runs-on: ${{ matrix.os }}
+      env:
+          FFLAGS: -fcheck=all
       steps:
       - name: Install dependencies
         run: sudo apt-get install gfortran-${{ matrix.version }} python3-numpy python3-setuptools python3-wheel
