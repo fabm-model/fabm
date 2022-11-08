@@ -1013,8 +1013,8 @@ contains
          model%long_name = trim(model%name)
       end if
       model%parent => self
-      call self%parameters%attach_child(model%parameters, trim(model%name))
-      call self%couplings%attach_child(model%couplings, trim(model%name))
+      if (.not. associated(model%parameters%parent)) call self%parameters%attach_child(model%parameters, trim(model%name))
+      if (.not. associated(model%couplings%parent)) call self%couplings%attach_child(model%couplings, trim(model%name))
       call self%children%append(model)
       call model%initialize(-1)
       model%rdt__ = 1._rk / model%dt
