@@ -2505,8 +2505,7 @@ contains
       character(len=*),        intent(in),   optional :: units, long_name
       real(rk),                intent(in),   optional :: default, scale_factor, minimum, maximum
 
-      call self%parameters%get(value, name, long_name, units, default, minimum, maximum)
-      if (present(scale_factor)) value = value * scale_factor
+      call self%parameters%get(value, name, long_name, units, default, minimum, maximum, scale_factor)
    end subroutine get_real_parameter
 
    subroutine get_integer_parameter(self, value, name, units, long_name, default, minimum, maximum)

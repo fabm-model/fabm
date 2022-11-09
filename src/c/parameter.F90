@@ -106,7 +106,7 @@ contains
          if (int2logical(default)) then
             value = scalar_value%default
          else
-            value = scalar_value%pvalue
+            value = scalar_value%pvalue / scalar_value%scale_factor
          end if
       class default
          call driver%fatal_error('get_real_parameter', 'not a real variable')

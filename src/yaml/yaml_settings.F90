@@ -195,6 +195,7 @@ module yaml_settings
       real(rk) :: default = 0.0_rk
       real(rk) :: minimum = default_minimum_real
       real(rk) :: maximum = default_maximum_real
+      real(rk) :: scale_factor = 1.0_rk
    contains
       procedure, nopass :: create => type_real_setting_create
       procedure :: as_string    => real_as_string
@@ -562,7 +563,7 @@ contains
       end subroutine
    end function get_node
 
-   function get_real(self, name, long_name, units, default, minimum, maximum, description, display) result(value)
+   function get_real(self, name, long_name, units, default, minimum, maximum, scale_factor, description, display) result(value)
       class (type_settings),           intent(inout) :: self
       real(rk), target                               :: target
       character(len=*),                intent(in)    :: name
@@ -571,6 +572,7 @@ contains
       real(rk),        optional,       intent(in)    :: default
       real(rk),        optional,       intent(in)    :: minimum
       real(rk),        optional,       intent(in)    :: maximum
+      real(rk),        optional,       intent(in)    :: scale_factor
       character(len=*),optional,       intent(in)    :: description
       integer,         optional,       intent(in)    :: display
       real(rk) :: value
@@ -580,11 +582,11 @@ contains
 
       pair => self%get_node(name)
       setting => type_real_setting_create(pair, long_name, units, &
-         default, minimum, maximum, description, display=display)
+         default, minimum, maximum, scale_factor, description, display=display)
       value = setting%pvalue
    end function get_real
 
-   subroutine get_real2(self, target, name, long_name, units, default, minimum, maximum, description, display)
+   subroutine get_real2(self, target, name, long_name, units, default, minimum, maximum, scale_factor, description, display)
       class (type_settings),intent(inout) :: self
       real(rk), target                               :: target
       character(len=*),                intent(in)    :: name
@@ -593,6 +595,7 @@ contains
       real(rk),        optional,       intent(in)    :: default
       real(rk),        optional,       intent(in)    :: minimum
       real(rk),        optional,       intent(in)    :: maximum
+      real(rk),        optional,       intent(in)    :: scale_factor
       character(len=*),optional,       intent(in)    :: description
       integer,         optional,       intent(in)    :: display
 
@@ -601,17 +604,18 @@ contains
 
       pair => self%get_node(name)      
       setting => type_real_setting_create(pair, long_name, units, &
-                                          default, minimum, maximum, description, target=target, display=display)
+         default, minimum, maximum, scale_factor, description, target=target, display=display)
    end subroutine
 
-   function type_real_setting_create(node, long_name, units, &
-                                     default, minimum, maximum, description, target, display) result(setting)
+   function type_real_setting_create(node, long_name, units, default, minimum, maximum, scale_factor, &
+      description, target, display) result(setting)
       class (type_settings_node),      intent(inout) :: node
       character(len=*),                intent(in)    :: long_name
       character(len=*),                intent(in)    :: units
       real(rk),        optional,       intent(in)    :: default
       real(rk),        optional,       intent(in)    :: minimum
       real(rk),        optional,       intent(in)    :: maximum
+      real(rk),        optional,       intent(in)    :: scale_factor
       character(len=*),optional,       intent(in)    :: description
       real(rk), target, optional                     :: target
       integer,         optional,       intent(in)    :: display
@@ -637,6 +641,7 @@ contains
       if (units /= '') setting%units = units
       if (present(minimum)) setting%minimum = minimum
       if (present(maximum)) setting%maximum = maximum
+      if (present(scale_factor)) setting%scale_factor = scale_factor
       if (present(display)) setting%display = display
       if (present(default)) then
          if (default < setting%minimum) call report_error('Default value of setting '//setting%path// &
@@ -651,7 +656,7 @@ contains
          call real_set_data(setting, setting%backing_store_node)
       elseif (.not. reuse_value) then
          if (setting%has_default) then
-            setting%pvalue = setting%default
+            setting%pvalue = setting%default * setting%scale_factor
          else
             call report_error('No value specified for setting '//setting%path//'; cannot continue because&
                & this parameter does not have a default value either.')
@@ -677,6 +682,7 @@ contains
          ' lies below prescribed minimum.')
       if (self%pvalue > self%maximum) call report_error('Value specified for parameter '//self%path// &
          ' exceeds prescribed maximum.')
+       self%pvalue = self%pvalue * self%scale_factor
    end subroutine
 
    function get_integer(self, name, long_name, units, default, minimum, maximum, options, description, display) result(value)
@@ -1535,7 +1541,7 @@ contains
       if (use_default) then
          string = format_real(self%default)
       else
-         string = format_real(self%pvalue)
+         string = format_real(self%pvalue / self%scale_factor)
       end if
    end function real_as_string
 
@@ -1677,7 +1683,7 @@ contains
 
    logical function real_at_default(self)
       class (type_real_setting), intent(in) :: self
-      real_at_default = self%pvalue == self%default
+      real_at_default = self%pvalue == self%default * self%scale_factor
    end function
 
    logical function logical_at_default(self)
