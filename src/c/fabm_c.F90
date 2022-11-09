@@ -232,71 +232,63 @@ contains
       end do
 
       nconserved = size(model%p%conserved_quantities)
-      nparameters = count_dictionary_entries(model%p%settings, 'parameters')
+      nparameters = count_dictionary_entries(model%p%root)
       ncouplings = model%coupling_link_list%count()
    end subroutine get_counts
 
-   function count_dictionary_entries(root, category) result(n)
-      class (type_settings), intent(inout) :: root
-      character(len=*),      intent(in)    :: category
+   function count_dictionary_entries(root) result(n)
+      class (type_base_model), intent(inout) :: root
       integer :: n
 
-      class (type_settings), pointer :: settings, instance, target
-      type (type_key_value_pair), pointer :: pair, pair2
+      type (type_model_list_node), pointer :: instance
+      type (type_key_value_pair),  pointer :: pair
 
       n = 0
-      settings => root%get_child('instances')
-      pair => settings%first
-      do while (associated(pair))
-         select type (instance => pair%value)
-         class is (type_settings)
-            target => instance%get_child(category)
-            pair2 => target%first
-         end select
-         do while (associated(pair2))
-            select type (scalar_value => pair2%value)
-            class is (type_scalar_value)
-               n = n + 1
-            end select
-            pair2 => pair2%next
-         end do
-         pair => pair%next
+      instance => root%children%first
+      do while (associated(instance))
+         if (instance%model%user_created) then
+            pair => instance%model%parameters%first
+            do while (associated(pair))
+               select type (scalar_value => pair%value)
+               class is (type_scalar_value)
+                  n = n + 1
+               end select
+               pair => pair%next
+            end do
+         end if
+         instance => instance%next
       end do
    end function
 
-   function get_dictionary_entry(root, category, i, name) result(value)
-      class (type_settings),      intent(inout) :: root
-      character(len=*),           intent(in)    :: category
+   function get_dictionary_entry(root, i, name) result(value)
+      class (type_base_model),    intent(inout) :: root
       integer,                    intent(in)    :: i
       character(len=*), optional, intent(out)   :: name
       class (type_scalar_value), pointer   :: value
 
       integer :: n
-      class (type_settings), pointer :: settings, instance, target
-      type (type_key_value_pair), pointer :: pair, pair2
+      type (type_model_list_node), pointer :: instance
+      type (type_key_value_pair),  pointer :: pair
 
       n = 0
-      settings => root%get_child('instances')
-      pair => settings%first
-      do while (associated(pair))
-         select type (instance => pair%value)
-         class is (type_settings)
-            target => instance%get_child(category)
-            pair2 => target%first
-         end select
-         do while (associated(pair2))
-            select type (scalar_value => pair2%value)
-            class is (type_scalar_value)
-               n = n + 1
-               if (n == i) then
-                  value => scalar_value
-                  if (present(name)) name = pair%name // '/' // pair2%name
-                  return
-               end if
-            end select
-            pair2 => pair2%next
-         end do
-         pair => pair%next
+      instance => root%children%first
+      do while (associated(instance))
+         if (instance%model%user_created) then
+            pair => instance%model%parameters%first
+            do while (associated(pair))
+               select type (scalar_value => pair%value)
+               class is (type_scalar_value)
+                  n = n + 1
+                  if (n == i) then
+                     value => scalar_value
+                     if (present(name)) name = trim(instance%model%name) // '/' // pair%name
+                     return
+                  end if
+               end select
+               pair => pair%next
+            end do
+         end if
+         instance => instance%next
       end do
    end function
 
@@ -394,7 +386,7 @@ contains
 
       call c_f_pointer(pmodel, model)
 
-      scalar_value => get_dictionary_entry(model%p%settings, 'parameters', index, name_)
+      scalar_value => get_dictionary_entry(model%p%root, index, name_)
       call copy_to_c_string(name_, name)
       if (allocated(scalar_value%units)) then
          call copy_to_c_string(scalar_value%units, units)
