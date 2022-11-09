@@ -1,3 +1,4 @@
+import io
 import os.path
 from setuptools import setup
 
@@ -15,7 +16,7 @@ except ImportError:
     bdist_wheel = None
 
 def readme():
-    with open(os.path.join(os.path.dirname(__file__), 'README.rst'), 'rU') as f:
+    with io.open(os.path.join(os.path.dirname(__file__), 'README.rst'), 'r') as f:
         return f.read()
 
 setup(
