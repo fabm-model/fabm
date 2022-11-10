@@ -394,6 +394,7 @@ contains
          if (finalize_store_) then
             call self%backing_store_node%finalize()
             deallocate(self%backing_store_node)
+            self%backing_store => null()
          end if
       end if
       check_all_used = n == 0

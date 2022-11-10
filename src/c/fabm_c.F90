@@ -88,8 +88,9 @@ contains
       ! Build FABM model tree (configuration will be read from file specified as argument).
       allocate(model)
       call c_f_pointer(c_loc(path), ppath)
-      model%p => fabm_create_model(path=ppath(:index(ppath, C_NULL_CHAR) - 1))
+      model%p => fabm_create_model(path=ppath(:index(ppath, C_NULL_CHAR) - 1), initialize=.false.)
       model%p%own_settings_store = .false.
+      call model%p%initialize()
 
       ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
       call model%p%set_domain(_PREARG_LOCATION_ 1._rk)
@@ -121,30 +122,11 @@ contains
       k__ = model%p%domain%shape(3)
 #  endif
 
-      ! Create new model object.
-      allocate(newmodel)
-
-      ! Move settings to new model.
-      call newmodel%settings%take_values(model%p%settings)
-      ignored = newmodel%settings%ignore()
-
-      ! Re-create original models
-      node => model%p%root%children%first
-      do while (associated(node))
-         if (node%model%user_created) then
-            call factory%create(node%model%type_name, childmodel)
-            childmodel%user_created = .true.
-            call newmodel%root%add_child(childmodel, node%model%name, node%model%long_name, configunit=-1)
-         end if
-         node => node%next
-      end do
+      newmodel => fabm_create_model(settings=model%p%settings)
 
       ! Clean up old model
       call finalize(model, keep_settings=.true.)
       model%p => newmodel
-
-      ! Initialize new model
-      call model%p%initialize()
 
       ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
       call model%p%set_domain(_PREARG_LOCATION_ 1._rk)

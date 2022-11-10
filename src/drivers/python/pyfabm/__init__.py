@@ -389,7 +389,7 @@ class Parameter(Variable):
         elif self.type == 3:
             fabm.set_logical_parameter(self.model.pmodel, self.name.encode('ascii'), value)
         elif self.type == 4:
-            fabm.set_string_parameter(self.model.pmodel, self.name.encode('ascii'), value)
+            fabm.set_string_parameter(self.model.pmodel, self.name.encode('ascii'), value.encode('ascii'))
 
         # Update the model configuration (arrays with variables and parameters have changed)
         self.model.updateConfiguration(settings)

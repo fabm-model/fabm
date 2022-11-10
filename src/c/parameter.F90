@@ -73,8 +73,8 @@ contains
       islash = index(pname, '/')
 
       instances => model%p%settings%backing_store%get_dictionary('instances',required=.true.,error=yaml_error)
-      instance => instances%get_dictionary(pname(1:islash),required=.true.,error=yaml_error)
-      parameters => instances%get_dictionary('parameters',required=.true.,error=yaml_error)
+      instance => instances%get_dictionary(pname(1:islash - 1),required=.true.,error=yaml_error)
+      parameters => instance%get_dictionary('parameters',required=.true.,error=yaml_error)
       call parameters%set_string(pname(islash+1:n), value)
 
       ! Re-initialize the model using updated parameter values
