@@ -13,7 +13,8 @@ except ImportError:
     sys.exit(1)
 import pyfabm.gui_qt
 
-from PySide import QtCore,QtGui
+QtCore = pyfabm.gui_qt.QtCore
+QtWidgets = pyfabm.gui_qt.QtWidgets
 
 def main():
     import argparse
@@ -26,12 +27,12 @@ def main():
     model = pyfabm.Model(args.path)
 
     # Create Qt application object
-    app = QtGui.QApplication([' '])
+    app = QtWidgets.QApplication([' '])
 
     # Create dialog box with model configuration tree.
-    dialog = QtGui.QDialog()
+    dialog = QtWidgets.QDialog()
     dialog.setWindowTitle('Configure model')
-    layout = QtGui.QHBoxLayout()
+    layout = QtWidgets.QHBoxLayout()
     tree = pyfabm.gui_qt.TreeView(model,dialog)
     layout.addWidget(tree)
     dialog.setLayout(layout)
