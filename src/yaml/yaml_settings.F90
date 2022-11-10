@@ -16,7 +16,7 @@ module yaml_settings
    public type_dictionary_populator, type_list_populator, type_settings_node, type_key_value_pair, type_list_item
    public type_real_setting, type_logical_setting, type_integer_setting, type_string_setting
    public type_real_setting_create, type_logical_setting_create, type_integer_setting_create, type_string_setting_create
-   public format_real, format_integer
+   public format_real, format_integer, error_reporter
 
    integer, parameter :: rk = yaml_real_kind
 
@@ -235,6 +235,13 @@ module yaml_settings
    contains
       procedure :: append => header_append
    end type
+
+   interface
+      subroutine error_reporter_proc(message)
+         character(len=*), intent(in) :: message   
+      end subroutine
+   end interface
+   procedure(error_reporter_proc), pointer, save :: error_reporter => null()
 
 contains
 
@@ -1294,9 +1301,15 @@ contains
 
    subroutine report_error(message)
       character(len=*), intent(in) :: message
+      if (.not. associated(error_reporter)) error_reporter => default_error_reporter
+      call error_reporter(message)
+   end subroutine report_error
+
+   subroutine default_error_reporter(message)
+      character(len=*), intent(in) :: message
       write (error_unit,'(a)') trim(message)
       stop 1
-   end subroutine report_error
+   end subroutine default_error_reporter
 
    recursive subroutine settings_write_yaml(self, unit, indent, comment_depth, header, display)
       class (type_settings), intent(in) :: self
