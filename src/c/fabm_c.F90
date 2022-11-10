@@ -107,9 +107,6 @@ contains
       type (type_model_wrapper), intent(inout) :: model
 
       class (type_fabm_model),     pointer :: newmodel
-      logical                              :: ignored
-      type (type_model_list_node), pointer :: node
-      class (type_base_model),     pointer :: childmodel
       _DECLARE_LOCATION_
 
 #  if _FABM_DIMENSION_COUNT_ > 0

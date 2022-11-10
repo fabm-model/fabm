@@ -8,7 +8,7 @@ module fabm_c_parameter
    use fabm_c
    use yaml_settings, only: type_scalar_value, format_real, format_integer
    use yaml_types, only: type_yaml_key_value_pair => type_key_value_pair, type_yaml_dictionary => type_dictionary, &
-      type_yaml_error => type_error
+      type_yaml_error => type_error, type_yaml_node => type_node
 
    implicit none
 
@@ -72,13 +72,37 @@ contains
       n = index(pname, C_NULL_CHAR) - 1
       islash = index(pname, '/')
 
-      instances => model%p%settings%backing_store%get_dictionary('instances',required=.true.,error=yaml_error)
-      instance => instances%get_dictionary(pname(1:islash - 1),required=.true.,error=yaml_error)
-      parameters => instance%get_dictionary('parameters',required=.true.,error=yaml_error)
+      instances => get_child_dictionary(model%p%settings%backing_store, 'instances')
+      instance => get_child_dictionary(instances, pname(1:islash - 1))
+      parameters => get_child_dictionary(instance, 'parameters')
       call parameters%set_string(pname(islash+1:n), value)
 
       ! Re-initialize the model using updated parameter values
       call reinitialize(model)
+
+   contains
+
+      function get_child_dictionary(parent, key) result(child)
+         class (type_yaml_dictionary), intent(inout) :: parent
+         character(len=*),             intent(in)    :: key
+         class (type_yaml_dictionary), pointer :: child
+
+         type(type_yaml_error), pointer :: yaml_error
+         class(type_yamL_node), pointer :: child_node
+
+         child => parent%get_dictionary(key,.false.,error=yaml_error)
+         if (associated(yaml_error)) then
+            call driver%fatal_error('set_parameter', trim(yaml_error%message))
+            return
+         end if
+         if (.not. associated(child)) then
+            allocate(child)
+            call child%set_path(trim(parent%path) // '/' // trim(key))
+            child_node => child
+            call parent%set(key, child_node)
+         end if
+      end function
+
    end subroutine
 
    subroutine set_real_parameter(pmodel, name, value) bind(c)
