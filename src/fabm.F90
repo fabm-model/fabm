@@ -402,6 +402,8 @@ contains
       call fabm_initialize_library()
 
       allocate(model)
+      model%root%parameters%path = ''
+      model%root%couplings%path = ''
       if (present(settings)) then
          call model%settings%take_values(settings)
          model%own_settings_store = .false.
