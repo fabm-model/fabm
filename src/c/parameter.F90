@@ -26,7 +26,7 @@ contains
 
       call c_f_pointer(pmodel, model)
 
-      scalar_value => get_dictionary_entry(model%p%root, index)
+      scalar_value => get_parameter_by_index(model%p%root, index)
       if (.not. associated(scalar_value%backing_store_node)) return
 
       select type (n => scalar_value%parent%backing_store_node)
@@ -50,7 +50,7 @@ contains
          previous_pair => pair
          pair => pair%next
       end do
-   
+
       ! Re-initialize the model using updated parameter values
       call reinitialize(model)
    end subroutine reset_parameter
@@ -124,7 +124,7 @@ contains
       class (type_scalar_value), pointer :: scalar_value
 
       call c_f_pointer(pmodel, model)
-      scalar_value => get_dictionary_entry(model%p%root, index)
+      scalar_value => get_parameter_by_index(model%p%root, index)
       select type (scalar_value)
       class is (type_real_setting)
          if (int2logical(default)) then
@@ -156,7 +156,7 @@ contains
       class (type_scalar_value), pointer :: scalar_value
 
       call c_f_pointer(pmodel, model)
-      scalar_value => get_dictionary_entry(model%p%root, index)
+      scalar_value => get_parameter_by_index(model%p%root, index)
       select type (scalar_value)
       class is (type_integer_setting)
          if (int2logical(default)) then
@@ -192,7 +192,7 @@ contains
       class (type_scalar_value), pointer :: scalar_value
 
       call c_f_pointer(pmodel, model)
-      scalar_value => get_dictionary_entry(model%p%root, index)
+      scalar_value => get_parameter_by_index(model%p%root, index)
       select type (scalar_value)
       class is (type_logical_setting)
          if (int2logical(default)) then
@@ -226,7 +226,7 @@ contains
       class (type_scalar_value), pointer :: scalar_value
 
       call c_f_pointer(pmodel, model)
-      scalar_value => get_dictionary_entry(model%p%root, index)
+      scalar_value => get_parameter_by_index(model%p%root, index)
       select type (scalar_value)
       class is (type_string_setting)
          if (int2logical(default)) then

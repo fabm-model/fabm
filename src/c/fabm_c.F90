@@ -214,41 +214,44 @@ contains
       end do
 
       nconserved = size(model%p%conserved_quantities)
-      nparameters = count_dictionary_entries(model%p%root)
+      nparameters = count_parameters(model%p%root)
       ncouplings = model%coupling_link_list%count()
+
+   contains
+
+      function count_parameters(root) result(n)
+         class (type_base_model), intent(in) :: root
+         integer                             :: n
+
+         type (type_model_list_node), pointer :: instance
+         type (type_key_value_pair),  pointer :: pair
+
+         n = 0
+         instance => root%children%first
+         do while (associated(instance))
+            if (instance%model%user_created) then
+               pair => instance%model%parameters%first
+               do while (associated(pair))
+                  select type (scalar_value => pair%value)
+                  class is (type_scalar_value)
+                     n = n + 1
+                  end select
+                  pair => pair%next
+               end do
+            end if
+            instance => instance%next
+         end do
+      end function
+
    end subroutine get_counts
 
-   function count_dictionary_entries(root) result(n)
-      class (type_base_model), intent(inout) :: root
-      integer :: n
-
-      type (type_model_list_node), pointer :: instance
-      type (type_key_value_pair),  pointer :: pair
-
-      n = 0
-      instance => root%children%first
-      do while (associated(instance))
-         if (instance%model%user_created) then
-            pair => instance%model%parameters%first
-            do while (associated(pair))
-               select type (scalar_value => pair%value)
-               class is (type_scalar_value)
-                  n = n + 1
-               end select
-               pair => pair%next
-            end do
-         end if
-         instance => instance%next
-      end do
-   end function
-
-   function get_dictionary_entry(root, i, name) result(value)
+   function get_parameter_by_index(root, i, name) result(scalar_value)
       class (type_base_model),    intent(inout) :: root
       integer,                    intent(in)    :: i
       character(len=*), optional, intent(out)   :: name
-      class (type_scalar_value), pointer   :: value
+      class (type_scalar_value), pointer   :: scalar_value
 
-      integer :: n
+      integer                              :: n
       type (type_model_list_node), pointer :: instance
       type (type_key_value_pair),  pointer :: pair
 
@@ -258,12 +261,12 @@ contains
          if (instance%model%user_created) then
             pair => instance%model%parameters%first
             do while (associated(pair))
-               select type (scalar_value => pair%value)
+               select type (value => pair%value)
                class is (type_scalar_value)
                   n = n + 1
                   if (n == i) then
-                     value => scalar_value
-                     if (present(name)) name = trim(instance%model%name) // '/' // pair%name
+                     scalar_value => value
+                     if (present(name)) name = trim(instance%model%name) // '/' // trim(pair%name)
                      return
                   end if
                end select
@@ -368,7 +371,7 @@ contains
 
       call c_f_pointer(pmodel, model)
 
-      scalar_value => get_dictionary_entry(model%p%root, index, name_)
+      scalar_value => get_parameter_by_index(model%p%root, index, name_)
       call copy_to_c_string(name_, name)
       if (allocated(scalar_value%units)) then
          call copy_to_c_string(scalar_value%units, units)
