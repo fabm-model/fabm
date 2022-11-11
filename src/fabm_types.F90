@@ -713,6 +713,8 @@ module fabm_types
 
    class (type_base_model_factory), pointer, save, public :: factory => null()
 
+   logical, save, public :: fabm_parameter_pointers = .false.
+
 contains
 
    subroutine base_initialize(self, configunit)
@@ -2508,7 +2510,11 @@ contains
       character(len=*),        intent(in),   optional :: units, long_name
       real(rk),                intent(in),   optional :: default, scale_factor, minimum, maximum
 
-      call self%parameters%get(value, name, long_name, units, default, minimum, maximum, scale_factor)
+      if (fabm_parameter_pointers) then
+         call self%parameters%get(value, name, long_name, units, default, minimum, maximum, scale_factor)
+      else
+         value = self%parameters%get_real(name, long_name, units, default, minimum, maximum, scale_factor)
+      end if
    end subroutine get_real_parameter
 
    subroutine get_integer_parameter(self, value, name, units, long_name, default, minimum, maximum, options)
