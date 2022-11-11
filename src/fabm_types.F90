@@ -63,6 +63,9 @@ module fabm_types
 
    public type_fabm_settings
 
+   ! Expose symbols defined in yaml_settings module
+   public type_option
+
    ! For backward compatibility (20200302, pre 1.0)
    public type_bulk_standard_variable
 
@@ -2508,14 +2511,15 @@ contains
       call self%parameters%get(value, name, long_name, units, default, minimum, maximum, scale_factor)
    end subroutine get_real_parameter
 
-   subroutine get_integer_parameter(self, value, name, units, long_name, default, minimum, maximum)
+   subroutine get_integer_parameter(self, value, name, units, long_name, default, minimum, maximum, options)
       class (type_base_model), intent(inout), target :: self
       integer,                 intent(inout)         :: value
       character(len=*),        intent(in)            :: name
       character(len=*),        intent(in), optional  :: units, long_name
       integer,                 intent(in), optional  :: default, minimum, maximum
+      type (type_option),      intent(in), optional  :: options(:)
 
-      value = self%parameters%get_integer(name, long_name, units, default, minimum, maximum)
+      value = self%parameters%get_integer(name, long_name, units, default, minimum, maximum, options)
    end subroutine get_integer_parameter
 
    subroutine get_logical_parameter(self, value, name, units, long_name, default)
