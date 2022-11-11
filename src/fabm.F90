@@ -409,6 +409,7 @@ contains
          model%own_settings_store = .false.
       else
          call fabm_load_settings(model%settings, path, unit=unit)
+         model%own_settings_store = .not. fabm_parameter_pointers
       end if
       call fabm_configure_model(model%root, model%settings, model%schedules, model%log)
 
