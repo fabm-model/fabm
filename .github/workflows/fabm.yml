@@ -47,14 +47,17 @@ jobs:
            python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifort
    nvfortran:
       runs-on: ubuntu-latest
+      strategy:
+        matrix:
+          version: ["20.9/nvhpc_2020_209_Linux_x86_64_cuda_11.0", "22.9/nvhpc_2022_229_Linux_x86_64_cuda_11.7"]
       env:
         FFLAGS: -Mbounds -Mchkptr
       steps:
       - name: Install compiler
         run: |
-           wget --no-verbose https://developer.download.nvidia.com/hpc-sdk/20.9/nvhpc_2020_209_Linux_x86_64_cuda_11.0.tar.gz
-           tar xpzf nvhpc_2020_209_Linux_x86_64_cuda_11.0.tar.gz
-           nvhpc_2020_209_Linux_x86_64_cuda_11.0/install
+           wget --no-verbose https://developer.download.nvidia.com/hpc-sdk/${{ matrix.version }}.tar.gz
+           tar xpzf `basename ${{ matrix.version }}`.tar.gz
+           `basename ${{ matrix.version }}`/install
         env:
            NVHPC_SILENT: true
            NVHPC_INSTALL_DIR: /home/runner/nvhpc
