@@ -49,15 +49,20 @@ jobs:
       runs-on: ubuntu-latest
       strategy:
         matrix:
-          version: ["20.9/nvhpc_2020_209_Linux_x86_64_cuda_11.0", "22.9/nvhpc_2022_229_Linux_x86_64_cuda_11.7"]
+          include:
+            - version: 20.9
+              exe: nvhpc_2020_209_Linux_x86_64_cuda_11.0
+            - version: 22.9
+              exe: nvhpc_2022_229_Linux_x86_64_cuda_11.7
+        fail-fast: false
       env:
         FFLAGS: -Mbounds -Mchkptr
       steps:
       - name: Install compiler
         run: |
-           wget --no-verbose https://developer.download.nvidia.com/hpc-sdk/${{ matrix.version }}.tar.gz
-           tar xpzf `basename ${{ matrix.version }}`.tar.gz
-           `basename ${{ matrix.version }}`/install
+           wget --no-verbose https://developer.download.nvidia.com/hpc-sdk/${{ matrix.version }}/${{ matrix.exe }}.tar.gz
+           tar xpzf ${{ matrix.exe }}.tar.gz
+           ${{ matrix.exe }}/install
         env:
            NVHPC_SILENT: true
            NVHPC_INSTALL_DIR: /home/runner/nvhpc
@@ -67,15 +72,16 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v2
       - name: Run all test cases with host emulators
-        run: python3 util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
+        run: python3 util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
       - name: Run all test cases with pyfabm
-        run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
+        run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
    aocc:
       # note: urls from https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/aocc/package.py
       runs-on: ubuntu-latest
       strategy:
         matrix:
           version: ["2.2.0", "3.0.0", "3.2.0"]
+        fail-fast: false
       steps:
       - name: Install compiler
         run: |
