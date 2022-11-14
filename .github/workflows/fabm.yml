@@ -28,11 +28,19 @@ jobs:
         run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
    ifort:
       runs-on: ubuntu-latest
+      strategy:
+        matrix:
+          include:
+            - version: "2021.1.2.62"
+              url_dir: "17508"
+            - version: "2022.2.1.16992"
+              url_dir: "18998"
+        fail-fast: false
       steps:
       - name: Install compiler
         run: |
-           wget --no-verbose https://registrationcenter-download.intel.com/akdlm/irc_nas/17508/l_fortran-compiler_p_2021.1.2.62_offline.sh
-           /bin/sh l_fortran-compiler_p_2021.1.2.62_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
+           wget --no-verbose https://registrationcenter-download.intel.com/akdlm/irc_nas/${{ matrix.url_dir }}/l_fortran-compiler_p_${{ matrix.version }}_offline.sh
+           /bin/sh l_fortran-compiler_p_${{ matrix.version }}_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
       - name: Install dependencies
         run: sudo apt-get install python3-numpy python3-wheel
       - name: Clone repository
@@ -84,8 +92,9 @@ jobs:
           version:
           - "2.2.0"  # 2020-07-15
           - "3.0.0"  # 2021-03-15
-          - "3.1.0"  # 2021-07-19
-          #- "3.2.0"  # 2021-12-10 Fails during fabm-c compilation. 4.0.0 succeeds but is not available via spack yet
+          #- "3.1.0"  # 2021-07-19 Fails during fabm-c compilation
+          #- "3.2.0"  # 2021-12-10 Fails during fabm-c compilation
+          #- "4.0.0"  # Succeeds but is not available via spack yet (manual download was tested)
         fail-fast: false
       steps:
       - name: Install compiler
