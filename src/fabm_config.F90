@@ -31,33 +31,29 @@ contains
       character(len=*), optional, intent(in)    :: path
       integer,          optional, intent(in)    :: unit
 
-      integer            :: unit_eff
-      character(len=256) :: path_eff
-
-      ! Determine the path to use for YAML file.
-      if (present(path)) then
-          path_eff = trim(path)
-      else
-          path_eff = 'fabm.yaml'
-      end if
+      integer :: unit_
 
       ! Determine the unit to use for YAML file.
       if (present(unit)) then
-          unit_eff = unit
+          unit_ = unit
       else
-          unit_eff = get_free_unit()
+          unit_ = get_free_unit()
       end if
 
       ! Parse YAML file.
-      call settings%load(trim(path_eff), unit_eff)
+      if (present(path)) then
+          call settings%load(path, unit_)
+      else
+          call settings%load('fabm.yaml', unit_)
+      end if
       ! TODO :check for errors
    end subroutine fabm_load_settings
 
    subroutine fabm_configure_model(root, settings, schedules, log)
-      class (type_base_model), target,           intent(inout) :: root
-      class (type_fabm_settings),                intent(inout) :: settings
-      class (type_schedules), target,            intent(inout) :: schedules
-      logical, target,                           intent(inout) :: log
+      class (type_base_model),    target, intent(inout) :: root
+      class (type_fabm_settings),         intent(inout) :: settings
+      class (type_schedules),     target, intent(inout) :: schedules
+      logical,                    target, intent(inout) :: log
 
       type (type_instances_populator) :: instances_populator
       class (type_settings), pointer  :: instances
@@ -130,15 +126,11 @@ contains
       ! Transfer user-specified parameter values to the model.
       call instance_settings%attach_child(model%parameters, 'parameters')
       call instance_settings%attach_child(model%couplings, 'coupling')
-      ! TODO :check for errors
 
       ! Add the model to its parent.
       call log_message('Initializing ' // pair%name // '...')
-      call log_message('   model type: ' // trim(modelname))
+      call log_message('   model type: ' // modelname)
       call self%root%add_child(model, pair%name, long_name)
-
-      ! TODO Check for parameters requested by the model, but not present in the configuration file.
-
       call log_message('   initialization succeeded.')
 
       subsettings => instance_settings%get_child('schedule')
@@ -150,7 +142,7 @@ contains
       subsettings => instance_settings%get_child('initialization')
       link => model%links%first
       do while (associated(link))
-         if (index(link%name, '/') == 0 .and. link%target%source == source_state.and. link%target%presence == presence_internal) then
+         if (index(link%name, '/') == 0 .and. link%target%source == source_state .and. link%target%presence == presence_internal) then
             if (self%require_initialization) then
                call subsettings%get(link%target%initial_value, trim(link%name), trim(link%target%long_name), &
                   trim(link%target%units), minimum=link%target%minimum, maximum=link%target%maximum)
