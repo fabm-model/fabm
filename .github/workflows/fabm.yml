@@ -70,8 +70,9 @@ jobs:
    aocc:
       # note: urls from https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/aocc/package.py
       runs-on: ubuntu-latest
-      matrix:
-        version: ["2.2.0", "3.0.0", "3.2.0"]
+      strategy:
+        matrix:
+          version: ["2.2.0", "3.0.0", "3.2.0"]
       steps:
       - name: Install compiler
         run: |
