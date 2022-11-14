@@ -62,9 +62,7 @@ module fabm_properties
       procedure :: set_string
       generic :: set => set_property, set_real, set_integer, set_logical, set_string
 
-      procedure :: get_property_by_name
-      procedure :: get_property_by_index
-      generic   :: get_property => get_property_by_name,get_property_by_index
+      procedure :: get_property
       procedure :: get_real
       procedure :: get_integer
       procedure :: get_logical
@@ -297,7 +295,7 @@ contains
       call self%set_property(type_string_property(name=name, value=value))
    end subroutine
 
-   function get_property_by_name(self, name) result(property)
+   function get_property(self, name) result(property)
       class (type_property_dictionary), intent(inout) :: self
       character(len=*),                 intent(in)    :: name
       class (type_property), pointer                  :: property
@@ -308,20 +306,6 @@ contains
       property => self%first
       do while (associated(property))
          if (property%key == key) return
-         property => property%next
-      end do
-   end function
-
-   function get_property_by_index(self, index) result(property)
-      class (type_property_dictionary), intent(inout) :: self
-      integer,                          intent(in)    :: index
-      class (type_property),pointer                   :: property
-
-      integer :: i
-
-      property => self%first
-      do i = 2, index
-         if (.not. associated(property)) return
          property => property%next
       end do
    end function
