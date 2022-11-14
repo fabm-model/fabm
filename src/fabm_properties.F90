@@ -18,8 +18,6 @@ module fabm_properties
    integer, parameter :: metadata_string_length = 256
    integer, parameter :: value_string_length = 1024
 
-   integer, parameter :: typecode_unknown = -1, typecode_real = 1, typecode_integer = 2, typecode_logical = 3, typecode_string = 4
-
    type, abstract :: type_property
       character(len=metadata_string_length) :: name        = ''
       character(len=metadata_string_length) :: long_name   = ''
@@ -28,7 +26,6 @@ module fabm_properties
       logical                               :: has_default = .false.
       class (type_property), pointer        :: next        => null()
    contains
-      procedure :: typecode
       procedure :: to_real
       procedure :: to_integer
       procedure :: to_logical
@@ -95,22 +92,6 @@ module fabm_properties
    end type
 
 contains
-
-   integer function typecode(self)
-      class (type_property), intent(in) :: self
-      select type (self)
-      class is (type_real_property)
-         typecode = typecode_real
-      class is (type_integer_property)
-         typecode = typecode_integer
-      class is (type_logical_property)
-         typecode = typecode_logical
-      class is (type_string_property)
-         typecode = typecode_string
-      class default
-         typecode = typecode_unknown
-      end select
-   end function
 
    function to_real(self, success, default) result(value)
       class (type_property), intent(in)  :: self

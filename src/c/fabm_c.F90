@@ -365,7 +365,6 @@ contains
       type (type_model_wrapper), pointer :: model
       class (type_scalar_value), pointer :: scalar_value
       character(len=length)              :: name_
-      integer, parameter :: typecode_unknown = -1, typecode_real = 1, typecode_integer = 2, typecode_logical = 3, typecode_string = 4
 
       call c_f_pointer(pmodel, model)
 
