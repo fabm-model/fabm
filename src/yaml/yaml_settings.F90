@@ -130,6 +130,7 @@ module yaml_settings
       procedure :: ignore_child
       generic :: ignore => ignore_child
       procedure :: finalize
+      procedure :: finalize_store
    end type type_settings
 
    type, abstract, extends(type_value) :: type_scalar_value
@@ -341,6 +342,8 @@ contains
 
       if (.not. allocated(self%path)) self%path = ''
       self%backing_store_node => other%backing_store_node
+      other%backing_store_node => null()
+      other%backing_store => null()
       call settings_set_data(self)
    end subroutine take_values
 
@@ -398,12 +401,8 @@ contains
          if (self%backing_store_node%path /= '') &
             call report_error('BUG: check_all_used can only be called on settings initialized by load')
          call node_check(self%backing_store_node, n)
-         if (finalize_store_) then
-            call self%backing_store_node%finalize()
-            deallocate(self%backing_store_node)
-            self%backing_store => null()
-         end if
       end if
+      if (finalize_store_) call self%finalize_store()
       check_all_used = n == 0
 
    contains
@@ -573,7 +572,6 @@ contains
 
    function get_real(self, name, long_name, units, default, minimum, maximum, scale_factor, description, display) result(value)
       class (type_settings),           intent(inout) :: self
-      real(rk), target                               :: target
       character(len=*),                intent(in)    :: name
       character(len=*),                intent(in)    :: long_name
       character(len=*),                intent(in)    :: units
@@ -1283,9 +1281,9 @@ contains
    end subroutine
 
    recursive subroutine finalize(self)
-      class (type_settings),intent(inout) :: self
+      class (type_settings), intent(inout) :: self
 
-      type (type_key_value_pair),pointer :: current, next
+      type (type_key_value_pair), pointer :: current, next
 
       current => self%first
       do while (associated(current))
@@ -1298,6 +1296,16 @@ contains
       self%first => null()
       if (allocated(self%path)) deallocate(self%path)
    end subroutine finalize
+
+   subroutine finalize_store(self)
+      class (type_settings), intent(inout) :: self
+
+      if (associated(self%backing_store_node)) then
+         call self%backing_store_node%finalize()
+         deallocate(self%backing_store_node)
+         self%backing_store => null()
+      end if
+   end subroutine
 
    subroutine report_error(message)
       character(len=*), intent(in) :: message

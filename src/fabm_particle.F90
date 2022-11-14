@@ -264,12 +264,8 @@ contains
 
       ! First find a coupling for the referenced model.
       model_master_name = self%couplings%get_string(trim(reference%name), trim(reference%name))
-      if (.not. allocated(model_master_name)) then
-         call self%fatal_error('resolve_model_reference', 'Model reference "' // trim(reference%name) // '" was not coupled.')
-         return
-      end if
 
-      ! Try to find references model among actual models (as opposed to among model dependencies)
+      ! Try to find referenced model among actual models (as opposed to among model dependencies)
       reference%model => self%find_model(model_master_name, recursive=.true.)
 
       if (.not. associated(reference%model)) then

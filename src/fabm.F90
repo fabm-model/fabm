@@ -168,7 +168,6 @@ module fabm
       character(len=attribute_length), allocatable, dimension(:) :: dependencies_scalar
 
       type (type_fabm_settings) :: settings
-      logical :: own_settings_store = .true.
 
       ! Individual jobs
       type (type_job) :: get_interior_sources_job
@@ -406,10 +405,8 @@ contains
       model%root%couplings%path = ''
       if (present(settings)) then
          call model%settings%take_values(settings)
-         model%own_settings_store = .false.
       else
          call fabm_load_settings(model%settings, path, unit=unit)
-         model%own_settings_store = .not. fabm_parameter_pointers
       end if
       call fabm_configure_model(model%root, model%settings, model%schedules, model%log)
 
@@ -445,8 +442,7 @@ contains
       ! This will resolve all FABM dependencies and generate final authoritative lists of variables of different types.
       call freeze_model_info(self%root)
 
-      if (.not. self%settings%check_all_used(finalize_store=self%own_settings_store)) &
-         call fatal_error('initialize', 'invalid configuration')
+      if (.not. self%settings%check_all_used(finalize_store=.false.)) call fatal_error('initialize', 'invalid configuration')
 
       ! Build final authoritative arrays with variable metadata.
       call classify_variables(self)
@@ -520,6 +516,7 @@ contains
       call self%job_manager%finalize()
       call self%variable_register%finalize()
       call self%settings%finalize()
+      call self%settings%finalize_store()
       call self%root%finalize()
       call self%links_postcoupling%finalize()
    end subroutine finalize

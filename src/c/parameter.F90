@@ -62,9 +62,8 @@ contains
 
       type (type_model_wrapper),       pointer :: model
       character(len=attribute_length), pointer :: pname
-      integer :: islash, n
+      integer                                  :: islash, n
       class (type_yaml_dictionary),    pointer :: instances, instance, parameters
-      type(type_yaml_error),           pointer :: yaml_error
 
       call c_f_pointer(pmodel, model)
       call c_f_pointer(c_loc(name), pname)

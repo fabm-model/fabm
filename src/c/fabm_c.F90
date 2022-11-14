@@ -91,9 +91,7 @@ contains
       ! Build FABM model tree (configuration will be read from file specified as argument).
       allocate(model)
       call c_f_pointer(c_loc(path), ppath)
-      model%p => fabm_create_model(path=ppath(:index(ppath, C_NULL_CHAR) - 1), initialize=.false.)
-      model%p%own_settings_store = .false.
-      call model%p%initialize()
+      model%p => fabm_create_model(path=ppath(:index(ppath, C_NULL_CHAR) - 1))
 
       ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
       call model%p%set_domain(_PREARG_LOCATION_ 1._rk)
@@ -125,7 +123,7 @@ contains
       newmodel => fabm_create_model(settings=model%p%settings)
 
       ! Clean up old model
-      call finalize(model, keep_settings=.true.)
+      call finalize(model)
       model%p => newmodel
 
       ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
@@ -782,19 +780,9 @@ contains
       if (associated(pvalue)) ptr = c_loc(pvalue)
    end function get_horizontal_diagnostic_data
 
-   subroutine finalize(model, keep_settings)
+   subroutine finalize(model)
       type (type_model_wrapper), intent(inout) :: model
-      logical, optional,         intent(in)    :: keep_settings
 
-      logical :: keep_settings_
-
-      keep_settings_ = .false.
-      if (present(keep_settings)) keep_settings_ = keep_settings
-
-      if (.not. keep_settings_) then
-         call model%p%settings%backing_store_node%finalize()
-         deallocate(model%p%settings%backing_store_node)
-      end if
       call model%p%finalize()
       call model%environment%finalize()
       deallocate(model%p)

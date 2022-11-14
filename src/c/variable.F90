@@ -31,7 +31,6 @@ contains
       character(kind=c_char), intent(out), dimension(length) :: name
 
       type (type_internal_variable), pointer :: variable
-      class (type_base_model),       pointer :: owner
       character(len=attribute_length)        :: name_
 
       call c_f_pointer(pvariable, variable)

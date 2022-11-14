@@ -97,7 +97,6 @@ contains
 
       call fabm_load_settings(model%settings, path, unit=unit)
       call fabm_configure_model(model%root, model%settings, model%schedules, model%log)
-      model%own_settings_store = .not. fabm_parameter_pointers
 
       ! Initialize model tree
       initialize = .true.
