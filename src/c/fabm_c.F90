@@ -15,7 +15,7 @@ module fabm_c
    use fabm_python_helper
    use fabm_c_helper
    use yaml_settings, only: type_settings, type_key_value_pair, type_scalar_value, type_real_setting, type_integer_setting, &
-      type_logical_setting, type_string_setting, yaml_error_reporter => error_reporter
+      type_logical_setting, type_string_setting
 
    implicit none
 
@@ -82,8 +82,6 @@ contains
 
       type (type_model_wrapper),       pointer :: model
       character(len=attribute_length), pointer :: ppath
-
-      yaml_error_reporter => yaml_settings_error_reporter
 
       ! Initialize driver object used by FABM for logging/error reporting.
       if (.not. associated(driver)) allocate(type_python_driver::driver)
@@ -802,11 +800,6 @@ contains
 
       !write (*,*) trim(message)
    end subroutine python_driver_log_message
-
-   subroutine yaml_settings_error_reporter(message)
-      character(len=*), intent(in) :: message
-      call driver%fatal_error('yaml_settings', message)
-   end subroutine
 
 end module fabm_c
 

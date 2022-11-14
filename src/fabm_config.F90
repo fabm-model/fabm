@@ -26,10 +26,11 @@ module fabm_config
 
 contains
 
-   subroutine fabm_load_settings(settings, path, unit)
-      class (type_fabm_settings), intent(inout) :: settings
-      character(len=*), optional, intent(in)    :: path
-      integer,          optional, intent(in)    :: unit
+   subroutine fabm_load_settings(settings, path, unit, error_reporter)
+      class (type_fabm_settings),               intent(inout) :: settings
+      character(len=*),               optional, intent(in)    :: path
+      integer,                        optional, intent(in)    :: unit
+      procedure(error_reporter_proc), optional                :: error_reporter
 
       integer :: unit_
 
@@ -42,11 +43,10 @@ contains
 
       ! Parse YAML file.
       if (present(path)) then
-          call settings%load(path, unit_)
+          call settings%load(path, unit_, error_reporter=error_reporter)
       else
-          call settings%load('fabm.yaml', unit_)
+          call settings%load('fabm.yaml', unit_, error_reporter=error_reporter)
       end if
-      ! TODO :check for errors
    end subroutine fabm_load_settings
 
    subroutine fabm_configure_model(root, settings, schedules, log)
@@ -59,19 +59,13 @@ contains
       class (type_settings), pointer  :: instances
 
       call settings%get(log, 'log', 'write log files for debugging FABM', default=.false.)
-      ! TODO :check for errors
 
       instances_populator%root => root
       instances_populator%schedules => schedules
       instances_populator%check_conservation = settings%get_logical('check_conservation', 'add diagnostics for the rate of change of conserved quantities', default=.false.)
-      ! TODO :check for errors
       instances_populator%require_initialization = settings%get_logical('require_initialization', 'require initial values for all state variables', default=.false.)
-      ! TODO :check for errors
       instances_populator%require_all_parameters = settings%get_logical('require_all_parameters', 'require values for all parameters', default=.false.)
-      ! TODO :check for errors
-
       instances => settings%get_child('instances', populator=instances_populator)
-      ! TODO :check for errors
    end subroutine fabm_configure_model
 
    recursive subroutine create_instance(self, pair)
@@ -95,8 +89,6 @@ contains
       end select
 
       use_model = instance_settings%get_logical('use', 'use this model', default=.true.)
-      ! TODO :check for errors
-
       if (.not. use_model) then
          call log_message('SKIPPING model instance ' // pair%name // ' because it has use=false set.')
          ignored = instance_settings%ignore()
@@ -105,11 +97,9 @@ contains
 
       ! Retrieve model name (default to instance name if not provided).
       modelname = instance_settings%get_string('model', 'model type', default=pair%name)
-      ! TODO :check for errors
 
       ! Retrieve descriptive name for the model instance (default to instance name if not provided).
       long_name = instance_settings%get_string('long_name', 'descriptive name for model instance', default=pair%name)
-      ! TODO :check for errors
 
       ! Try to create the model based on name.
       call factory%create(modelname, model)
@@ -121,7 +111,6 @@ contains
       model%user_created = .true.
 
       call instance_settings%get(model%check_conservation, 'check_conservation', 'check_conservation', default=self%check_conservation)
-      ! TODO: check errors
 
       ! Transfer user-specified parameter values to the model.
       call instance_settings%attach_child(model%parameters, 'parameters')
