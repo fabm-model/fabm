@@ -68,14 +68,17 @@ jobs:
       - name: Run all test cases with pyfabm
         run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
    aocc:
+      # note: urls from https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/aocc/package.py
       runs-on: ubuntu-latest
+      matrix:
+        version: ["2.2.0", "3.0.0", "3.2.0"]
       steps:
       - name: Install compiler
         run: |
            cd /home/runner
-           wget --no-verbose http://developer.amd.com/wordpress/media/files/aocc-compiler-3.0.0.tar
-           tar xpf aocc-compiler-3.0.0.tar
-           ./aocc-compiler-3.0.0/install.sh
+           wget --no-verbose http://developer.amd.com/wordpress/media/files/aocc-compiler-${{ matrix.version }}.tar
+           tar xpf aocc-compiler-${{ matrix.version }}.tar
+           ./aocc-compiler-${{ matrix.version }}/install.sh
       - name: Install dependencies
         run: sudo apt-get install python3-numpy python3-wheel
       - name: Clone repository
