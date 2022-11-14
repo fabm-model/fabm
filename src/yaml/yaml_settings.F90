@@ -59,6 +59,7 @@ module yaml_settings
       generic :: ignore => ignore_node
       procedure :: finalize          => value_finalize
       procedure :: report_error
+      procedure :: dummy => report_error
    end type type_value
 
    type type_settings_node
