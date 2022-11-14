@@ -46,13 +46,14 @@ jobs:
            source ${HOME}/intel/setvars.sh
            python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifort
    nvfortran:
+      # for available versions, see https://developer.nvidia.com/nvidia-hpc-sdk-releases
       runs-on: ubuntu-latest
       strategy:
         matrix:
           include:
-            - version: 20.9
+            - version: "20.9"  # 2020-10
               exe: nvhpc_2020_209_Linux_x86_64_cuda_11.0
-            - version: 22.9
+            - version: "22.9"  # 2022-10
               exe: nvhpc_2022_229_Linux_x86_64_cuda_11.7
         fail-fast: false
       env:
@@ -76,17 +77,21 @@ jobs:
       - name: Run all test cases with pyfabm
         run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
    aocc:
-      # note: urls from https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/aocc/package.py
+      # for available versions, see https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/aocc/package.py
       runs-on: ubuntu-latest
       strategy:
         matrix:
-          version: ["2.2.0", "3.0.0", "3.2.0"]
+          version:
+          - "2.2.0"  # 2020-07-15
+          - "3.0.0"  # 2021-03-15
+          - "3.1.0"  # 2021-07-19
+          #- "3.2.0"  # 2021-12-10 Fails during fabm-c compilation. 4.0.0 succeeds but is not available via spack yet
         fail-fast: false
       steps:
       - name: Install compiler
         run: |
            cd /home/runner
-           wget --no-verbose http://developer.amd.com/wordpress/media/files/aocc-compiler-${{ matrix.version }}.tar
+           wget --no-verbose https://developer.amd.com/wordpress/media/files/aocc-compiler-${{ matrix.version }}.tar
            tar xpf aocc-compiler-${{ matrix.version }}.tar
            ./aocc-compiler-${{ matrix.version }}/install.sh
       - name: Install dependencies
