@@ -58,13 +58,13 @@ contains
       type (type_instances_populator) :: instances_populator
       class (type_settings), pointer  :: instances
 
-      call settings%get(log, 'log', 'write log files for debugging FABM', default=.false.)
+      call settings%get(log, 'log', 'write log files for debugging FABM', default=.false., display=display_advanced)
 
       instances_populator%root => root
       instances_populator%schedules => schedules
-      instances_populator%check_conservation = settings%get_logical('check_conservation', 'add diagnostics for the rate of change of conserved quantities', default=.false.)
-      instances_populator%require_initialization = settings%get_logical('require_initialization', 'require initial values for all state variables', default=.false.)
-      instances_populator%require_all_parameters = settings%get_logical('require_all_parameters', 'require values for all parameters', default=.false.)
+      instances_populator%check_conservation = settings%get_logical('check_conservation', 'add diagnostics for the rate of change of conserved quantities', default=.false., display=display_advanced)
+      instances_populator%require_initialization = settings%get_logical('require_initialization', 'require initial values for all state variables', default=.false., display=display_advanced)
+      instances_populator%require_all_parameters = settings%get_logical('require_all_parameters', 'require values for all parameters', default=.false., display=display_hidden)
       instances => settings%get_child('instances', populator=instances_populator)
    end subroutine fabm_configure_model
 
@@ -72,7 +72,7 @@ contains
       class (type_instances_populator), intent(inout) :: self
       type (type_key_value_pair),       intent(inout) :: pair
 
-      class (type_settings),      pointer :: subsettings
+      class (type_settings),      pointer :: subsettings, inisettings
       class (type_fabm_settings), pointer :: instance_settings
       logical                             :: use_model, ignored
       character(len=:), allocatable       :: modelname
@@ -81,6 +81,8 @@ contains
       class (type_base_model),    pointer :: model
       integer                             :: schedule_pattern
       real(rk)                            :: realvalue
+      real(rk)                            :: minimum
+      real(rk)                            :: maximum
 
       subsettings => type_settings_create(pair)
       select type (subsettings)
@@ -88,7 +90,7 @@ contains
          instance_settings => subsettings
       end select
 
-      use_model = instance_settings%get_logical('use', 'use this model', default=.true.)
+      use_model = instance_settings%get_logical('use', 'use this model', default=.true., display=display_advanced)
       if (.not. use_model) then
          call log_message('SKIPPING model instance ' // pair%name // ' because it has use=false set.')
          ignored = instance_settings%ignore()
@@ -99,7 +101,7 @@ contains
       modelname = instance_settings%get_string('model', 'model type', default=pair%name)
 
       ! Retrieve descriptive name for the model instance (default to instance name if not provided).
-      long_name = instance_settings%get_string('long_name', 'descriptive name for model instance', default=pair%name)
+      long_name = instance_settings%get_string('long_name', 'descriptive name for model instance', default=pair%name, display=display_advanced)
 
       ! Try to create the model based on name.
       call factory%create(modelname, model)
@@ -110,11 +112,12 @@ contains
       end if
       model%user_created = .true.
 
-      call instance_settings%get(model%check_conservation, 'check_conservation', 'check_conservation', default=self%check_conservation)
+      call instance_settings%get(model%check_conservation, 'check_conservation', 'check_conservation', default=self%check_conservation, display=display_advanced)
 
       ! Transfer user-specified parameter values to the model.
-      call instance_settings%attach_child(model%parameters, 'parameters')
-      call instance_settings%attach_child(model%couplings, 'coupling')
+      call instance_settings%attach_child(model%parameters, 'parameters', display=display_advanced)
+      inisettings => instance_settings%get_child('initialization', display=display_advanced)
+      call instance_settings%attach_child(model%couplings, 'coupling', display=display_advanced)
 
       ! Add the model to its parent.
       call log_message('Initializing ' // pair%name // '...')
@@ -122,36 +125,38 @@ contains
       call self%root%add_child(model, pair%name, long_name)
       call log_message('   initialization succeeded.')
 
-      subsettings => instance_settings%get_child('schedule')
+      subsettings => instance_settings%get_child('schedule', display=display_advanced)
       schedule_pattern = subsettings%get_integer('interior', 'interior', options=(/option(0, 'always', 'always'), &
-         option(1, 'monthly', 'monthly')/), default=0, display=display_advanced)
+         option(1, 'monthly', 'monthly')/), default=0)
       if (schedule_pattern /= 0) call self%schedules%add(model, source_do, schedule_pattern)
 
       ! Transfer user-specified initial state to the model.
-      subsettings => instance_settings%get_child('initialization')
       link => model%links%first
       do while (associated(link))
+         minimum = default_minimum_real
+         maximum = default_maximum_real
+         if (link%target%minimum /= -1.e20_rk) minimum = link%target%minimum
+         if (link%target%maximum /=  1.e20_rk) maximum = link%target%maximum
          if (index(link%name, '/') == 0 .and. link%target%source == source_state .and. link%target%presence == presence_internal) then
             if (self%require_initialization) then
-               call subsettings%get(link%target%initial_value, trim(link%name), trim(link%target%long_name), &
-                  trim(link%target%units), minimum=link%target%minimum, maximum=link%target%maximum)
+               call inisettings%get(link%target%initial_value, trim(link%name), trim(link%target%long_name), &
+                  trim(link%target%units), minimum=minimum, maximum=maximum)
             else
-               call subsettings%get(link%target%initial_value, trim(link%name), trim(link%target%long_name), &
-                  trim(link%target%units), minimum=link%target%minimum, maximum=link%target%maximum, &
-                  default=link%target%initial_value)
+               call inisettings%get(link%target%initial_value, trim(link%name), trim(link%target%long_name), &
+                  trim(link%target%units), minimum=minimum, maximum=maximum, default=link%target%initial_value)
             end if
          end if
          link => link%next
       end do
 
       ! Transfer user-specified background value to the model.
-      subsettings => instance_settings%get_child('background')
+      subsettings => instance_settings%get_child('background', display=display_advanced)
       link => model%links%first
       do while (associated(link))
          if (index(link%name, '/') == 0 .and. link%target%source == source_state &
              .and. allocated(link%target%background_values%pointers)) then
             realvalue = subsettings%get_real(trim(link%name), trim(link%target%long_name), trim(link%target%units), &
-               default=link%target%background_values%pointers(1)%p)
+               default=link%target%background_values%pointers(1)%p, display=display_advanced)
             call link%target%background_values%set_value(realvalue)
          end if
          link => link%next

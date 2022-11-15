@@ -64,7 +64,7 @@ module fabm_types
    public type_fabm_settings
 
    ! Expose symbols defined in yaml_settings module
-   public type_option
+   public type_option, display_inherit, display_normal, display_advanced, display_hidden
 
    ! For backward compatibility (20200302, pre 1.0)
    public type_bulk_standard_variable
@@ -174,6 +174,7 @@ module fabm_types
       logical                             :: includes_custom = .false.
    contains
       procedure :: remove     => coupling_task_list_remove
+      procedure :: find       => coupling_task_list_find
       procedure :: add        => coupling_task_list_add
       procedure :: add_object => coupling_task_list_add_object
    end type
@@ -1018,8 +1019,8 @@ contains
          model%long_name = trim(model%name)
       end if
       model%parent => self
-      if (.not. associated(model%parameters%parent)) call self%parameters%attach_child(model%parameters, trim(model%name))
-      if (.not. associated(model%couplings%parent)) call self%couplings%attach_child(model%couplings, trim(model%name))
+      if (.not. associated(model%parameters%parent)) call self%parameters%attach_child(model%parameters, trim(model%name), display=display_hidden)
+      if (.not. associated(model%couplings%parent)) call self%couplings%attach_child(model%couplings, trim(model%name), display=display_hidden)
       call self%children%append(model)
       call model%initialize(-1)
       model%rdt__ = 1._rk / model%dt
@@ -2832,6 +2833,18 @@ contains
       deallocate(task)
    end subroutine
 
+   function coupling_task_list_find(self, link) result(existing_task)
+      class (type_coupling_task_list), intent(inout) :: self
+      type (type_link), target,        intent(in)    :: link
+      class (type_coupling_task), pointer :: existing_task
+
+      existing_task => self%first
+      do while (associated(existing_task))
+         if (associated(existing_task%slave, link)) return
+         existing_task => existing_task%next
+      end do
+   end function coupling_task_list_find
+
    function coupling_task_list_add_object(self, task, always_create) result(used)
       class (type_coupling_task_list), intent(inout) :: self
       class (type_coupling_task), pointer            :: task
@@ -2842,19 +2855,16 @@ contains
 
       ! First try to find an existing coupling task for this link. If one exists, we'll replace it.
       used = .false.
-      existing_task => self%first
-      do while (associated(existing_task))
-         ! Check if we have found an existing task for the same link.
-         if (associated(existing_task%slave, task%slave)) then
-            ! If existing one has higher priority, do not add the new task and return (used=.false.)
-            if (existing_task%user_specified .and. .not. always_create) return
 
-            ! We will overwrite the existing task - remove existing task and exit loop
-            call self%remove(existing_task)
-            exit
-         end if
-         existing_task => existing_task%next
-      end do
+      ! Check if we have found an existing task for the same link.
+      existing_task => self%find(task%slave)
+      if (associated(existing_task)) then
+         ! If existing one has higher priority, do not add the new task and return (used=.false.)
+         if (existing_task%user_specified .and. .not. always_create) return
+
+         ! We will overwrite the existing task - remove existing task and exit loop
+         call self%remove(existing_task)
+      end if
 
       used = .true.
       if (.not. associated(self%first)) then

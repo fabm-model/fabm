@@ -16,7 +16,7 @@ module yaml_settings
    public type_dictionary_populator, type_list_populator, type_settings_node, type_key_value_pair, type_list_item
    public type_real_setting, type_logical_setting, type_integer_setting, type_string_setting
    public type_real_setting_create, type_logical_setting_create, type_integer_setting_create, type_string_setting_create
-   public format_real, format_integer, error_reporter_proc
+   public format_real, format_integer, error_reporter_proc, default_minimum_real, default_maximum_real
 
    integer, parameter :: rk = yaml_real_kind
 
@@ -286,7 +286,7 @@ contains
       class (type_value), intent(in) :: self
       integer,            intent(in) :: display
       logical                        :: visible
-      visible = display >= self%display
+      visible = display >= get_display(self)
    end function
 
    integer function value_get_yaml_style(self, display)
@@ -507,8 +507,6 @@ contains
       logical                        :: treat_as_path_
       integer                        :: islash
       integer                        :: order_
-
-      if (self%display == display_inherit) self%display = display_normal
 
       istart_ = 1
       settings => self
@@ -1142,7 +1140,6 @@ contains
       class (type_value), target :: value
 
       value%parent => self%value%parent
-      if (value%display == display_inherit) value%display = value%parent%display
       call move_alloc(self%value%path, value%path)
       value%backing_store_node => self%value%backing_store_node
       if (self%own_value) deallocate(self%value)
@@ -1487,7 +1484,7 @@ contains
             call append_string(comment, '; ', 'dimensionless')
          elseif (self%units == '1') then
             call append_string(comment, '; ', 'fraction')
-         else
+         elseif (self%units /= '') then
             call append_string(comment, '; ', self%units)
          end if
       end if
@@ -1516,10 +1513,24 @@ contains
       integer,                   intent(in) :: display
       logical                               :: visible
       visible = .true.
-      if (display >= self%display) return
+      if (display >= get_display(self)) return
       if (.not. self%has_default) return
       if (.not. self%at_default()) return
       visible = .false.
+   end function
+
+   recursive integer function get_display(self)
+      class (type_value), target, intent(in) :: self
+
+      class (type_value), pointer :: current
+
+      current => self
+      get_display = self%display
+      do while (get_display == display_inherit .and. associated(current%parent))
+         current => current%parent
+         get_display = current%display
+      end do
+      if (get_display == display_inherit) get_display = display_normal
    end function
 
    recursive function settings_get_maximum_depth(self, name, display) result(maxdepth)
@@ -1547,7 +1558,7 @@ contains
       type (type_key_value_pair), pointer :: pair
 
       visible = .true.
-      if (display >= self%display) return
+      if (display >= get_display(self)) return
       pair => self%first
       do while (associated(pair))
          if (pair%from_populator .or. pair%value%is_visible(display)) return
@@ -1826,7 +1837,7 @@ contains
       class (type_list), intent(in) :: self
       integer,           intent(in) :: display
       logical                       :: visible
-      visible = display >= self%display .or. associated(self%first)
+      visible = display >= get_display(self) .or. associated(self%first)
    end function
 
    recursive subroutine list_finalize(self)
