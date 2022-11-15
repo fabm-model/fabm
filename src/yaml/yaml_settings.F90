@@ -329,7 +329,7 @@ contains
       integer,               intent(in)    :: unit
       procedure(error_reporter_proc), optional :: error_reporter
 
-      class (type_yaml_node),pointer   :: root
+      class (type_yaml_node), pointer  :: root
       character(len=yaml_error_length) :: error
 
       if (present(error_reporter)) self%error_reporter => error_reporter
@@ -1198,15 +1198,15 @@ contains
       select type (backing_store_node => self%backing_store_node)
       class is (type_yaml_dictionary)
          self%backing_store => backing_store_node
-         yaml_pair => self%backing_store%first
-         do while (associated(yaml_pair))
-            if (present(populator)) then
+         if (present(populator)) then
+            yaml_pair => self%backing_store%first
+            do while (associated(yaml_pair))
                pair => self%get_node(trim(yaml_pair%key), treat_as_path=.false.)
                call populator%create(pair)
                pair%from_populator = .true.
-            end if
-            yaml_pair => yaml_pair%next
-         end do
+               yaml_pair => yaml_pair%next
+            end do
+         end if
       class is (type_yaml_null)
       class default
          call self%report_error(self%path//' should be a dictionary')
