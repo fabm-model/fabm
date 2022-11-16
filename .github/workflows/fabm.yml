@@ -27,7 +27,6 @@ jobs:
       - name: Run all test cases with pyfabm
         run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
    ifort:
-
       strategy:
         matrix:
           include:
