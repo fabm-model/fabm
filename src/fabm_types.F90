@@ -2504,49 +2504,89 @@ contains
       if (associated(self%parent)) call register_expression(self%parent, expression)
    end subroutine
 
-   subroutine get_real_parameter(self, value, name, units, long_name, default, scale_factor, minimum, maximum)
+   subroutine get_real_parameter(self, value, name, units, long_name, default, scale_factor, minimum, maximum, display)
       class (type_base_model), intent(inout), target  :: self
       real(rk),                intent(inout), target  :: value
       character(len=*),        intent(in)             :: name
       character(len=*),        intent(in),   optional :: units, long_name
       real(rk),                intent(in),   optional :: default, scale_factor, minimum, maximum
+      integer,                 intent(in),   optional :: display
 
-      if (fabm_parameter_pointers) then
-         call self%parameters%get(value, name, long_name, units, default, minimum, maximum, scale_factor)
+      integer :: display_
+
+      if (present(display)) then
+         display_ = display
+      elseif (self%user_created) then
+         display_ = display_normal
       else
-         value = self%parameters%get_real(name, long_name, units, default, minimum, maximum, scale_factor)
+         display_ = display_inherit
+      end if
+      if (fabm_parameter_pointers) then
+         call self%parameters%get(value, name, long_name, units, default, minimum, maximum, scale_factor, display=display_)
+      else
+         value = self%parameters%get_real(name, long_name, units, default, minimum, maximum, scale_factor, display=display_)
       end if
    end subroutine get_real_parameter
 
-   subroutine get_integer_parameter(self, value, name, units, long_name, default, minimum, maximum, options)
+   subroutine get_integer_parameter(self, value, name, units, long_name, default, minimum, maximum, options, display)
       class (type_base_model), intent(inout), target :: self
       integer,                 intent(inout)         :: value
       character(len=*),        intent(in)            :: name
       character(len=*),        intent(in), optional  :: units, long_name
       integer,                 intent(in), optional  :: default, minimum, maximum
       type (type_option),      intent(in), optional  :: options(:)
+      integer,                 intent(in), optional  :: display
 
-      value = self%parameters%get_integer(name, long_name, units, default, minimum, maximum, options)
+      integer :: display_
+
+      if (present(display)) then
+         display_ = display
+      elseif (self%user_created) then
+         display_ = display_normal
+      else
+         display_ = display_inherit
+      end if
+      value = self%parameters%get_integer(name, long_name, units, default, minimum, maximum, options, display=display_)
    end subroutine get_integer_parameter
 
-   subroutine get_logical_parameter(self, value, name, units, long_name, default)
+   subroutine get_logical_parameter(self, value, name, units, long_name, default, display)
       class (type_base_model), intent(inout), target :: self
       logical,                 intent(inout)         :: value
       character(len=*),        intent(in)            :: name
       character(len=*),        intent(in), optional  :: units, long_name
       logical,                 intent(in), optional  :: default
+      integer,                 intent(in), optional  :: display
 
-      value = self%parameters%get_logical(name, long_name, default)
+      integer :: display_
+
+      if (present(display)) then
+         display_ = display
+      elseif (self%user_created) then
+         display_ = display_normal
+      else
+         display_ = display_inherit
+      end if
+      value = self%parameters%get_logical(name, long_name, default, display=display_)
    end subroutine get_logical_parameter
 
-   recursive subroutine get_string_parameter(self, value, name, units, long_name, default)
+   recursive subroutine get_string_parameter(self, value, name, units, long_name, default, display)
       class (type_base_model), intent(inout), target :: self
       character(len=*),        intent(inout)         :: value
       character(len=*),        intent(in)            :: name
       character(len=*),        intent(in), optional  :: units, long_name
       character(len=*),        intent(in), optional  :: default
+      integer,                 intent(in), optional  :: display
 
-      value = self%parameters%get_string(name, long_name, units, default)
+      integer :: display_
+
+      if (present(display)) then
+         display_ = display
+      elseif (self%user_created) then
+         display_ = display_normal
+      else
+         display_ = display_inherit
+      end if
+      value = self%parameters%get_string(name, long_name, units, default, display=display_)
    end subroutine get_string_parameter
 
    function find_object(self, name, recursive, exact) result(object)
