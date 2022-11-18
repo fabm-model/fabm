@@ -95,7 +95,7 @@ jobs:
           - "3.0.0"  # 2021-03-15
           #- "3.1.0"  # 2021-07-19 Fails during fabm-c compilation
           #- "3.2.0"  # 2021-12-10 Fails during fabm-c compilation
-          #- "4.0.0"  # Succeeds but is not available via spack yet (manual download was tested)
+          - "4.0.0"  # 2022-11-10
         fail-fast: false
       runs-on: ubuntu-latest
       steps:
