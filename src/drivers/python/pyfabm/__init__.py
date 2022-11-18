@@ -177,6 +177,9 @@ fabm.check_state.restype = ctypes.c_int
 fabm.get_version.argtypes = (ctypes.c_int, ctypes.c_char_p)
 fabm.get_version.restype = None
 
+fabm.save_settings.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+fabm.save_settings.restype = ctypes.c_void_p
+
 if ndim_int == 0:
     fabm.integrate.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, arrtype1D, arrtypeInteriorExt, arrtypeInteriorExt2, ctypes.c_double, ctypes.c_int, ctypes.c_int, arrtypeInterior]
     fabm.integrate.restype = None
@@ -191,6 +194,10 @@ INTERIOR_DEPENDENCY            = 7
 HORIZONTAL_DEPENDENCY          = 8
 SCALAR_DEPENDENCY              = 9
 ATTRIBUTE_LENGTH               = 256
+
+DISPLAY_MINIMUM  = 0
+DISPLAY_NORMAL   = 1
+DISPLAY_ADVANCED = 2
 
 unicodesuperscript = {'1':'\u00B9','2':'\u00B2','3':'\u00B3',
                       '4':'\u2074','5':'\u2075','6':'\u2076',
@@ -380,7 +387,7 @@ class Parameter(Variable):
             return result.value.decode('ascii')
 
     def setValue(self,value):
-        settings = self.model.saveSettings()
+        settings = self.model.save_state()
 
         if self.type == 1:
             fabm.set_real_parameter(self.model.pmodel, self.name.encode('ascii'), value)
@@ -400,7 +407,7 @@ class Parameter(Variable):
         return self.getValue(True)
 
     def reset(self):
-        settings = self.model.saveSettings()
+        settings = self.model.save_state()
         fabm.reset_parameter(self.model.pmodel, self.index)
         self.model.updateConfiguration(settings)
 
@@ -552,13 +559,16 @@ class Model(object):
     def getSubModel(self,name):
         return SubModel(self.pmodel, name)
 
-    def saveSettings(self):
+    def save_settings(self, path, display=DISPLAY_NORMAL):
+        fabm.save_settings(self.pmodel, path.encode('ascii'), display)
+
+    def save_state(self):
         environment = dict([(dependency.name, dependency.value) for dependency in self.dependencies])
         state = dict([(variable.name,variable.value) for variable in self.state_variables])
-        return environment,state
+        return environment, state
 
-    def restoreSettings(self, data):
-        environment,state = data
+    def restore_state(self, data):
+        environment, state = data
         for dependency in self.dependencies:
             if dependency.name in environment:
                 dependency.value = environment[dependency.name]
@@ -661,7 +671,7 @@ class Model(object):
         self.variables = self.state_variables + self.diagnostic_variables + self.dependencies
 
         if settings is not None:
-            self.restoreSettings(settings)
+            self.restore_state(settings)
 
         # For backward compatibility
         self.bulk_state_variables = self.interior_state_variables

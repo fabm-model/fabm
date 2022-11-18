@@ -10,7 +10,7 @@ module fabm_c
    use fabm, only: type_fabm_model, type_fabm_variable, fabm_get_version, status_start_done, fabm_create_model
    use fabm_types, only: rk => rke, attribute_length, type_model_list_node, type_base_model, &
                          factory, type_link, type_link_list, type_internal_variable, type_variable_list, type_variable_node, &
-                         domain_interior, domain_horizontal, domain_scalar
+                         domain_interior, domain_horizontal, domain_scalar, get_free_unit
    use fabm_driver, only: type_base_driver, driver
    use fabm_python_helper
    use fabm_c_helper
@@ -59,7 +59,6 @@ contains
       call copy_to_c_string(string, version_string)
    end subroutine get_version
 
-
    subroutine get_driver_settings(ndim, idepthdim) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_driver_settings
       integer(c_int), intent(out) :: ndim, idepthdim
@@ -101,6 +100,20 @@ contains
 
       ptr = c_loc(model)
    end function create_model
+
+   subroutine save_settings(pmodel, path, display) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: save_settings
+      type (c_ptr), value,            intent(in) :: pmodel
+      character(kind=c_char), target, intent(in) :: path(*)
+      integer(c_int), value,          intent(in) :: display
+
+      type (type_model_wrapper),       pointer :: model
+      character(len=attribute_length), pointer :: ppath
+
+      call c_f_pointer(pmodel, model)
+      call c_f_pointer(c_loc(path), ppath)
+      call model%p%settings%save(ppath(:index(ppath, C_NULL_CHAR) - 1), unit=get_free_unit(), display=display)
+   end subroutine
 
    subroutine reinitialize(model)
       type (type_model_wrapper), intent(inout) :: model
