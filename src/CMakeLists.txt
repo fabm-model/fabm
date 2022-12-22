@@ -100,6 +100,23 @@ elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Cray")
   add_compile_options(-N 1023)
 endif()
 
+option(FABM_BUILD_OMP_API "Build OpenMP interfaces" OFF)
+mark_as_advanced(FABM_BUILD_OMP_API)
+
+if(FABM_BUILD_OMP_API)
+  # Add compile options to ensure thread safety of all FABM routines
+  if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+    add_compile_options(-frecursive)
+  elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+    # NB /reentrancy:threaded is also required but already the default (and implied by /threads)
+    if(WIN32)
+      add_compile_options(/assume:recursion /threads)
+    else()
+      add_compile_options(-assume recursion -threads)
+    endif()
+  endif()
+endif()
+
 if(FABM_FORCED_HOST)
   # FABM_HOST was specified by a higher level CMakeLists.txt
   unset(FABM_HOST CACHE)
@@ -280,6 +297,10 @@ option(FABM_BUILD_C_API "Build C interfaces" OFF)
 mark_as_advanced(FABM_BUILD_C_API)
 if(FABM_BUILD_C_API)
   add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/c" c)
+endif()
+
+if(FABM_BUILD_OMP_API)
+  add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/omp" omp)
 endif()
 
 # Tests
