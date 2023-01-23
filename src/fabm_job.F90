@@ -1170,7 +1170,7 @@ contains
                   output_variable => output_variable%next
                end do
                if (associated(final_output_variable)) final_output_variable%copy_to_cache = .true.
-               call link_cowritten_outputs(input_variable%p%sources, task)
+               if (input_variable%p%update) call link_cowritten_outputs(input_variable%p%sources, task)
                input_variable => input_variable%next
             end do
          end do
