@@ -788,7 +788,7 @@ contains
          open(unit=log_unit, file=log_prefix // 'task_order.log', action='write', status='replace', iostat=ios)
          if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'task_order.log')
       end if
-      call self%job_manager%initialize(self%variable_register, self%schedules, log_unit)
+      call self%job_manager%initialize(self%variable_register, self%schedules, log_unit, self%finalize_outputs_job)
       if (self%log) then
          close(log_unit)
          open(unit=log_unit, file=log_prefix // 'graph.gv', action='write', status='replace', iostat=ios)
