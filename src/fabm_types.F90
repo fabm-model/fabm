@@ -1791,10 +1791,13 @@ contains
       real(rk),                      target,            optional :: background
       type (type_link),              pointer,           optional :: link
 
-      integer                   :: length, i
-      character(len=256)        :: text
-      type (type_link), pointer :: link_
+      integer                                      :: length, i
+      character(len=256)                           :: text
+      type (type_link), pointer                    :: link_
       class (type_base_standard_variable), pointer :: pstandard_variable
+      character(len=attribute_length)              :: oriname
+      integer                                      :: instance
+      logical                                      :: duplicate
 
       ! Check whether the model information may be written to (only during initialization)
       if (self%frozen) call self%fatal_error('add_variable', &
@@ -1889,12 +1892,30 @@ contains
          call variable%write_indices%append(write_index)
       end if
 
+      ! Check if a link with this name exists.
+      ! If so, append an integer number to make the name unique
+      duplicate = associated(self%links%find(variable%name))
+      if (duplicate) then
+         ! Link with this name exists already.
+         ! Append numbers to the variable name until a unique name is found.
+         oriname = variable%name
+         instance = 0
+         do
+            write (variable%name,'(a,a,i0)') trim(oriname), '_', instance
+            if (.not. associated(self%links%find(variable%name))) exit
+            instance = instance + 1
+         end do
+      end if
+
       ! Create a class pointer and use that to create a link.
       link_ => add_object(self, variable)
       if (present(link)) then
          if (associated(link)) call self%fatal_error('add_variable', 'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(link%name) // '.')
          link => link_
       end if
+
+      ! If this name matched that of a previous variable, create a coupling to it.
+      if (duplicate) call self%request_coupling(link_, oriname)
    end subroutine add_variable
 
    subroutine add_interior_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
@@ -1995,26 +2016,8 @@ contains
       class (type_base_model), target, intent(inout) :: self
       type (type_internal_variable), pointer         :: object
 
-      type (type_link), pointer         :: link, parent_link
-      character(len=attribute_length)   :: oriname
-      integer                           :: instance
-      logical                           :: duplicate
+      type (type_link),         pointer :: link, parent_link
       type (type_link_pointer), pointer :: link_pointer
-
-      ! First check if a link with this name exists.
-      duplicate = associated(self%links%find(object%name))
-
-      if (duplicate) then
-         ! Link with this name exists already.
-         ! Append numbers to the variable name until a unique name is found.
-         oriname = object%name
-         instance = 0
-         do
-            write (object%name,'(a,a,i0)') trim(oriname), '_', instance
-            if (.not. associated(self%links%find(object%name))) exit
-            instance = instance + 1
-         end do
-      end if
 
       ! Create link for this object.
       link => self%links%append(object, object%name)
@@ -2024,9 +2027,6 @@ contains
       link_pointer%p => link
       link_pointer%next => object%first_link
       object%first_link => link_pointer
-
-      ! If this name matched that of a previous variable, create a coupling to it.
-      if (duplicate) call self%request_coupling(link, oriname)
 
       ! Forward to parent
       if (associated(self%parent)) then
