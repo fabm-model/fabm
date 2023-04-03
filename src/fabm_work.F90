@@ -146,6 +146,7 @@ contains
       real(rki), optional,    intent(in)  :: missing(:)
 
       allocate(target(lb:size(fill)))
+      if (lb == 0) target(0) = 0.0_rki
       target(1:) = fill
    end subroutine
 
@@ -159,6 +160,7 @@ contains
       integer :: i
 
       allocate(target(1:n, lb:size(fill)))
+      if (lb == 0) target(:, 0) = 0.0_rki
       do i = 1, size(fill)
          target(:, i) = fill(i)
          if (present(nvalid)) target(nvalid + 1:, i) = missing(i)
