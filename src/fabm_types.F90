@@ -459,6 +459,7 @@ module fabm_types
       procedure :: add_child
 
       ! Procedures for adding variables [during initialization only]
+      procedure :: add_variable
       procedure :: add_interior_variable
       procedure :: add_horizontal_variable
       procedure :: add_scalar_variable
