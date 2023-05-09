@@ -38,22 +38,9 @@ set(FABM_REAL_KIND_INTERNAL ${FABM_REAL_KIND_EXTERNAL} CACHE STRING "Fortran rea
 mark_as_advanced(FABM_REAL_KIND_INTERNAL)
 
 option(FABM_USE_IEEE_ARITHMETIC "Use IEEE_ARITHMETIC module" ON)
-mark_as_advanced(FABM_USE_IEEE_ARITHMETIC)
-if(NOT FABM_USE_IEEE_ARITHMETIC)
-  add_compile_definitions(_NO_IEEE_ARITHMETIC_)
-endif()
-
 option(FABM_USE_DO_CONCURRENT "Use DO CONCURRENT statement (Fortran 2008)" ON)
-mark_as_advanced(FABM_USE_DO_CONCURRENT)
-if(NOT FABM_USE_DO_CONCURRENT)
-  add_compile_definitions(_NO_DO_CONCURRENT_)
-endif()
-
 option(FABM_USE_CONTIGUOUS "Use CONTIGUOUS attribute (Fortran 2008)" ON)
-mark_as_advanced(FABM_USE_CONTIGUOUS)
-if(NOT FABM_USE_CONTIGUOUS)
-  add_compile_definitions(_NO_CONTIGUOUS_)
-endif()
+mark_as_advanced(FABM_USE_IEEE_ARITHMETIC FABM_USE_DO_CONCURRENT FABM_USE_CONTIGUOUS)
 
 # Specify default build type for single-type systems (not VS)
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)

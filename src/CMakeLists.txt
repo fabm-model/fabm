@@ -134,6 +134,22 @@ target_link_libraries(fabm_base PRIVATE yaml)
 target_include_directories(fabm_base PUBLIC ${FABM_INCLUDE_DIRS})
 install(TARGETS fabm_base EXPORT fabmConfig)
 
+# Define preprocessor macros. These are set on the fabm_base target, but also
+# at directory level (add_compile_definitions) for institutes that still use
+# add_dependencies instead of target_link_libraries to link to fabm_base.
+if(NOT FABM_USE_IEEE_ARITHMETIC)
+  add_compile_definitions(_FABM_NO_IEEE_ARITHMETIC_)
+  target_compile_definitions(fabm_base PUBLIC _FABM_NO_IEEE_ARITHMETIC_)
+endif()
+if(NOT FABM_USE_DO_CONCURRENT)
+  add_compile_definitions(_FABM_NO_DO_CONCURRENT_)
+  target_compile_definitions(fabm_base PUBLIC _FABM_NO_DO_CONCURRENT_)
+endif()
+if(NOT FABM_USE_CONTIGUOUS)
+  add_compile_definitions(_FABM_NO_CONTIGUOUS_)
+  target_compile_definitions(fabm_base PUBLIC _FABM_NO_CONTIGUOUS_)
+endif()
+
 add_library(fabm
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90
