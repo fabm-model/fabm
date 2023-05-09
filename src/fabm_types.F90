@@ -1873,6 +1873,9 @@ contains
          _ASSERT_(variable%source /= source_state, 'add_variable', 'Variable ' // trim(name) // ' being registered with source_state and write index.')
          call variable%write_indices%append(write_index)
       end if
+      if (variable%source == source_state) then
+         _ASSERT_(variable%domain == domain_interior .or. variable%domain == domain_surface .or. variable%domain == domain_bottom, 'add_variable', 'Variable ' // trim(name) // ' being registered with a domain that does not allow source_state.')
+      end if
 
       ! Create a class pointer and use that to create a link.
       link_ => add_object(self, variable)
