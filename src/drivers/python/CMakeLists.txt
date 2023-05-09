@@ -30,7 +30,7 @@ endif()
 # Force FABM_HOST to python and include FABM CMakeLists.txt.
 set(FABM_FORCED_HOST python)
 set(FABM_BUILD_C_API ON CACHE BOOL "Build C interfaces" FORCE)
-add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm EXCLUDE_FROM_ALL)
+add_subdirectory(${PROJECT_SOURCE_DIR}/../../.. fabm EXCLUDE_FROM_ALL)
 
 # Add Python-FABM library
 #add_library(python_fabm SHARED
