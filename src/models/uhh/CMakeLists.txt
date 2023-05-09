@@ -15,7 +15,7 @@ add_library(fabm_models_uhh OBJECT
             halogen/uv.F90
            )
 
-add_dependencies(fabm_models_uhh fabm_base)
+target_link_libraries(fabm_models_uhh PRIVATE fabm_base)
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2014 - Richard Hofmeister (Uni Hamburg)                !

@@ -34,6 +34,5 @@ add_library(fabm_models_python OBJECT
   python_parameters.F90.in
   ${CMAKE_CURRENT_BINARY_DIR}/python_parameters.F90
 )
-add_dependencies(fabm_models_python fabm_base)
-target_link_libraries(fabm_models_python PRIVATE fabm_models_python_c)
+target_link_libraries(fabm_models_python PRIVATE fabm_base fabm_models_python_c)
 target_sources(fabm PRIVATE $<TARGET_OBJECTS:fabm_models_python_c>)

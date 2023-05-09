@@ -1,5 +1,6 @@
 # Minimum cmake version:
 # - 3.12 is needed for https://cmake.org/cmake/help/latest/command/target_link_libraries.html#id8
+# - 3.12 is needed for https://cmake.org/cmake/help/latest/command/add_compile_definitions.html
 cmake_minimum_required(VERSION 3.12)
 
 project(fabm
@@ -39,24 +40,24 @@ mark_as_advanced(FABM_REAL_KIND_INTERNAL)
 option(FABM_USE_IEEE_ARITHMETIC "Use IEEE_ARITHMETIC module" ON)
 mark_as_advanced(FABM_USE_IEEE_ARITHMETIC)
 if(NOT FABM_USE_IEEE_ARITHMETIC)
-  add_definitions(-D_NO_IEEE_ARITHMETIC_)
+  add_compile_definitions(_NO_IEEE_ARITHMETIC_)
 endif()
 
 option(FABM_USE_DO_CONCURRENT "Use DO CONCURRENT statement (Fortran 2008)" ON)
 mark_as_advanced(FABM_USE_DO_CONCURRENT)
 if(NOT FABM_USE_DO_CONCURRENT)
-  add_definitions(-D_NO_DO_CONCURRENT_)
+  add_compile_definitions(_NO_DO_CONCURRENT_)
 endif()
 
 option(FABM_USE_CONTIGUOUS "Use CONTIGUOUS attribute (Fortran 2008)" ON)
 mark_as_advanced(FABM_USE_CONTIGUOUS)
 if(NOT FABM_USE_CONTIGUOUS)
-  add_definitions(-D_NO_CONTIGUOUS_)
+  add_compile_definitions(_NO_CONTIGUOUS_)
 endif()
 
 # Specify default build type for single-type systems (not VS)
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  set (CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
@@ -72,7 +73,7 @@ elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Cray")
 endif()
 
 # Customize preprocessor definitions
-set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<NOT:$<CONFIG:DEBUG>>:NDEBUG>)
+add_compile_definitions($<$<NOT:$<CONFIG:DEBUG>>:NDEBUG>)
 
 # Use use position-independent code (-fPIC) everywhere if building shared libraries
 if(BUILD_SHARED_LIBS)

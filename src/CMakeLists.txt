@@ -70,11 +70,16 @@ endforeach(institute)
 configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_library.F90.in
                ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90)
 
-# Global include directories
-include_directories("${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}"
-                    "${CMAKE_CURRENT_LIST_DIR}/../include"
-                    "${CMAKE_CURRENT_BINARY_DIR}/modules"
-                   )
+set(FABM_INCLUDE_DIRS
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../include>
+  $<INSTALL_INTERFACE:include>
+)
+
+# Global include directories (deprecated; set only for institutes that link to
+# fabm_base using add_dependencies instead of target_link_libraries)
+include_directories(${FABM_INCLUDE_DIRS})
 
 set(GIT_COMMIT_ID unknown)
 set(GIT_BRANCH_NAME unknown)
@@ -126,13 +131,7 @@ add_library(fabm_base OBJECT
            )
 source_group(builtin REGULAR_EXPRESSION /builtin/)
 target_link_libraries(fabm_base PRIVATE yaml)
-
-target_include_directories(fabm_base PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../include>
-  $<INSTALL_INTERFACE:include>
-)
+target_include_directories(fabm_base PUBLIC ${FABM_INCLUDE_DIRS})
 install(TARGETS fabm_base EXPORT fabmConfig)
 
 add_library(fabm
@@ -183,8 +182,7 @@ add_executable(test_host EXCLUDE_FROM_ALL
                ${CMAKE_CURRENT_LIST_DIR}/test/host.F90
                ${CMAKE_CURRENT_LIST_DIR}/test/models.F90
               )
-target_link_libraries(test_host PRIVATE fabm)
-target_include_directories(test_host PRIVATE $<TARGET_PROPERTY:yaml,INTERFACE_INCLUDE_DIRECTORIES>)
+target_link_libraries(test_host PRIVATE fabm yaml)
 
 # Place projects in specific solution folders (Visual Studio only).
 set_property(TARGET fabm_base fabm test_host PROPERTY FOLDER fabm)

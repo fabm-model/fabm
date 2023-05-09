@@ -3,7 +3,7 @@ add_library(fabm_models_csiro OBJECT
             seagrass.F90
            )
 
-add_dependencies(fabm_models_csiro fabm_base)
+target_link_libraries(fabm_models_csiro PRIVATE fabm_base)
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2014 - Karsten Bolding and Jorn Bruggeman (BB)         !

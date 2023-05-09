@@ -14,12 +14,11 @@ add_library(fabm_models_su OBJECT
             ${ERSEM_FILES}
            )
 
-add_dependencies(fabm_models_su fabm_base)
+target_link_libraries(fabm_models_su PRIVATE fabm_base)
 source_group(ersem REGULAR_EXPRESSION ersem/)
 
 if(TARGET fabm_models_ersem)
-   add_dependencies(fabm_models_su fabm_models_ersem)
-   target_include_directories(fabm_models_su PRIVATE $<TARGET_PROPERTY:fabm_models_ersem,INTERFACE_INCLUDE_DIRECTORIES>)
+   target_link_libraries(fabm_models_su PRIVATE fabm_models_ersem)
 endif()
 
 #-----------------------------------------------------------------------
