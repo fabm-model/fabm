@@ -22,7 +22,7 @@ module yaml_types
 
    public type_node,type_scalar,type_null,type_error,real_kind
    public type_dictionary,type_key_value_pair
-   public type_list,type_list_item
+   public type_list,type_list_item, string_lower
 
    integer,parameter :: string_length = 1024
    integer,parameter :: real_kind = kind(1.0d0)
@@ -31,8 +31,9 @@ module yaml_types
       character(len=string_length) :: path = ''
    contains
       procedure (node_dump),deferred :: dump
-      procedure                      :: set_path => node_set_path
-      procedure                      :: finalize => node_finalize
+      procedure                      :: set_path     => node_set_path
+      procedure                      :: set_accessed => node_set_accessed
+      procedure                      :: finalize     => node_finalize
    end type
 
    abstract interface
@@ -81,6 +82,7 @@ module yaml_types
       procedure :: flatten        => dictionary_flatten
       procedure :: reset_accessed => dictionary_reset_accessed
       procedure :: set_path       => dictionary_set_path
+      procedure :: set_accessed   => dictionary_set_accessed
       procedure :: finalize       => dictionary_finalize
    end type
 
@@ -92,9 +94,11 @@ module yaml_types
    type,extends(type_node) :: type_list
       type (type_list_item),pointer :: first => null()
    contains
-      procedure :: append   => list_append
-      procedure :: dump     => list_dump
-      procedure :: set_path => list_set_path
+      procedure :: append       => list_append
+      procedure :: dump         => list_dump
+      procedure :: set_path     => list_set_path
+      procedure :: set_accessed => list_set_accessed
+      procedure :: finalize     => list_finalize
    end type
 
    type type_error
@@ -108,26 +112,31 @@ contains
    end subroutine
 
    subroutine dictionary_reset_accessed(self)
-      class (type_dictionary),intent(in) :: self
-      type (type_key_value_pair),pointer :: pair
-      pair => self%first
-      do while (associated(pair))
-         pair%accessed = .false.
-         pair => pair%next
-      end do
+      class (type_dictionary), intent(inout) :: self
+      call self%set_accessed(.false., .false.)
    end subroutine
 
-   function dictionary_get(self,key) result(value)
+   function dictionary_get(self, key, case_sensitive) result(value)
       class (type_dictionary),intent(in) :: self
       character(len=*),       intent(in) :: key
+      logical, optional,      intent(in) :: case_sensitive
       class(type_node),pointer           :: value
 
+      logical                            :: case_sensitive_
       type (type_key_value_pair),pointer :: pair
+      character(len=len(key))            :: lkey
 
+      case_sensitive_ = .true.
+      if (present(case_sensitive)) case_sensitive_ = case_sensitive
+      if (.not. case_sensitive_) lkey = string_lower(key)
       nullify(value)
       pair => self%first
       do while (associated(pair))
-         if (pair%key==key) exit
+         if (case_sensitive_) then
+            if (pair%key == key) exit
+         else
+            if (string_lower(pair%key) == lkey) exit
+         end if
          pair => pair%next
       end do
       if (associated(pair)) then
@@ -252,12 +261,11 @@ contains
       logical,optional,   intent(out) :: success
       logical                         :: value
 
-      value = default
-      if (present(success)) success = .true.
+      integer :: ios
 
-      read(self%string,*,err=99,end=99) value
-      return
-99    if (present(success)) success = .false.
+      value = default
+      read(self%string,*,iostat=ios) value
+      if (present(success)) success = (ios == 0)
    end function
 
    function scalar_to_integer(self,default,success) result(value)
@@ -266,12 +274,11 @@ contains
       logical,optional,   intent(out) :: success
       integer                         :: value
 
-      value = default
-      if (present(success)) success = .true.
+      integer :: ios
 
-      read(self%string,*,err=99,end=99) value
-      return
-99    if (present(success)) success = .false.
+      value = default
+      read(self%string,*,iostat=ios) value
+      if (present(success)) success = (ios == 0)
    end function
 
    function scalar_to_real(self,default,success) result(value)
@@ -280,12 +287,11 @@ contains
       logical,optional,   intent(out) :: success
       real(real_kind)                 :: value
 
-      value = default
-      if (present(success)) success = .true.
+      integer :: ios
 
-      read(self%string,*,err=99,end=99) value
-      return
-99    if (present(success)) success = .false.
+      value = default
+      read(self%string,*,iostat=ios) value
+      if (present(success)) success = (ios == 0)
    end function
 
    recursive subroutine node_set_path(self,path)
@@ -554,5 +560,74 @@ contains
          item => item%next
       end do
    end subroutine list_set_path
+
+   recursive subroutine list_finalize(self)
+      class (type_list),intent(inout) :: self
+
+      type (type_list_item),pointer :: item, next
+
+      item => self%first
+      do while (associated(item))
+         next => item%next
+         call item%node%finalize()
+         deallocate(item%node)
+         deallocate(item)
+         item => next
+      end do
+      nullify(self%first)
+   end subroutine list_finalize
+
+   function string_lower(string) result (lowerstring)
+       character(len=*),intent(in) :: string
+       character(len=len(string))  :: lowerstring
+
+       integer :: i,k
+
+       lowerstring = string
+       do i = 1,len(string)
+           k = iachar(string(i:i))
+           if (k>=iachar('A').and.k<=iachar('Z')) then
+               k = k + iachar('a') - iachar('A')
+               lowerstring(i:i) = achar(k)
+           end if
+       end do
+   end function string_lower
+
+   recursive subroutine node_set_accessed(self, value, recursive)
+      class (type_node), intent(inout) :: self
+      logical,           intent(in)    :: value
+      logical,           intent(in)    :: recursive
+   end subroutine node_set_accessed
+
+   recursive subroutine dictionary_set_accessed(self, value, recursive)
+      class (type_dictionary), intent(inout) :: self
+      logical,                 intent(in)    :: value
+      logical,                 intent(in)    :: recursive
+
+      type (type_key_value_pair), pointer :: pair
+
+      pair => self%first
+      do while (associated(pair))
+         pair%accessed = value
+         if (recursive) call pair%value%set_accessed(value, recursive)
+         pair => pair%next
+      end do
+   end subroutine dictionary_set_accessed
+
+   recursive subroutine list_set_accessed(self, value, recursive)
+      class (type_list), intent(inout) :: self
+      logical,           intent(in)    :: value
+      logical,           intent(in)    :: recursive
+
+      type (type_list_item), pointer :: item
+
+      if (.not. recursive) return
+
+      item => self%first
+      do while (associated(item))
+         call item%node%set_accessed(value, recursive)
+         item => item%next
+      end do
+   end subroutine list_set_accessed
 
 end module yaml_types

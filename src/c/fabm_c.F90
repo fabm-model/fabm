@@ -10,11 +10,12 @@ module fabm_c
    use fabm, only: type_fabm_model, type_fabm_variable, fabm_get_version, status_start_done, fabm_create_model
    use fabm_types, only: rk => rke, attribute_length, type_model_list_node, type_base_model, &
                          factory, type_link, type_link_list, type_internal_variable, type_variable_list, type_variable_node, &
-                         domain_interior, domain_horizontal, domain_scalar
+                         domain_interior, domain_horizontal, domain_scalar, get_free_unit
    use fabm_driver, only: type_base_driver, driver
-   use fabm_properties, only: type_property, type_property_dictionary
    use fabm_python_helper
    use fabm_c_helper
+   use yaml_settings, only: type_settings, type_key_value_pair, type_scalar_value, type_real_setting, type_integer_setting, &
+      type_logical_setting, type_string_setting
 
    implicit none
 
@@ -40,10 +41,9 @@ module fabm_c
    end type
 
    type type_model_wrapper
-      class (type_fabm_model), pointer :: p => null()
-      type (type_variable_list)        :: environment
-      type (type_link_list)            :: coupling_link_list
-      type (type_property_dictionary)  :: forced_parameters, forced_couplings
+      class (type_fabm_model),   pointer :: p => null()
+      type (type_variable_list)          :: environment
+      type (type_link_list)              :: coupling_link_list
    end type
 
 contains
@@ -58,7 +58,6 @@ contains
       call fabm_get_version(string)
       call copy_to_c_string(string, version_string)
    end subroutine get_version
-
 
    subroutine get_driver_settings(ndim, idepthdim) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_driver_settings
@@ -82,7 +81,6 @@ contains
 
       type (type_model_wrapper),       pointer :: model
       character(len=attribute_length), pointer :: ppath
-      class (type_property),           pointer :: property
 
       ! Initialize driver object used by FABM for logging/error reporting.
       if (.not. associated(driver)) allocate(type_python_driver::driver)
@@ -90,23 +88,7 @@ contains
       ! Build FABM model tree (configuration will be read from file specified as argument).
       allocate(model)
       call c_f_pointer(c_loc(path), ppath)
-      model%p => fabm_create_model(path=ppath(:index(ppath, C_NULL_CHAR) - 1), parameters=model%forced_parameters)
-
-      ! Get a list of all parameters that had an explicit value specified.
-      property => model%p%root%parameters%first
-      do while (associated(property))
-         if (.not. model%p%root%parameters%missing%contains(property%name)) &
-            call model%forced_parameters%set_property(property)
-         property => property%next
-      end do
-
-      ! Get a list of all active couplings.
-      property => model%p%root%couplings%first
-      do while (associated(property))
-         if (.not. model%p%root%couplings%missing%contains(property%name)) &
-            call model%forced_couplings%set_property(property)
-         property => property%next
-      end do
+      model%p => fabm_create_model(path=ppath(:index(ppath, C_NULL_CHAR) - 1))
 
       ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
       call model%p%set_domain(_PREARG_LOCATION_ 1._rk)
@@ -119,13 +101,24 @@ contains
       ptr = c_loc(model)
    end function create_model
 
+   subroutine save_settings(pmodel, path, display) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: save_settings
+      type (c_ptr), value,            intent(in) :: pmodel
+      character(kind=c_char), target, intent(in) :: path(*)
+      integer(c_int), value,          intent(in) :: display
+
+      type (type_model_wrapper),       pointer :: model
+      character(len=attribute_length), pointer :: ppath
+
+      call c_f_pointer(pmodel, model)
+      call c_f_pointer(c_loc(path), ppath)
+      call model%p%settings%save(ppath(:index(ppath, C_NULL_CHAR) - 1), unit=get_free_unit(), display=display)
+   end subroutine
+
    subroutine reinitialize(model)
       type (type_model_wrapper), intent(inout) :: model
 
       class (type_fabm_model),     pointer :: newmodel
-      type (type_model_list_node), pointer :: node
-      class (type_base_model),     pointer :: childmodel
-      class (type_property),       pointer :: property, next
       _DECLARE_LOCATION_
 
 #  if _FABM_DIMENSION_COUNT_ > 0
@@ -138,42 +131,11 @@ contains
       k__ = model%p%domain%shape(3)
 #  endif
 
-      ! Create new model object.
-      allocate(newmodel)
-
-      ! Transfer forced parameters to root of the model.
-      call newmodel%root%parameters%update(model%forced_parameters)
-      call newmodel%root%couplings%update(model%forced_couplings)
-
-      ! Re-create original models
-      node => model%p%root%children%first
-      do while (associated(node))
-         if (node%model%user_created) then
-            call factory%create(node%model%type_name, childmodel)
-            childmodel%user_created = .true.
-            call newmodel%root%add_child(childmodel, node%model%name, node%model%long_name, configunit=-1)
-         end if
-         node => node%next
-      end do
+      newmodel => fabm_create_model(settings=model%p%settings)
 
       ! Clean up old model
-      call finalize(model, keep_forced=.true.)
+      call finalize(model)
       model%p => newmodel
-
-      ! Initialize new model
-      call model%p%initialize()
-
-      ! Removed unused forced parameters from root model.
-      property => model%p%root%parameters%first
-      do while (associated(property))
-         if (.not. model%p%root%parameters%retrieved%contains(property%name)) then
-            next => property%next
-            call model%p%root%parameters%delete(property%name)
-            property => next
-         else
-            property => property%next
-         end if
-      end do
 
       ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
       call model%p%set_domain(_PREARG_LOCATION_ 1._rk)
@@ -261,9 +223,68 @@ contains
       end do
 
       nconserved = size(model%p%conserved_quantities)
-      nparameters = model%p%root%parameters%size()
+      nparameters = count_parameters(model%p%root)
       ncouplings = model%coupling_link_list%count()
+
+   contains
+
+      function count_parameters(root) result(n)
+         class (type_base_model), intent(in) :: root
+         integer                             :: n
+
+         type (type_model_list_node), pointer :: instance
+         type (type_key_value_pair),  pointer :: pair
+
+         n = 0
+         instance => root%children%first
+         do while (associated(instance))
+            if (instance%model%user_created) then
+               pair => instance%model%parameters%first
+               do while (associated(pair))
+                  select type (scalar_value => pair%value)
+                  class is (type_scalar_value)
+                     n = n + 1
+                  end select
+                  pair => pair%next
+               end do
+            end if
+            instance => instance%next
+         end do
+      end function
+
    end subroutine get_counts
+
+   function get_parameter_by_index(root, i, name) result(scalar_value)
+      class (type_base_model),    intent(inout) :: root
+      integer,                    intent(in)    :: i
+      character(len=*), optional, intent(out)   :: name
+      class (type_scalar_value), pointer   :: scalar_value
+
+      integer                              :: n
+      type (type_model_list_node), pointer :: instance
+      type (type_key_value_pair),  pointer :: pair
+
+      n = 0
+      instance => root%children%first
+      do while (associated(instance))
+         if (instance%model%user_created) then
+            pair => instance%model%parameters%first
+            do while (associated(pair))
+               select type (value => pair%value)
+               class is (type_scalar_value)
+                  n = n + 1
+                  if (n == i) then
+                     scalar_value => value
+                     if (present(name)) name = trim(instance%model%name) // '/' // trim(pair%name)
+                     return
+                  end if
+               end select
+               pair => pair%next
+            end do
+         end if
+         instance => instance%next
+      end do
+   end function
 
    subroutine get_variable_metadata(pmodel, category, index, length, name, units, long_name, path) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_metadata
@@ -353,24 +374,32 @@ contains
       integer(c_int),         intent(out)                    :: typecode, has_default
 
       type (type_model_wrapper), pointer :: model
-      integer                            :: i
-      class (type_property),     pointer :: property
+      class (type_scalar_value), pointer :: scalar_value
+      character(len=length)              :: name_
 
       call c_f_pointer(pmodel, model)
 
-      i = 1
-      property => model%p%root%parameters%first
-      do while (associated(property))
-         if (index == i) exit
-         property => property%next
-         i = i + 1
-      end do
-
-      call copy_to_c_string(property%name, name)
-      call copy_to_c_string(property%units, units)
-      call copy_to_c_string(property%long_name, long_name)
-      typecode = property%typecode()
-      has_default = logical2int(property%has_default)
+      scalar_value => get_parameter_by_index(model%p%root, index, name_)
+      call copy_to_c_string(name_, name)
+      if (allocated(scalar_value%units)) then
+         call copy_to_c_string(scalar_value%units, units)
+      else
+         call copy_to_c_string('', units)
+      end if
+      call copy_to_c_string(scalar_value%long_name, long_name)
+      select type (scalar_value)
+      class is (type_real_setting)
+         typecode = typecode_real
+      class is (type_integer_setting)
+         typecode = typecode_integer
+      class is (type_logical_setting)
+         typecode = typecode_logical
+      class is (type_string_setting)
+         typecode = typecode_string
+      class default
+         typecode = typecode_unknown
+      end select
+      has_default = logical2int(scalar_value%has_default)
    end subroutine get_parameter_metadata
 
    subroutine get_coupling(pmodel, index, slave, master) bind(c)
@@ -761,21 +790,11 @@ contains
       if (associated(pvalue)) ptr = c_loc(pvalue)
    end function get_horizontal_diagnostic_data
 
-   subroutine finalize(model, keep_forced)
+   subroutine finalize(model)
       type (type_model_wrapper), intent(inout) :: model
-      logical, optional,         intent(in)    :: keep_forced
-
-      logical :: keep_forced_
-
-      keep_forced_ = .false.
-      if (present(keep_forced)) keep_forced_ = keep_forced
 
       call model%p%finalize()
       call model%environment%finalize()
-      if (.not. keep_forced) then
-         call model%forced_parameters%finalize()
-         call model%forced_couplings%finalize()
-      end if
       deallocate(model%p)
    end subroutine finalize
 

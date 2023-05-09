@@ -4,6 +4,10 @@ module fabm_c_helper
 
    implicit none
 
+   public
+
+   integer, parameter :: typecode_unknown = -1, typecode_real = 1, typecode_integer = 2, typecode_logical = 3, typecode_string = 4
+
 contains
 
    subroutine copy_to_c_string(string, cstring)

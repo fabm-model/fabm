@@ -21,6 +21,8 @@ jobs:
                  cmake_args: -DFABM_USE_CONTIGUOUS=OFF
          fail-fast: false
       runs-on: ${{ matrix.os }}
+      env:
+        FFLAGS: -fcheck=all
       steps:
       - name: Install dependencies
         run: sudo apt-get install gfortran-${{ matrix.version }} python3-numpy python3-setuptools python3-wheel
@@ -31,12 +33,22 @@ jobs:
       - name: Run all test cases with pyfabm
         run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
    ifort:
+      strategy:
+        matrix:
+          include:
+            - version: "2021.1.2.62"
+              url_dir: "17508"
+            - version: "2022.2.1.16992"
+              url_dir: "18998"
+        fail-fast: false
       runs-on: ubuntu-latest
+      env:
+        FFLAGS: -check all
       steps:
       - name: Install compiler
         run: |
-           wget --no-verbose https://registrationcenter-download.intel.com/akdlm/irc_nas/17508/l_fortran-compiler_p_2021.1.2.62_offline.sh
-           /bin/sh l_fortran-compiler_p_2021.1.2.62_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
+           wget --no-verbose https://registrationcenter-download.intel.com/akdlm/irc_nas/${{ matrix.url_dir }}/l_fortran-compiler_p_${{ matrix.version }}_offline.sh
+           /bin/sh l_fortran-compiler_p_${{ matrix.version }}_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
       - name: Install dependencies
         run: sudo apt-get install python3-numpy python3-wheel
       - name: Clone repository
@@ -50,13 +62,24 @@ jobs:
            source ${HOME}/intel/setvars.sh
            python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifort
    nvfortran:
+      # for available versions, see https://developer.nvidia.com/nvidia-hpc-sdk-releases
+      strategy:
+        matrix:
+          include:
+            - version: "20.9"  # 2020-10
+              exe: nvhpc_2020_209_Linux_x86_64_cuda_11.0
+            - version: "22.9"  # 2022-10
+              exe: nvhpc_2022_229_Linux_x86_64_cuda_11.7
+        fail-fast: false
       runs-on: ubuntu-latest
+      env:
+        FFLAGS: -Mbounds -Mchkptr
       steps:
       - name: Install compiler
         run: |
-           wget --no-verbose https://developer.download.nvidia.com/hpc-sdk/20.9/nvhpc_2020_209_Linux_x86_64_cuda_11.0.tar.gz
-           tar xpzf nvhpc_2020_209_Linux_x86_64_cuda_11.0.tar.gz
-           nvhpc_2020_209_Linux_x86_64_cuda_11.0/install
+           wget --no-verbose https://developer.download.nvidia.com/hpc-sdk/${{ matrix.version }}/${{ matrix.exe }}.tar.gz
+           tar xpzf ${{ matrix.exe }}.tar.gz
+           ${{ matrix.exe }}/install
         env:
            NVHPC_SILENT: true
            NVHPC_INSTALL_DIR: /home/runner/nvhpc
@@ -66,18 +89,28 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v2
       - name: Run all test cases with host emulators
-        run: python3 util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
+        run: python3 util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
       - name: Run all test cases with pyfabm
-        run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/20.9/compilers/bin/pgfortran
+        run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
    aocc:
+      # for available versions, see https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/aocc/package.py
+      strategy:
+        matrix:
+          version:
+          - "2.2.0"  # 2020-07-15
+          - "3.0.0"  # 2021-03-15
+          #- "3.1.0"  # 2021-07-19 Fails during fabm-c compilation
+          #- "3.2.0"  # 2021-12-10 Fails during fabm-c compilation
+          - "4.0.0"  # 2022-11-10
+        fail-fast: false
       runs-on: ubuntu-latest
       steps:
       - name: Install compiler
         run: |
            cd /home/runner
-           wget --no-verbose http://developer.amd.com/wordpress/media/files/aocc-compiler-3.0.0.tar
-           tar xpf aocc-compiler-3.0.0.tar
-           ./aocc-compiler-3.0.0/install.sh
+           wget --no-verbose https://developer.amd.com/wordpress/media/files/aocc-compiler-${{ matrix.version }}.tar
+           tar xpf aocc-compiler-${{ matrix.version }}.tar
+           ./aocc-compiler-${{ matrix.version }}/install.sh
       - name: Install dependencies
         run: sudo apt-get install python3-numpy python3-wheel
       - name: Clone repository

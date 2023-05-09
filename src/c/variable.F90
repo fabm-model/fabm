@@ -4,7 +4,7 @@ module fabm_c_variable
 
    use fabm_types
    use fabm_c_helper
-   use fabm_properties, only: type_property
+   use fabm_properties, only: type_property, type_integer_property, type_real_property, type_logical_property, type_string_property
 
    implicit none
 
@@ -31,7 +31,6 @@ contains
       character(kind=c_char), intent(out), dimension(length) :: name
 
       type (type_internal_variable), pointer :: variable
-      class (type_base_model),       pointer :: owner
       character(len=attribute_length)        :: name_
 
       call c_f_pointer(pvariable, variable)
@@ -103,11 +102,22 @@ contains
       character(len=attribute_length), pointer :: pname
       class (type_property),           pointer :: property
 
-      value = -1
+      value = typecode_unknown
       call c_f_pointer(pvariable, variable)
       call c_f_pointer(c_loc(name), pname)
       property => variable%properties%get_property(pname(:index(pname, C_NULL_CHAR) - 1))
-      if (associated(property)) value = property%typecode()
+      if (associated(property)) then
+         select type (property)
+         class is (type_real_property)
+            value = typecode_real
+         class is (type_integer_property)
+            value = typecode_integer
+         class is (type_logical_property)
+            value = typecode_logical
+         class is (type_string_property)
+            value = typecode_string
+         end select
+      end if
    end function variable_get_property_type
 
    function variable_get_real_property(pvariable, name, default) bind(c) result(value)

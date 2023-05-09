@@ -92,6 +92,14 @@ if(FABM_EMBED_VERSION)
   set_property(TARGET fabm_version PROPERTY FOLDER fabm)
 endif()
 
+# Add YAML parsing library
+if(NOT TARGET yaml)
+  add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/yaml" yaml EXCLUDE_FROM_ALL)
+  set_property(TARGET yaml PROPERTY FOLDER fabm/yaml)
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/yaml/modules/\${BUILD_TYPE}/ DESTINATION include/yaml)
+  install(TARGETS yaml EXPORT fabmConfig)
+endif(NOT TARGET yaml)
+
 configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_parameters.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_parameters.F90)
 
 add_library(fabm_base OBJECT
@@ -117,6 +125,7 @@ add_library(fabm_base OBJECT
             ${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}/fabm_driver.h
            )
 source_group(builtin REGULAR_EXPRESSION /builtin/)
+target_link_libraries(fabm_base PRIVATE yaml)
 
 target_include_directories(fabm_base PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules>
@@ -125,14 +134,6 @@ target_include_directories(fabm_base PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 install(TARGETS fabm_base EXPORT fabmConfig)
-
-# Add YAML parsing library
-if(NOT TARGET yaml)
-  add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/yaml" yaml EXCLUDE_FROM_ALL)
-  set_property(TARGET yaml PROPERTY FOLDER fabm/yaml)
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/yaml/modules/\${BUILD_TYPE}/ DESTINATION include/yaml)
-  install(TARGETS yaml EXPORT fabmConfig)
-endif(NOT TARGET yaml)
 
 add_library(fabm
             ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90

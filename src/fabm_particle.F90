@@ -28,7 +28,6 @@
 module fabm_particle
 
    use fabm_types
-   use fabm_properties
 
    implicit none
 
@@ -246,7 +245,7 @@ contains
       class (type_base_model), pointer :: model
 
       type (type_model_reference), pointer :: reference2
-      class (type_property),       pointer :: model_master_name
+      character(len=:), allocatable        :: model_master_name
       integer                              :: istart
       class (type_particle_model), pointer :: source_model
       logical                              :: require_internal_variables_
@@ -264,56 +263,49 @@ contains
       reference%state = busy
 
       ! First find a coupling for the referenced model.
-      model_master_name => self%couplings%find_in_tree(reference%name)
-      if (.not. associated(model_master_name)) then
-         call self%fatal_error('resolve_model_reference', 'Model reference "' // trim(reference%name) // '" was not coupled.')
-         return
+      model_master_name = self%couplings%get_string(trim(reference%name), trim(reference%name))
+
+      ! Try to find referenced model among actual models (as opposed to among model dependencies)
+      reference%model => self%find_model(model_master_name, recursive=.true.)
+
+      if (.not. associated(reference%model)) then
+         ! Find starting position of local name (excluding any preprended path components)
+         istart = index(model_master_name, '/', .true.) + 1
+
+         source_model => null()
+         reference2 => null()
+         if (istart == 1) then
+            ! No slash in path; search model references within current model
+            source_model => self
+         else
+            ! Try model references in specified other model
+            model => self%find_model(model_master_name(:istart-1), recursive=.true.)
+            if (associated(model)) then
+               select type (model)
+               class is (type_particle_model)
+                  source_model => model
+               end select
+            end if
+         end if
+
+         ! Search model references
+         if (associated(source_model)) then
+            reference2 => source_model%first_model_reference
+            do while (associated(reference2))
+               if (model_master_name(istart:) == reference2%name) then
+                  reference%model => source_model%resolve_model_reference(reference2)
+                  exit
+               end if
+               reference2 => reference2%next
+            end do
+         end if
       end if
 
-      select type (model_master_name)
-      class is (type_string_property)
-         ! Try to find references model among actual models (as opposed to among model dependencies)
-         reference%model => self%find_model(model_master_name%value, recursive=.true.)
-
-         if (.not. associated(reference%model)) then
-            ! Find starting position of local name (excluding any preprended path components)
-            istart = index(model_master_name%value, '/', .true.) + 1
-
-            source_model => null()
-            reference2 => null()
-            if (istart == 1) then
-               ! No slash in path; search model references within current model
-               source_model => self
-            else
-               ! Try model references in specified other model
-               model => self%find_model(model_master_name%value(:istart-1), recursive=.true.)
-               if (associated(model)) then
-                  select type (model)
-                  class is (type_particle_model)
-                     source_model => model
-                  end select
-               end if
-            end if
-
-            ! Search model references
-            if (associated(source_model)) then
-               reference2 => source_model%first_model_reference
-               do while (associated(reference2))
-                  if (model_master_name%value(istart:) == reference2%name) then
-                     reference%model => source_model%resolve_model_reference(reference2)
-                     exit
-                  end if
-                  reference2 => reference2%next
-               end do
-            end if
-         end if
-
-         if (.not. associated(reference%model)) then
-            call self%fatal_error('resolve_model_reference', &
-               'Referenced model instance "' // trim(model_master_name%value) // '" not found.')
-            return
-         end if
-      end select
+      if (.not. associated(reference%model)) then
+         call self%fatal_error('resolve_model_reference', &
+            'Referenced model instance "' // model_master_name // '" not found.')
+         return
+      end if
 
       reference%state = done
       model => reference%model
@@ -446,7 +438,7 @@ contains
 
    end subroutine build_state_id_list
 
-   subroutine finalize(self)
+   recursive subroutine finalize(self)
       class (type_particle_model),  intent(inout) :: self
 
       type (type_model_reference), pointer :: reference, next_reference

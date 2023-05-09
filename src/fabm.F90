@@ -167,6 +167,8 @@ module fabm
       character(len=attribute_length), allocatable, dimension(:) :: dependencies_hz
       character(len=attribute_length), allocatable, dimension(:) :: dependencies_scalar
 
+      type (type_fabm_settings) :: settings
+
       ! Individual jobs
       type (type_job) :: get_interior_sources_job
       type (type_job) :: get_bottom_sources_job
@@ -385,13 +387,13 @@ contains
    ! --------------------------------------------------------------------------
    ! fabm_create_model: create a model from a yaml-based configuration file
    ! --------------------------------------------------------------------------
-   function fabm_create_model(path, initialize, parameters, unit) result(model)
-      use fabm_config, only: fabm_configure_model
-      character(len=*),                optional, intent(in) :: path
-      logical,                         optional, intent(in) :: initialize
-      type (type_property_dictionary), optional, intent(in) :: parameters
-      integer,                         optional, intent(in) :: unit
-      class (type_fabm_model), pointer                      :: model
+   function fabm_create_model(path, initialize, settings, unit) result(model)
+      use fabm_config, only: fabm_configure_model, fabm_load_settings
+      character(len=*),                  optional, intent(in)    :: path
+      logical,                           optional, intent(in)    :: initialize
+      type (type_fabm_settings), target, optional, intent(inout) :: settings
+      integer,                           optional, intent(in)    :: unit
+      class (type_fabm_model), pointer                           :: model
 
       logical :: initialize_
 
@@ -399,7 +401,14 @@ contains
       call fabm_initialize_library()
 
       allocate(model)
-      call fabm_configure_model(model%root, model%schedules, model%log, path, parameters=parameters, unit=unit)
+      model%root%parameters%path = ''
+      model%root%couplings%path = ''
+      if (present(settings)) then
+         call model%settings%take_values(settings)
+      else
+         call fabm_load_settings(model%settings, path, unit=unit, error_reporter=yaml_settings_error_reporter)
+      end if
+      call fabm_configure_model(model%root, model%settings, model%schedules, model%log)
 
       ! Initialize model tree
       initialize_ = .true.
@@ -417,9 +426,7 @@ contains
    subroutine initialize(self)
       class (type_fabm_model), target, intent(inout) :: self
 
-      class (type_property), pointer :: property => null()
-      integer                        :: islash
-      integer                        :: ivar
+      integer :: ivar
 
       if (self%status >= status_initialize_done) &
          call fatal_error('initialize', 'initialize has already been called on this model object.')
@@ -435,15 +442,7 @@ contains
       ! This will resolve all FABM dependencies and generate final authoritative lists of variables of different types.
       call freeze_model_info(self%root)
 
-      ! Raise error for unused coupling commands.
-      property => self%root%couplings%first
-      do while (associated(property))
-         if (.not.self%root%couplings%retrieved%contains(trim(property%name))) then
-            islash = index(property%name, '/', .true.)
-            call fatal_error('initialize', 'model ' // property%name(1:islash-1) // ' does not contain variable "' // trim(property%name(islash+1:)) // '" mentioned in coupling section.')
-         end if
-         property => property%next
-      end do
+      if (.not. self%settings%check_all_used(finalize_store=.false.)) call fatal_error('initialize', 'invalid configuration')
 
       ! Build final authoritative arrays with variable metadata.
       call classify_variables(self)
@@ -516,6 +515,8 @@ contains
 
       call self%job_manager%finalize()
       call self%variable_register%finalize()
+      call self%settings%finalize()
+      call self%settings%finalize_store()
       call self%root%finalize()
       call self%links_postcoupling%finalize()
    end subroutine finalize
@@ -2915,6 +2916,11 @@ contains
          end select
       end if
    end function get_variable_by_standard_variable
+
+   subroutine yaml_settings_error_reporter(message)
+      character(len=*), intent(in) :: message
+      call driver%fatal_error('yaml_settings', message)
+   end subroutine
 
 end module fabm
 

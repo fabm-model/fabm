@@ -1,1 +1,1 @@
-#define _FABM_API_VERSION_ 1
+#define _FABM_API_VERSION_ 2

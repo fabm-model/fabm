@@ -2,30 +2,36 @@ import sys
 import pyfabm
 
 try:
-    from PySide import QtCore,QtGui
+    from PyQt5 import QtCore, QtGui, QtWidgets
 except ImportError:
-    print('Unable to load PySide. Is it installed?')
-    sys.exit(1)
+    try:
+        from PySide import QtCore, QtGui
+        QtWidgets = QtGui
+    except ImportError:
+        print('Unable to load PyQt5 or PySide. Is either installed?')
+        sys.exit(1)
 
-class Delegate(QtGui.QStyledItemDelegate):
+basestring = (str, u''.__class__)
+
+class Delegate(QtWidgets.QStyledItemDelegate):
     def __init__(self,parent=None):
-        QtGui.QStyledItemDelegate.__init__(self,parent)
+        QtWidgets.QStyledItemDelegate.__init__(self,parent)
     def createEditor(self,parent,option,index):
         assert index.isValid()
         data = index.internalPointer().object
         if not isinstance(data,basestring):
             options = data.getOptions()
             if options is not None:
-                widget = QtGui.QComboBox(parent)
+                widget = QtWidgets.QComboBox(parent)
                 widget.addItems(options)
                 return widget
             elif isinstance(data.value,float):
                 widget = ScientificDoubleEditor(parent)
                 if data.units: widget.setSuffix(u' %s' % data.units_unicode)
                 return widget
-        return QtGui.QStyledItemDelegate.createEditor(self,parent,option,index)
+        return QtWidgets.QStyledItemDelegate.createEditor(self,parent,option,index)
     def setEditorData(self,editor,index):
-        if isinstance(editor,QtGui.QComboBox):
+        if isinstance(editor,QtWidgets.QComboBox):
             data = index.internalPointer().object
             if not isinstance(data,basestring):
                 options = data.getOptions()
@@ -36,9 +42,9 @@ class Delegate(QtGui.QStyledItemDelegate):
             data = index.internalPointer().object
             editor.setValue(data.value)
             return
-        return QtGui.QStyledItemDelegate.setEditorData(self,editor,index)
+        return QtWidgets.QStyledItemDelegate.setEditorData(self,editor,index)
     def setModelData(self,editor,model,index):
-        if isinstance(editor,QtGui.QComboBox):
+        if isinstance(editor,QtWidgets.QComboBox):
             data = index.internalPointer().object
             if not isinstance(data,basestring):
                 options = data.getOptions()
@@ -49,7 +55,7 @@ class Delegate(QtGui.QStyledItemDelegate):
         elif isinstance(editor,ScientificDoubleEditor):
             model.setData(index,editor.value(),QtCore.Qt.EditRole)
             return
-        return QtGui.QStyledItemDelegate.setModelData(self,editor,model,index)
+        return QtWidgets.QStyledItemDelegate.setModelData(self,editor,model,index)
 
 class Entry(object):
     def __init__(self,object=None,name=''):
@@ -205,14 +211,14 @@ class ItemModel(QtCore.QAbstractItemModel):
         if role==QtCore.Qt.DisplayRole:
             if index.column()==0:
                 return entry.name if isinstance(data,basestring) else data.long_name
-            if not isinstance(data,(basestring,Submodel)):
+            if not isinstance(data,basestring + (Submodel,)):
                 if index.column()==1:
                     value = data.value
                     if not isinstance(value,bool):
                         if data.units:
                             return u'%s %s' % (value,data.units_unicode)
                         else:
-                            return unicode(value)
+                            return u'%s' % value
                 elif index.column()==2 and data.units:
                     return data.units_unicode
                 elif index.column()==3:
@@ -220,7 +226,7 @@ class ItemModel(QtCore.QAbstractItemModel):
         elif role==QtCore.Qt.ToolTipRole and index.parent().isValid():
            if not isinstance(data,basestring): return data.long_path
         elif role==QtCore.Qt.EditRole:
-           if not isinstance(data,(basestring,Submodel)):
+           if not isinstance(data,basestring + (Submodel,)):
               #print data.getOptions()
               return data.getValue()
         elif role==QtCore.Qt.FontRole and index.column()==1:
@@ -246,7 +252,7 @@ class ItemModel(QtCore.QAbstractItemModel):
         if not index.isValid(): return flags
         if index.column()==1:
             entry = index.internalPointer().object
-            if not isinstance(entry,(basestring,Submodel)):
+            if not isinstance(entry,basestring + (Submodel,)):
                 if isinstance(entry.value,bool):
                     flags |= QtCore.Qt.ItemIsUserCheckable
                 else:
@@ -257,9 +263,9 @@ class ItemModel(QtCore.QAbstractItemModel):
         if orientation==QtCore.Qt.Horizontal and role==QtCore.Qt.DisplayRole and section>=0 and section<4:
             return ('name','value','units','symbol')[section]
 
-class TreeView(QtGui.QTreeView):
+class TreeView(QtWidgets.QTreeView):
     def __init__(self,model,parent):
-        QtGui.QTreeView.__init__(self,parent)
+        QtWidgets.QTreeView.__init__(self,parent)
         itemmodel = pyfabm.gui_qt.ItemModel(model,parent)
         self.setItemDelegate(Delegate(parent))
         self.setModel(itemmodel)
@@ -273,7 +279,7 @@ class TreeView(QtGui.QTreeView):
                     def reset():
                         data.reset()
                         itemmodel.rebuild()
-                    contextMenu = QtGui.QMenu(self)
+                    contextMenu = QtWidgets.QMenu(self)
                     default = data.default
                     if data.units: default = u'%s %s' % (data.default,data.units_unicode)
                     contextMenu.addAction(u'Reset to default: %s' % default,reset)
@@ -337,11 +343,11 @@ class ScientificDoubleValidator(QtGui.QValidator):
     def setSuffix(self,suffix):
         self.suffix = suffix
 
-class ScientificDoubleEditor(QtGui.QLineEdit):
+class ScientificDoubleEditor(QtWidgets.QLineEdit):
     """Editor for a floating point value.
     """
     def __init__(self,parent):
-        QtGui.QLineEdit.__init__(self,parent)
+        QtWidgets.QLineEdit.__init__(self,parent)
 
         self.curvalidator = ScientificDoubleValidator(self)
         self.setValidator(self.curvalidator)
@@ -365,17 +371,17 @@ class ScientificDoubleEditor(QtGui.QLineEdit):
             strvalue = ''
         else:  
             if format is None:
-                strvalue = unicode(value)
+                strvalue = str(value)
             else:
                 strvalue = format % value
         self.setText(u'%s%s' % (strvalue,self.suffix))
 
     def focusInEvent(self,e):
-        QtGui.QLineEdit.focusInEvent(self,e)
+        QtWidgets.QLineEdit.focusInEvent(self,e)
         self.selectAll()
 
     def selectAll(self):
-        QtGui.QLineEdit.setSelection(self,0,len(self.text())-len(self.suffix))
+        QtWidgets.QLineEdit.setSelection(self,0,len(self.text())-len(self.suffix))
 
     def setMinimum(self,minimum):
         self.curvalidator.minimum = minimum

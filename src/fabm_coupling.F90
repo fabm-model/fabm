@@ -1,6 +1,5 @@
 module fabm_coupling
    use fabm_types
-   use fabm_properties
    use fabm_builtin_models
    use fabm_driver
 
@@ -176,21 +175,25 @@ contains
       class (type_base_model), intent(inout) :: self
 
       type (type_link),           pointer :: link
-      class (type_property),      pointer :: master_name
-      class (type_coupling_task), pointer :: task
+      character(len=:), allocatable       :: master_name
+      class (type_coupling_task), pointer :: task 
+      integer                             :: source
+      logical                             :: couplable
+      integer                             :: display
 
       link => self%links%first
       do while (associated(link))
          ! Only process own links (those without slash in the name)
-         if (index(link%name, '/') == 0) then
-            master_name => self%couplings%find_in_tree(link%name)
-            if (associated(master_name)) then
+         source = link%original%source
+         couplable = source == source_state .or. source == source_unknown
+         if (index(link%name, '/') == 0 .and. couplable) then
+            display = display_inherit
+            if (link%original%presence == presence_internal .or. associated(self%coupling_task_list%find(link))) display = display_advanced
+            master_name = self%couplings%get_string(trim(link%name), trim(link%original%long_name), units=trim(link%original%units), default='', display=display)
+            if (master_name /= '') then
                call self%coupling_task_list%add(link, .true., task)
                task%user_specified = .true.
-               select type (master_name)
-               class is (type_string_property)
-                  task%master_name = master_name%value
-               end select
+               task%master_name = master_name
             end if    ! Coupling provided
          end if   ! Our own link, which may be coupled
          link => link%next
