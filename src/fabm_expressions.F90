@@ -338,6 +338,7 @@ contains
          self%bin_end_time = time + dt_bin
          self%icurrent = 1
          self%ioldest = 2
+         self%previous_value = 0.0_rke
       end if
 
       do while (time >= self%bin_end_time)
