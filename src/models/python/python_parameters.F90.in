@@ -1,0 +1,13 @@
+module python_parameters
+
+   implicit none
+
+   public
+
+   character(len=*), parameter :: default_python_home = '@PYTHONHOME@'
+   character(len=*), parameter :: Python3_STDLIB = '@Python3_STDLIB@'
+   character(len=*), parameter :: Python3_STDARCH = '@Python3_STDARCH@'
+   character(len=*), parameter :: Python3_SITELIB = '@Python3_SITELIB@'
+   character(len=*), parameter :: Python3_SITEARCH = '@Python3_SITEARCH@'
+
+end module
