@@ -22,6 +22,7 @@ set(DEFAULT_INSTITUTES
     iow          # Leibniz Institute for Baltic Sea Research, Germany
     jrc          # EC - Joint Research Centre, Ispra, Italy
     msi          # Marine Systems Institute, Tallinn University of Technology, Estonia
+    nersc        # Nansen Environmental and Remote Sensing Center
     niva         # Norwegian Institute for Water Research, Norway
     pclake       # The PCLake model - reference implementation
     pml          # Plymouth Marine Laboratory, United Kingdom
