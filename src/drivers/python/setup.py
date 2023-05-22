@@ -21,7 +21,7 @@ def readme():
 
 setup(
     name='pyfabm',
-    version='1.0.2',
+    version='1.0.4',
     description='Python driver for FABM',
     long_description=readme(),
     long_description_content_type='text/x-rst',

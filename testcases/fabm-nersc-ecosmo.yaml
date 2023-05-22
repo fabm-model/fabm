@@ -1,0 +1,132 @@
+instances:
+
+  light:
+    model: gotm/light
+    parameters:
+      g2         : 23.0     # e-folding depth of visible fraction  (m)                     default=23.0
+      g1         : 0.35
+      A          : 0.58
+
+  CO2:
+    model: pml/carbonate
+    parameters:
+      alk_param: false      # compute alkalinity as linear function of salinity, default = true
+      #alk_offset: 520.1    # offset for alkalinity as linear function of salinity (mEq m-3), default = 520.1
+      #alk_slope: 51.24     # scale factor for alkalinity as linear function of salinity (mEq m-3), default = 51.24
+      pCO2a: 0. #367.0         # mole fraction of atmospheric CO2 (ppm), default = 0.0
+
+    initialization:
+      dic: 2150.0          # total dissolved inorganic carbon (mmol m-3)
+      alk: 2300.0
+
+  ECO:    # When coupled to HYCOM, do not change this to another name
+    model: nersc_ecosmo_operational
+    parameters:
+      muPl       : 1.15     # max growth rate for Pl          (1/d),                        default=1.30
+      muPs       : 1.0     # max growth rate for Ps          (1/d),                        default=1.10
+      aa         : 0.012    # photosynthesis ef-cy            (m**2/W),                     default=0.03
+      EXw        : 0.0      # light extinction (gotm does this, so set to 0.)  (1/m),       default=0.04
+      EXphy      : 0.041    # phyto self-shading              (m**2/mmolN),                 default=0.03
+      EXdet      : 0.00     # det self-shading                (m**2/molC),                  default=0.03
+      EXdom      : 0.00     # dom self-shading                (m**2/molC),                  default=0.03
+      rNH4       : 0.20     # NH4 half saturation             (mmolN/m**3),                 default=0.20
+      rNO3       : 0.50     # NO3 half saturation             (mmolN/m**3),                 default=0.50
+      psi        : 3.00     # NH4 inhibition                  (m**3/mmolN),                 default=3.00
+      mPl        : 0.04     # Pl mortality rate               (1/d),                        default=0.04
+      mPs        : 0.08     # Ps mortality rate               (1/d),                        default=0.08
+      GrZlP      : 0.80     # Grazing rate Zl on Phyto        (1/d),                        default=0.80
+      GrZsP      : 1.00     # Grazing rate Zs on Phyto        (1/d),                        default=1.00
+      GrZlZ      : 0.50     # Grazing rate Zl on Zs           (1/d),                        default=0.50
+      Rg         : 0.30     # Zs, Zl half saturation          (mmolN/m**3),                 default=0.50
+      mZl        : 0.08     # Zl mortality rate               (1/d),                        default=0.10
+      mZs        : 0.16     # Zs mortality rate               (1/d),                        default=0.20
+      excZl      : 0.06     # Zl excretion rate               (1/d),                        default=0.06
+      excZs      : 0.08     # Zs excretion rate               (1/d),                        default=0.08
+      gammaZlp   : 0.75     # Zl assim. eff. on plankton      (-),                          default=0.75
+      gammaZsp   : 0.75     # Zs assim. eff. on plankton      (-),                          default=0.75
+      gammaZd    : 0.75     # Zl & Zs assim. eff. on det      (-),                          default=0.75
+      reminD     : 0.003     # Detritus remineralization rate  (1/d),                       default=0.003
+      sinkDet    : 5.0     # Detritus sinking rate           (m/d),                         default=5.00
+      Wa         : 1.00     # Don't know what this is yet     (m/d),                        default=1.00
+      rPO4       : 0.05     # PO4 half saturation             (mmolP/m**3),                 default=0.05
+      rSi        : 0.50     # SiO2 half saturation            (mmolSi/m**3),                default=0.50
+      regenSi    : 0.015    # Si regeneration rate            (1/d),                        default=0.015
+      muBG       : 1.00     # max growth rate for BG          (1/d),                        default=1.00
+      TctrlBG    : 1.00     # BG T control beta               (1/degC),                     default=1.00
+      TrefBG     : 0.00     # BG reference temperature        (degC),                       default=0.00
+      GrBG       : 0.30     # BG max grazing rate             (1/d),                        default=0.30
+      mBG        : 0.08     # BG mortality rate               (1/d),                        default=0.08
+      upliftBG   : 0.10     # BG uplifting rate               (m/d),                        default=0.10
+      crBotStr   : 0.007    # c2        ritic. bot. stress for resusp. (N/m**2),            default=0.007
+      resuspRt   : 25.00    # resuspension rate               (1/d),                        default=25.00
+      sedimRt    : 5.0      # sedimentation rate              (m/d),                        default=3.50
+      burialRt   : 0.00005  # burial rate                     (1/d),                        default=0.00001
+      reminSED   : 0.001    # sediment remineralization rate  (1/d),                        default=0.001
+      TctrlDenit : 0.15     # temp. control denitrification   (1/degC),                     default=0.15
+      RelSEDp1   : 0.15     # P sedim. rel. p1                (-),                          default=0.15
+      RelSEDp2   : 0.10     # P sedim. rel. p2                (-),                          default=0.10
+      reminSEDsi : 0.0002   # sed. remineralization rate Si   (1/d),                        default=0.0002
+      sinkOPAL   : 5.0      # OPAL sinking rate               (m/d),                        default=5.00
+      sinkBG     : -1.00    # BG sinking rate                 (m/d),                        default=-1.00
+      sinkDia    : 0.00     # Diatom sinking rate             (m/d),                        default=0.00
+      prefZsPs   : 0.68     # Grazing preference Zs on Ps     (-),                          default=0.70
+      prefZsPl   : 0.24     # Grazing preference Zs on Pl     (-),                          default=0.25
+      prefZsD    : 0.08     # Grazing preference Zs on Det.   (-),                          default=0.00
+      prefZsBG   : 0.0      # Grazing preference Zs on BG     (-),                          default=0.30
+      prefZlPs   : 0.08     # Grazing preference Zl on Ps     (-),                          default=0.10
+      prefZlPl   : 0.72     # Grazing preference Zl on Pl     (-),                          default=0.85
+      prefZlZs   : 0.12     # Grazing preference Zl on Zs     (-),                          default=0.15
+      prefZlD    : 0.08     # Grazing preference Zl on Det.   (-),                          default=0.00
+      prefZlBG   : 0.0      # Grazing preference Zl on BG     (-),                          default=0.30
+      zpr        : 0.00     # zpr_long_name_needed            (?),                          default=0.001
+      frr        : 0.4      # fraction of dissolved from det. (-),                          default=0.4
+      MINchl2nPs : 0.265    # minimum Chl to N ratio Ps       (mgChl/mmolN),                default=0.5
+      MAXchl2nPs : 3.83     # maximum Chl to N ratio Ps       (mgChl/mmolN),                default=3.83
+      MINchl2nPl : 0.265    # minimum Chl to N ratio Pl       (mgChl/mmolN),                default=0.5
+      MAXchl2nPl : 2.94     # maximum Chl to N ratio Pl       (mgChl/mmolN),                default=2.94
+      MINchl2nBG : 0.265    # minimum Chl to N ratio BG       (mgChl/mmolN),                default=0.5
+      MAXchl2nBG : 2.94     # maximum Chl to N ratio BG       (mgChl/mmolN),                default=2.94
+      alfaPs     : 0.0393   # initial slope P-I curve Ps      (mmolN m2/(mgChl day W)**-1), default=0.0393
+      alfaPl     : 0.0531   # initial slope P-I curve Pl      (mmolN m2/(mgChl day W)**-1), default=0.0531
+      alfaBG     : 0.0393   # initial slope P-I curve BG      (mmolN m2/(mgChl day W)**-1), default=0.0393
+      # For 3D HYCOM - set atmospheric input = 0., they are included in river forcing files
+      # For 1D GOTM - example STM (66N 2E) values - EMEP model and N/P ratio from Okin etal, 2011, doi:10.1029/2010GB003858
+      surface_deposition_no3      : 0. #0.048  # surface deposition no3 mmolN/m**2 d, default = 0.048 STM (66N 2E) (EMEP model)
+      surface_deposition_nh4      : 0.0 # surface deposition nh4, default = 0.0
+      surface_deposition_pho      : 0. #0.000058  # surface deposition pho, default = 0.000058, 
+                                              # N/P= 7.4 TgN/yr / 0.02 TgP/yr 
+      surface_deposition_sil      : 0. #0.048  # surface_deposition sil, default = 0.048, 
+                                           # don't have data, used N values assuming 1-1 molar ratio
+      bg_growth_minimum_daily_rad : 120.0 #10000.0 # bg growth minimum daily rad, default = 120.0
+      nfixation_minimum_daily_par : 35.0 # 10000.0  # nfixation minimum daily par, default = 35.0
+
+      use_chl: true 
+      use_cyanos: false 
+      couple_co2: true
+      use_chl_in_PI_curve: true
+      turn_on_additional_diagnostics: true
+
+    coupling:
+      dic_target: CO2_dic
+      alk_target: CO2_alk
+
+    initialization:   # initial nutrient and oxygen conditions are WOA2013 Station-M values (66N 2E)
+      no3        : 1200.0     # nitrate (mgC/m**3)
+      nh4        : 8.0     # ammonium (mgC/m**3)
+      oxy        : 300.0    # ?? check the unit ?? oxygen (mmolO2/m**3)
+      pho        : 1200.0     # phosphate (mgC/m**3)
+      det        : 0.1     # detritus (mgC/m**3)
+      dom        : 3.0     # labile dissolved om (mgC/m**3)
+      sil        : 1000.0     # silicate (mgC/m**3)
+      opa        : 0.1     # opal (mgC/m**3)
+      dia        : 0.1    # large phytoplankton (mgC/m**3)
+      fla        : 0.1    # small phytoplankton (mgC n/m**3)
+      mesozoo    : 0.01    # mesozooplankton (mgC/m**3)
+      microzoo   : 0.01    # microzooplankton (mgC/m**3)
+      #bg         : 1e-7    # cyanobacteria (mgC/m**3)
+      diachl     : 0.005    # ?? check units ?? large phytoplankton chl-a (mgChl/m**3)
+      flachl     : 0.005    # ?? check units ?? small phytoplankton chl-a (mgChl/m**3)
+      #bgchl      : 1e-8    # ?? check units ?? cyanobacteria chl-a (mgChl/m**3)
+      sed1       : 113.6 # mgC/m2 (20mgN in C units)
+      sed2       : 56.65 # mgC/m2 (20mgSi in C units)
+      sed3       : 82.2  # mgC/m2 (2mgP in C units)

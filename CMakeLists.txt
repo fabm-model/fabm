@@ -5,7 +5,7 @@ if(POLICY CMP0048)
 endif()
 
 if(NOT PROJECT_NAME STREQUAL fabm)
-  project(fabm VERSION 1.0.2 LANGUAGES Fortran)
+  project(fabm VERSION 1.0.4 LANGUAGES Fortran)
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/src/CMakeLists.txt")

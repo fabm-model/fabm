@@ -14,8 +14,8 @@ import yaml # http://pyyaml.org
 
 variablespath = 'variables.yaml'
 localpath = 'cf-standard-name-table.xml'
-url = 'http://cfconventions.org/Data/cf-standard-names/60/src/cf-standard-name-table.xml'
-html = 'http://cfconventions.org/Data/cf-standard-names/60/build/cf-standard-name-table.html'
+url = 'https://cfconventions.org/Data/cf-standard-names/current/src/cf-standard-name-table.xml'
+html = 'https://cfconventions.org/Data/cf-standard-names/current/build/cf-standard-name-table.html'
 output_F90 = '../../include/standard_variables.h'
 output_F90_assignments = '../../include/standard_variable_assignments.h'
 output_wiki = 'standard_variables.wiki'
