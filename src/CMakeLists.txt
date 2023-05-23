@@ -59,6 +59,7 @@ foreach(institute ${FABM_INSTITUTES})
     HINTS "${DEFAULT_INSTITUTE_BASE}"
     DOC "Path to source code of ${institute} models"
     NO_DEFAULT_PATH
+    NO_CMAKE_FIND_ROOT_PATH
   )
   if(EXISTS "${DEFAULT_INSTITUTE_BASE}/CMakeLists.txt")
     mark_as_advanced(FABM_${INSTITUTE_UC}_BASE)
