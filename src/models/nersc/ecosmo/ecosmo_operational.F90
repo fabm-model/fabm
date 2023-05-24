@@ -256,7 +256,9 @@
        call self%register_state_variable( self%id_bgchl,    'bgchl',   'mgChl/m3',  'cyanobacteria chl-a',       minimum=1.0e-14_rk/20., vertical_movement=-self%BioC(44) , &
                                       initial_value=1e-4_rk*redf(1)*redf(6)/27.)
        call self%add_to_aggregate_variable(total_chlorophyll, self%id_bgchl)
-   end if
+     else
+       call self%add_to_aggregate_variable(total_chlorophyll, self%id_bg, scale_factor=1.0_rk/60.0_rk)
+     end if
    if (self%use_chl) then
      call self%register_state_variable( self%id_diachl,   'diachl',  'mgChl/m3',  'large phytoplankton chl-a', minimum=1.0e-7_rk/27., vertical_movement=-self%BioC(45) , &
                                       initial_value=1e-4_rk*redf(1)*redf(6)/27.)
@@ -264,6 +266,9 @@
                                       initial_value=1e-4_rk*redf(1)*redf(6)/20.)
      call self%add_to_aggregate_variable(total_chlorophyll, self%id_diachl)
      call self%add_to_aggregate_variable(total_chlorophyll, self%id_flachl)
+   else
+    call self%add_to_aggregate_variable(total_chlorophyll, self%id_dia, scale_factor=1.0_rk/60.0_rk)
+    call self%add_to_aggregate_variable(total_chlorophyll, self%id_fla, scale_factor=1.0_rk/60.0_rk)
    end if
    call self%register_state_variable( self%id_microzoo, 'microzoo','mgC/m3',    'microzooplankton',          minimum=1.0e-7_rk,     vertical_movement=0.0_rk, &
                                       initial_value=1e-6_rk*redf(1)*redf(6) )
@@ -469,10 +474,13 @@ end subroutine initialize
 
    if (self%use_cyanos) then
      Bg_prod = Tbg * min(blight, up_n, up_pho)
-     if (mean_par > self%nfixation_minimum_daily_par) then
-       Bg_fix = Tbg * min(blight, up_pho) - Bg_prod
-     end if
      Prod = Prod + self%BioC(28)*Bg_prod*bg ! cyanobacteria production
+   end if
+
+   if (self%use_cyanos .and. mean_par > self%nfixation_minimum_daily_par) then
+     Bg_fix = Tbg * min(blight, up_pho) - Bg_prod
+   else
+     Bg_fix = 0.0_rk
    end if
 
    if (self%use_chl) then   
