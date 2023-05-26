@@ -75,9 +75,9 @@ jobs:
       - name: Install compiler
         run: |
            cd /home/runner
-           wget --no-verbose http://developer.amd.com/wordpress/media/files/aocc-compiler-3.0.0.tar
-           tar xpf aocc-compiler-3.0.0.tar
-           ./aocc-compiler-3.0.0/install.sh
+           wget --no-verbose https://download.amd.com/developer/eula/aocc-compiler/aocc-compiler-4.0.0.tar
+           tar xpf aocc-compiler-4.0.0.tar
+           ./aocc-compiler-4.0.0/install.sh
       - name: Install dependencies
         run: sudo apt-get install python3-numpy python3-wheel
       - name: Clone repository
