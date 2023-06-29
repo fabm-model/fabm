@@ -282,7 +282,7 @@ contains
       class (type_gotm_ergom), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_
 
-      real(rk) :: fl,amb,nib,pob,deb,oxb,taub,temp
+      real(rk) :: fl,nib,deb,oxb,taub,temp
       real(rk) :: llds,llsd,llsa,wo=30.0_rk,wn=0.1_rk,dot2=0.2_rk
       real(rk) :: thopnp,thomnp,thomnm,thsum
 
@@ -292,10 +292,8 @@ contains
       _BOTTOM_LOOP_BEGIN_
 
          ! Retrieve current (local) state variable values.
-         _GET_(self%id_am,amb)
          _GET_(self%id_de,deb)
          _GET_(self%id_ni,nib)
-         _GET_(self%id_po,pob)
          _GET_(self%id_o2,oxb)
          _GET_BOTTOM_(self%id_fl,fl)
 
