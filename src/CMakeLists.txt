@@ -132,7 +132,7 @@ add_library(fabm_base OBJECT
             ${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}/fabm_driver.h
            )
 source_group(builtin REGULAR_EXPRESSION /builtin/)
-target_link_libraries(fabm_base PRIVATE yaml)
+target_link_libraries(fabm_base PUBLIC yaml)
 target_include_directories(fabm_base PUBLIC ${FABM_INCLUDE_DIRS})
 install(TARGETS fabm_base EXPORT fabmConfig)
 
@@ -166,7 +166,7 @@ add_library(fabm
             ${CMAKE_CURRENT_LIST_DIR}/fabm_work.F90
             ${CMAKE_CURRENT_LIST_DIR}/fabm_v0_compatibility.F90
            )
-target_link_libraries(fabm PRIVATE yaml PUBLIC fabm_base)
+target_link_libraries(fabm PUBLIC fabm_base)
 
 if(FABM_EMBED_VERSION)
   add_dependencies(fabm fabm_version)
@@ -200,7 +200,7 @@ add_executable(test_host EXCLUDE_FROM_ALL
                ${CMAKE_CURRENT_LIST_DIR}/test/host.F90
                ${CMAKE_CURRENT_LIST_DIR}/test/models.F90
               )
-target_link_libraries(test_host PRIVATE fabm yaml)
+target_link_libraries(test_host PRIVATE fabm)
 
 # Place projects in specific solution folders (Visual Studio only).
 set_property(TARGET fabm_base fabm test_host PROPERTY FOLDER fabm)
