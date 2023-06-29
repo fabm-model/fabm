@@ -166,7 +166,7 @@ add_library(fabm
             ${CMAKE_CURRENT_LIST_DIR}/fabm_work.F90
             ${CMAKE_CURRENT_LIST_DIR}/fabm_v0_compatibility.F90
            )
-target_link_libraries(fabm PUBLIC fabm_base)
+target_link_libraries(fabm PUBLIC yaml fabm_base)
 
 if(FABM_EMBED_VERSION)
   add_dependencies(fabm fabm_version)
