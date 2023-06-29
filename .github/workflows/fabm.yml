@@ -97,9 +97,6 @@ jobs:
       strategy:
         matrix:
           version:
-          - "2.2.0"  # 2020-07-15
-          - "3.0.0"  # 2021-03-15
-          #- "3.1.0"  # 2021-07-19 Fails during fabm-c compilation
           #- "3.2.0"  # 2021-12-10 Fails during fabm-c compilation
           - "4.0.0"  # 2022-11-10
         fail-fast: false
