@@ -389,7 +389,7 @@ contains
       class (type_gotm_ergom), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_SURFACE_
 
-      real(rk)            :: temp,wnd,salt,o2,ni,am,po
+      real(rk)            :: temp,wnd,salt,o2
       real(rk), parameter :: secs_pr_day=86400.0_rk
       real(rk)            :: p_vel,sc,flo2
       integer, parameter  :: newflux=1
@@ -398,13 +398,9 @@ contains
          _GET_(self%id_temp,temp)
          _GET_(self%id_salt,salt)
          _GET_SURFACE_(self%id_wind,wnd)
-
          _GET_(self%id_o2,o2)
-         _GET_(self%id_ni,ni)
-         _GET_(self%id_am,am)
-         _GET_(self%id_po,po)
 
-         ! Calculation of the surface oxygen flux
+         ! Air-sea exchange of oxygen
          if (newflux .eq. 1) then
             sc=1450.+(1.1*temp-71.0_rk)*temp
             if (wnd .gt. 13.0_rk) then
@@ -426,6 +422,7 @@ contains
          end if
          _ADD_SURFACE_FLUX_(self%id_o2,flo2)
 
+         ! Surface deposition of nitrate, ammonium, phosphate
          _ADD_SURFACE_FLUX_(self%id_ni,self%sfl_ni)
          _ADD_SURFACE_FLUX_(self%id_am,self%sfl_am)
          _ADD_SURFACE_FLUX_(self%id_po,self%sfl_po)
