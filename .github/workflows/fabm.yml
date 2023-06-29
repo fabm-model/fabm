@@ -108,7 +108,7 @@ jobs:
       - name: Install compiler
         run: |
            cd /home/runner
-           wget --no-verbose https://developer.amd.com/wordpress/media/files/aocc-compiler-${{ matrix.version }}.tar
+           wget --no-verbose https://download.amd.com/developer/eula/aocc-compiler/aocc-compiler-${{ matrix.version }}.tar
            tar xpf aocc-compiler-${{ matrix.version }}.tar
            ./aocc-compiler-${{ matrix.version }}/install.sh
       - name: Install dependencies

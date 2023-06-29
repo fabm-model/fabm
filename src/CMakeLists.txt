@@ -12,6 +12,7 @@ set(DEFAULT_INSTITUTES
     iow          # Leibniz Institute for Baltic Sea Research, Germany
     jrc          # EC - Joint Research Centre, Ispra, Italy
     msi          # Marine Systems Institute, Tallinn University of Technology, Estonia
+    nersc        # Nansen Environmental and Remote Sensing Center
     niva         # Norwegian Institute for Water Research, Norway
     pclake       # The PCLake model - reference implementation
     pml          # Plymouth Marine Laboratory, United Kingdom
@@ -45,6 +46,7 @@ foreach(institute ${FABM_INSTITUTES})
     HINTS "${DEFAULT_INSTITUTE_BASE}"
     DOC "Path to source code of ${institute} models"
     NO_DEFAULT_PATH
+    NO_CMAKE_FIND_ROOT_PATH
   )
   if(EXISTS "${DEFAULT_INSTITUTE_BASE}/CMakeLists.txt")
     mark_as_advanced(FABM_${INSTITUTE_UC}_BASE)
