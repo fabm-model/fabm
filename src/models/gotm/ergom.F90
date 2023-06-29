@@ -400,7 +400,7 @@ contains
 
          ! Air-sea exchange of oxygen
          if (newflux .eq. 1) then
-            sc=1450.+(1.1*temp-71.0_rk)*temp
+            sc=1450.0_rk+(1.1_rk*temp-71.0_rk)*temp
             if (wnd .gt. 13.0_rk) then
                p_vel = 5.9_rk*(5.9_rk*wnd-49.3_rk)/sqrt(sc)
             else
