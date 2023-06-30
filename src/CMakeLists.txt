@@ -21,6 +21,8 @@ set(DEFAULT_INSTITUTES
     uhh          # University of Hamburg, Germany
 )
 
+set(OPTIONAL_INSTITUTES ersem pclake)
+
 # Ensure FABM_INSTITUTES tracks the up-to-date DEFAULT_INSTITUTES list unless the user manually customized FABM_INSTITUTES.
 if(NOT FABM_DEFAULT_INSTITUTES OR NOT FABM_INSTITUTES)
   set(FABM_DEFAULT_INSTITUTES "${DEFAULT_INSTITUTES}" CACHE INTERNAL "Default institutes at the time FABM_INSTITUTES was initialized or updated automatically.")
@@ -32,12 +34,16 @@ if(FABM_INSTITUTES STREQUAL FABM_DEFAULT_INSTITUTES)
   set(FABM_DEFAULT_INSTITUTES ${DEFAULT_INSTITUTES} CACHE INTERNAL "Default institutes at the time FABM_INSTITUTES was initialized or updated automatically.")
 endif()
 
+set(FABM_EXTRA_INSTITUTES "" CACHE STRING "Additional institute directories to include during compilation")
+
 # Create fabm_library.F90 with all active institutes,
 # and set final paths to institute source directories (FABM_${INSTITUTE_UC}_DIR)
 set(FABM_LIBRARY_USE "")
 set(FABM_LIBRARY_ADD "")
 set(ACTIVE_INSTITUTES "")
-foreach(institute ${FABM_INSTITUTES})
+set(ALL_INSTITUTES ${FABM_INSTITUTES} ${FABM_EXTRA_INSTITUTES})
+list(REMOVE_DUPLICATES ALL_INSTITUTES)
+foreach(institute IN LISTS ALL_INSTITUTES)
   # First retrieve the effective source directory
   set(DEFAULT_INSTITUTE_BASE "${CMAKE_CURRENT_LIST_DIR}/models/${institute}")
   string(TOUPPER ${institute} INSTITUTE_UC)
@@ -56,15 +62,17 @@ foreach(institute ${FABM_INSTITUTES})
     # Either a custom institute directory has been specified, or the default institute directory exists.
     if (EXISTS "${FABM_${INSTITUTE_UC}_BASE}")
       # The institute directory exists
-    set(FABM_LIBRARY_USE "${FABM_LIBRARY_USE}
+      string(APPEND FABM_LIBRARY_USE "
    use ${institute}_model_library")
-    set(FABM_LIBRARY_ADD "${FABM_LIBRARY_ADD}
-      call self%add(${institute}_model_factory,'${institute}')")
-    set(ACTIVE_INSTITUTES ${ACTIVE_INSTITUTES} ${institute})
+      string(APPEND FABM_LIBRARY_ADD "
+      call self%add(${institute}_model_factory, '${institute}')")
+      list(APPEND ACTIVE_INSTITUTES ${institute})
     elseif(NOT FABM_${INSTITUTE_UC}_BASE STREQUAL DEFAULT_INSTITUTE_BASE)
       # The institute directory does not exist and it was explicitly specified (because different from default).
-      message(FATAL_ERROR "Source directory ${FABM_${INSTITUTE_UC}_BASE} specified for institute ${institute} not found.")
+      message(FATAL_ERROR "Source directory ${FABM_${INSTITUTE_UC}_BASE} specified for institute ${institute} not found. Please ensure FABM_${INSTITUTE_UC}_BASE is set to a valid directory.")
     endif()
+  elseif(NOT institute IN_LIST OPTIONAL_INSTITUTES)
+    message(FATAL_ERROR "Source directory for institute ${institute} not found. Please specify FABM_${INSTITUTE_UC}_BASE.")
   else()
     #message(STATUS "${institute} will not be compiled because FABM_${INSTITUTE_UC}_BASE is not set. Please visit http://fabm.net/${institute} for more information.")
   endif()

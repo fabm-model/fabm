@@ -278,10 +278,7 @@ if __name__ == '__main__':
         cmake_arguments.append('-DFABM_%s_BASE=%s' % (name.upper(), basedir))
 
     if len(args.ext) > 0:
-        names = set([n for n in os.listdir(os.path.join(fabm_base, 'src/models')) if n not in ('hzg', 'metu', 'python')])
-        for e in args.ext:
-            names.add(e[0])
-        cmake_arguments.append('-DFABM_INSTITUTES=%s' % ';'.join(sorted(names)))
+        cmake_arguments.append('-DFABM_EXTRA_INSTITUTES=%s' % ';'.join([e[0] for e in args.ext]))
 
     args.cmake_arguments = cmake_arguments
 
