@@ -2698,7 +2698,7 @@ contains
             if (length == 2 .and. name(istart:istart + length - 1) == '..') then
                found_model => found_model%parent
             elseif (.not. (length == 1 .and. name(istart:istart + length - 1) == '.')) then
-               node => found_model%children%find(name(istart:istart + length - 1))
+               node => found_model%children%find_name(name(istart:istart + length - 1))
                found_model => null()
                if (associated(node)) found_model => node%model
             end if
