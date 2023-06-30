@@ -32,35 +32,35 @@ def get_lib(name):
        return name2lib[name]
 
     # Determine potential names of dynamic library.
-if os.name == 'nt':
+    if os.name == 'nt':
        names = ('%s.dll' % name, 'lib%s.dll' % name)
-elif os.name == 'posix' and sys.platform == 'darwin':
+    elif os.name == 'posix' and sys.platform == 'darwin':
        names = ('lib%s.dylib' % name,)
-else:
+    else:
        names = ('lib%s.so' % name,)
 
-# Find FABM dynamic library.
-# Look first in pyfabm directory, then in Python path.
+    # Find FABM dynamic library.
+    # Look first in pyfabm directory, then in Python path.
     path = find_library(os.path.dirname(os.path.abspath(__file__)), names)
     if not path:
-    for basedir in sys.path:
+        for basedir in sys.path:
             path = find_library(basedir, names)
             if path:
-            break
+                break
         else:
             raise Exception('Unable to locate dynamic library %s (tried %s).' % (name, ', '.join(names),))
 
-# Load FABM library.
+    # Load FABM library.
     lib = ctypes.CDLL(str(path))
     lib.dtype = ctypes.c_double
     lib.numpy_dtype = numpy.dtype(lib.dtype).newbyteorder('=')
 
-# Driver settings (number of spatial dimensions, depth index)
+    # Driver settings (number of spatial dimensions, depth index)
     lib.get_driver_settings.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
     lib.get_driver_settings.restype = ctypes.c_void_p
 
-ndim_c = ctypes.c_int()
-idepthdim_c = ctypes.c_int()
+    ndim_c = ctypes.c_int()
+    idepthdim_c = ctypes.c_int()
     ihas_mask = ctypes.c_int()
     lib.get_driver_settings(ctypes.byref(ndim_c), ctypes.byref(idepthdim_c), ctypes.byref(ihas_mask))
     ndim_int = ndim_c.value
@@ -70,7 +70,7 @@ idepthdim_c = ctypes.c_int()
     lib.idepthdim = idepthdim_c.value
     lib.has_mask = ihas_mask.value != 0
 
-CONTIGUOUS = str('CONTIGUOUS')
+    CONTIGUOUS = str('CONTIGUOUS')
     arrtype0D = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=0, flags=CONTIGUOUS)
     arrtype1D = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=1, flags=CONTIGUOUS)
     arrtypeInterior = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=ndim_int, flags=CONTIGUOUS)
@@ -80,7 +80,7 @@ CONTIGUOUS = str('CONTIGUOUS')
     arrtypeInteriorExt2 = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=ndim_int + 2, flags=CONTIGUOUS)
     arrtypeHorizontalExt2 = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=ndim_hz + 2, flags=CONTIGUOUS)
 
-# Initialization
+    # Initialization
     lib.create_model.argtypes = [ctypes.c_char_p] + [ctypes.c_int] * ndim_int
     lib.create_model.restype = ctypes.c_void_p
     if ndim_int > 0:
@@ -89,7 +89,7 @@ CONTIGUOUS = str('CONTIGUOUS')
         lib.set_domain_stop.argtypes = [ctypes.c_void_p] + [ctypes.c_int] * ndim_int
         lib.set_domain_stop.restype = ctypes.c_void_p
 
-# Access to model objects (variables, parameters, dependencies, couplings, model instances)
+    # Access to model objects (variables, parameters, dependencies, couplings, model instances)
     lib.get_counts.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
     lib.get_counts.restype = None
     lib.get_variable_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
@@ -116,7 +116,7 @@ CONTIGUOUS = str('CONTIGUOUS')
         lib.set_mask.restype = None
         lib.set_mask.argtypes = [ctypes.c_void_p, numpy.ctypeslib.ndpointer(dtype=ctypes.c_int, ndim=ndim_hz, flags=CONTIGUOUS)]
 
-# Read access to variable attributes
+    # Read access to variable attributes
     lib.variable_get_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
     lib.variable_get_metadata.restype = None
     lib.variable_get_background_value.argtypes = [ctypes.c_void_p]
@@ -148,7 +148,7 @@ CONTIGUOUS = str('CONTIGUOUS')
     lib.find_standard_variable.argtypes = [ctypes.c_char_p]
     lib.find_standard_variable.restype = ctypes.c_void_p
 
-# Read/write/reset access to parameters.
+    # Read/write/reset access to parameters.
     lib.get_real_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
     lib.get_real_parameter.restype = lib.dtype
     lib.get_integer_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
@@ -168,7 +168,7 @@ CONTIGUOUS = str('CONTIGUOUS')
     lib.set_string_parameter.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
     lib.set_string_parameter.restype = None
 
-# Read access to lists of variables (e.g., suitable coupling targets).
+    # Read access to lists of variables (e.g., suitable coupling targets).
     lib.link_list_count.argtypes = [ctypes.c_void_p]
     lib.link_list_count.restype = ctypes.c_int
     lib.link_list_index.argtypes = [ctypes.c_void_p, ctypes.c_int]
@@ -176,7 +176,7 @@ CONTIGUOUS = str('CONTIGUOUS')
     lib.link_list_finalize.argtypes = [ctypes.c_void_p]
     lib.link_list_finalize.restype = None
 
-# Routines for sending pointers to state and dependency data.
+    # Routines for sending pointers to state and dependency data.
     lib.link_interior_state_data.argtypes = [ctypes.c_void_p, ctypes.c_int, arrtypeInterior]
     lib.link_interior_state_data.restype = None
     lib.link_surface_state_data.argtypes = [ctypes.c_void_p, ctypes.c_int, arrtypeHorizontal]
@@ -190,7 +190,7 @@ CONTIGUOUS = str('CONTIGUOUS')
     lib.link_scalar.argtypes = [ctypes.c_void_p, ctypes.c_void_p, arrtype0D]
     lib.link_scalar.restype = None
 
-# Read access to diagnostic data.
+    # Read access to diagnostic data.
     lib.get_interior_diagnostic_data.argtypes = [ctypes.c_void_p, ctypes.c_int]
     lib.get_interior_diagnostic_data.restype = ctypes.POINTER(lib.dtype)
     lib.get_horizontal_diagnostic_data.argtypes = [ctypes.c_void_p, ctypes.c_int]
@@ -203,7 +203,7 @@ CONTIGUOUS = str('CONTIGUOUS')
     lib.start.argtypes = [ctypes.c_void_p]
     lib.start.restype = None
 
-# Routine for retrieving source-sink terms for the interior domain.
+    # Routine for retrieving source-sink terms for the interior domain.
     lib.get_sources.argtypes = [ctypes.c_void_p, lib.dtype, arrtypeInteriorExt, arrtypeHorizontalExt, arrtypeHorizontalExt, ctypes.c_int, ctypes.c_int, arrtypeInterior]
     lib.get_sources.restype = None
     lib.get_vertical_movement.argtypes = [ctypes.c_void_p, arrtypeInteriorExt]
@@ -213,14 +213,14 @@ CONTIGUOUS = str('CONTIGUOUS')
     lib.check_state.argtypes = [ctypes.c_void_p, ctypes.c_int]
     lib.check_state.restype = ctypes.c_int
 
-# Routine for getting git repository version information.
+    # Routine for getting git repository version information.
     lib.get_version.argtypes = (ctypes.c_int, ctypes.c_char_p)
     lib.get_version.restype = None
 
-fabm.save_settings.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-fabm.save_settings.restype = ctypes.c_void_p
+    lib.save_settings.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    lib.save_settings.restype = ctypes.c_void_p
 
-if ndim_int == 0:
+    if ndim_int == 0:
         lib.integrate.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, arrtype1D, arrtypeInteriorExt, arrtypeInteriorExt2, lib.dtype, ctypes.c_int, ctypes.c_int, arrtypeInterior]
         lib.integrate.restype = None
 
@@ -297,9 +297,9 @@ def hasError():
 def getError():
    for lib in name2lib.values():
        if lib.get_error_state() != 0:
-        strmessage = ctypes.create_string_buffer(1024)
+           strmessage = ctypes.create_string_buffer(1024)
            lib.get_error(1024, strmessage)
-        return strmessage.value.decode('ascii')
+           return strmessage.value.decode('ascii')
 
 def printTree(root, stringmapper, indent=''):
     """Print an indented tree of objects, encoded by dictionaries linking the names of children to
@@ -459,7 +459,7 @@ class Parameter(Variable):
         self.index = index + 1
         self.has_default = has_default
 
-    def getValue(self,default=False):
+    def getValue(self, default=False):
         default = 1 if default else 0
         if self.type == 1:
             return self.model.fabm.get_real_parameter(self.model.pmodel, self.index, default)
@@ -472,7 +472,7 @@ class Parameter(Variable):
             self.model.fabm.get_string_parameter(self.model.pmodel, self.index, default, ATTRIBUTE_LENGTH, result)
             return result.value.decode('ascii')
 
-    def setValue(self,value):
+    def setValue(self, value):
         settings = self.model.save_state()
 
         if self.type == 1:
@@ -728,9 +728,9 @@ class Model(object):
         # Allocate memory for state variable values, and send ctypes.pointer to this memory to FABM.
         if self.fabm.idepthdim == -1:
             self._state = numpy.empty((nstate_interior.value + nstate_surface.value + nstate_bottom.value,) + self.interior_domain_shape, dtype=self.fabm.numpy_dtype)
-        self._interior_state = self._state[:nstate_interior.value, ...]
-        self._surface_state = self._state[nstate_interior.value:nstate_interior.value + nstate_surface.value, ...]
-        self._bottom_state = self._state[nstate_interior.value + nstate_surface.value:, ...]
+            self._interior_state = self._state[:nstate_interior.value, ...]
+            self._surface_state = self._state[nstate_interior.value:nstate_interior.value + nstate_surface.value, ...]
+            self._bottom_state = self._state[nstate_interior.value + nstate_surface.value:, ...]
         else:
             self._interior_state = numpy.empty((nstate_interior.value,) + self.interior_domain_shape, dtype=self.fabm.numpy_dtype)
             self._surface_state = numpy.empty((nstate_surface.value,) + self.horizontal_domain_shape, dtype=self.fabm.numpy_dtype)
@@ -994,21 +994,21 @@ def unload():
 
     for lib in name2lib.values():
         handle = lib._handle
-    if os.name == 'nt':
-        import ctypes.wintypes
-        ctypes.windll.kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
-        ctypes.windll.kernel32.FreeLibrary(handle)
-    else:
-        dlclose = ctypes.CDLL(None).dlclose
-        dlclose.argtypes = [ctypes.c_void_p]
-        dlclose.restype = ctypes.c_int
-        dlclose(handle)
+        if os.name == 'nt':
+            import ctypes.wintypes
+            ctypes.windll.kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
+            ctypes.windll.kernel32.FreeLibrary(handle)
+        else:
+            dlclose = ctypes.CDLL(None).dlclose
+            dlclose.argtypes = [ctypes.c_void_p]
+            dlclose.restype = ctypes.c_int
+            dlclose(handle)
     name2lib = {}
 
 def get_version():
     for lib in name2lib.values():
-    version_length = 256
-    strversion = ctypes.create_string_buffer(version_length)
+        version_length = 256
+        strversion = ctypes.create_string_buffer(version_length)
         lib.get_version(version_length, strversion)
-    return strversion.value.decode('ascii')
+        return strversion.value.decode('ascii')
 
