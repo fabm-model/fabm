@@ -108,7 +108,7 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: set_real_parameter
       type (c_ptr),   value,          intent(in) :: pmodel
       character(kind=c_char), target, intent(in) :: name(*)
-      real(c_double), value,          intent(in) :: value
+      real(rke), value,               intent(in) :: value
 
       call set_parameter(pmodel, name, format_real(value))
    end subroutine set_real_parameter
