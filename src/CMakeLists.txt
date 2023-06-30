@@ -45,16 +45,15 @@ set(ALL_INSTITUTES ${FABM_INSTITUTES} ${FABM_EXTRA_INSTITUTES})
 list(REMOVE_DUPLICATES ALL_INSTITUTES)
 foreach(institute IN LISTS ALL_INSTITUTES)
   # First retrieve the effective source directory
-  set(DEFAULT_INSTITUTE_BASE "${CMAKE_CURRENT_LIST_DIR}/models/${institute}")
   string(TOUPPER ${institute} INSTITUTE_UC)
   find_path(FABM_${INSTITUTE_UC}_BASE
     NAMES CMakeLists.txt
-    HINTS "${DEFAULT_INSTITUTE_BASE}"
+    HINTS "${CMAKE_CURRENT_LIST_DIR}/models/${institute}"
     DOC "Path to source code of ${institute} models"
     NO_DEFAULT_PATH
     NO_CMAKE_FIND_ROOT_PATH
   )
-  if(EXISTS "${DEFAULT_INSTITUTE_BASE}/CMakeLists.txt")
+  if(institute IN_LIST DEFAULT_INSTITUTES AND NOT institute IN_LIST OPTIONAL_INSTITUTES)
     mark_as_advanced(FABM_${INSTITUTE_UC}_BASE)
   endif()
 
@@ -67,14 +66,14 @@ foreach(institute IN LISTS ALL_INSTITUTES)
       string(APPEND FABM_LIBRARY_ADD "
       call self%add(${institute}_model_factory, '${institute}')")
       list(APPEND ACTIVE_INSTITUTES ${institute})
-    elseif(NOT FABM_${INSTITUTE_UC}_BASE STREQUAL DEFAULT_INSTITUTE_BASE)
+    else()
       # The institute directory does not exist and it was explicitly specified (because different from default).
       message(FATAL_ERROR "Source directory ${FABM_${INSTITUTE_UC}_BASE} specified for institute ${institute} not found. Please ensure FABM_${INSTITUTE_UC}_BASE is set to a valid directory.")
     endif()
-  elseif(NOT institute IN_LIST OPTIONAL_INSTITUTES)
-    message(FATAL_ERROR "Source directory for institute ${institute} not found. Please specify FABM_${INSTITUTE_UC}_BASE.")
+  elseif(institute IN_LIST OPTIONAL_INSTITUTES)
+    #message(STATUS "${institute} will not be compiled because FABM_${INSTITUTE_UC}_BASE is not set. Please visit https://fabm.net/${institute} for more information.")
   else()
-    #message(STATUS "${institute} will not be compiled because FABM_${INSTITUTE_UC}_BASE is not set. Please visit http://fabm.net/${institute} for more information.")
+    message(FATAL_ERROR "Source directory for institute ${institute} not found. Please specify FABM_${INSTITUTE_UC}_BASE.")
   endif()
 endforeach(institute)
 configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_library.F90.in
@@ -182,12 +181,9 @@ set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY "${CMAKE_CU
 include_directories($<TARGET_PROPERTY:fabm_base,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Create a list of institute-specific object libraries.
-foreach(institute ${ACTIVE_INSTITUTES})
+set(CMAKE_FOLDER fabm/models)
+foreach(institute IN LISTS ACTIVE_INSTITUTES)
   string(TOUPPER ${institute} INSTITUTE_UC)
-  if(NOT DEFINED FABM_${INSTITUTE_UC}_BASE)
-    set(FABM_${INSTITUTE_UC}_BASE "${CMAKE_CURRENT_LIST_DIR}/models/${institute}")
-  endif()
-  set(CMAKE_FOLDER fabm/models)
   add_subdirectory(${FABM_${INSTITUTE_UC}_BASE} ${CMAKE_CURRENT_BINARY_DIR}/models/${institute})
   set_property(TARGET fabm_models_${institute} PROPERTY Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/models/${institute}")
   target_include_directories(fabm_models_${institute} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/models/${institute}>)
