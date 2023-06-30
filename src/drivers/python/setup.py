@@ -41,7 +41,7 @@ class CMakeBuild(build_ext):
     def initialize_options(self):
         build_ext.initialize_options(self)
         self.cmake_opts = None
-        self.fabm_base = os.path.abspath('../..')
+        self.fabm_base = os.path.abspath('../../..')
 
     def build_extension(self, ext):
         if not os.path.isdir(self.build_temp):
