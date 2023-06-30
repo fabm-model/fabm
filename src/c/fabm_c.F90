@@ -3,15 +3,17 @@
 
 module fabm_c
 
-   use iso_c_binding, only: c_double, c_int, c_char, C_NULL_CHAR, c_f_pointer, c_loc, c_ptr, c_null_ptr
+   use iso_c_binding, only: c_int, c_char, C_NULL_CHAR, c_f_pointer, c_loc, c_ptr, c_null_ptr, c_funptr, c_f_procpointer
 
    !DIR$ ATTRIBUTES DLLEXPORT :: STATE_VARIABLE,DIAGNOSTIC_VARIABLE,CONSERVED_QUANTITY
 
    use fabm, only: type_fabm_model, type_fabm_variable, fabm_get_version, status_start_done, fabm_create_model
-   use fabm_types, only: rk => rke, attribute_length, type_model_list_node, type_base_model, &
+   use fabm_types, only: rke, attribute_length, type_model_list_node, type_base_model, &
                          factory, type_link, type_link_list, type_internal_variable, type_variable_list, type_variable_node, &
-                         domain_interior, domain_horizontal, domain_scalar, get_free_unit
+                         domain_interior, domain_horizontal, domain_scalar, get_free_unit, &
+                         type_interior_standard_variable, type_horizontal_standard_variable
    use fabm_driver, only: type_base_driver, driver
+   use fabm_c_variable, only: type_standard_variable_wrapper
    use fabm_python_helper
    use fabm_c_helper
    use yaml_settings, only: type_settings, type_key_value_pair, type_scalar_value, type_real_setting, type_integer_setting, &
@@ -46,6 +48,14 @@ module fabm_c
       type (type_link_list)              :: coupling_link_list
    end type
 
+   interface
+      subroutine log_callback_interface(msg) bind(c)
+         import c_char
+         character(kind=c_char), intent(in) :: msg(*)
+      end subroutine
+   end interface
+   procedure (log_callback_interface), pointer, save :: log_callback => null()
+
 contains
 
    subroutine get_version(length, version_string) bind(c)
@@ -55,19 +65,34 @@ contains
 
       character(len=length-1) :: string
 
+      ! Initialize driver object used by FABM for logging/error reporting.
+      if (.not. associated(driver)) allocate(type_python_driver::driver)
+
       call fabm_get_version(string)
       call copy_to_c_string(string, version_string)
    end subroutine get_version
 
-   subroutine get_driver_settings(ndim, idepthdim) bind(c)
+   subroutine set_log_callback(cb) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: set_log_callback
+      type(c_funptr), intent(in), value :: cb
+      call c_f_procpointer(cb, log_callback)
+   end subroutine
+
+   subroutine get_driver_settings(ndim, idepthdim, has_mask) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_driver_settings
-      integer(c_int), intent(out) :: ndim, idepthdim
+      integer(c_int), intent(out) :: ndim, idepthdim, has_mask
 
       ndim = _FABM_DIMENSION_COUNT_
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-      idepthdim = _FABM_DEPTH_DIMENSION_INDEX_
+      ! We convert from 1-based Fortran index to 0-based C index, accounting for reversal of dimemnsion order!
+      idepthdim = _FABM_DIMENSION_COUNT_ - _FABM_DEPTH_DIMENSION_INDEX_
 #else
       idepthdim = -1
+#endif
+#ifdef _HAS_MASK_
+      has_mask = logical2int(.true.)
+#else
+      has_mask = logical2int(.false.)
 #endif
    end subroutine get_driver_settings
 
@@ -91,7 +116,7 @@ contains
       model%p => fabm_create_model(path=ppath(:index(ppath, C_NULL_CHAR) - 1))
 
       ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
-      call model%p%set_domain(_PREARG_LOCATION_ 1._rk)
+      call model%p%set_domain(_PREARG_LOCATION_ 1._rke)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
       call get_environment_metadata(model%p, model%environment)
@@ -114,6 +139,48 @@ contains
       call c_f_pointer(c_loc(path), ppath)
       call model%p%settings%save(ppath(:index(ppath, C_NULL_CHAR) - 1), unit=get_free_unit(), display=display)
    end subroutine
+
+#  if _FABM_DIMENSION_COUNT_ > 0
+   subroutine set_domain_start(pmodel _POSTARG_LOCATION_) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: set_domain_start
+      type (c_ptr),   intent(in), value  :: pmodel
+      integer (kind=c_int), value, intent(in) :: _LOCATION_
+      type (type_model_wrapper), pointer :: model
+      call c_f_pointer(pmodel, model)
+      call model%p%set_domain_start(_LOCATION_)
+   end subroutine
+
+   subroutine set_domain_stop(pmodel _POSTARG_LOCATION_) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: set_domain_stop
+      type (c_ptr),   intent(in), value  :: pmodel
+      integer (kind=c_int), value, intent(in) :: _LOCATION_
+      type (type_model_wrapper), pointer :: model
+      call c_f_pointer(pmodel, model)
+      call model%p%set_domain_stop(_LOCATION_)
+   end subroutine
+#endif
+
+#ifdef _HAS_MASK_
+#  ifndef _FABM_HORIZONTAL_MASK_
+#    error 'Not yet implemented'
+#  endif
+   subroutine set_mask(pmodel, horizontal_mask_) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: set_mask
+      type (c_ptr),   intent(in), value  :: pmodel
+      integer(c_int), intent(in), target :: horizontal_mask_(*)
+
+      type (type_model_wrapper),                     pointer :: model
+      integer(c_int) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: horizontal_mask
+
+      call c_f_pointer(pmodel, model)
+#if  _HORIZONTAL_DIMENSION_COUNT_ > 0
+      call c_f_pointer(c_loc(horizontal_mask_), horizontal_mask, model%p%domain%horizontal_shape)
+#else
+      call c_f_pointer(c_loc(horizontal_mask_), horizontal_mask)
+#endif
+      call model%p%set_mask(horizontal_mask)
+   end subroutine
+#endif
 
    subroutine reinitialize(model)
       type (type_model_wrapper), intent(inout) :: model
@@ -138,7 +205,7 @@ contains
       model%p => newmodel
 
       ! Send information on spatial domain to FABM (this also allocates memory for diagnostics)
-      call model%p%set_domain(_PREARG_LOCATION_ 1._rk)
+      call model%p%set_domain(_PREARG_LOCATION_ 1._rke)
 
       ! Retrieve arrays to hold values for environmental variables and corresponding metadata.
       call get_environment_metadata(model%p, model%environment)
@@ -318,6 +385,24 @@ contains
       call copy_to_c_string(variable%path,            path)
    end subroutine get_variable_metadata
 
+   subroutine set_variable_save(pmodel, category, index, value) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: set_variable_save
+      type (c_ptr),           intent(in), value :: pmodel
+      integer(c_int),         intent(in), value :: category, index, value
+
+      type (type_model_wrapper),  pointer :: model
+      class (type_fabm_variable), pointer :: variable
+
+      call c_f_pointer(pmodel, model)
+
+      select case (category)
+      case (INTERIOR_DIAGNOSTIC_VARIABLE)
+         model%p%interior_diagnostic_variables(index)%save = int2logical(value)
+      case (HORIZONTAL_DIAGNOSTIC_VARIABLE)
+         model%p%horizontal_diagnostic_variables(index)%save = int2logical(value)
+      end select
+   end subroutine set_variable_save
+
    function get_variable(pmodel, category, index) bind(c) result(pvariable)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_variable
       type (c_ptr),   intent(in), value :: pmodel
@@ -460,8 +545,8 @@ contains
 
    function c_f_pointer_interior(model, ptr) result(pdata)
       type (type_model_wrapper), intent(in) :: model
-      real(c_double), intent(in), target :: ptr(*)
-      real(c_double) _ATTRIBUTES_GLOBAL_, pointer :: pdata
+      real(rke), target,         intent(in) :: ptr(*)
+      real(rke) _ATTRIBUTES_GLOBAL_, pointer :: pdata
 #if _FABM_DIMENSION_COUNT_ > 0
       call c_f_pointer(c_loc(ptr), pdata, model%p%domain%shape)
 #else
@@ -471,8 +556,8 @@ contains
 
    function c_f_pointer_horizontal(model, ptr) result(pdata)
       type (type_model_wrapper), intent(in) :: model
-      real(c_double), intent(in), target :: ptr(*)
-      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: pdata
+      real(rke), target,         intent(in) :: ptr(*)
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: pdata
 #if  _HORIZONTAL_DIMENSION_COUNT_ > 0
       call c_f_pointer(c_loc(ptr), pdata, model%p%domain%horizontal_shape)
 #else
@@ -484,11 +569,11 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: link_interior_data
       type (c_ptr),   intent(in), value  :: pmodel
       type (c_ptr),   intent(in), value  :: pvariable
-      real(c_double), intent(in), target :: dat(*)
+      real(rke),    intent(in), target :: dat(*)
 
       type (type_model_wrapper),          pointer :: model
       type (type_internal_variable),      pointer :: variable
-      real(c_double) _ATTRIBUTES_GLOBAL_, pointer :: interior_data
+      real(rke) _ATTRIBUTES_GLOBAL_, pointer :: interior_data
 
       call c_f_pointer(pmodel, model)
       call c_f_pointer(pvariable, variable)
@@ -500,11 +585,11 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: link_horizontal_data
       type (c_ptr),   intent(in), value  :: pmodel
       type (c_ptr),   intent(in), value  :: pvariable
-      real(c_double), intent(in), target :: dat(*)
+      real(rke),    intent(in), target :: dat(*)
 
       type (type_model_wrapper),                     pointer :: model
       type (type_internal_variable),                 pointer :: variable
-      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: horizontal_data
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: horizontal_data
 
       call c_f_pointer(pmodel, model)
       call c_f_pointer(pvariable, variable)
@@ -516,11 +601,11 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: link_scalar
       type (c_ptr),   intent(in), value  :: pmodel
       type (c_ptr),   intent(in), value  :: pvariable
-      real(c_double), intent(in), target :: dat(*)
+      real(rke),    intent(in), target :: dat(*)
 
       type (type_model_wrapper),     pointer :: model
       type (type_internal_variable), pointer :: variable
-      real(c_double),                pointer :: scalar_data
+      real(rke),                     pointer :: scalar_data
 
       call c_f_pointer(pmodel, model)
       call c_f_pointer(pvariable, variable)
@@ -532,10 +617,10 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: link_interior_state_data
       type (c_ptr),   intent(in), value  :: pmodel
       integer(c_int), intent(in), value  :: index
-      real(c_double), intent(in), target :: dat(*)
+      real(rke),      intent(in), target :: dat(*)
 
       type (type_model_wrapper),          pointer :: model
-      real(c_double) _ATTRIBUTES_GLOBAL_, pointer :: dat_
+      real(rke) _ATTRIBUTES_GLOBAL_, pointer :: dat_
 
       call c_f_pointer(pmodel, model)
       dat_ => c_f_pointer_interior(model, dat)
@@ -547,10 +632,10 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: link_surface_state_data
       type (c_ptr),   intent(in), value  :: pmodel
       integer(c_int), intent(in), value  :: index
-      real(c_double), intent(in), target :: dat(*)
+      real(rke),      intent(in), target :: dat(*)
 
       type (type_model_wrapper),                     pointer :: model
-      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: dat_
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: dat_
 
       call c_f_pointer(pmodel, model)
       dat_ => c_f_pointer_horizontal(model, dat)
@@ -562,10 +647,10 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: link_bottom_state_data
       type (c_ptr),   intent(in), value  :: pmodel
       integer(c_int), intent(in), value  :: index
-      real(c_double), intent(in), target :: dat(*)
+      real(rke),      intent(in), target :: dat(*)
 
       type (type_model_wrapper),                     pointer :: model
-      real(c_double) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: dat_
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: dat_
 
       call c_f_pointer(pmodel, model)
       dat_ => c_f_pointer_horizontal(model, dat)
@@ -573,20 +658,21 @@ contains
       call model%p%link_bottom_state_data(index, dat_)
    end subroutine link_bottom_state_data
 
-   subroutine get_sources(pmodel, t, sources_interior, sources_surface, sources_bottom, do_surface, do_bottom, cell_thickness) bind(c)
+   subroutine get_sources(pmodel, t, sources_interior, sources_surface, sources_bottom, &
+      do_surface, do_bottom, cell_thickness) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_sources
       type (c_ptr),   value,  intent(in) :: pmodel
-      real(c_double), value,  intent(in) :: t
-      real(c_double), target, intent(in) :: sources_interior(*), sources_surface(*), sources_bottom(*)
+      real(rke),      value,  intent(in) :: t
+      real(rke),      target, intent(in) :: sources_interior(*), sources_surface(*), sources_bottom(*)
       integer(c_int), value,  intent(in) :: do_surface, do_bottom
-      real(c_double), target, intent(in) :: cell_thickness(*)
+      real(rke),      target, intent(in) :: cell_thickness(*)
 
       logical :: surface, bottom
       type (type_model_wrapper), pointer :: model
-      real(c_double) _DIMENSION_GLOBAL_PLUS_1_, pointer :: sources_interior_
-      real(c_double) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_, pointer :: sources_surface_, sources_bottom_
-      real(c_double) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, allocatable :: fluxes
-      real(c_double) _ATTRIBUTES_GLOBAL_, pointer :: cell_thickness_
+      real(rke) _DIMENSION_GLOBAL_PLUS_1_, pointer :: sources_interior_
+      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_, pointer :: sources_surface_, sources_bottom_
+      real(rke) _DIMENSION_HORIZONTAL_SLICE_PLUS_1_, allocatable :: fluxes
+      real(rke) _ATTRIBUTES_GLOBAL_, pointer :: cell_thickness_
       _DECLARE_LOCATION_
 #  if _FABM_DIMENSION_COUNT_ > 0
       integer :: _LOCATION_RANGE_
@@ -599,28 +685,44 @@ contains
       end if
 
 #  if _FABM_DIMENSION_COUNT_ > 0
+      i__ = model%p%domain%shape(1)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 1
+      j__ = model%p%domain%shape(2)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 2
+      k__ = model%p%domain%shape(3)
+#  endif
+
+      call c_f_pointer(c_loc(sources_interior), sources_interior_, &
+         (/_PREARG_LOCATION_ size(model%p%interior_state_variables)/))
+      call c_f_pointer(c_loc(sources_surface), sources_surface_, &
+         (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%surface_state_variables)/))
+      call c_f_pointer(c_loc(sources_bottom), sources_bottom_, &
+         (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%bottom_state_variables)/))
+
+      surface = int2logical(do_surface)
+      bottom = int2logical(do_bottom)
+      if ((surface .or. bottom) .and. size(model%p%interior_state_variables) > 0) &
+         cell_thickness_ => c_f_pointer_interior(model, cell_thickness)
+
+#  if _FABM_DIMENSION_COUNT_ > 0
       istart__ = model%p%domain%start(1)
       istop__ = model%p%domain%stop(1)
-      i__ = model%p%domain%shape(1)
+      i__ = istop__ - istart__ + 1
 #  endif
 #  if _FABM_DIMENSION_COUNT_ > 1
       jstart__ = model%p%domain%start(2)
       jstop__ = model%p%domain%stop(2)
-      j__ = model%p%domain%shape(2)
+      j__ = jstop__ - jstart__ + 1
 #  endif
 #  if _FABM_DIMENSION_COUNT_ > 2
       kstart__ = model%p%domain%start(3)
       kstop__ = model%p%domain%stop(3)
-      k__ = model%p%domain%shape(3)
+      k__ = kstop__ - kstart__ + 1
 #  endif
 
-      surface = int2logical(do_surface)
-      bottom = int2logical(do_bottom)
-      if ((surface .or. bottom) .and. size(model%p%interior_state_variables) > 0) cell_thickness_ => c_f_pointer_interior(model, cell_thickness)
 
-      call c_f_pointer(c_loc(sources_interior), sources_interior_, (/_PREARG_LOCATION_ size(model%p%interior_state_variables)/))
-      call c_f_pointer(c_loc(sources_surface), sources_surface_, (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%surface_state_variables)/))
-      call c_f_pointer(c_loc(sources_bottom), sources_bottom_, (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%bottom_state_variables)/))
 #ifdef _HORIZONTAL_IS_VECTORIZED_
       allocate(fluxes(_ITERATOR_, size(model%p%interior_state_variables)))
 #else
@@ -633,9 +735,9 @@ contains
          call model%p%prepare_inputs(t)
       end if
 
-      sources_interior_ = 0.0_rk
-      sources_surface_ = 0.0_rk
-      sources_bottom_ = 0.0_rk
+      sources_interior_ = 0.0_rke
+      sources_surface_ = 0.0_rke
+      sources_bottom_ = 0.0_rke
 
       _BEGIN_OUTER_INTERIOR_LOOP_
          call model%p%get_interior_sources(_PREARG_INTERIOR_IN_ sources_interior_ _INDEX_GLOBAL_INTERIOR_PLUS_1_(_START_:_STOP_,:))
@@ -651,13 +753,13 @@ contains
 #endif
 
          _BEGIN_OUTER_HORIZONTAL_LOOP_
-            fluxes = 0.0_rk
+            fluxes = 0.0_rke
             call model%p%get_surface_sources(_PREARG_HORIZONTAL_IN_ fluxes, sources_surface_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_,:))
             if (size(model%p%interior_state_variables) > 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
                _DO_CONCURRENT_(_ITERATOR_,_START_,_STOP_)
                   sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
-                     + fluxes(_ITERATOR_,:) / cell_thickness_ _INDEX_LOCATION_
+                     + fluxes(_ITERATOR_ - _START_ + 1,:) / cell_thickness_ _INDEX_LOCATION_
                end do
 #else
                sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
@@ -681,7 +783,7 @@ contains
 #endif
 
          _BEGIN_OUTER_HORIZONTAL_LOOP_
-            fluxes = 0.0_rk
+            fluxes = 0.0_rke
             call model%p%get_bottom_sources_rhs(_PREARG_HORIZONTAL_IN_ fluxes, sources_bottom_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_,:))
             if (size(model%p%interior_state_variables) > 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
@@ -690,7 +792,7 @@ contains
                   _VERTICAL_ITERATOR_ = model%p%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #endif
                   sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
-                     + fluxes(_ITERATOR_,:) / cell_thickness_ _INDEX_LOCATION_
+                     + fluxes(_ITERATOR_ - _START_ + 1,:) / cell_thickness_ _INDEX_LOCATION_
                end do
 #else
 #if _FABM_BOTTOM_INDEX_==-1
@@ -706,6 +808,125 @@ contains
       call model%p%finalize_outputs()
    end subroutine get_sources
 
+   subroutine get_vertical_movement(pmodel, velocity) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_vertical_movement
+      type (c_ptr),   value,  intent(in) :: pmodel
+      real(rke),      target, intent(in) :: velocity(*)
+
+      type (type_model_wrapper), pointer :: model
+      real(rke) _DIMENSION_GLOBAL_PLUS_1_, pointer :: velocity_
+      _DECLARE_LOCATION_
+#  if _FABM_DIMENSION_COUNT_ > 0
+      integer :: _LOCATION_RANGE_
+#  endif
+
+      call c_f_pointer(pmodel, model)
+      if (model%p%status < status_start_done) then
+         call driver%fatal_error('get_vertical_movement', 'start has not been called yet.')
+         return
+      end if
+
+#  if _FABM_DIMENSION_COUNT_ > 0
+      istart__ = model%p%domain%start(1)
+      istop__ = model%p%domain%stop(1)
+      i__ = model%p%domain%shape(1)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 1
+      jstart__ = model%p%domain%start(2)
+      jstop__ = model%p%domain%stop(2)
+      j__ = model%p%domain%shape(2)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 2
+      kstart__ = model%p%domain%start(3)
+      kstop__ = model%p%domain%stop(3)
+      k__ = model%p%domain%shape(3)
+#  endif
+
+      call c_f_pointer(c_loc(velocity), velocity_, (/_PREARG_LOCATION_ size(model%p%interior_state_variables)/))
+
+      _BEGIN_OUTER_INTERIOR_LOOP_
+         call model%p%get_vertical_movement(_PREARG_INTERIOR_IN_ velocity_ _INDEX_GLOBAL_INTERIOR_PLUS_1_(_START_:_STOP_,:))
+      _END_OUTER_INTERIOR_LOOP_
+   end subroutine get_vertical_movement
+
+   subroutine get_conserved_quantities(pmodel, sums, cell_thickness) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_conserved_quantities
+      type (c_ptr),   value,  intent(in) :: pmodel
+      real(rke),      target, intent(in) :: sums(*)
+      real(rke),      target, intent(in) :: cell_thickness(*)
+
+      type (type_model_wrapper), pointer :: model
+      real(rke) _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_, pointer :: sums_
+      real(rke) _ATTRIBUTES_GLOBAL_, pointer :: cell_thickness_
+      real(rke) _DIMENSION_SLICE_PLUS_1_, allocatable :: sums_int
+      integer :: ivar
+      _DECLARE_LOCATION_
+#  if _FABM_DIMENSION_COUNT_ > 0
+      integer :: _LOCATION_RANGE_
+#  endif
+
+      call c_f_pointer(pmodel, model)
+      if (model%p%status < status_start_done) then
+         call driver%fatal_error('get_conserved_quantities', 'start has not been called yet.')
+         return
+      end if
+
+#  if _FABM_DIMENSION_COUNT_ > 0
+      i__ = model%p%domain%shape(1)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 1
+      j__ = model%p%domain%shape(2)
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 2
+      k__ = model%p%domain%shape(3)
+#  endif
+
+      cell_thickness_ => c_f_pointer_interior(model, cell_thickness)
+      call c_f_pointer(c_loc(sums), sums_, &
+         (/_PREARG_HORIZONTAL_LOCATION_ size(model%p%conserved_quantities)/))
+
+#  if _FABM_DIMENSION_COUNT_ > 0
+      istart__ = model%p%domain%start(1)
+      istop__ = model%p%domain%stop(1)
+      i__ = istop__ - istart__ + 1
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 1
+      jstart__ = model%p%domain%start(2)
+      jstop__ = model%p%domain%stop(2)
+      j__ = jstop__ - jstart__ + 1
+#  endif
+#  if _FABM_DIMENSION_COUNT_ > 2
+      kstart__ = model%p%domain%start(3)
+      kstop__ = model%p%domain%stop(3)
+      k__ = kstop__ - kstart__ + 1
+#  endif
+
+#ifdef _INTERIOR_IS_VECTORIZED_
+      allocate(sums_int(_ITERATOR_, size(model%p%conserved_quantities)))
+#else
+      allocate(sums_int(size(model%p%conserved_quantities)))
+#endif
+
+      _BEGIN_OUTER_HORIZONTAL_LOOP_
+         call model%p%get_horizontal_conserved_quantities(_PREARG_HORIZONTAL_IN_ sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_,:))
+      _END_OUTER_HORIZONTAL_LOOP_
+
+      _BEGIN_OUTER_INTERIOR_LOOP_
+         call model%p%get_interior_conserved_quantities(_PREARG_INTERIOR_IN_ sums_int)
+         _DO_CONCURRENT_(ivar,1,size(model%p%conserved_quantities))
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+            do _ITERATOR_ = _START_, _STOP_
+               sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) = sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) &
+                  + cell_thickness_ _INDEX_GLOBAL_INTERIOR_(_ITERATOR_) * sums_int(_ITERATOR_ - _START_ + 1,ivar)
+            end do
+#else
+            sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) = sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) &
+               + cell_thickness_ _INDEX_GLOBAL_INTERIOR_(_ITERATOR_) * sums_int(ivar)
+#endif
+         end do
+      _END_OUTER_INTERIOR_LOOP_
+   end subroutine get_conserved_quantities
+
    function check_state(pmodel, repair_) bind(c) result(valid_)
       !DIR$ ATTRIBUTES DLLEXPORT :: check_state
       type (c_ptr),         intent(in), value :: pmodel
@@ -715,26 +936,28 @@ contains
       type (type_model_wrapper), pointer :: model
       logical :: repair, all_valid, interior_valid, surface_valid, bottom_valid
       _DECLARE_LOCATION_
-
-#  if _FABM_DIMENSION_COUNT_ > 0
+#if _FABM_DIMENSION_COUNT_ > 0
       integer :: _LOCATION_RANGE_
-      istart__ = model%p%domain%start(1)
-      istop__ = model%p%domain%stop(1)
-#  endif
-#  if _FABM_DIMENSION_COUNT_ > 1
-      jstart__ = model%p%domain%start(2)
-      jstop__ = model%p%domain%stop(2)
-#  endif
-#  if _FABM_DIMENSION_COUNT_ > 2
-      kstart__ = model%p%domain%start(3)
-      kstop__ = model%p%domain%stop(3)
-#  endif
+#endif
 
       call c_f_pointer(pmodel, model)
       if (model%p%status < status_start_done) then
          call driver%fatal_error('check_state', 'start has not been called yet.')
          return
       end if
+
+#if _FABM_DIMENSION_COUNT_ > 0
+      istart__ = model%p%domain%start(1)
+      istop__ = model%p%domain%stop(1)
+#endif
+#if _FABM_DIMENSION_COUNT_ > 1
+      jstart__ = model%p%domain%start(2)
+      jstop__ = model%p%domain%stop(2)
+#endif
+#if _FABM_DIMENSION_COUNT_ > 2
+      kstart__ = model%p%domain%start(3)
+      kstop__ = model%p%domain%stop(3)
+#endif
 
       repair = int2logical(repair_)
 
@@ -765,7 +988,8 @@ contains
       type (c_ptr),   intent(in), value :: pmodel
       integer(c_int), intent(in), value :: index
       type(c_ptr)                       :: ptr
-      real(rk) _ATTRIBUTES_GLOBAL_, pointer :: pvalue
+
+      real(rke) _ATTRIBUTES_GLOBAL_, pointer :: pvalue
 
       type (type_model_wrapper), pointer :: model
 
@@ -780,7 +1004,8 @@ contains
       type (c_ptr),   intent(in), value :: pmodel
       integer(c_int), intent(in), value :: index
       type(c_ptr)                       :: ptr
-      real(rk) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: pvalue
+
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: pvalue
 
       type (type_model_wrapper), pointer :: model
 
@@ -789,6 +1014,48 @@ contains
       pvalue => model%p%get_horizontal_diagnostic_data(index)
       if (associated(pvalue)) ptr = c_loc(pvalue)
    end function get_horizontal_diagnostic_data
+
+   function get_standard_variable_data(pmodel, pstandard_variable, horizontal) result(ptr) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_standard_variable_data
+      type (c_ptr),   intent(in), value :: pmodel, pstandard_variable
+      integer(c_int), intent(out)       :: horizontal
+      type(c_ptr)                       :: ptr
+
+      type (type_model_wrapper),                pointer :: model
+      type (type_standard_variable_wrapper),    pointer :: standard_variable
+      real(rke) _ATTRIBUTES_GLOBAL_,            pointer :: pvalue
+      real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: pvalue_hz
+
+      call c_f_pointer(pmodel, model)
+      call c_f_pointer(pstandard_variable, standard_variable)
+      select type (p => standard_variable%p)
+      class is (type_interior_standard_variable)
+         pvalue => model%p%get_data(model%p%get_interior_variable_id(p))
+         if (associated(pvalue)) ptr = c_loc(pvalue)
+         horizontal = 0
+      class is (type_horizontal_standard_variable)
+         pvalue_hz => model%p%get_data(model%p%get_horizontal_variable_id(p))
+         if (associated(pvalue_hz)) ptr = c_loc(pvalue_hz)
+         horizontal = 1
+      end select
+   end function get_standard_variable_data
+
+   subroutine require_data(pmodel, pstandard_variable) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: require_data
+      type (c_ptr),   intent(in), value :: pmodel, pstandard_variable
+
+      type (type_model_wrapper),             pointer :: model
+      type (type_standard_variable_wrapper), pointer :: standard_variable
+
+      call c_f_pointer(pmodel, model)
+      call c_f_pointer(pstandard_variable, standard_variable)
+      select type (p => standard_variable%p)
+      class is (type_interior_standard_variable)
+         call model%p%require_data(p)
+      class is (type_horizontal_standard_variable)
+         call model%p%require_data(p)
+      end select
+   end subroutine require_data
 
    subroutine finalize(model)
       type (type_model_wrapper), intent(inout) :: model
@@ -811,7 +1078,14 @@ contains
       class (type_python_driver), intent(inout) :: self
       character(len=*),           intent(in)    :: message
 
-      !write (*,*) trim(message)
+      character(kind=c_char) :: cmessage(len(message) + 1)
+
+      if (associated(log_callback)) then
+         call copy_to_c_string(message, cmessage)
+         call log_callback(cmessage)
+      else
+         write (*,*) trim(message)
+      end if
    end subroutine python_driver_log_message
 
 end module fabm_c

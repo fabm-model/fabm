@@ -12,7 +12,7 @@ timestamp
 VERSION
 include/version.h
 *.pyc
-/scripts/developers/*.log
-/scripts/developers/environment.yaml
 /build*
 /util/developers/*.log
+/src/drivers/python/pyfabm.egg-info
+/src/drivers/python/pyfabm/*.dll

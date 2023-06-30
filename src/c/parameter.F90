@@ -1,9 +1,9 @@
 module fabm_c_parameter
 
-   use iso_c_binding, only: c_ptr, c_loc, c_char, c_int, c_double, C_NULL_CHAR
+   use iso_c_binding, only: c_ptr, c_loc, c_char, c_int, C_NULL_CHAR
 
    use fabm_c_helper
-   use fabm_types, only: attribute_length
+   use fabm_types, only: attribute_length, rke
    use fabm_driver, only: driver
    use fabm_c
    use yaml_settings, only: type_scalar_value, format_real, format_integer
@@ -117,7 +117,7 @@ contains
       !DIR$ ATTRIBUTES DLLEXPORT :: get_real_parameter
       type (c_ptr),   value, intent(in) :: pmodel
       integer(c_int), value, intent(in) :: index, default
-      real(c_double)                    :: value
+      real(rke)                         :: value
 
       type (type_model_wrapper), pointer :: model
       class (type_scalar_value), pointer :: scalar_value

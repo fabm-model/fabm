@@ -27,30 +27,21 @@ if(MSVC)
   add_compile_options("/libs:static")
 endif()
 
+set(FABM_BASE ${PROJECT_SOURCE_DIR}/../../.. CACHE PATH "Directory with FABM source code")
+
+set(PYFABM_NAME "fabm_c" CACHE STRING "Base name of library")
+set(PYFABM_DIR ${CMAKE_INSTALL_PREFIX} CACHE PATH "Directory to create library in")
+set(PYFABM_DIM_COUNT 0 CACHE STRING "Number of spatial dimensions")
+add_definitions(-D_FABM_DIMENSION_COUNT_=${PYFABM_DIM_COUNT})
+
 # Force FABM_HOST to python and include FABM CMakeLists.txt.
 set(FABM_FORCED_HOST python)
 set(FABM_BUILD_C_API ON CACHE BOOL "Build C interfaces" FORCE)
-add_subdirectory(${PROJECT_SOURCE_DIR}/../../.. fabm EXCLUDE_FROM_ALL)
+add_subdirectory(${FABM_BASE} fabm)
 
-# Add Python-FABM library
-#add_library(python_fabm SHARED
-#            pyfabm/__init__.py
-#           )
-#source_group(pyfabm FILES REGULAR_EXPRESSION ".*\\.py")
-
-# Find target Python interpreter.
-find_package(PythonInterp)
-
-# Build wheel
-add_custom_command(OUTPUT wheel.stamp
-                   COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/pyfabm" pyfabm
-                   COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:fabm_c>" pyfabm/
-                   COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" bdist_wheel
-                   VERBATIM)
-add_custom_target(wheel ALL DEPENDS wheel.stamp SOURCES pyfabm/__init__.py)
-
-# Let pip install the wheel
-install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install --no-index --find-links=${CMAKE_CURRENT_BINARY_DIR}/dist --user --force-reinstall --upgrade pyfabm WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dist)")
-
-add_custom_target(wheel_upload COMMAND twine upload dist/*.whl DEPENDS wheel)
+set_target_properties(fabm_c PROPERTIES
+  OUTPUT_NAME "${PYFABM_NAME}"
+  RUNTIME_OUTPUT_DIRECTORY "$<1:${PYFABM_DIR}>"
+  LIBRARY_OUTPUT_DIRECTORY "$<1:${PYFABM_DIR}>"
+)
 

@@ -1158,7 +1158,7 @@ contains
       if (self%status < status_initialize_done) &
          call fatal_error('require_horizontal_data', 'This procedure can only be called after model initialization.')
       if (self%status >= status_start_done) &
-         call fatal_error('require_horizontal_data', 'This procedure cannot be called after check_ready is called.')
+         call fatal_error('require_horizontal_data', 'This procedure cannot be called after start is called.')
 
       id = self%get_horizontal_variable_id(standard_variable)
       if (.not. associated(id%variable)) &
