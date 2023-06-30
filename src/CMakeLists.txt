@@ -72,17 +72,6 @@ endforeach(institute)
 configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_library.F90.in
                ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90)
 
-set(FABM_INCLUDE_DIRS
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../include>
-  $<INSTALL_INTERFACE:include>
-)
-
-# Global include directories (deprecated; set only for institutes that link to
-# fabm_base using add_dependencies instead of target_link_libraries)
-include_directories(${FABM_INCLUDE_DIRS})
-
 set(GIT_COMMIT_ID unknown)
 set(GIT_BRANCH_NAME unknown)
 configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_version.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90)
@@ -133,7 +122,12 @@ add_library(fabm_base OBJECT
            )
 source_group(builtin REGULAR_EXPRESSION /builtin/)
 target_link_libraries(fabm_base PUBLIC yaml)
-target_include_directories(fabm_base PUBLIC ${FABM_INCLUDE_DIRS})
+target_include_directories(fabm_base PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../include>
+  $<INSTALL_INTERFACE:include>
+)
 install(TARGETS fabm_base EXPORT fabmConfig)
 
 # Define preprocessor macros. These are set on the fabm_base target, but also
@@ -174,6 +168,10 @@ endif()
 
 # Store FABM *.mod in separate directory, so these files can later be installed.
 set_property(TARGET fabm_base fabm PROPERTY Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/modules")
+
+# Global include directories (deprecated; set only for institutes that link to
+# fabm_base using add_dependencies instead of target_link_libraries)
+include_directories($<TARGET_PROPERTY:fabm_base,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Create a list of institute-specific object libraries.
 foreach(institute ${ACTIVE_INSTITUTES})
