@@ -13,6 +13,7 @@ import atexit
 import collections
 import yaml
 import venv
+import logging
 
 script_root = os.path.abspath(os.path.dirname(__file__))
 fabm_base = os.path.join(script_root, '../..')
@@ -194,7 +195,7 @@ def test_pyfabm(args, testcases):
         sys.stdout.flush()
         subprocess.check_call([context.env_exe, '-m', 'pip', 'install', 'wheel', 'numpy', 'pyyaml'])
         return subprocess.call([context.env_exe, os.path.abspath(sys.argv[0])] + sys.argv[1:] + ['--inplace'], cwd=args.work_root)
-    build_args = [sys.executable, 'setup.py', 'build_ext', '--debug']
+    build_args = [sys.executable, 'setup.py', 'clean', '--all', 'build_ext', '--debug']
     if len(args.cmake_arguments) > 0:
         build_args.append('--cmake-opts=%s' % ' '.join(args.cmake_arguments))
     if run('test/pyfabm/make_wheel', build_args + ['bdist_wheel'], cwd=os.path.join(fabm_base, 'src/drivers/python')) != 0:
@@ -204,6 +205,7 @@ def test_pyfabm(args, testcases):
     with open(os.path.join(script_root, 'environment.yaml')) as f:
         environment = yaml.safe_load(f)
     import pyfabm
+    pyfabm.logger = logging.getLogger()
     dependency_names = set()
     print('Running FABM testcases with pyfabm:')
     for case, path in testcases.items():
