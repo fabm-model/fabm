@@ -1,8 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
-
-if(POLICY CMP0048)
-  cmake_policy(SET CMP0048 NEW)
-endif()
+cmake_minimum_required(VERSION 3.12)
 
 # Use solution folders in IDEs
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -32,7 +28,7 @@ set(FABM_BASE ${PROJECT_SOURCE_DIR}/../../.. CACHE PATH "Directory with FABM sou
 set(PYFABM_NAME "fabm_c" CACHE STRING "Base name of library")
 set(PYFABM_DIR ${CMAKE_INSTALL_PREFIX} CACHE PATH "Directory to create library in")
 set(PYFABM_DIM_COUNT 0 CACHE STRING "Number of spatial dimensions")
-add_definitions(-D_FABM_DIMENSION_COUNT_=${PYFABM_DIM_COUNT})
+add_compile_definitions(_FABM_DIMENSION_COUNT_=${PYFABM_DIM_COUNT})
 
 # Force FABM_HOST to python and include FABM CMakeLists.txt.
 set(FABM_FORCED_HOST python)
