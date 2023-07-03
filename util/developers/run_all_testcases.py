@@ -198,9 +198,9 @@ def test_pyfabm(args, testcases):
     build_args = [sys.executable, 'setup.py', 'clean', '--all', 'build_ext', '--debug']
     if len(args.cmake_arguments) > 0:
         build_args.append('--cmake-opts=%s' % ' '.join(args.cmake_arguments))
-    if run('test/pyfabm/make_wheel', build_args + ['bdist_wheel'], cwd=os.path.join(fabm_base, 'src/drivers/python')) != 0:
+    if run('test/pyfabm/make_wheel', build_args + ['bdist_wheel'], cwd=fabm_base) != 0:
         return
-    if run('test/pyfabm/install', [sys.executable, '-m', 'pip', 'install', 'pyfabm', '--no-index', '--find-links=%s' % os.path.join(fabm_base, 'src/drivers/python/dist')]) != 0:
+    if run('test/pyfabm/install', [sys.executable, '-m', 'pip', 'install', 'pyfabm', '--no-index', '--find-links=%s' % os.path.join(fabm_base, 'dist')]) != 0:
         return
     with open(os.path.join(script_root, 'environment.yaml')) as f:
         environment = yaml.safe_load(f)

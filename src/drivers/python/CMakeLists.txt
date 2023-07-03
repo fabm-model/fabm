@@ -23,8 +23,6 @@ if(MSVC)
   add_compile_options("/libs:static")
 endif()
 
-set(FABM_BASE ${PROJECT_SOURCE_DIR}/../../.. CACHE PATH "Directory with FABM source code")
-
 set(PYFABM_NAME "fabm_c" CACHE STRING "Base name of library")
 set(PYFABM_DIR ${CMAKE_INSTALL_PREFIX} CACHE PATH "Directory to create library in")
 set(PYFABM_DIM_COUNT 0 CACHE STRING "Number of spatial dimensions")
@@ -33,7 +31,7 @@ add_compile_definitions(_FABM_DIMENSION_COUNT_=${PYFABM_DIM_COUNT})
 # Force FABM_HOST to python and include FABM CMakeLists.txt.
 set(FABM_FORCED_HOST python)
 set(FABM_BUILD_C_API ON CACHE BOOL "Build C interfaces" FORCE)
-add_subdirectory(${FABM_BASE} fabm)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../.. fabm)
 
 set_target_properties(fabm_c PROPERTIES
   OUTPUT_NAME "${PYFABM_NAME}"

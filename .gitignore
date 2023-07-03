@@ -16,3 +16,4 @@ include/version.h
 /util/developers/*.log
 /src/drivers/python/pyfabm.egg-info
 /src/drivers/python/pyfabm/*.dll
+/dist

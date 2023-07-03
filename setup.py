@@ -5,6 +5,8 @@ import shutil
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 
+FABM_BASE = os.path.dirname(__file__)
+
 try:
     import wheel.bdist_wheel
     class bdist_wheel(wheel.bdist_wheel.bdist_wheel):
@@ -19,19 +21,17 @@ except ImportError:
     raise Exception('wheel must be installed to build pyfabm. Try "python -m pip install wheel".')
 
 def readme():
-    with io.open(os.path.join(os.path.dirname(__file__), 'README.rst'), 'r') as f:
+    with io.open(os.path.join(FABM_BASE, 'src/drivers/python/README.rst'), 'r') as f:
         return f.read()
 
 class CMakeExtension(Extension):
-    def __init__(self, name, sourcedir='', *cmake_args):
+    def __init__(self, name, *cmake_args):
         Extension.__init__(self, name, sources=[])
-        self.sourcedir = os.path.abspath(sourcedir)
         self.cmake_args = cmake_args
 
 class CMakeBuild(build_ext):
     user_options = build_ext.user_options + [
         ('cmake-opts=', None, 'additional options to pass to cmake'),
-        ('fabm-base=', None, 'path to FABM source directory')
     ]
 
     def run(self):
@@ -41,7 +41,6 @@ class CMakeBuild(build_ext):
     def initialize_options(self):
         build_ext.initialize_options(self)
         self.cmake_opts = None
-        self.fabm_base = os.path.abspath('../../..')
 
     def build_extension(self, ext):
         if not os.path.isdir(self.build_temp):
@@ -67,7 +66,7 @@ class CMakeBuild(build_ext):
             cmake_args += self.cmake_opts.split(' ')
         if self.compiler is not None:
             cmake_args.append('-DCMAKE_Fortran_COMPILER=%s' % self.compiler)
-        subprocess.check_call(['cmake', ext.sourcedir, '-DPYFABM_NAME=%s' % libname, '-DPYFABM_DIR=%s' % install_prefix, '-DFABM_BASE=%s' % self.fabm_base] + cmake_args, cwd=build_dir)
+        subprocess.check_call(['cmake', os.path.join(FABM_BASE, 'src/drivers/python'), '-DPYFABM_NAME=%s' % libname, '-DPYFABM_DIR=%s' % install_prefix] + cmake_args, cwd=build_dir)
         subprocess.check_call(['cmake', '--build', '.', '--config', build_type], cwd=build_dir)
 
 setup(
@@ -90,7 +89,8 @@ setup(
         ]
     },
     packages=['pyfabm', 'pyfabm/utils'],
-    ext_modules=[CMakeExtension('pyfabm.fabm_0d', '.'), CMakeExtension('pyfabm.fabm_1d', '.', '-DPYFABM_DIM_COUNT=1')],
+    package_dir={'': 'src'},
+    ext_modules=[CMakeExtension('pyfabm.fabm_0d'), CMakeExtension('pyfabm.fabm_1d', '-DPYFABM_DIM_COUNT=1')],
     cmdclass={'bdist_wheel': bdist_wheel, 'build_ext': CMakeBuild},
     zip_safe=False
 )
