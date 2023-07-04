@@ -82,6 +82,8 @@ jobs:
               exe: nvhpc_2020_209_Linux_x86_64_cuda_11.0
             - version: "22.9"  # 2022-10
               exe: nvhpc_2022_229_Linux_x86_64_cuda_11.7
+            - version: "23.5"  # 2023-05
+              exe: nvhpc_2023_235_Linux_x86_64_cuda_12.1
         fail-fast: false
       runs-on: ubuntu-latest
       env:
