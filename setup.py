@@ -71,11 +71,11 @@ class CMakeBuild(build_ext):
 
 setup(
     name='pyfabm',
-    version='1.0.4',
+    version='2.0.0',
     description='Python driver for FABM',
     long_description=readme(),
     long_description_content_type='text/x-rst',
-    url='https://github.com/fabm-model/fabm/tree/master/src/drivers/python',
+    url='https://fabm.net/python',
     author='Jorn Bruggeman',
     author_email='jorn@bolding-bruggeman.com',
     license='GPL',
