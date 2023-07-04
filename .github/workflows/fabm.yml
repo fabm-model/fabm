@@ -115,7 +115,7 @@ jobs:
       strategy:
         matrix:
           version:
-          #- "3.2.0"  # 2021-12-10 Fails during fabm-c compilation
+          - "3.2.0"  # 2021-12-10 Fails during fabm-c compilation
           - "4.0.0"  # 2022-11-10
         fail-fast: false
       runs-on: ubuntu-latest
