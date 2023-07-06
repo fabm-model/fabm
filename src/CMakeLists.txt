@@ -101,6 +101,10 @@ if(NOT TARGET yaml)
   set_property(TARGET yaml PROPERTY FOLDER fabm/yaml)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/yaml/modules/\${BUILD_TYPE}/ DESTINATION include/yaml)
   install(TARGETS yaml EXPORT fabmConfig)
+else()
+  # Since we allow FABM to be imported from the build tree - export(EXPORT fabmConfig) below -
+  # we also need to make the externally defined yaml target available there
+  export(EXPORT yamlConfig)
 endif(NOT TARGET yaml)
 
 configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_parameters.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_parameters.F90)
