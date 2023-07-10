@@ -9,7 +9,6 @@ authors = [
   {name = "Jorn Bruggeman", email = "jorn@bolding-bruggeman.com"}
 ]
 description = "Python driver for FABM"
-readme = "src/drivers/python/README.rst"
 requires-python = ">=3.7"
 license = {file = "COPYING"}
 dependencies = [
