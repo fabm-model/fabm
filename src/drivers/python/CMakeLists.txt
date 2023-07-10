@@ -33,6 +33,14 @@ set(FABM_FORCED_HOST python)
 set(FABM_BUILD_C_API ON CACHE BOOL "Build C interfaces" FORCE)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../.. fabm)
 
+# Override cmake's default directory and name for the pyfabm dynamic library
+# Note: the output directory is set with generator expressions to prevent
+# multi-output generators (e.g. Visual Studio) from appending a per-configuration
+# subdirectory. RUNTIME_OUTPUT_DIRECTORY applies on DLL platforms (Windows),
+# LIBRARY_OUTPUT_DIRECTORY on other platforms.
+# See also:
+# * https://cmake.org/cmake/help/latest/prop_tgt/RUNTIME_OUTPUT_DIRECTORY.html
+# * https://cmake.org/cmake/help/latest/prop_tgt/LIBRARY_OUTPUT_DIRECTORY.html
 set_target_properties(fabm_c PROPERTIES
   OUTPUT_NAME "${PYFABM_NAME}"
   RUNTIME_OUTPUT_DIRECTORY "$<1:${PYFABM_DIR}>"
