@@ -14,6 +14,10 @@ include/version.h
 *.pyc
 /build*
 /util/developers/*.log
-/src/drivers/python/pyfabm.egg-info
+pyfabm.egg-info/
 /src/drivers/python/pyfabm/*.dll
 /dist
+/*.whl
+/setup.cfg
+/.vscode
+/util/standard_variables/standard_variables.wiki
