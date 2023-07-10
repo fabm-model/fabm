@@ -10,7 +10,11 @@ authors = [
 ]
 description = "Python driver for FABM"
 readme = "src/drivers/python/README.rst"
+requires-python = ">=3.7"
 license = {file = "COPYING"}
+dependencies = [
+  "numpy"
+]
 
 [project.urls]
 "Homepage" = "https://fabm.net"
