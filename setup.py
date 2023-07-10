@@ -84,7 +84,7 @@ class CMakeBuild(build_ext):
 
 
 setup(
-    packages=["pyfabm", "pyfabm/utils"],
+    packages=["pyfabm"],
     package_dir={"": "src"},
     ext_modules=[
         CMakeExtension("pyfabm.fabm_0d"),
