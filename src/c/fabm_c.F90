@@ -914,7 +914,7 @@ contains
       _BEGIN_OUTER_INTERIOR_LOOP_
          call model%p%get_interior_conserved_quantities(_PREARG_INTERIOR_IN_ sums_int)
          _DO_CONCURRENT_(ivar,1,size(model%p%conserved_quantities))
-#ifdef _HORIZONTAL_IS_VECTORIZED_
+#ifdef _INTERIOR_IS_VECTORIZED_
             do _ITERATOR_ = _START_, _STOP_
                sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) = sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) &
                   + cell_thickness_ _INDEX_GLOBAL_INTERIOR_(_ITERATOR_) * sums_int(_ITERATOR_ - _START_ + 1,ivar)
