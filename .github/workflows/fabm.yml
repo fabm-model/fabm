@@ -89,6 +89,10 @@ jobs:
       env:
         FFLAGS: -Mbounds -Mchkptr
       steps:
+      - name: Free up disk space
+        run: |
+           sudo rm -rf /usr/share/dotnet
+           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
