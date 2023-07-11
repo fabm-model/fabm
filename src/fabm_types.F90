@@ -796,14 +796,17 @@ contains
       class (type_base_model), intent(inout) :: self
 
       type (type_model_list_node),           pointer :: node
+      class (type_base_model),               pointer :: child
       type (type_aggregate_variable_access), pointer :: aggregate_variable_access, next_aggregate_variable_access
       class (type_expression),               pointer :: expression, next_expression
       type (type_link),                      pointer :: link
 
       node => self%children%first
       do while (associated(node))
-         call node%model%finalize()
-         deallocate(node%model)
+         ! First assigning node%model to child seems to work around bug in nvfortran
+         child => node%model
+         call child%finalize()
+         deallocate(child)
          node => node%next
       end do
       call self%children%finalize()
