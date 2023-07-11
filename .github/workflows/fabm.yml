@@ -103,6 +103,7 @@ jobs:
         run: |
            wget --no-verbose https://developer.download.nvidia.com/hpc-sdk/${{ matrix.version }}/${{ matrix.exe }}.tar.gz
            tar xpzf ${{ matrix.exe }}.tar.gz
+           rm ${{ matrix.exe }}.tar.gz
            ${{ matrix.exe }}/install
         env:
            NVHPC_SILENT: true
@@ -135,6 +136,7 @@ jobs:
            cd /home/runner
            wget --no-verbose https://download.amd.com/developer/eula/aocc-compiler/aocc-compiler-${{ matrix.version }}.tar
            tar xpf aocc-compiler-${{ matrix.version }}.tar
+           rm aocc-compiler-${{ matrix.version }}.tar
            ./aocc-compiler-${{ matrix.version }}/install.sh
       - name: Clone repository
         uses: actions/checkout@v2
