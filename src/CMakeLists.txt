@@ -196,6 +196,7 @@ endforeach(institute)
 
 if(FABM_BUILD_C_API)
   add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/c" c)
+  source_group(c REGULAR_EXPRESSION /c/)
 endif()
 
 # Tests

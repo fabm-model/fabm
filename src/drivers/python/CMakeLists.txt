@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.12)
 # Use solution folders in IDEs
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+set(BUILD_SHARED_LIBS ON)
+
 # Create main project.
 project(python_fabm Fortran)
 
@@ -20,7 +22,7 @@ if(MSVC)
   add_compile_options("/libs:static")
 endif()
 
-set(PYFABM_NAME "fabm_c" CACHE STRING "Base name of library")
+set(PYFABM_NAME "fabm" CACHE STRING "Base name of library")
 set(PYFABM_DIR ${CMAKE_INSTALL_PREFIX} CACHE PATH "Directory to create library in")
 set(PYFABM_DIM_COUNT 0 CACHE STRING "Number of spatial dimensions")
 add_compile_definitions(_FABM_DIMENSION_COUNT_=${PYFABM_DIM_COUNT})
@@ -38,7 +40,7 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../.. fabm)
 # See also:
 # * https://cmake.org/cmake/help/latest/prop_tgt/RUNTIME_OUTPUT_DIRECTORY.html
 # * https://cmake.org/cmake/help/latest/prop_tgt/LIBRARY_OUTPUT_DIRECTORY.html
-set_target_properties(fabm_c PROPERTIES
+set_target_properties(fabm PROPERTIES
   OUTPUT_NAME "${PYFABM_NAME}"
   RUNTIME_OUTPUT_DIRECTORY "$<1:${PYFABM_DIR}>"
   LIBRARY_OUTPUT_DIRECTORY "$<1:${PYFABM_DIR}>"
