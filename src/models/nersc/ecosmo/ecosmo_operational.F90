@@ -486,9 +486,9 @@ end subroutine initialize
 
    if (self%use_chl) then   
      ! chlorophyll-a to C change
-     chl2c_fla = self%MAXchl2nPs * max(0.01,Ps_prod) * self%BioC(2) * sedy0 * fla / &
+     chl2c_fla = self%MAXchl2nPs * max(0.01_rk,Ps_prod) * self%BioC(2) * sedy0 * fla / &
                (self%alfaPs * par * flachl)
-     chl2c_dia = self%MAXchl2nPl * max(0.01,Pl_prod) * self%BioC(1) * sedy0 * dia / &
+     chl2c_dia = self%MAXchl2nPl * max(0.01_rk,Pl_prod) * self%BioC(1) * sedy0 * dia / &
                (self%alfaPl * par * diachl)
 
             chl2c_fla = max(self%MINchl2nPs,chl2c_fla)
@@ -496,7 +496,7 @@ end subroutine initialize
             chl2c_dia = max(self%MINchl2nPl,chl2c_dia)
             chl2c_dia = min(self%MAXchl2nPl,chl2c_dia)
      if (self%use_cyanos) then
-       chl2c_bg = self%MAXchl2nBG * max(0.1,Bg_prod) * self%BioC(28) * sedy0 * bg / &
+       chl2c_bg = self%MAXchl2nBG * max(0.1_rk,Bg_prod) * self%BioC(28) * sedy0 * bg / &
                (self%alfaBG * par * bgchl)
        chl2c_bg  = max(self%MINchl2nBG,chl2c_bg)
        chl2c_bg  = min(self%MAXchl2nBG,chl2c_bg)
