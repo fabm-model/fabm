@@ -23,6 +23,8 @@ else()
   message(STATUS "FABM host: ${FABM_HOST}")
 endif()
 
+option(FABM_EMBED_VERSION "Embed FABM version information" OFF)
+
 # Use host-prescribed real kind if set.
 if(FABM_FORCED_REAL_KIND)
   # FABM_REAL_KIND was specified by a higher level CMakeLists.txt
@@ -41,6 +43,9 @@ option(FABM_USE_IEEE_ARITHMETIC "Use IEEE_ARITHMETIC module" ON)
 option(FABM_USE_DO_CONCURRENT "Use DO CONCURRENT statement (Fortran 2008)" ON)
 option(FABM_USE_CONTIGUOUS "Use CONTIGUOUS attribute (Fortran 2008)" ON)
 mark_as_advanced(FABM_USE_IEEE_ARITHMETIC FABM_USE_DO_CONCURRENT FABM_USE_CONTIGUOUS)
+
+option(FABM_BUILD_C_API "Build C interfaces" OFF)
+mark_as_advanced(FABM_BUILD_C_API)
 
 # Specify default build type for single-type systems (not VS)
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -63,7 +68,7 @@ endif()
 add_compile_definitions($<$<NOT:$<CONFIG:DEBUG>>:NDEBUG>)
 
 # Use use position-independent code (-fPIC) everywhere if building shared libraries
-if(BUILD_SHARED_LIBS)
+if(BUILD_SHARED_LIBS OR FABM_BUILD_C_API)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 

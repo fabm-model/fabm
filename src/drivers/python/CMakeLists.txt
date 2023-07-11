@@ -6,9 +6,6 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # Create main project.
 project(python_fabm Fortran)
 
-# Specify position-independent code since we will build a shared library.
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
 # Customize compiler flags
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
   if(WIN32)

@@ -82,7 +82,6 @@ configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_library.F90.in
 set(GIT_COMMIT_ID unknown)
 set(GIT_BRANCH_NAME unknown)
 configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_version.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90)
-option(FABM_EMBED_VERSION "Embed FABM version information" OFF)
 if(FABM_EMBED_VERSION)
   set(GET_GIT_INFO_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules/GetGitInfo.cmake")
   add_custom_target(fabm_version
@@ -195,8 +194,6 @@ foreach(institute IN LISTS ACTIVE_INSTITUTES)
   install(TARGETS fabm_models_${institute} EXPORT fabmConfig)
 endforeach(institute)
 
-option(FABM_BUILD_C_API "Build C interfaces" OFF)
-mark_as_advanced(FABM_BUILD_C_API)
 if(FABM_BUILD_C_API)
   add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/c" c)
 endif()
