@@ -1,7 +1,7 @@
 /.vscode
 /build
 /dist
-/*.whl
+*.whl
 /src/pyfabm.egg-info
 /setup.cfg
 /util/developers/*.log
@@ -9,3 +9,7 @@
 *-checkpoint.ipynb
 *.pyc
 *.nc
+/src/pyfabm/*.dll
+/src/pyfabm/*.so
+/src/pyfabm/*.dylib
+
