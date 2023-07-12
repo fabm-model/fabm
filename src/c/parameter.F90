@@ -195,9 +195,9 @@ contains
       select type (scalar_value)
       class is (type_logical_setting)
          if (int2logical(default)) then
-            value = scalar_value%default
+            value = logical2int(scalar_value%default)
          else
-            value = scalar_value%pvalue
+            value = logical2int(scalar_value%pvalue)
          end if
       class default
          call driver%fatal_error('get_logical_parameter', 'not a logical variable')
