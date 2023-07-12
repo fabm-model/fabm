@@ -10,9 +10,13 @@ authors = [
 ]
 description = "Python driver for FABM"
 requires-python = ">=3.7"
-license = {file = "COPYING"}
 dependencies = [
   "numpy"
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+  "Operating System :: OS Independent"
 ]
 
 [project.urls]

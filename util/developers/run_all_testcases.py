@@ -193,14 +193,14 @@ def test_pyfabm(args, testcases):
         builder.create(env_root)
         context = builder.ensure_directories(env_root)
         sys.stdout.flush()
-        subprocess.check_call([context.env_exe, '-m', 'pip', 'install', 'pyyaml', 'numpy'])
+        subprocess.check_call([context.env_exe, '-m', 'pip', 'install', 'pyyaml'])
         return subprocess.call([context.env_exe, os.path.abspath(sys.argv[0])] + sys.argv[1:] + ['--inplace'], cwd=args.work_root)
     with open(os.path.join(fabm_base, 'setup.cfg'), 'w') as cfg:
         cfg.write('[build_ext]\n')
         cfg.write('debug=1\n')
         cfg.write('force=1\n')
         if len(args.cmake_arguments) > 0:
-            cfg.write('cmake-opts=%s\n' % ' '.join(args.cmake_arguments))
+            cfg.write('cmake_opts=%s\n' % ' '.join(args.cmake_arguments))
     if run('test/pyfabm/install', [sys.executable, '-m', 'pip', 'install', '.'], cwd=fabm_base) != 0:
         return
     with open(os.path.join(script_root, 'environment.yaml')) as f:
