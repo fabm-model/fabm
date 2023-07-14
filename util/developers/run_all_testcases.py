@@ -223,7 +223,13 @@ def test_pyfabm(args, testcases):
             m.start()
         r0d = m0d.getRates()
         r1d = m1d.getRates()
-        assert (r1d == r1d[:, :1]).all(), 'Variability among 1D results: %s' % (r1d,)
+        if (r1d != r1d[:, :1]).any():
+            ran = r1d.max(axis=1) - r1d.min(axis=1)
+            bad = {}
+            for var, val in zip(m1d.state_variables, ran):
+                if val != 0.0:
+                    bad[var.name] = val
+            assert False, 'Variability among 1D results: %s (range: %s)' % (r1d, bad)
         assert (r1d[:, 0] == r0d).all(), 'Mismatch between 0D and 1D results: %s vs %s. Difference: %s' % (r0d, r1d[:, 0], r1d[:, 0] - r0d)
         print('SUCCESS')
     print('pyfabm %s loaded from %s (%s)' % (pyfabm.get_version(), pyfabm.__file__, ', '.join(['%s=%s' % (n, l._name) for n, l in pyfabm.name2lib.items()])))
