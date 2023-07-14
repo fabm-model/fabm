@@ -3,6 +3,7 @@ import subprocess
 import shutil
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
+import shlex
 
 try:
     import wheel.bdist_wheel
@@ -65,7 +66,7 @@ class CMakeBuild(build_ext):
         build_type = "Debug" if self.debug else "Release"
         cmake_args = list(ext.cmake_args) + [f"-DCMAKE_BUILD_TYPE={build_type}"]
         if self.cmake_opts is not None:
-            cmake_args += self.cmake_opts.split(" ")
+            cmake_args += shlex.split(self.cmake_opts)
         if self.compiler is not None:
             cmake_args.append(f"-DCMAKE_Fortran_COMPILER={self.compiler}")
         subprocess.check_call(
@@ -79,7 +80,7 @@ class CMakeBuild(build_ext):
             cwd=build_dir,
         )
         subprocess.check_call(
-            ["cmake", "--build", ".", "--config", build_type], cwd=build_dir
+            ["cmake", "--build", build_dir, "--config", build_type]
         )
 
 
