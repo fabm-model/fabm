@@ -12,7 +12,7 @@ except ImportError:
         "wheel must be installed to build pyfabm. Try 'python -m pip install wheel'."
     )
 
-FABM_BASE = os.path.dirname(__file__)
+FABM_BASE = os.path.abspath(os.path.dirname(__file__))
 
 
 class bdist_wheel(wheel.bdist_wheel.bdist_wheel):
