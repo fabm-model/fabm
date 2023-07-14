@@ -1,33 +1,33 @@
 name: Build and test
 on: push
 jobs:
-   gfortran:
-      strategy:
-         matrix:
-            version: [9, 10, 11, 12]
-            os: [ubuntu-latest]
-            include:
-               #- version: 4.8
-               #  os: ubuntu-18.04
-               #  cmake_args: -DFABM_USE_IEEE_ARITHMETIC=OFF
-               #- version: 5
-               #  os: ubuntu-18.04
-               #- version: 6
-               #  os: ubuntu-18.04
-               - version: 7
-                 os: ubuntu-20.04
-               - version: 8
-                 os: ubuntu-20.04
-                 cmake_args: -DFABM_USE_CONTIGUOUS=OFF
-         fail-fast: false
-      runs-on: ${{ matrix.os }}
-      env:
-        FFLAGS: -fcheck=all
-      steps:
+  gfortran:
+    strategy:
+      matrix:
+        version: [9, 10, 11, 12]
+        os: [ubuntu-latest]
+        include:
+          #- version: 4.8
+          #  os: ubuntu-18.04
+          #  cmake_args: -DFABM_USE_IEEE_ARITHMETIC=OFF
+          #- version: 5
+          #  os: ubuntu-18.04
+          #- version: 6
+          #  os: ubuntu-18.04
+          - version: 7
+            os: ubuntu-20.04
+          - version: 8
+            os: ubuntu-20.04
+            cmake_args: -DFABM_USE_CONTIGUOUS=OFF
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    env:
+      FFLAGS: -fcheck=all
+    steps:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-           python-version: '3.x'
+          python-version: "3.x"
       - name: Install Python dependencies
         run: python -m pip install --upgrade pip setuptools pyyaml
       - name: Install compiler
@@ -38,114 +38,135 @@ jobs:
         run: python3 util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
       - name: Run all test cases with pyfabm
         run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
-   ifort:
-      strategy:
-        matrix:
-          include:
-            - version: "2021.1.2.62"
-              url_dir: "17508"
-            - version: "2022.2.1.16992"
-              url_dir: "18998"
-        fail-fast: false
-      runs-on: ubuntu-latest
-      env:
-        FFLAGS: -check all
-      steps:
+  ifort:
+    strategy:
+      matrix:
+        include:
+          - version: "2021.1.2.62"
+            url_dir: "17508"
+          - version: "2022.2.1.16992"
+            url_dir: "18998"
+      fail-fast: false
+    runs-on: ubuntu-latest
+    env:
+      FFLAGS: -check all
+    steps:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-           python-version: '3.x'
+          python-version: "3.x"
       - name: Install Python dependencies
         run: python -m pip install --upgrade pip setuptools pyyaml
       - name: Install compiler
         run: |
-           wget --no-verbose https://registrationcenter-download.intel.com/akdlm/irc_nas/${{ matrix.url_dir }}/l_fortran-compiler_p_${{ matrix.version }}_offline.sh
-           /bin/sh l_fortran-compiler_p_${{ matrix.version }}_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
+          wget --no-verbose https://registrationcenter-download.intel.com/akdlm/irc_nas/${{ matrix.url_dir }}/l_fortran-compiler_p_${{ matrix.version }}_offline.sh
+          /bin/sh l_fortran-compiler_p_${{ matrix.version }}_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
       - name: Clone repository
         uses: actions/checkout@v2
       - name: Run all test cases with host emulators
         run: |
-           source ${HOME}/intel/setvars.sh
-           python3 util/developers/run_all_testcases.py harness --show_logs --compiler ifort
+          source ${HOME}/intel/setvars.sh
+          python3 util/developers/run_all_testcases.py harness --show_logs --compiler ifort
       - name: Run all test cases with pyfabm
         run: |
-           source ${HOME}/intel/setvars.sh
-           python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifort
+          source ${HOME}/intel/setvars.sh
+          python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifort
         env:
-           FFLAGS: -fp-model precise -fp-model source
-   nvfortran:
-      # for available versions, see https://developer.nvidia.com/nvidia-hpc-sdk-releases
-      strategy:
-        matrix:
-          include:
-            - version: "20.9"  # 2020-10
-              exe: nvhpc_2020_209_Linux_x86_64_cuda_11.0
-            - version: "22.9"  # 2022-10
-              exe: nvhpc_2022_229_Linux_x86_64_cuda_11.7
-            - version: "23.5"  # 2023-05
-              exe: nvhpc_2023_235_Linux_x86_64_cuda_12.1
-        fail-fast: false
-      runs-on: ubuntu-latest
-      env:
-        FFLAGS: -Mbounds -Mchkptr
-      steps:
+          FFLAGS: -fp-model precise -fp-model source
+  nvfortran:
+    # for available versions, see https://developer.nvidia.com/nvidia-hpc-sdk-releases
+    strategy:
+      matrix:
+        include:
+          - version: "20.9" # 2020-10
+            exe: nvhpc_2020_209_Linux_x86_64_cuda_11.0
+          - version: "22.9" # 2022-10
+            exe: nvhpc_2022_229_Linux_x86_64_cuda_11.7
+          - version: "23.5" # 2023-05
+            exe: nvhpc_2023_235_Linux_x86_64_cuda_12.1
+      fail-fast: false
+    runs-on: ubuntu-latest
+    env:
+      FFLAGS: -Mbounds -Mchkptr
+    steps:
       - name: Free up disk space
         run: |
-           sudo rm -rf /usr/share/dotnet
-           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-           python-version: '3.x'
+          python-version: "3.x"
       - name: Install Python dependencies
         run: python -m pip install --upgrade pip setuptools pyyaml
       - name: Install compiler
         run: |
-           wget --no-verbose https://developer.download.nvidia.com/hpc-sdk/${{ matrix.version }}/${{ matrix.exe }}.tar.gz
-           tar xpzf ${{ matrix.exe }}.tar.gz
-           rm ${{ matrix.exe }}.tar.gz
-           ${{ matrix.exe }}/install
+          wget --no-verbose https://developer.download.nvidia.com/hpc-sdk/${{ matrix.version }}/${{ matrix.exe }}.tar.gz
+          tar xpzf ${{ matrix.exe }}.tar.gz
+          rm ${{ matrix.exe }}.tar.gz
+          ${{ matrix.exe }}/install
         env:
-           NVHPC_SILENT: true
-           NVHPC_INSTALL_DIR: /home/runner/nvhpc
-           NVHPC_INSTALL_TYPE: single
+          NVHPC_SILENT: true
+          NVHPC_INSTALL_DIR: /home/runner/nvhpc
+          NVHPC_INSTALL_TYPE: single
       - name: Clone repository
         uses: actions/checkout@v2
       - name: Run all test cases with host emulators
         run: python3 util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
       - name: Run all test cases with pyfabm
         run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
-   aocc:
-      # for available versions, see https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/aocc/package.py
-      strategy:
-        matrix:
-          include:
-            - version: "3.2.0"  # 2021-12-10
-              pyfabm_cmake_args: -DCMAKE_Fortran_FLAGS_DEBUG=   # skip -g as that triggers segfault
-            - version: "4.0.0"  # 2022-11-10
-        fail-fast: false
-      runs-on: ubuntu-latest
-      steps:
+  aocc:
+    # for available versions, see https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/aocc/package.py
+    strategy:
+      matrix:
+        include:
+          - version: "3.2.0" # 2021-12-10
+            pyfabm_cmake_args: -DCMAKE_Fortran_FLAGS_DEBUG= # skip -g as that triggers segfault
+          - version: "4.0.0" # 2022-11-10
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-           python-version: '3.x'
+          python-version: "3.x"
       - name: Install Python dependencies
         run: python -m pip install --upgrade pip setuptools pyyaml
       - name: Install compiler
         run: |
-           cd /home/runner
-           wget --no-verbose https://download.amd.com/developer/eula/aocc-compiler/aocc-compiler-${{ matrix.version }}.tar
-           tar xpf aocc-compiler-${{ matrix.version }}.tar
-           rm aocc-compiler-${{ matrix.version }}.tar
-           ./aocc-compiler-${{ matrix.version }}/install.sh
+          cd /home/runner
+          wget --no-verbose https://download.amd.com/developer/eula/aocc-compiler/aocc-compiler-${{ matrix.version }}.tar
+          tar xpf aocc-compiler-${{ matrix.version }}.tar
+          rm aocc-compiler-${{ matrix.version }}.tar
+          ./aocc-compiler-${{ matrix.version }}/install.sh
       - name: Clone repository
         uses: actions/checkout@v2
       - name: Run all test cases with host emulators
         run: |
-           source /home/runner/setenv_AOCC.sh
-           python3 util/developers/run_all_testcases.py harness --show_logs --compiler flang
+          source /home/runner/setenv_AOCC.sh
+          python3 util/developers/run_all_testcases.py harness --show_logs --compiler flang
       - name: Run all test cases with pyfabm
         run: |
-           source /home/runner/setenv_AOCC.sh
-           python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang ${{ matrix.pyfabm_cmake_args }}
+          source /home/runner/setenv_AOCC.sh
+          python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang ${{ matrix.pyfabm_cmake_args }}
+  pyfabm:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+      fail-fast: false
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}        
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip build
+      - name: Build pyfabm distribution
+        run: python -m build
+      - name: Install pyfabm
+        run: |
+          python -m pip install .
+          python -c "import pyfabm" 
