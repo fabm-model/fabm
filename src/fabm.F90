@@ -406,7 +406,7 @@ contains
       if (present(settings)) then
          call model%settings%take_values(settings)
       else
-         call fabm_load_settings(model%settings, path, unit=unit, error_reporter=yaml_settings_error_reporter)
+         call fabm_load_settings(model%settings, path, unit=unit)
       end if
       call fabm_configure_model(model%root, model%settings, model%schedules, model%log)
 
@@ -2916,11 +2916,6 @@ contains
          end select
       end if
    end function get_variable_by_standard_variable
-
-   subroutine yaml_settings_error_reporter(message)
-      character(len=*), intent(in) :: message
-      call driver%fatal_error('yaml_settings', message)
-   end subroutine
 
 end module fabm
 

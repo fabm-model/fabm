@@ -26,11 +26,10 @@ module fabm_config
 
 contains
 
-   subroutine fabm_load_settings(settings, path, unit, error_reporter)
+   subroutine fabm_load_settings(settings, path, unit)
       class (type_fabm_settings),               intent(inout) :: settings
       character(len=*),               optional, intent(in)    :: path
       integer,                        optional, intent(in)    :: unit
-      procedure(error_reporter_proc), optional                :: error_reporter
 
       integer :: unit_
 
@@ -43,9 +42,9 @@ contains
 
       ! Parse YAML file.
       if (present(path)) then
-          call settings%load(path, unit_, error_reporter=error_reporter)
+          call settings%load(path, unit_, error_reporter=yaml_settings_error_reporter)
       else
-          call settings%load('fabm.yaml', unit_, error_reporter=error_reporter)
+          call settings%load('fabm.yaml', unit_, error_reporter=yaml_settings_error_reporter)
       end if
    end subroutine fabm_load_settings
 
@@ -163,6 +162,11 @@ contains
       end do
 
    end subroutine create_instance
+
+   subroutine yaml_settings_error_reporter(message)
+      character(len=*), intent(in) :: message
+      call driver%fatal_error('yaml_settings', message)
+   end subroutine
 
 end module fabm_config
 
