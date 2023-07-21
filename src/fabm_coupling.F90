@@ -180,6 +180,7 @@ contains
       integer                             :: source
       logical                             :: couplable
       integer                             :: display
+      class (type_coupling_task), pointer :: coupling
 
       link => self%links%first
       do while (associated(link))
@@ -197,6 +198,14 @@ contains
             end if    ! Coupling provided
          end if   ! Our own link, which may be coupled
          link => link%next
+      end do
+
+      ! Allow custom coupling tasks (e.g., type_coupling_from_model in fabm_particle)
+      ! to determine the final variable that is to be coupled to
+      coupling => self%coupling_task_list%first
+      do while (associated(coupling))
+         call coupling%resolve()
+         coupling => coupling%next
       end do
 
       self%coupling_task_list%includes_custom = .true.

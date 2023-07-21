@@ -167,6 +167,8 @@ module fabm_types
       logical                                      :: user_specified = .false.
       class (type_coupling_task), pointer          :: previous    => null()
       class (type_coupling_task), pointer          :: next        => null()
+   contains
+      procedure :: resolve => coupling_task_resolve
    end type
 
    type type_coupling_task_list
@@ -2867,6 +2869,10 @@ contains
       end do
       self%first_child => null()
    end subroutine abstract_model_factory_finalize
+
+   subroutine coupling_task_resolve(self)
+      class (type_coupling_task), intent(inout) :: self
+   end subroutine
 
    subroutine coupling_task_list_remove(self, task)
       class (type_coupling_task_list), intent(inout) :: self
