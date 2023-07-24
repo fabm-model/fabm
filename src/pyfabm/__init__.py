@@ -1,22 +1,18 @@
-#!/usr/bin/env python
-
-from __future__ import print_function
-from __future__ import unicode_literals
 import sys
 import os
 import ctypes
 import re
+from typing import MutableMapping, Optional, Tuple, Iterable, Union, Callable
+
+from collections.abc import Sequence
 
 try:
-    from collections.abc import Sequence
+    import numpy as np
 except ImportError:
-    from collections import Sequence
+    print("Unable to import NumPy. Please ensure it is installed.")
+    sys.exit(1)
+import numpy.typing as npt
 
-try:
-   import numpy
-except ImportError:
-   print('Unable to import NumPy. Please ensure it is installed.')
-   sys.exit(1)
 
 def find_library(basedir, names):
     for name in names:
@@ -24,20 +20,23 @@ def find_library(basedir, names):
         if os.path.isfile(path):
             return path
 
+
 LOG_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_char_p)
 
-name2lib = {}
-def get_lib(name):
+name2lib: MutableMapping[str, ctypes.CDLL] = {}
+
+
+def get_lib(name: str) -> ctypes.CDLL:
     if name in name2lib:
-       return name2lib[name]
+        return name2lib[name]
 
     # Determine potential names of dynamic library.
-    if os.name == 'nt':
-       names = ('%s.dll' % name, 'lib%s.dll' % name)
-    elif os.name == 'posix' and sys.platform == 'darwin':
-       names = ('lib%s.dylib' % name,)
+    if os.name == "nt":
+        names = (f"{name}.dll", f"lib{name}.dll")
+    elif os.name == "posix" and sys.platform == "darwin":
+        names = (f"lib{name}.dylib",)
     else:
-       names = ('lib%s.so' % name,)
+        names = (f"lib{name}.so",)
 
     # Find FABM dynamic library.
     # Look first in pyfabm directory, then in Python path.
@@ -48,21 +47,29 @@ def get_lib(name):
             if path:
                 break
         else:
-            raise Exception('Unable to locate dynamic library %s (tried %s).' % (name, ', '.join(names),))
+            raise Exception(
+                f"Unable to locate dynamic library {name} (tried {', '.join(names)})."
+            )
 
     # Load FABM library.
     lib = ctypes.CDLL(str(path))
     lib.dtype = ctypes.c_double
-    lib.numpy_dtype = numpy.dtype(lib.dtype).newbyteorder('=')
+    lib.numpy_dtype = np.dtype(lib.dtype).newbyteorder("=")
 
     # Driver settings (number of spatial dimensions, depth index)
-    lib.get_driver_settings.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
+    lib.get_driver_settings.argtypes = [
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+    ]
     lib.get_driver_settings.restype = ctypes.c_void_p
 
     ndim_c = ctypes.c_int()
     idepthdim_c = ctypes.c_int()
     ihas_mask = ctypes.c_int()
-    lib.get_driver_settings(ctypes.byref(ndim_c), ctypes.byref(idepthdim_c), ctypes.byref(ihas_mask))
+    lib.get_driver_settings(
+        ctypes.byref(ndim_c), ctypes.byref(idepthdim_c), ctypes.byref(ihas_mask)
+    )
     ndim_int = ndim_c.value
     ndim_hz = ndim_int if idepthdim_c.value == -1 else ndim_int - 1
     lib.ndim_int = ndim_int
@@ -70,15 +77,27 @@ def get_lib(name):
     lib.idepthdim = idepthdim_c.value
     lib.has_mask = ihas_mask.value != 0
 
-    CONTIGUOUS = str('CONTIGUOUS')
-    arrtype0D = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=0, flags=CONTIGUOUS)
-    arrtype1D = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=1, flags=CONTIGUOUS)
-    arrtypeInterior = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=ndim_int, flags=CONTIGUOUS)
-    arrtypeHorizontal = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=ndim_hz, flags=CONTIGUOUS)
-    arrtypeInteriorExt = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=ndim_int + 1, flags=CONTIGUOUS)
-    arrtypeHorizontalExt = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=ndim_hz + 1, flags=CONTIGUOUS)
-    arrtypeInteriorExt2 = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=ndim_int + 2, flags=CONTIGUOUS)
-    arrtypeHorizontalExt2 = numpy.ctypeslib.ndpointer(dtype=lib.dtype, ndim=ndim_hz + 2, flags=CONTIGUOUS)
+    CONTIGUOUS = str("CONTIGUOUS")
+    arrtype0D = np.ctypeslib.ndpointer(dtype=lib.dtype, ndim=0, flags=CONTIGUOUS)
+    arrtype1D = np.ctypeslib.ndpointer(dtype=lib.dtype, ndim=1, flags=CONTIGUOUS)
+    arrtypeInterior = np.ctypeslib.ndpointer(
+        dtype=lib.dtype, ndim=ndim_int, flags=CONTIGUOUS
+    )
+    arrtypeHorizontal = np.ctypeslib.ndpointer(
+        dtype=lib.dtype, ndim=ndim_hz, flags=CONTIGUOUS
+    )
+    arrtypeInteriorExt = np.ctypeslib.ndpointer(
+        dtype=lib.dtype, ndim=ndim_int + 1, flags=CONTIGUOUS
+    )
+    arrtypeHorizontalExt = np.ctypeslib.ndpointer(
+        dtype=lib.dtype, ndim=ndim_hz + 1, flags=CONTIGUOUS
+    )
+    arrtypeInteriorExt2 = np.ctypeslib.ndpointer(
+        dtype=lib.dtype, ndim=ndim_int + 2, flags=CONTIGUOUS
+    )
+    arrtypeHorizontalExt2 = np.ctypeslib.ndpointer(
+        dtype=lib.dtype, ndim=ndim_hz + 2, flags=CONTIGUOUS
+    )
 
     # Initialization
     lib.create_model.argtypes = [ctypes.c_char_p] + [ctypes.c_int] * ndim_int
@@ -89,20 +108,68 @@ def get_lib(name):
         lib.set_domain_stop.argtypes = [ctypes.c_void_p] + [ctypes.c_int] * ndim_int
         lib.set_domain_stop.restype = ctypes.c_void_p
 
-    # Access to model objects (variables, parameters, dependencies, couplings, model instances)
-    lib.get_counts.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
+    # Access to model objects (variables, parameters, dependencies, couplings,
+    # model instances)
+    lib.get_counts.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+    ]
     lib.get_counts.restype = None
-    lib.get_variable_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
+    lib.get_variable_metadata.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_char_p,
+        ctypes.c_char_p,
+        ctypes.c_char_p,
+    ]
     lib.get_variable_metadata.restype = None
-    lib.set_variable_save.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int]
+    lib.set_variable_save.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+    ]
     lib.set_variable_save.restype = None
-    lib.get_variable.argtypes = [ctypes.c_void_p, ctypes.c_int,ctypes.c_int]
+    lib.get_variable.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
     lib.get_variable.restype = ctypes.c_void_p
-    lib.get_parameter_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
+    lib.get_parameter_metadata.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_char_p,
+        ctypes.c_char_p,
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+    ]
     lib.get_parameter_metadata.restype = None
-    lib.get_model_metadata.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int)]
+    lib.get_model_metadata.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_char_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.POINTER(ctypes.c_int),
+    ]
     lib.get_model_metadata.restype = None
-    lib.get_coupling.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_void_p)]
+    lib.get_coupling.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.POINTER(ctypes.c_void_p),
+        ctypes.POINTER(ctypes.c_void_p),
+    ]
     lib.get_coupling.restype = None
     lib.get_error_state.argtypes = []
     lib.get_error_state.restype = ctypes.c_int
@@ -114,18 +181,35 @@ def get_lib(name):
     lib.set_log_callback.restype = None
     if lib.has_mask:
         lib.set_mask.restype = None
-        lib.set_mask.argtypes = [ctypes.c_void_p, numpy.ctypeslib.ndpointer(dtype=ctypes.c_int, ndim=ndim_hz, flags=CONTIGUOUS)]
+        lib.set_mask.argtypes = [
+            ctypes.c_void_p,
+            np.ctypeslib.ndpointer(dtype=ctypes.c_int, ndim=ndim_hz, flags=CONTIGUOUS),
+        ]
 
     # Read access to variable attributes
-    lib.variable_get_metadata.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
+    lib.variable_get_metadata.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_char_p,
+        ctypes.c_char_p,
+    ]
     lib.variable_get_metadata.restype = None
     lib.variable_get_background_value.argtypes = [ctypes.c_void_p]
     lib.variable_get_background_value.restype = lib.dtype
     lib.variable_get_missing_value.argtypes = [ctypes.c_void_p]
     lib.variable_get_missing_value.restype = lib.dtype
-    lib.variable_get_long_path.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p]
+    lib.variable_get_long_path.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+    ]
     lib.variable_get_long_path.restype = None
-    lib.variable_get_output_name.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p]
+    lib.variable_get_output_name.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+    ]
     lib.variable_get_output_name.restype = None
     lib.variable_get_suitable_masters.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     lib.variable_get_suitable_masters.restype = ctypes.c_void_p
@@ -139,11 +223,23 @@ def get_lib(name):
     lib.variable_get_no_precipitation_dilution.restype = ctypes.c_int
     lib.variable_get_property_type.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
     lib.variable_get_property_type.restype = ctypes.c_int
-    lib.variable_get_real_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, lib.dtype]
+    lib.variable_get_real_property.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_char_p,
+        lib.dtype,
+    ]
     lib.variable_get_real_property.restype = lib.dtype
-    lib.variable_get_integer_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    lib.variable_get_integer_property.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_char_p,
+        ctypes.c_int,
+    ]
     lib.variable_get_integer_property.restype = ctypes.c_int
-    lib.variable_get_logical_property.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    lib.variable_get_logical_property.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_char_p,
+        ctypes.c_int,
+    ]
     lib.variable_get_logical_property.restype = ctypes.c_int
     lib.find_standard_variable.argtypes = [ctypes.c_char_p]
     lib.find_standard_variable.restype = ctypes.c_void_p
@@ -155,17 +251,35 @@ def get_lib(name):
     lib.get_integer_parameter.restype = ctypes.c_int
     lib.get_logical_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
     lib.get_logical_parameter.restype = ctypes.c_int
-    lib.get_string_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p]
+    lib.get_string_parameter.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_char_p,
+    ]
     lib.get_string_parameter.restype = None
     lib.reset_parameter.argtypes = [ctypes.c_void_p, ctypes.c_int]
     lib.reset_parameter.restype = None
     lib.set_real_parameter.argtypes = [ctypes.c_void_p, ctypes.c_char_p, lib.dtype]
     lib.set_real_parameter.restype = None
-    lib.set_integer_parameter.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    lib.set_integer_parameter.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_char_p,
+        ctypes.c_int,
+    ]
     lib.set_integer_parameter.restype = None
-    lib.set_logical_parameter.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    lib.set_logical_parameter.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_char_p,
+        ctypes.c_int,
+    ]
     lib.set_logical_parameter.restype = None
-    lib.set_string_parameter.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
+    lib.set_string_parameter.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_char_p,
+        ctypes.c_char_p,
+    ]
     lib.set_string_parameter.restype = None
 
     # Read access to lists of variables (e.g., suitable coupling targets).
@@ -177,15 +291,35 @@ def get_lib(name):
     lib.link_list_finalize.restype = None
 
     # Routines for sending pointers to state and dependency data.
-    lib.link_interior_state_data.argtypes = [ctypes.c_void_p, ctypes.c_int, arrtypeInterior]
+    lib.link_interior_state_data.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        arrtypeInterior,
+    ]
     lib.link_interior_state_data.restype = None
-    lib.link_surface_state_data.argtypes = [ctypes.c_void_p, ctypes.c_int, arrtypeHorizontal]
+    lib.link_surface_state_data.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        arrtypeHorizontal,
+    ]
     lib.link_surface_state_data.restype = None
-    lib.link_bottom_state_data.argtypes = [ctypes.c_void_p, ctypes.c_int, arrtypeHorizontal]
+    lib.link_bottom_state_data.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        arrtypeHorizontal,
+    ]
     lib.link_bottom_state_data.restype = None
-    lib.link_interior_data.argtypes = [ctypes.c_void_p, ctypes.c_void_p, arrtypeInterior]
+    lib.link_interior_data.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        arrtypeInterior,
+    ]
     lib.link_interior_data.restype = None
-    lib.link_horizontal_data.argtypes = [ctypes.c_void_p, ctypes.c_void_p, arrtypeHorizontal]
+    lib.link_horizontal_data.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        arrtypeHorizontal,
+    ]
     lib.link_horizontal_data.restype = None
     lib.link_scalar.argtypes = [ctypes.c_void_p, ctypes.c_void_p, arrtype0D]
     lib.link_scalar.restype = None
@@ -197,18 +331,35 @@ def get_lib(name):
     lib.get_horizontal_diagnostic_data.restype = ctypes.POINTER(lib.dtype)
     lib.require_data.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     lib.require_data.restype = None
-    lib.get_standard_variable_data.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)]
+    lib.get_standard_variable_data.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_int),
+    ]
     lib.get_standard_variable_data.restype = ctypes.POINTER(lib.dtype)
 
     lib.start.argtypes = [ctypes.c_void_p]
     lib.start.restype = None
 
     # Routine for retrieving source-sink terms for the interior domain.
-    lib.get_sources.argtypes = [ctypes.c_void_p, lib.dtype, arrtypeInteriorExt, arrtypeHorizontalExt, arrtypeHorizontalExt, ctypes.c_int, ctypes.c_int, arrtypeInterior]
+    lib.get_sources.argtypes = [
+        ctypes.c_void_p,
+        lib.dtype,
+        arrtypeInteriorExt,
+        arrtypeHorizontalExt,
+        arrtypeHorizontalExt,
+        ctypes.c_int,
+        ctypes.c_int,
+        arrtypeInterior,
+    ]
     lib.get_sources.restype = None
     lib.get_vertical_movement.argtypes = [ctypes.c_void_p, arrtypeInteriorExt]
     lib.get_vertical_movement.restype = None
-    lib.get_conserved_quantities.argtypes = [ctypes.c_void_p, arrtypeHorizontalExt, arrtypeInterior]
+    lib.get_conserved_quantities.argtypes = [
+        ctypes.c_void_p,
+        arrtypeHorizontalExt,
+        arrtypeInterior,
+    ]
     lib.get_conserved_quantities.restype = None
     lib.check_state.argtypes = [ctypes.c_void_p, ctypes.c_int]
     lib.check_state.restype = ctypes.c_int
@@ -221,7 +372,18 @@ def get_lib(name):
     lib.save_settings.restype = ctypes.c_void_p
 
     if ndim_int == 0:
-        lib.integrate.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, arrtype1D, arrtypeInteriorExt, arrtypeInteriorExt2, lib.dtype, ctypes.c_int, ctypes.c_int, arrtypeInterior]
+        lib.integrate.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_int,
+            ctypes.c_int,
+            arrtype1D,
+            arrtypeInteriorExt,
+            arrtypeInteriorExt2,
+            lib.dtype,
+            ctypes.c_int,
+            ctypes.c_int,
+            arrtypeInterior,
+        ]
         lib.integrate.restype = None
 
     lib.set_log_callback(log_callback)
@@ -229,117 +391,176 @@ def get_lib(name):
     name2lib[name] = lib
     return lib
 
+
 logger = None
 
+
 @LOG_CALLBACK
-def log_callback(msg):
-    msg = msg.decode('ascii')
+def log_callback(msg: bytes):
+    log(msg.decode("ascii"))
+
+
+def log(msg: str):
     if logger is not None:
         logger.info(msg)
     else:
         print(msg)
 
-INTERIOR_STATE_VARIABLE        = 1
-SURFACE_STATE_VARIABLE         = 2
-BOTTOM_STATE_VARIABLE          = 3
-INTERIOR_DIAGNOSTIC_VARIABLE   = 4
-HORIZONTAL_DIAGNOSTIC_VARIABLE = 5
-CONSERVED_QUANTITY             = 6
-INTERIOR_DEPENDENCY            = 7
-HORIZONTAL_DEPENDENCY          = 8
-SCALAR_DEPENDENCY              = 9
-ATTRIBUTE_LENGTH               = 256
 
-DISPLAY_MINIMUM  = 0
-DISPLAY_NORMAL   = 1
+INTERIOR_STATE_VARIABLE = 1
+SURFACE_STATE_VARIABLE = 2
+BOTTOM_STATE_VARIABLE = 3
+INTERIOR_DIAGNOSTIC_VARIABLE = 4
+HORIZONTAL_DIAGNOSTIC_VARIABLE = 5
+CONSERVED_QUANTITY = 6
+INTERIOR_DEPENDENCY = 7
+HORIZONTAL_DEPENDENCY = 8
+SCALAR_DEPENDENCY = 9
+ATTRIBUTE_LENGTH = 256
+
+DISPLAY_MINIMUM = 0
+DISPLAY_NORMAL = 1
 DISPLAY_ADVANCED = 2
 
-unicodesuperscript = {'1':'\u00B9','2':'\u00B2','3':'\u00B3',
-                      '4':'\u2074','5':'\u2075','6':'\u2076',
-                      '7':'\u2077','8':'\u2078','9':'\u2079',
-                      '0':'\u2070','-':'\u207B'}
-unicodesubscript = {'1':'\u2081','2':'\u2082','3':'\u2083',
-                    '4':'\u2084','5':'\u2085','6':'\u2086',
-                    '7':'\u2087','8':'\u2088','9':'\u2089',
-                    '0':'\u2080'}
-supnumber = re.compile(r'(?<=\w)(-?\d+)(?=[ \*+\-/]|$)')
-supenumber = re.compile(r'(?<=\d)e(-?\d+)(?=[ \*+\-/]|$)')
-oldsupminus = re.compile(r'/(\w+)(?:\*\*|\^)(\d+)(?=[ \*+\-/]|$)')
-oldsup = re.compile(r'(?<=\w)(?:\*\*|\^)(-?\d+)(?=[ \*+\-/]|$)')
-oldsub = re.compile(r'(?<=\w)_(-?\d+)(?=[ \*+\-/]|$)')
-def createPrettyUnit(unit):
+unicodesuperscript = {
+    "1": "\u00B9",
+    "2": "\u00B2",
+    "3": "\u00B3",
+    "4": "\u2074",
+    "5": "\u2075",
+    "6": "\u2076",
+    "7": "\u2077",
+    "8": "\u2078",
+    "9": "\u2079",
+    "0": "\u2070",
+    "-": "\u207B",
+}
+unicodesubscript = {
+    "1": "\u2081",
+    "2": "\u2082",
+    "3": "\u2083",
+    "4": "\u2084",
+    "5": "\u2085",
+    "6": "\u2086",
+    "7": "\u2087",
+    "8": "\u2088",
+    "9": "\u2089",
+    "0": "\u2080",
+}
+supnumber = re.compile(r"(?<=\w)(-?\d+)(?=[ \*+\-/]|$)")
+supenumber = re.compile(r"(?<=\d)e(-?\d+)(?=[ \*+\-/]|$)")
+oldsupminus = re.compile(r"/(\w+)(?:\*\*|\^)(\d+)(?=[ \*+\-/]|$)")
+oldsup = re.compile(r"(?<=\w)(?:\*\*|\^)(-?\d+)(?=[ \*+\-/]|$)")
+oldsub = re.compile(r"(?<=\w)_(-?\d+)(?=[ \*+\-/]|$)")
+
+
+def createPrettyUnit(unit: str) -> str:
     def replace_superscript(m):
-        return ''.join([unicodesuperscript[n] for n in m.group(1)])
+        return "".join([unicodesuperscript[n] for n in m.group(1)])
+
     def replace_subscript(m):
-        return ''.join([unicodesubscript[n] for n in m.group(1)])
+        return "".join([unicodesubscript[n] for n in m.group(1)])
+
     def reple(m):
-        return '\u00D710%s' % ''.join([unicodesuperscript[n] for n in m.group(1)])
+        return "\u00D710%s" % "".join([unicodesuperscript[n] for n in m.group(1)])
+
     def reploldminus(m):
-        return ' %s\u207B%s' % (m.group(1),''.join([unicodesuperscript[n] for n in m.group(2)]))
-    #def replold(m):
+        return " %s\u207B%s" % (
+            m.group(1),
+            "".join([unicodesuperscript[n] for n in m.group(2)]),
+        )
+
+    # def replold(m):
     #    return u'%s%s' % (m.group(1),u''.join([unicodesuperscript[n] for n in m.group(2)]))
-    unit = oldsup.sub(replace_superscript,unit)
-    unit = oldsub.sub(replace_subscript,unit)
-    unit = supenumber.sub(reple,unit)
-    unit = supnumber.sub(replace_superscript,unit)
-    #unit = oldsupminus.sub(reploldminus,unit)
+    unit = oldsup.sub(replace_superscript, unit)
+    unit = oldsub.sub(replace_subscript, unit)
+    unit = supenumber.sub(reple, unit)
+    unit = supnumber.sub(replace_superscript, unit)
+    # unit = oldsupminus.sub(reploldminus,unit)
     return unit
+
 
 class FABMException(Exception):
     pass
 
-def hasError():
-   for lib in name2lib.values():
-       if lib.get_error_state() != 0:
-           return True
-   return False
 
-def getError():
-   for lib in name2lib.values():
-       if lib.get_error_state() != 0:
-           strmessage = ctypes.create_string_buffer(1024)
-           lib.get_error(1024, strmessage)
-           return strmessage.value.decode('ascii')
+def hasError() -> bool:
+    for lib in name2lib.values():
+        if lib.get_error_state() != 0:
+            return True
+    return False
 
-def printTree(root, stringmapper, indent=''):
-    """Print an indented tree of objects, encoded by dictionaries linking the names of children to
-    their subtree, or to their object. Objects are finally printed as string obtained by
-    calling the provided stringmapper method."""
+
+def getError() -> Optional[str]:
+    for lib in name2lib.values():
+        if lib.get_error_state() != 0:
+            strmessage = ctypes.create_string_buffer(1024)
+            lib.get_error(1024, strmessage)
+            return strmessage.value.decode("ascii")
+
+
+def printTree(root, stringmapper, indent=""):
+    """Print an indented tree of objects, encoded by dictionaries linking the
+    names of children to their subtree, or to their object. Objects are finally
+    printed as string obtained by calling the provided stringmapper method."""
     for name, item in root.items():
         if isinstance(item, dict):
-            print('%s%s' % (indent, name))
-            printTree(item, stringmapper, indent + '   ')
+            log(f"{indent}{name}")
+            printTree(item, stringmapper, indent + "   ")
         else:
-            print('%s%s = %s' % (indent, name, stringmapper(item)))
+            log(f"{indent}{name} = {stringmapper(item)}")
+
 
 class VariableProperties:
-    def __init__(self, model, variable_pointer):
+    def __init__(self, model: "Model", variable_pointer: ctypes.c_void_p):
         self.model = model
         self.variable_pointer = variable_pointer
 
-    def __getitem__(self, key):
-        typecode = self.model.fabm.variable_get_property_type(self.variable_pointer, key.encode('ascii'))
+    def __getitem__(self, key: str):
+        typecode = self.model.fabm.variable_get_property_type(
+            self.variable_pointer, key.encode("ascii")
+        )
         if typecode == 1:
-            return self.model.fabm.variable_get_real_property(self.variable_pointer, key.encode('ascii'), -1.)
+            return self.model.fabm.variable_get_real_property(
+                self.variable_pointer, key.encode("ascii"), -1.0
+            )
         elif typecode == 2:
-            return self.model.fabm.variable_get_integer_property(self.variable_pointer, key.encode('ascii'), 0)
+            return self.model.fabm.variable_get_integer_property(
+                self.variable_pointer, key.encode("ascii"), 0
+            )
         elif typecode == 3:
-            return self.model.fabm.variable_get_logical_property(self.variable_pointer, key.encode('ascii'), 0) != 0
+            return (
+                self.model.fabm.variable_get_logical_property(
+                    self.variable_pointer, key.encode("ascii"), 0
+                )
+                != 0
+            )
         raise KeyError
 
+
 class Variable(object):
-    def __init__(self, model, name=None, units=None, long_name=None, path=None, variable_pointer=None):
+    def __init__(
+        self,
+        model: "Model",
+        name: Optional[str] = None,
+        units: Optional[str] = None,
+        long_name: Optional[str] = None,
+        path: Optional[str] = None,
+        variable_pointer: Optional[ctypes.c_void_p] = None,
+    ):
         self.model = model
         self.variable_pointer = variable_pointer
         if variable_pointer:
-           strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-           strunits = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-           strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-           self.model.fabm.variable_get_metadata(variable_pointer, ATTRIBUTE_LENGTH, strname, strunits, strlong_name)
-           name = strname.value.decode('ascii')
-           units = strunits.value.decode('ascii')
-           long_name = strlong_name.value.decode('ascii')
-           self.properties = VariableProperties(self.model, self.variable_pointer)
+            strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+            strunits = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+            strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+            self.model.fabm.variable_get_metadata(
+                variable_pointer, ATTRIBUTE_LENGTH, strname, strunits, strlong_name
+            )
+            name = strname.value.decode("ascii")
+            units = strunits.value.decode("ascii")
+            long_name = strlong_name.value.decode("ascii")
+            self.properties = VariableProperties(self.model, self.variable_pointer)
 
         self.name = name
         self.units = units
@@ -348,20 +569,24 @@ class Variable(object):
         self.path = path or name
 
     @property
-    def long_path(self):
+    def long_path(self) -> str:
         if self.variable_pointer is None:
             return self.long_name
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        self.model.fabm.variable_get_long_path(self.variable_pointer, ATTRIBUTE_LENGTH, strlong_name)
-        return strlong_name.value.decode('ascii')
+        self.model.fabm.variable_get_long_path(
+            self.variable_pointer, ATTRIBUTE_LENGTH, strlong_name
+        )
+        return strlong_name.value.decode("ascii")
 
     @property
-    def output_name(self):
+    def output_name(self) -> str:
         if self.variable_pointer is None:
             return self.name
         stroutput_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        self.model.fabm.variable_get_output_name(self.variable_pointer, ATTRIBUTE_LENGTH, stroutput_name)
-        return stroutput_name.value.decode('ascii')
+        self.model.fabm.variable_get_output_name(
+            self.variable_pointer, ATTRIBUTE_LENGTH, stroutput_name
+        )
+        return stroutput_name.value.decode("ascii")
 
     @property
     def missing_value(self):
@@ -371,29 +596,41 @@ class Variable(object):
     def getOptions(self):
         pass
 
-    def getRealProperty(self, name, default=-1.0):
-        return self.model.fabm.variable_get_real_property(self.variable_pointer, name.encode('ascii'), default)
+    def getRealProperty(self, name, default=-1.0) -> float:
+        return self.model.fabm.variable_get_real_property(
+            self.variable_pointer, name.encode("ascii"), default
+        )
 
-    def __repr__(self):
-        return '<%s=%s>' % (self.name, self.value)
+    def __repr__(self) -> str:
+        return f"<{self.name}={self.value}>"
+
 
 class Dependency(Variable):
-    def __init__(self, model, variable_pointer, shape, link_function):
+    def __init__(
+        self,
+        model: "Model",
+        variable_pointer: ctypes.c_void_p,
+        shape: Tuple[int],
+        link_function: Callable[[ctypes.c_void_p, ctypes.c_void_p, np.ndarray], None],
+    ):
         Variable.__init__(self, model, variable_pointer=variable_pointer)
         self.is_set = False
         self.link_function = link_function
         self.shape = shape
 
-    def getValue(self):
+    def getValue(self) -> np.ndarray:
         return None if not self.is_set else self.data
 
-    def setValue(self, value):
+    def setValue(self, value: npt.ArrayLike):
         if not self.is_set:
-            self.link(numpy.empty(self.shape, dtype=float))
+            self.link(np.empty(self.shape, dtype=self.model.fabm.dtype))
         self.data[...] = value
 
-    def link(self, data):
-        assert data.shape == self.shape, '%s: shape of provided array %s does not match the shape required %s' % (self.name, data.shape, self.shape)
+    def link(self, data: np.ndarray):
+        assert data.shape == self.shape, (
+            f"{self.name}: shape of provided array {data.shape}"
+            f" does not match the shape required {self.shape}"
+        )
         self.data = data
         self.link_function(self.model.pmodel, self.variable_pointer, self.data)
         self.is_set = True
@@ -401,90 +638,146 @@ class Dependency(Variable):
     value = property(getValue, setValue)
 
     @property
-    def required(self):
+    def required(self) -> bool:
         return self.model.fabm.variable_is_required(self.variable_pointer) != 0
 
+
 class StateVariable(Variable):
-    def __init__(self, model, variable_pointer, data):
+    def __init__(
+        self, model: "Model", variable_pointer: ctypes.c_void_p, data: np.ndarray
+    ):
         Variable.__init__(self, model, variable_pointer=variable_pointer)
         self.data = data
 
-    def getValue(self):
+    def getValue(self) -> np.ndarray:
         return self.data
 
-    def setValue(self, value):
+    def setValue(self, value: npt.ArrayLike):
         self.data[...] = value
 
     value = property(getValue, setValue)
 
     @property
-    def background_value(self):
+    def background_value(self) -> float:
         return self.model.fabm.variable_get_background_value(self.variable_pointer)
 
     @property
-    def output(self):
+    def output(self) -> bool:
         return self.model.fabm.variable_get_output(self.variable_pointer) != 0
 
     @property
-    def no_river_dilution(self):
-        return self.model.fabm.variable_get_no_river_dilution(self.variable_pointer) != 0
+    def no_river_dilution(self) -> bool:
+        return (
+            self.model.fabm.variable_get_no_river_dilution(self.variable_pointer) != 0
+        )
 
     @property
-    def no_precipitation_dilution(self):
-        return self.model.fabm.variable_get_no_precipitation_dilution(self.variable_pointer) != 0
+    def no_precipitation_dilution(self) -> bool:
+        return (
+            self.model.fabm.variable_get_no_precipitation_dilution(
+                self.variable_pointer
+            )
+            != 0
+        )
+
 
 class DiagnosticVariable(Variable):
-    def __init__(self, model, variable_pointer, index, horizontal):
+    def __init__(
+        self,
+        model: "Model",
+        variable_pointer: ctypes.c_void_p,
+        index: int,
+        horizontal: bool,
+    ):
         Variable.__init__(self, model, variable_pointer=variable_pointer)
         self.data = None
         self.horizontal = horizontal
         self.index = index
 
-    def getValue(self):
+    def getValue(self) -> Optional[np.ndarray]:
         return self.data
+
     value = property(getValue)
 
     @property
-    def output(self):
+    def output(self) -> bool:
         return self.model.fabm.variable_get_output(self.variable_pointer) != 0
 
-    def setSave(self, value):
-        self.model.fabm.set_variable_save(self.model.pmodel, HORIZONTAL_DIAGNOSTIC_VARIABLE if self.horizontal else INTERIOR_DIAGNOSTIC_VARIABLE, self.index, 1 if value else 0)
+    def setSave(self, value: bool):
+        self.model.fabm.set_variable_save(
+            self.model.pmodel,
+            HORIZONTAL_DIAGNOSTIC_VARIABLE
+            if self.horizontal
+            else INTERIOR_DIAGNOSTIC_VARIABLE,
+            self.index,
+            1 if value else 0,
+        )
+
     save = property(fset=setSave)
 
+
 class Parameter(Variable):
-    def __init__(self, model, name, index, units=None, long_name=None, type=None, has_default=False):
+    def __init__(
+        self,
+        model: "Model",
+        name: str,
+        index: int,
+        units: Optional[str] = None,
+        long_name: Optional[str] = None,
+        type: Optional[int] = None,
+        has_default: bool = False,
+    ):
         Variable.__init__(self, model, name, units, long_name)
         self.type = type
         self.index = index + 1
         self.has_default = has_default
 
-    def getValue(self, default=False):
+    def getValue(self, default: bool = False):
         default = 1 if default else 0
         if self.type == 1:
-            return self.model.fabm.get_real_parameter(self.model.pmodel, self.index, default)
+            return self.model.fabm.get_real_parameter(
+                self.model.pmodel, self.index, default
+            )
         elif self.type == 2:
-            return self.model.fabm.get_integer_parameter(self.model.pmodel, self.index, default)
+            return self.model.fabm.get_integer_parameter(
+                self.model.pmodel, self.index, default
+            )
         elif self.type == 3:
-            return self.model.fabm.get_logical_parameter(self.model.pmodel, self.index, default) != 0
+            return (
+                self.model.fabm.get_logical_parameter(
+                    self.model.pmodel, self.index, default
+                )
+                != 0
+            )
         elif self.type == 4:
             result = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-            self.model.fabm.get_string_parameter(self.model.pmodel, self.index, default, ATTRIBUTE_LENGTH, result)
-            return result.value.decode('ascii')
+            self.model.fabm.get_string_parameter(
+                self.model.pmodel, self.index, default, ATTRIBUTE_LENGTH, result
+            )
+            return result.value.decode("ascii")
 
     def setValue(self, value):
         settings = self.model.save_state()
 
         if self.type == 1:
-            self.model.fabm.set_real_parameter(self.model.pmodel, self.name.encode('ascii'), value)
+            self.model.fabm.set_real_parameter(
+                self.model.pmodel, self.name.encode("ascii"), value
+            )
         elif self.type == 2:
-            self.model.fabm.set_integer_parameter(self.model.pmodel, self.name.encode('ascii'), value)
+            self.model.fabm.set_integer_parameter(
+                self.model.pmodel, self.name.encode("ascii"), value
+            )
         elif self.type == 3:
-            self.model.fabm.set_logical_parameter(self.model.pmodel, self.name.encode('ascii'), value)
+            self.model.fabm.set_logical_parameter(
+                self.model.pmodel, self.name.encode("ascii"), value
+            )
         elif self.type == 4:
-            self.model.fabm.set_string_parameter(self.model.pmodel, self.name.encode('ascii'), value.encode('ascii'))
+            self.model.fabm.set_string_parameter(
+                self.model.pmodel, self.name.encode("ascii"), value.encode("ascii")
+            )
 
-        # Update the model configuration (arrays with variables and parameters have changed)
+        # Update the model configuration
+        # (arrays with variables and parameters have changed)
         self.model.updateConfiguration(settings)
 
     def getDefault(self):
@@ -501,29 +794,33 @@ class Parameter(Variable):
     default = property(getDefault)
 
 
-class StandardVariable():
-    def __init__(self, model, pointer):
+class StandardVariable:
+    def __init__(self, model: "Model", pointer: ctypes.c_void_p):
         self.model = model
         self.pointer = pointer
 
     @property
     def value(self):
         horizontal = ctypes.c_int()
-        pdata = self.model.fabm.get_standard_variable_data(self.model.pmodel, self.pointer, horizontal)
+        pdata = self.model.fabm.get_standard_variable_data(
+            self.model.pmodel, self.pointer, horizontal
+        )
         if horizontal.value == 0:
-            return numpy.ctypeslib.as_array(pdata, self.model.interior_domain_shape).newbyteorder('=')
+            shape = self.model.interior_domain_shape
         else:
-            return numpy.ctypeslib.as_array(pdata, self.model.horizontal_domain.shape).newbyteorder('=')
+            shape = self.model.horizontal_domain.shape
+        return np.ctypeslib.as_array(pdata, shape).newbyteorder("=")
+
 
 class NamedObjectList(Sequence):
-    def __init__(self, *data):
+    def __init__(self, *data: Iterable):
         self._data = []
         for d in data:
             self._data.extend(d)
         self._lookup = None
         self._lookup_ci = None
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._data)
 
     def __getitem__(self, key):
@@ -531,7 +828,7 @@ class NamedObjectList(Sequence):
             return self.find(key)
         return self._data[key]
 
-    def __contains__(self, key):
+    def __contains__(self, key) -> bool:
         if isinstance(key, str):
             try:
                 self.find(key)
@@ -540,13 +837,13 @@ class NamedObjectList(Sequence):
                 return False
         return Sequence.__contains__(self, key)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return repr(self._data)
 
-    def __add__(self, other):
+    def __add__(self, other: "NamedObjectList") -> "NamedObjectList":
         return NamedObjectList(self._data, other._data)
 
-    def find(self, name, case_insensitive=False):
+    def find(self, name: str, case_insensitive: bool = False):
         if self._lookup is None:
             self._lookup_ci = dict([(obj.name.lower(), obj) for obj in self._data])
             self._lookup = dict([(obj.name, obj) for obj in self._data])
@@ -554,149 +851,223 @@ class NamedObjectList(Sequence):
             return self._lookup_ci[name.lower()]
         return self._lookup[name]
 
+    def clear(self):
+        self._data.clear()
+        self._lookup = None
+        self._lookup_ci = None
+
+
 class Coupling(Variable):
-    def __init__(self, model, index):
+    def __init__(self, model: "Model", index: int):
         self.model = model
         self.master = ctypes.c_void_p()
         self.slave = ctypes.c_void_p()
-        self.model.fabm.get_coupling(self.model.pmodel, index, ctypes.byref(self.slave), ctypes.byref(self.master))
+        self.model.fabm.get_coupling(
+            self.model.pmodel,
+            index,
+            ctypes.byref(self.slave),
+            ctypes.byref(self.master),
+        )
         Variable.__init__(self, model, variable_pointer=self.slave)
 
-    def getValue(self):
+    def getValue(self) -> str:
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        self.model.fabm.variable_get_long_path(self.master, ATTRIBUTE_LENGTH, strlong_name)
-        return strlong_name.value.decode('ascii')
+        self.model.fabm.variable_get_long_path(
+            self.master, ATTRIBUTE_LENGTH, strlong_name
+        )
+        return strlong_name.value.decode("ascii")
 
-    def setValue(self,value):
-        print('New coupling specified: %s' % value)
+    def setValue(self, value: str):
+        log(f"New coupling specified: {value}")
         pass
 
     def getOptions(self):
         options = []
-        list = self.model.fabm.variable_get_suitable_masters(self.model.pmodel, self.slave)
+        list = self.model.fabm.variable_get_suitable_masters(
+            self.model.pmodel, self.slave
+        )
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         for i in range(self.model.fabm.link_list_count(list)):
             variable = self.model.fabm.link_list_index(list, i + 1)
-            self.model.fabm.variable_get_long_path(variable, ATTRIBUTE_LENGTH, strlong_name)
-            options.append(strlong_name.value.decode('ascii'))
+            self.model.fabm.variable_get_long_path(
+                variable, ATTRIBUTE_LENGTH, strlong_name
+            )
+            options.append(strlong_name.value.decode("ascii"))
         self.model.fabm.link_list_finalize(list)
         return options
 
     @property
-    def long_path(self):
+    def long_path(self) -> str:
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        self.model.fabm.variable_get_long_path(self.slave, ATTRIBUTE_LENGTH, strlong_name)
-        return strlong_name.value.decode('ascii')
+        self.model.fabm.variable_get_long_path(
+            self.slave, ATTRIBUTE_LENGTH, strlong_name
+        )
+        return strlong_name.value.decode("ascii")
 
     value = property(getValue, setValue)
 
+
 class SubModel(object):
-    def __init__(self, model, name):
+    def __init__(self, model: "Model", name: str):
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         iuser = ctypes.c_int()
-        model.fabm.get_model_metadata(model.pmodel, name.encode('ascii'), ATTRIBUTE_LENGTH, strlong_name, iuser)
-        self.long_name = strlong_name.value.decode('ascii')
+        model.fabm.get_model_metadata(
+            model.pmodel, name.encode("ascii"), ATTRIBUTE_LENGTH, strlong_name, iuser
+        )
+        self.long_name = strlong_name.value.decode("ascii")
         self.user_created = iuser.value != 0
 
+
 class Model(object):
-    def __init__(self, path='fabm.yaml', shape=(), libname=None, start=None, stop=None):
+    def __init__(
+        self,
+        path: str = "fabm.yaml",
+        shape: Tuple[int] = (),
+        libname: Optional[str] = None,
+        start: Optional[Tuple[int]] = None,
+        stop: Optional[Tuple[int]] = None,
+    ):
         delete = False
         if isinstance(path, dict):
             import tempfile
             import yaml
             import io
-            with tempfile.NamedTemporaryFile(suffix='.yaml', prefix='fabm', delete=False) as f:
+
+            with tempfile.NamedTemporaryFile(
+                suffix=".yaml", prefix="fabm", delete=False
+            ) as f:
                 with io.TextIOWrapper(f, encoding="ascii") as wrapper:
                     yaml.safe_dump(path, wrapper)
                 path = f.name
             delete = True
 
         if libname is None:
-            if len(shape) > 1:
-                raise FABMException('Invalid domain shape %s. Domain must have 0 or 1 dimensions.' % (shape,))
-            libname = {0: 'fabm_0d', 1: 'fabm_1d'}[len(shape)]
+            ndim = len(shape)
+            if ndim > 1:
+                raise FABMException(
+                    f"Invalid domain shape {shape}. Domain must have 0 or 1 dimensions."
+                )
+            libname = {0: "fabm_0d", 1: "fabm_1d"}[ndim]
         self.fabm = get_lib(libname)
         self.fabm.reset_error_state()
         self._cell_thickness = None
-        self.pmodel = self.fabm.create_model(path.encode('ascii'), *shape[::-1])
+        self.pmodel = self.fabm.create_model(path.encode("ascii"), *shape[::-1])
         if hasError():
-            raise FABMException('An error occurred while parsing %s:\n%s' % (path, getError()))
+            raise FABMException(
+                f"An error occurred while parsing {path}:\n{getError()}"
+            )
         if start is not None:
             self.fabm.set_domain_start(self.pmodel, *[s + 1 for s in start[::-1]])
         if stop is not None:
             self.fabm.set_domain_stop(self.pmodel, *stop[::-1])
         self.interior_domain_shape = tuple(shape)
-        self.horizontal_domain_shape = tuple([l for i, l in enumerate(self.interior_domain_shape) if i != self.fabm.idepthdim])
+        self.horizontal_domain_shape = tuple(
+            [l for i, l in enumerate(shape) if i != self.fabm.idepthdim]
+        )
         if delete:
             os.remove(path)
+
+        self.interior_state_variables = NamedObjectList()
+        self.surface_state_variables = NamedObjectList()
+        self.bottom_state_variables = NamedObjectList()
+        self.interior_diagnostic_variables = NamedObjectList()
+        self.horizontal_diagnostic_variables = NamedObjectList()
+        self.conserved_quantities = NamedObjectList()
+        self.parameters = NamedObjectList()
+        self.interior_dependencies = NamedObjectList()
+        self.horizontal_dependencies = NamedObjectList()
+        self.scalar_dependencies = NamedObjectList()
+
         self.updateConfiguration()
         self._mask = None
 
     def link_mask(self, data):
-        assert data.shape == self.horizontal_domain_shape and data.dtype == numpy.intc and data.flags['C_CONTIGUOUS']
+        assert (
+            data.shape == self.horizontal_domain_shape
+            and data.dtype == np.intc
+            and data.flags["C_CONTIGUOUS"]
+        )
         self._mask = data
         self.fabm.set_mask(self.pmodel, self._mask)
 
     def _get_mask(self):
         return self._mask
+
     def _set_mask(self, value):
         if self._mask is None:
-            self.link_mask(numpy.ones(self.horizontal_domain_shape, dtype=numpy.intc))
+            self.link_mask(np.ones(self.horizontal_domain_shape, dtype=np.intc))
         if value is not self._mask:
             self._mask[...] = value
+
     mask = property(_get_mask, _set_mask)
 
     def _get_state(self):
         return self._state
+
     def _set_state(self, value):
         if value is not self._state:
             self._state[...] = value
+
     state = property(_get_state, _set_state)
 
     def _get_interior_state(self):
         return self._interior_state
+
     def _set_interior_state(self, value):
         if value is not self._interior_state:
             self._interior_state[...] = value
+
     interior_state = property(_get_interior_state, _set_interior_state)
 
     def _get_surface_state(self):
         return self._surface_state
+
     def _set_surface_state(self, value):
         if value is not self._surface_state:
             self._surface_state[...] = value
+
     surface_state = property(_get_surface_state, _set_surface_state)
 
     def _get_bottom_state(self):
         return self._bottom_state
+
     def _set_bottom_state(self, value):
         if value is not self._bottom_state:
             self._bottom_state[...] = value
+
     bottom_state = property(_get_bottom_state, _set_bottom_state)
 
     def link_cell_thickness(self, data):
-        assert data.shape == self.interior_domain_shape and data.dtype == self.fabm.numpy_dtype and data.flags['C_CONTIGUOUS']
+        assert (
+            data.shape == self.interior_domain_shape
+            and data.dtype == self.fabm.numpy_dtype
+            and data.flags["C_CONTIGUOUS"]
+        )
         self._cell_thickness = data
 
     def setCellThickness(self, value):
         if self._cell_thickness is None:
-            self.link_cell_thickness(numpy.empty(self.interior_domain_shape))
+            self.link_cell_thickness(np.empty(self.interior_domain_shape))
         self._cell_thickness[...] = value
 
     cell_thickness = property(fset=setCellThickness)
 
-    def getSubModel(self,name):
+    def getSubModel(self, name: str) -> SubModel:
         return SubModel(self, name)
 
-    def save_settings(self, path, display=DISPLAY_NORMAL):
-        fabm.save_settings(self.pmodel, path.encode('ascii'), display)
+    def save_settings(self, path: str, display: int = DISPLAY_NORMAL):
+        self.fabm.save_settings(self.pmodel, path.encode("ascii"), display)
 
-    def save_state(self):
-        environment = dict([(dependency.name, dependency.value) for dependency in self.dependencies])
-        state = dict([(variable.name,variable.value) for variable in self.state_variables])
+    def save_state(self) -> Tuple:
+        environment = dict(
+            [(dependency.name, dependency.value) for dependency in self.dependencies]
+        )
+        state = dict(
+            [(variable.name, variable.value) for variable in self.state_variables]
+        )
         return environment, state
 
-    def restore_state(self, data):
+    def restore_state(self, data) -> Tuple:
         environment, state = data
         for dependency in self.dependencies:
             if dependency.name in environment:
@@ -718,29 +1089,62 @@ class Model(object):
         nconserved = ctypes.c_int()
         nparameters = ctypes.c_int()
         ncouplings = ctypes.c_int()
-        self.fabm.get_counts(self.pmodel,
-            ctypes.byref(nstate_interior), ctypes.byref(nstate_surface), ctypes.byref(nstate_bottom),
-            ctypes.byref(ndiag_interior), ctypes.byref(ndiag_horizontal),
-            ctypes.byref(ndependencies_interior), ctypes.byref(ndependencies_horizontal), ctypes.byref(ndependencies_scalar),
-            ctypes.byref(nconserved), ctypes.byref(nparameters), ctypes.byref(ncouplings)
+        self.fabm.get_counts(
+            self.pmodel,
+            ctypes.byref(nstate_interior),
+            ctypes.byref(nstate_surface),
+            ctypes.byref(nstate_bottom),
+            ctypes.byref(ndiag_interior),
+            ctypes.byref(ndiag_horizontal),
+            ctypes.byref(ndependencies_interior),
+            ctypes.byref(ndependencies_horizontal),
+            ctypes.byref(ndependencies_scalar),
+            ctypes.byref(nconserved),
+            ctypes.byref(nparameters),
+            ctypes.byref(ncouplings),
         )
 
-        # Allocate memory for state variable values, and send ctypes.pointer to this memory to FABM.
+        # Allocate memory for state variable values, and send ctypes.pointer to
+        # this memory to FABM.
         if self.fabm.idepthdim == -1:
-            self._state = numpy.empty((nstate_interior.value + nstate_surface.value + nstate_bottom.value,) + self.interior_domain_shape, dtype=self.fabm.numpy_dtype)
-            self._interior_state = self._state[:nstate_interior.value, ...]
-            self._surface_state = self._state[nstate_interior.value:nstate_interior.value + nstate_surface.value, ...]
-            self._bottom_state = self._state[nstate_interior.value + nstate_surface.value:, ...]
+            self._state = np.empty(
+                (nstate_interior.value + nstate_surface.value + nstate_bottom.value,)
+                + self.interior_domain_shape,
+                dtype=self.fabm.numpy_dtype,
+            )
+            self._interior_state = self._state[: nstate_interior.value, ...]
+            self._surface_state = self._state[
+                nstate_interior.value : nstate_interior.value + nstate_surface.value,
+                ...,
+            ]
+            self._bottom_state = self._state[
+                nstate_interior.value + nstate_surface.value :, ...
+            ]
         else:
-            self._interior_state = numpy.empty((nstate_interior.value,) + self.interior_domain_shape, dtype=self.fabm.numpy_dtype)
-            self._surface_state = numpy.empty((nstate_surface.value,) + self.horizontal_domain_shape, dtype=self.fabm.numpy_dtype)
-            self._bottom_state = numpy.empty((nstate_bottom.value,) + self.horizontal_domain_shape, dtype=self.fabm.numpy_dtype)
+            self._interior_state = np.empty(
+                (nstate_interior.value,) + self.interior_domain_shape,
+                dtype=self.fabm.numpy_dtype,
+            )
+            self._surface_state = np.empty(
+                (nstate_surface.value,) + self.horizontal_domain_shape,
+                dtype=self.fabm.numpy_dtype,
+            )
+            self._bottom_state = np.empty(
+                (nstate_bottom.value,) + self.horizontal_domain_shape,
+                dtype=self.fabm.numpy_dtype,
+            )
         for i in range(nstate_interior.value):
-            self.fabm.link_interior_state_data(self.pmodel, i + 1, self._interior_state[i, ...])
+            self.fabm.link_interior_state_data(
+                self.pmodel, i + 1, self._interior_state[i, ...]
+            )
         for i in range(nstate_surface.value):
-            self.fabm.link_surface_state_data(self.pmodel, i + 1, self._surface_state[i, ...])
+            self.fabm.link_surface_state_data(
+                self.pmodel, i + 1, self._surface_state[i, ...]
+            )
         for i in range(nstate_bottom.value):
-            self.fabm.link_bottom_state_data(self.pmodel, i + 1, self._bottom_state[i, ...])
+            self.fabm.link_bottom_state_data(
+                self.pmodel, i + 1, self._bottom_state[i, ...]
+            )
 
         # Retrieve variable metadata
         strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
@@ -749,55 +1153,131 @@ class Model(object):
         strpath = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         typecode = ctypes.c_int()
         has_default = ctypes.c_int()
-        required = ctypes.c_int()
-        self.interior_state_variables = NamedObjectList()
-        self.surface_state_variables = NamedObjectList()
-        self.bottom_state_variables = NamedObjectList()
-        self.interior_diagnostic_variables = NamedObjectList()
-        self.horizontal_diagnostic_variables = NamedObjectList()
-        self.conserved_quantities = NamedObjectList()
-        self.parameters = NamedObjectList()
-        self.interior_dependencies = NamedObjectList()
-        self.horizontal_dependencies = NamedObjectList()
-        self.scalar_dependencies = NamedObjectList()
+        self.interior_state_variables.clear()
+        self.surface_state_variables.clear()
+        self.bottom_state_variables.clear()
+        self.interior_diagnostic_variables.clear()
+        self.horizontal_diagnostic_variables.clear()
+        self.conserved_quantities.clear()
+        self.parameters.clear()
+        self.interior_dependencies.clear()
+        self.horizontal_dependencies.clear()
+        self.scalar_dependencies.clear()
         for i in range(nstate_interior.value):
             ptr = self.fabm.get_variable(self.pmodel, INTERIOR_STATE_VARIABLE, i + 1)
-            self.interior_state_variables._data.append(StateVariable(self, ptr, self._interior_state[i, ...]))
+            self.interior_state_variables._data.append(
+                StateVariable(self, ptr, self._interior_state[i, ...])
+            )
         for i in range(nstate_surface.value):
             ptr = self.fabm.get_variable(self.pmodel, SURFACE_STATE_VARIABLE, i + 1)
-            self.surface_state_variables._data.append(StateVariable(self, ptr, self._surface_state[i, ...]))
+            self.surface_state_variables._data.append(
+                StateVariable(self, ptr, self._surface_state[i, ...])
+            )
         for i in range(nstate_bottom.value):
             ptr = self.fabm.get_variable(self.pmodel, BOTTOM_STATE_VARIABLE, i + 1)
-            self.bottom_state_variables._data.append(StateVariable(self, ptr, self._bottom_state[i, ...]))
+            self.bottom_state_variables._data.append(
+                StateVariable(self, ptr, self._bottom_state[i, ...])
+            )
         for i in range(ndiag_interior.value):
-            ptr = self.fabm.get_variable(self.pmodel, INTERIOR_DIAGNOSTIC_VARIABLE, i + 1)
-            self.interior_diagnostic_variables._data.append(DiagnosticVariable(self, ptr, i + 1, False))
+            ptr = self.fabm.get_variable(
+                self.pmodel, INTERIOR_DIAGNOSTIC_VARIABLE, i + 1
+            )
+            self.interior_diagnostic_variables._data.append(
+                DiagnosticVariable(self, ptr, i + 1, False)
+            )
         for i in range(ndiag_horizontal.value):
-            ptr = self.fabm.get_variable(self.pmodel, HORIZONTAL_DIAGNOSTIC_VARIABLE, i + 1)
-            self.horizontal_diagnostic_variables._data.append(DiagnosticVariable(self, ptr, i + 1, True))
+            ptr = self.fabm.get_variable(
+                self.pmodel, HORIZONTAL_DIAGNOSTIC_VARIABLE, i + 1
+            )
+            self.horizontal_diagnostic_variables._data.append(
+                DiagnosticVariable(self, ptr, i + 1, True)
+            )
         for i in range(ndependencies_interior.value):
             ptr = self.fabm.get_variable(self.pmodel, INTERIOR_DEPENDENCY, i + 1)
-            self.interior_dependencies._data.append(Dependency(self, ptr, self.interior_domain_shape, self.fabm.link_interior_data))
+            self.interior_dependencies._data.append(
+                Dependency(
+                    self, ptr, self.interior_domain_shape, self.fabm.link_interior_data
+                )
+            )
         for i in range(ndependencies_horizontal.value):
             ptr = self.fabm.get_variable(self.pmodel, HORIZONTAL_DEPENDENCY, i + 1)
-            self.horizontal_dependencies._data.append(Dependency(self, ptr, self.horizontal_domain_shape, self.fabm.link_horizontal_data))
+            self.horizontal_dependencies._data.append(
+                Dependency(
+                    self,
+                    ptr,
+                    self.horizontal_domain_shape,
+                    self.fabm.link_horizontal_data,
+                )
+            )
         for i in range(ndependencies_scalar.value):
             ptr = self.fabm.get_variable(self.pmodel, SCALAR_DEPENDENCY, i + 1)
-            self.scalar_dependencies._data.append(Dependency(self, ptr, (), self.fabm.link_scalar))
+            self.scalar_dependencies._data.append(
+                Dependency(self, ptr, (), self.fabm.link_scalar)
+            )
         for i in range(nconserved.value):
-            self.fabm.get_variable_metadata(self.pmodel, CONSERVED_QUANTITY, i + 1, ATTRIBUTE_LENGTH, strname, strunits, strlong_name, strpath)
-            self.conserved_quantities._data.append(Variable(self, strname.value.decode('ascii'), strunits.value.decode('ascii'), strlong_name.value.decode('ascii'), strpath.value.decode('ascii')))
+            self.fabm.get_variable_metadata(
+                self.pmodel,
+                CONSERVED_QUANTITY,
+                i + 1,
+                ATTRIBUTE_LENGTH,
+                strname,
+                strunits,
+                strlong_name,
+                strpath,
+            )
+            self.conserved_quantities._data.append(
+                Variable(
+                    self,
+                    strname.value.decode("ascii"),
+                    strunits.value.decode("ascii"),
+                    strlong_name.value.decode("ascii"),
+                    strpath.value.decode("ascii"),
+                )
+            )
         for i in range(nparameters.value):
-            self.fabm.get_parameter_metadata(self.pmodel, i + 1, ATTRIBUTE_LENGTH, strname, strunits, strlong_name, ctypes.byref(typecode), ctypes.byref(has_default))
-            self.parameters._data.append(Parameter(self, strname.value.decode('ascii'), i, type=typecode.value, units=strunits.value.decode('ascii'), long_name=strlong_name.value.decode('ascii'), has_default=has_default.value != 0))
+            self.fabm.get_parameter_metadata(
+                self.pmodel,
+                i + 1,
+                ATTRIBUTE_LENGTH,
+                strname,
+                strunits,
+                strlong_name,
+                ctypes.byref(typecode),
+                ctypes.byref(has_default),
+            )
+            self.parameters._data.append(
+                Parameter(
+                    self,
+                    strname.value.decode("ascii"),
+                    i,
+                    type=typecode.value,
+                    units=strunits.value.decode("ascii"),
+                    long_name=strlong_name.value.decode("ascii"),
+                    has_default=has_default.value != 0,
+                )
+            )
 
-        self.couplings = NamedObjectList([Coupling(self, i + 1) for i in range(ncouplings.value)])
+        self.couplings = NamedObjectList(
+            [Coupling(self, i + 1) for i in range(ncouplings.value)]
+        )
 
         # Arrays that combine variables from pelagic and boundary domains.
-        self.state_variables = self.interior_state_variables + self.surface_state_variables + self.bottom_state_variables
-        self.diagnostic_variables = self.interior_diagnostic_variables + self.horizontal_diagnostic_variables
-        self.dependencies = self.interior_dependencies + self.horizontal_dependencies + self.scalar_dependencies
-        self.variables = self.state_variables + self.diagnostic_variables + self.dependencies
+        self.state_variables = (
+            self.interior_state_variables
+            + self.surface_state_variables
+            + self.bottom_state_variables
+        )
+        self.diagnostic_variables = (
+            self.interior_diagnostic_variables + self.horizontal_diagnostic_variables
+        )
+        self.dependencies = (
+            self.interior_dependencies
+            + self.horizontal_dependencies
+            + self.scalar_dependencies
+        )
+        self.variables = (
+            self.state_variables + self.diagnostic_variables + self.dependencies
+        )
 
         if settings is not None:
             self.restore_state(settings)
@@ -806,196 +1286,270 @@ class Model(object):
         self.bulk_state_variables = self.interior_state_variables
         self.bulk_diagnostic_variables = self.interior_diagnostic_variables
 
-        self.itime = -1.
+        self.itime = -1.0
 
-    def getRates(self, t=None, surface=True, bottom=True):
+    def getRates(self, t: float = None, surface: bool = True, bottom: bool = True):
         """Returns the local rate of change in state variables,
         given the current state and environment.
         """
         assert self.fabm.idepthdim == -1
         if t is None:
             t = self.itime
-        sources = numpy.empty_like(self._state)
-        sources_interior = sources[:len(self.interior_state_variables), ...]
-        sources_surface = sources[len(self.interior_state_variables):len(self.interior_state_variables) + len(self.surface_state_variables), ...]
-        sources_bottom = sources[len(self.interior_state_variables) + len(self.surface_state_variables):, ...]
-        assert not ((surface or bottom) and self._cell_thickness is None), 'You must assign model.cell_thickness to use getRates'
-        self.fabm.get_sources(self.pmodel, t, sources_interior, sources_surface, sources_bottom, surface, bottom, self._cell_thickness)
+        sources = np.empty_like(self._state)
+        sources_interior = sources[: len(self.interior_state_variables), ...]
+        sources_surface = sources[
+            len(self.interior_state_variables) : len(self.interior_state_variables)
+            + len(self.surface_state_variables),
+            ...,
+        ]
+        sources_bottom = sources[
+            len(self.interior_state_variables) + len(self.surface_state_variables) :,
+            ...,
+        ]
+        assert not (
+            (surface or bottom) and self._cell_thickness is None
+        ), "You must assign model.cell_thickness to use getRates"
+        self.fabm.get_sources(
+            self.pmodel,
+            t,
+            sources_interior,
+            sources_surface,
+            sources_bottom,
+            surface,
+            bottom,
+            self._cell_thickness,
+        )
         if hasError():
             raise FABMException(getError())
         return sources
 
-    def get_sources(self, t=None, out=None):
+    def get_sources(
+        self,
+        t: float = None,
+        out: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]] = None,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         if t is None:
             t = self.itime
         if out is None:
-            sources_interior = numpy.empty_like(self._interior_state)
-            sources_surface = numpy.empty_like(self._surface_state)
-            sources_bottom = numpy.empty_like(self._bottom_state)
+            sources_interior = np.empty_like(self._interior_state)
+            sources_surface = np.empty_like(self._surface_state)
+            sources_bottom = np.empty_like(self._bottom_state)
         else:
             sources_interior, sources_surface, sources_bottom = out
-        assert self._cell_thickness is not None, 'You must assign model.cell_thickness to use get_sources'
-        self.fabm.get_sources(self.pmodel, t, sources_interior, sources_surface, sources_bottom, True, True, self._cell_thickness)
+        assert (
+            self._cell_thickness is not None
+        ), "You must assign model.cell_thickness to use get_sources"
+        self.fabm.get_sources(
+            self.pmodel,
+            t,
+            sources_interior,
+            sources_surface,
+            sources_bottom,
+            True,
+            True,
+            self._cell_thickness,
+        )
         if hasError():
             raise FABMException(getError())
         return sources_interior, sources_surface, sources_bottom
 
-    def get_vertical_movement(self, out=None):
+    def get_vertical_movement(self, out: Optional[np.ndarray] = None) -> np.ndarray:
         if out is None:
-            out = numpy.empty_like(self._interior_state)
+            out = np.empty_like(self._interior_state)
         self.fabm.get_vertical_movement(self.pmodel, out)
         if hasError():
             raise FABMException(getError())
         return out
 
-    def get_conserved_quantities(self, out=None):
-        assert self._cell_thickness is not None, 'You must assign model.cell_thickness to use get_conserved_quantities'
+    def get_conserved_quantities(self, out: Optional[np.ndarray] = None) -> np.ndarray:
+        assert (
+            self._cell_thickness is not None
+        ), "You must assign model.cell_thickness to use get_conserved_quantities"
         if out is None:
-            out = numpy.empty((len(self.conserved_quantities),) + self.horizontal_domain_shape, dtype=self.fabm.numpy_dtype)
+            out = np.empty(
+                (len(self.conserved_quantities),) + self.horizontal_domain_shape,
+                dtype=self.fabm.numpy_dtype,
+            )
         self.fabm.get_conserved_quantities(self.pmodel, out, self._cell_thickness)
         if hasError():
             raise FABMException(getError())
         return out
 
-    def check_state(self, repair=False):
+    def check_state(self, repair: bool = False) -> bool:
         valid = self.fabm.check_state(self.pmodel, repair) != 0
         if hasError():
             raise FABMException(getError())
         return valid
+
     checkState = check_state
 
-    def getJacobian(self,pert=None):
+    def getJacobian(self, pert: Union[float, np.ndarray, None] = None):
         # Define perturbation per state variable.
-        y_pert = numpy.empty_like(self.state)
-        if pert is None: pert = 1e-6
+        y_pert = np.empty_like(self.state)
+        if pert is None:
+            pert = 1e-6
         y_pert[:] = pert
 
-        # Compute dy for original state (used as reference for finite differences later on)
+        # Compute dy for original state (used as reference for finite
+        # differences later on)
         dy_ori = self.getRates()
 
         # Create memory for Jacobian
-        Jac = numpy.empty((len(self.state), len(self.state)), dtype=self.state.dtype)
+        Jac = np.empty((len(self.state), len(self.state)), dtype=self.state.dtype)
 
         for i in range(len(self.state)):
             # Save original state variable value, create perturbed one.
             y_ori = self.state[i]
             self.state[i] += y_pert[i]
 
-            # Compute dy for perturbed state, compute Jacobian elements using finite difference.
+            # Compute dy for perturbed state, compute Jacobian elements using
+            # finite difference.
             dy_pert = self.getRates()
-            Jac[:,i] = (dy_pert - dy_ori) / y_pert[i]
+            Jac[:, i] = (dy_pert - dy_ori) / y_pert[i]
 
             # Restore original state variable value.
             self.state[i] = y_ori
 
         return Jac
 
-    def findParameter(self, name, case_insensitive=False):
+    def findParameter(self, name: str, case_insensitive: bool = False):
         return self.parameters.find(name, case_insensitive)
 
-    def findDependency(self, name, case_insensitive=False):
+    def findDependency(self, name: str, case_insensitive: bool = False):
         return self.dependencies.find(name, case_insensitive)
 
-    def findStateVariable(self, name, case_insensitive=False):
+    def findStateVariable(self, name: str, case_insensitive: bool = False):
         return self.state_variables.find(name, case_insensitive)
 
-    def findDiagnosticVariable(self, name, case_insensitive=False):
+    def findDiagnosticVariable(self, name: str, case_insensitive: bool = False):
         return self.diagnostic_variables.find(name, case_insensitive)
 
-    def findCoupling(self, name, case_insensitive=False):
+    def findCoupling(self, name: str, case_insensitive: bool = False):
         return self.couplings.find(name, case_insensitive)
 
-    def find_standard_variable(self, name):
-        pointer = self.fabm.find_standard_variable(name.encode('ascii'))
+    def find_standard_variable(self, name: str) -> Optional[StandardVariable]:
+        pointer = self.fabm.find_standard_variable(name.encode("ascii"))
         if pointer:
             return StandardVariable(self, pointer)
 
-    def require_data(self, standard_variable):
+    def require_data(self, standard_variable: StandardVariable):
         return self.fabm.require_data(self.pmodel, standard_variable.pointer)
 
     def getParameterTree(self):
         root = {}
         for parameter in self.parameters:
-            pathcomps = parameter.name.split('/')
+            pathcomps = parameter.name.split("/")
             parent = root
             for component in pathcomps[:-1]:
-                parent = root.setdefault(component,{})
+                parent = root.setdefault(component, {})
             parent[pathcomps[-1]] = parameter
         return root
 
-    def start(self, verbose=True, stop=False):
+    def start(self, verbose: bool = True, stop: bool = False):
         ready = True
         if self.fabm.has_mask:
             if self._mask is None:
-                print('Mask not yet assigned')
+                log("Mask not yet assigned")
                 ready = False
 
-        def process_dependencies(dependencies, link_function):
+        def process_dependencies(dependencies):
             ready = True
             for dependency in dependencies:
                 if dependency.required and not dependency.is_set:
-                    print('Value for dependency %s is not set.' % dependency.name)
+                    log(f"Value for dependency {dependency.name} is not set.")
                     ready = False
             return ready
 
-        ready = process_dependencies(self.interior_dependencies, self.fabm.link_interior_data) and ready
-        ready = process_dependencies(self.horizontal_dependencies, self.fabm.link_horizontal_data) and ready
-        ready = process_dependencies(self.scalar_dependencies, self.fabm.link_scalar) and ready
-        assert ready or not stop, 'Not all dependencies have been fulfilled.'
+        ready = process_dependencies(self.interior_dependencies) and ready
+        ready = process_dependencies(self.horizontal_dependencies) and ready
+        ready = process_dependencies(self.scalar_dependencies) and ready
+        assert ready or not stop, "Not all dependencies have been fulfilled."
 
         self.fabm.start(self.pmodel)
         if hasError():
             return False
         for i, variable in enumerate(self.interior_diagnostic_variables):
             pdata = self.fabm.get_interior_diagnostic_data(self.pmodel, i + 1)
-            variable.data = None if not pdata else numpy.ctypeslib.as_array(pdata, self.interior_domain_shape).newbyteorder('=')
+            variable.data = (
+                None
+                if not pdata
+                else np.ctypeslib.as_array(
+                    pdata, self.interior_domain_shape
+                ).newbyteorder("=")
+            )
         for i, variable in enumerate(self.horizontal_diagnostic_variables):
             pdata = self.fabm.get_horizontal_diagnostic_data(self.pmodel, i + 1)
-            variable.data = None if not pdata else numpy.ctypeslib.as_array(pdata, self.horizontal_domain_shape).newbyteorder('=')
+            variable.data = (
+                None
+                if not pdata
+                else np.ctypeslib.as_array(
+                    pdata, self.horizontal_domain_shape
+                ).newbyteorder("=")
+            )
         return ready
+
     checkReady = start
 
-    def updateTime(self, nsec):
-       self.itime = nsec
+    def updateTime(self, nsec: float):
+        self.itime = nsec
 
     def printInformation(self):
         """Show information about the model."""
-        def printArray(classname, array):
+
+        def printArray(classname: str, array: Iterable[Variable]):
             if not array:
                 return
-            print(' %i %s:' % (len(array), classname))
+            log(f" {len(array)} {classname}:")
             for variable in array:
-                print('    %s = %s %s' % (variable.name, variable.value, variable.units))
+                log(f"    {variable.name} = {variable.value} {variable.units}")
 
-        print('FABM model contains the following:')
-        printArray('interior state variables', self.interior_state_variables)
-        printArray('bottom state variables', self.bottom_state_variables)
-        printArray('surface state variables', self.surface_state_variables)
-        printArray('interior diagnostic variables', self.interior_diagnostic_variables)
-        printArray('horizontal diagnostic variables', self.horizontal_diagnostic_variables)
-        printArray('external variables', self.dependencies)
-        print(' %i parameters:' % len(self.parameters))
-        printTree(self.getParameterTree(), lambda x:'%s %s' % (x.value, x.units), '    ')
+        log("FABM model contains the following:")
+        printArray("interior state variables", self.interior_state_variables)
+        printArray("bottom state variables", self.bottom_state_variables)
+        printArray("surface state variables", self.surface_state_variables)
+        printArray("interior diagnostic variables", self.interior_diagnostic_variables)
+        printArray(
+            "horizontal diagnostic variables", self.horizontal_diagnostic_variables
+        )
+        printArray("external variables", self.dependencies)
+        log(" {len(self.parameters)} parameters:")
+        printTree(self.getParameterTree(), lambda x: f"{x.value} {x.units}", "    ")
+
 
 class Simulator(object):
-    def __init__(self, model):
-        assert model._cell_thickness is not None, 'You must assign model.cell_thickness to use Simulator'
+    def __init__(self, model: Model):
+        assert (
+            model._cell_thickness is not None
+        ), "You must assign model.cell_thickness to use Simulator"
         self.model = model
 
-    def integrate(self, y0, t, dt, surface=True, bottom=True):
-        y = numpy.empty((t.size, self.model.state.size))
-        self.model.fabm.integrate(self.model.pmodel, t.size, self.model.state.size, t, y0, y, dt, surface, bottom, ctypes.byref(self.model._cell_thickness))
+    def integrate(self, y0, t, dt, surface: bool = True, bottom: bool = True):
+        y = np.empty((t.size, self.model.state.size))
+        self.model.fabm.integrate(
+            self.model.pmodel,
+            t.size,
+            self.model.state.size,
+            t,
+            y0,
+            y,
+            dt,
+            surface,
+            bottom,
+            ctypes.byref(self.model._cell_thickness),
+        )
         if hasError():
             raise FABMException(getError())
         return y
 
+
 def unload():
-    global name2lib, ctypes
+    global ctypes
 
     for lib in name2lib.values():
         handle = lib._handle
-        if os.name == 'nt':
+        if os.name == "nt":
             import ctypes.wintypes
+
             ctypes.windll.kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
             ctypes.windll.kernel32.FreeLibrary(handle)
         else:
@@ -1003,12 +1557,12 @@ def unload():
             dlclose.argtypes = [ctypes.c_void_p]
             dlclose.restype = ctypes.c_int
             dlclose(handle)
-    name2lib = {}
+    name2lib.clear()
 
-def get_version():
+
+def get_version() -> Optional[str]:
     for lib in name2lib.values():
         version_length = 256
         strversion = ctypes.create_string_buffer(version_length)
         lib.get_version(version_length, strversion)
-        return strversion.value.decode('ascii')
-
+        return strversion.value.decode("ascii")
