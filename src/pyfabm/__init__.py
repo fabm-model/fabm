@@ -2,7 +2,17 @@ import sys
 import os
 import ctypes
 import re
-from typing import MutableMapping, Optional, Tuple, Iterable, Union, Callable
+import logging
+from typing import (
+    MutableMapping,
+    Optional,
+    Tuple,
+    Iterable,
+    Union,
+    Callable,
+    Any,
+    Mapping,
+)
 
 from collections.abc import Sequence
 
@@ -392,7 +402,7 @@ def get_lib(name: str) -> ctypes.CDLL:
     return lib
 
 
-logger = None
+logger: Optional[logging.Logger] = None
 
 
 @LOG_CALLBACK
@@ -455,16 +465,16 @@ oldsub = re.compile(r"(?<=\w)_(-?\d+)(?=[ \*+\-/]|$)")
 
 
 def createPrettyUnit(unit: str) -> str:
-    def replace_superscript(m):
+    def replace_superscript(m: re.Match) -> str:
         return "".join([unicodesuperscript[n] for n in m.group(1)])
 
-    def replace_subscript(m):
+    def replace_subscript(m: re.Match) -> str:
         return "".join([unicodesubscript[n] for n in m.group(1)])
 
-    def reple(m):
+    def reple(m: re.Match) -> str:
         return "\u00D710%s" % "".join([unicodesuperscript[n] for n in m.group(1)])
 
-    def reploldminus(m):
+    def reploldminus(m: re.Match) -> str:
         return " %s\u207B%s" % (
             m.group(1),
             "".join([unicodesuperscript[n] for n in m.group(2)]),
@@ -499,12 +509,15 @@ def getError() -> Optional[str]:
             return strmessage.value.decode("ascii")
 
 
-def printTree(root, stringmapper, indent=""):
+NodeType = Mapping[str, Any]
+
+
+def printTree(root: NodeType, stringmapper: Callable[[Any], str], indent=""):
     """Print an indented tree of objects, encoded by dictionaries linking the
     names of children to their subtree, or to their object. Objects are finally
     printed as string obtained by calling the provided stringmapper method."""
     for name, item in root.items():
-        if isinstance(item, dict):
+        if isinstance(item, NodeType):
             log(f"{indent}{name}")
             printTree(item, stringmapper, indent + "   ")
         else:
@@ -623,7 +636,7 @@ class Dependency(Variable):
 
     def setValue(self, value: npt.ArrayLike):
         if not self.is_set:
-            self.link(np.empty(self.shape, dtype=self.model.fabm.dtype))
+            self.link(np.empty(self.shape, dtype=self.model.fabm.numpy_dtype))
         self.data[...] = value
 
     def link(self, data: np.ndarray):
