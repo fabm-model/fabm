@@ -85,6 +85,8 @@ jobs:
             url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/237236c4-434b-4576-96ac-020ceeb22619"
       fail-fast: false
     runs-on: ubuntu-latest
+    env:
+      FFLAGS: -check all
     steps:
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -106,6 +108,8 @@ jobs:
         run: |
           source ${HOME}/intel/setvars.sh
           python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifx
+        env:
+          FFLAGS: -fp-model precise
   nvfortran:
     # for available versions, see https://developer.nvidia.com/nvidia-hpc-sdk-releases
     strategy:
