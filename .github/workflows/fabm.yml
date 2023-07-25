@@ -86,7 +86,7 @@ jobs:
       fail-fast: false
     runs-on: ubuntu-latest
     env:
-      FFLAGS: -check all
+      FFLAGS: -check=all
     steps:
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -109,7 +109,7 @@ jobs:
           source ${HOME}/intel/setvars.sh
           python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifx
         env:
-          FFLAGS: -fp-model precise
+          FFLAGS: -fp-model=precise
   nvfortran:
     # for available versions, see https://developer.nvidia.com/nvidia-hpc-sdk-releases
     strategy:
