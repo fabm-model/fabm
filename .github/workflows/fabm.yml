@@ -76,7 +76,7 @@ jobs:
           source ${HOME}/intel/setvars.sh
           python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifort
         env:
-          FFLAGS: -fp-model precise -fp-model source
+          FFLAGS: ${{ env.FFLAGS }} -fp-model precise -fp-model source
   ifx:
     strategy:
       matrix:
@@ -109,7 +109,7 @@ jobs:
           source ${HOME}/intel/setvars.sh
           python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifx
         env:
-          FFLAGS: -fp-model=precise
+          FFLAGS: ${{ env.FFLAGS }} -fp-model=precise
   nvfortran:
     # for available versions, see https://developer.nvidia.com/nvidia-hpc-sdk-releases
     strategy:
