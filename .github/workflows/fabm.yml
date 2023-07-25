@@ -45,11 +45,11 @@ jobs:
       matrix:
         include:
           - version: "2021.1.2.62"
-            url_dir: "17508"
+            url_dir: "https://registrationcenter-download.intel.com/akdlm/irc_nas/17508"
           - version: "2022.2.1.16992"
-            url_dir: "18998"
+            url_dir: "https://registrationcenter-download.intel.com/akdlm/irc_nas/18998"
           - version: "2023.2.0.49254"
-            url_dir: "237236c4-434b-4576-96ac-020ceeb22619"
+            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/237236c4-434b-4576-96ac-020ceeb22619"
       fail-fast: false
     runs-on: ubuntu-latest
     env:
@@ -63,7 +63,7 @@ jobs:
         run: python -m pip install --upgrade pip pyyaml
       - name: Install compiler
         run: |
-          wget --no-verbose https://registrationcenter-download.intel.com/akdlm/irc_nas/${{ matrix.url_dir }}/l_fortran-compiler_p_${{ matrix.version }}_offline.sh
+          wget --no-verbose ${{ matrix.url_dir }}/l_fortran-compiler_p_${{ matrix.version }}_offline.sh
           /bin/sh l_fortran-compiler_p_${{ matrix.version }}_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
       - name: Clone repository
         uses: actions/checkout@v2
@@ -82,7 +82,7 @@ jobs:
       matrix:
         include:
           - version: "2023.2.0.49254"
-            url_dir: "237236c4-434b-4576-96ac-020ceeb22619"
+            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/237236c4-434b-4576-96ac-020ceeb22619"
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
@@ -94,7 +94,7 @@ jobs:
         run: python -m pip install --upgrade pip pyyaml
       - name: Install compiler
         run: |
-          wget --no-verbose https://registrationcenter-download.intel.com/akdlm/irc_nas/${{ matrix.url_dir }}/l_fortran-compiler_p_${{ matrix.version }}_offline.sh
+          wget --no-verbose ${{ matrix.url_dir }}/l_fortran-compiler_p_${{ matrix.version }}_offline.sh
           /bin/sh l_fortran-compiler_p_${{ matrix.version }}_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
       - name: Clone repository
         uses: actions/checkout@v2
