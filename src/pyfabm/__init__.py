@@ -12,9 +12,8 @@ from typing import (
     Callable,
     Any,
     Mapping,
+    Sequence,
 )
-
-from collections.abc import Sequence
 
 try:
     import numpy as np
@@ -87,7 +86,10 @@ def get_lib(name: str) -> ctypes.CDLL:
     mask_type = ctypes.c_int()
     variable_bottom_index = ctypes.c_int()
     lib.get_driver_settings(
-        ctypes.byref(ndim_c), ctypes.byref(idepthdim_c), ctypes.byref(mask_type), ctypes.byref(variable_bottom_index)
+        ctypes.byref(ndim_c),
+        ctypes.byref(idepthdim_c),
+        ctypes.byref(mask_type),
+        ctypes.byref(variable_bottom_index),
     )
     ndim_int = ndim_c.value
     ndim_hz = ndim_int if idepthdim_c.value == -1 else ndim_int - 1
@@ -1059,9 +1061,7 @@ class Model(object):
         if self.fabm.mask_type == 1:
             values = (values,)
         if len(values) != self.fabm.mask_type:
-            raise FABMException(
-                f"mask must be set to {self.fabm.mask_type} values"
-            )
+            raise FABMException(f"mask must be set to {self.fabm.mask_type} values")
         if self._mask is None:
             masks = (np.ones(self.horizontal_domain_shape, dtype=np.intc),)
             if self.fabm.mask_type > 1:
