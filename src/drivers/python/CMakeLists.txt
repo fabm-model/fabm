@@ -24,8 +24,10 @@ endif()
 
 set(PYFABM_NAME "fabm" CACHE STRING "Base name of library")
 set(PYFABM_DIR ${CMAKE_INSTALL_PREFIX} CACHE PATH "Directory to create library in")
-set(PYFABM_DIM_COUNT 0 CACHE STRING "Number of spatial dimensions")
-add_compile_definitions(_FABM_DIMENSION_COUNT_=${PYFABM_DIM_COUNT})
+set(PYFABM_DEFINITIONS "" CACHE STRING "FABM host preprocessor definitions")
+if(PYFABM_DEFINITIONS)
+  add_compile_definitions(${PYFABM_DEFINITIONS})
+endif()
 
 # Force FABM_HOST to python and include FABM CMakeLists.txt.
 set(FABM_FORCED_HOST python)

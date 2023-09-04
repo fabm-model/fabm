@@ -24,23 +24,14 @@ except ImportError:
 import numpy.typing as npt
 
 
-def find_library(basedir, names):
-    for name in names:
-        path = os.path.join(basedir, name)
-        if os.path.isfile(path):
-            return path
-
-
 LOG_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_char_p)
 
 name2lib: MutableMapping[str, ctypes.CDLL] = {}
 
 
-def get_lib(name: str) -> ctypes.CDLL:
-    if name in name2lib:
-        return name2lib[name]
-
+def _find_library(name: str) -> str:
     # Determine potential names of dynamic library.
+    libdir, name = os.path.split(name)
     if os.name == "nt":
         names = (f"{name}.dll", f"lib{name}.dll")
     elif os.name == "posix" and sys.platform == "darwin":
@@ -49,20 +40,36 @@ def get_lib(name: str) -> ctypes.CDLL:
         names = (f"lib{name}.so",)
 
     # Find FABM dynamic library.
-    # Look first in pyfabm directory, then in Python path.
-    path = find_library(os.path.dirname(os.path.abspath(__file__)), names)
-    if not path:
-        for basedir in sys.path:
-            path = find_library(basedir, names)
-            if path:
-                break
-        else:
-            raise Exception(
-                f"Unable to locate dynamic library {name} (tried {', '.join(names)})."
-            )
+    basedirs = []
+    if libdir != "":
+        # Library name already includes directory
+        basedirs.append(libdir)
+    else:
+        # Look first in pyfabm directory, then in Python path.
+        basedirs.append(os.path.dirname(os.path.abspath(__file__)))
+        basedirs.extend(sys.path)
+    for basedir in basedirs:
+        for possible_name in names:
+            path = os.path.join(basedir, possible_name)
+            if os.path.isfile(path):
+                return path
+    raise Exception(
+        f"Unable to locate FABM library {name}."
+        f" Looked in {basedirs} for a file named {' or '.join(names)}."
+    )
+
+
+def get_lib(name: str) -> ctypes.CDLL:
+    if name in name2lib:
+        return name2lib[name]
+
+    if os.path.isfile(name):
+        path = name
+    else:
+        path = _find_library(name)
 
     # Load FABM library.
-    lib = ctypes.CDLL(str(path))
+    lib = ctypes.CDLL(path)
     lib.dtype = ctypes.c_double
     lib.numpy_dtype = np.dtype(lib.dtype).newbyteorder("=")
 
@@ -71,23 +78,26 @@ def get_lib(name: str) -> ctypes.CDLL:
         ctypes.POINTER(ctypes.c_int),
         ctypes.POINTER(ctypes.c_int),
         ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
     ]
     lib.get_driver_settings.restype = ctypes.c_void_p
 
     ndim_c = ctypes.c_int()
     idepthdim_c = ctypes.c_int()
-    ihas_mask = ctypes.c_int()
+    mask_type = ctypes.c_int()
+    variable_bottom_index = ctypes.c_int()
     lib.get_driver_settings(
-        ctypes.byref(ndim_c), ctypes.byref(idepthdim_c), ctypes.byref(ihas_mask)
+        ctypes.byref(ndim_c), ctypes.byref(idepthdim_c), ctypes.byref(mask_type), ctypes.byref(variable_bottom_index)
     )
     ndim_int = ndim_c.value
     ndim_hz = ndim_int if idepthdim_c.value == -1 else ndim_int - 1
     lib.ndim_int = ndim_int
     lib.ndim_hz = ndim_hz
     lib.idepthdim = idepthdim_c.value
-    lib.has_mask = ihas_mask.value != 0
+    lib.mask_type = mask_type.value
+    lib.variable_bottom_index = variable_bottom_index.value != 0
 
-    CONTIGUOUS = str("CONTIGUOUS")
+    CONTIGUOUS = "CONTIGUOUS"
     arrtype0D = np.ctypeslib.ndpointer(dtype=lib.dtype, ndim=0, flags=CONTIGUOUS)
     arrtype1D = np.ctypeslib.ndpointer(dtype=lib.dtype, ndim=1, flags=CONTIGUOUS)
     arrtypeInterior = np.ctypeslib.ndpointer(
@@ -189,9 +199,22 @@ def get_lib(name: str) -> ctypes.CDLL:
     lib.reset_error_state.restype = None
     lib.set_log_callback.argtypes = [LOG_CALLBACK]
     lib.set_log_callback.restype = None
-    if lib.has_mask:
+    if lib.mask_type == 1:
         lib.set_mask.restype = None
         lib.set_mask.argtypes = [
+            ctypes.c_void_p,
+            np.ctypeslib.ndpointer(dtype=ctypes.c_int, ndim=ndim_hz, flags=CONTIGUOUS),
+        ]
+    elif lib.mask_type == 2:
+        lib.set_mask.restype = None
+        lib.set_mask.argtypes = [
+            ctypes.c_void_p,
+            np.ctypeslib.ndpointer(dtype=ctypes.c_int, ndim=ndim_int, flags=CONTIGUOUS),
+            np.ctypeslib.ndpointer(dtype=ctypes.c_int, ndim=ndim_hz, flags=CONTIGUOUS),
+        ]
+    if lib.variable_bottom_index:
+        lib.set_bottom_index.restype = None
+        lib.set_bottom_index.argtypes = [
             ctypes.c_void_p,
             np.ctypeslib.ndpointer(dtype=ctypes.c_int, ndim=ndim_hz, flags=CONTIGUOUS),
         ]
@@ -955,13 +978,24 @@ class Model(object):
             delete = True
 
         if libname is None:
+            # Pick one of the built-in FABM libraries (0D or 1D)
             ndim = len(shape)
             if ndim > 1:
                 raise FABMException(
-                    f"Invalid domain shape {shape}. Domain must have 0 or 1 dimensions."
+                    f"Invalid domain shape {shape}."
+                    " Domain must have 0 or 1 dimensions."
                 )
             libname = {0: "fabm_0d", 1: "fabm_1d"}[ndim]
+
         self.fabm = get_lib(libname)
+
+        if len(shape) != self.fabm.ndim_int:
+            raise FABMException(
+                f"Invalid domain shape {shape}."
+                f" Domain must have {self.fabm.ndim_int} dimensions."
+                f" FABM library: {self.fabm._name}"
+            )
+
         self.fabm.reset_error_state()
         self._cell_thickness = None
         self.pmodel = self.fabm.create_model(path.encode("ascii"), *shape[::-1])
@@ -993,26 +1027,75 @@ class Model(object):
 
         self.updateConfiguration()
         self._mask = None
+        self._bottom_index = None
 
-    def link_mask(self, data):
+    def link_mask(self, *masks: np.ndarray):
+        if self.fabm.mask_type == 0:
+            raise FABMException(
+                "the underlying FABM library has been compiled without support for masks"
+            )
+        if len(masks) != self.fabm.mask_type:
+            raise FABMException(
+                f"link_mask must be provided with {self.fabm.mask_type} masks"
+            )
+        if len(masks) > 1:
+            assert (
+                masks[0].shape == self.interior_domain_shape
+                and masks[0].dtype == np.intc
+                and masks[0].flags["C_CONTIGUOUS"]
+            )
         assert (
-            data.shape == self.horizontal_domain_shape
-            and data.dtype == np.intc
-            and data.flags["C_CONTIGUOUS"]
+            masks[-1].shape == self.horizontal_domain_shape
+            and masks[-1].dtype == np.intc
+            and masks[-1].flags["C_CONTIGUOUS"]
         )
-        self._mask = data
-        self.fabm.set_mask(self.pmodel, self._mask)
+        self._mask = masks
+        self.fabm.set_mask(self.pmodel, *self._mask)
 
-    def _get_mask(self):
-        return self._mask
+    def _get_mask(self) -> Union[np.ndarray, Sequence[np.ndarray]]:
+        return self._mask[0] if len(self._mask) == 1 else self._mask
 
-    def _set_mask(self, value):
+    def _set_mask(self, values: Union[npt.ArrayLike, Sequence[npt.ArrayLike]]):
+        if self.fabm.mask_type == 1:
+            values = (values,)
+        if len(values) != self.fabm.mask_type:
+            raise FABMException(
+                f"mask must be set to {self.fabm.mask_type} values"
+            )
         if self._mask is None:
-            self.link_mask(np.ones(self.horizontal_domain_shape, dtype=np.intc))
-        if value is not self._mask:
-            self._mask[...] = value
+            masks = (np.ones(self.horizontal_domain_shape, dtype=np.intc),)
+            if self.fabm.mask_type > 1:
+                masks = (np.ones(self.interior_domain_shape, dtype=np.intc),) + masks
+            self.link_mask(*masks)
+        for value, mask in zip(values, self._mask):
+            if value is not mask:
+                mask[...] = value
 
     mask = property(_get_mask, _set_mask)
+
+    def link_bottom_index(self, indices: np.ndarray):
+        if not self.fabm.variable_bottom_index:
+            raise FABMException(
+                "the underlying FABM library has been compiled without support for variable bottom indices"
+            )
+        assert (
+            indices.shape == self.horizontal_domain_shape
+            and indices.dtype == np.intc
+            and indices.flags["C_CONTIGUOUS"]
+        )
+        self._bottom_index = indices
+        self.fabm.set_bottom_index(self.pmodel, self._bottom_index)
+
+    def _get_bottom_index(self):
+        return self._bottom_index
+
+    def _set_bottom_index(self, indices: npt.ArrayLike):
+        if self._bottom_index is None:
+            self.link_bottom_index(np.ones(self.horizontal_domain_shape, dtype=np.intc))
+        if indices is not self._bottom_index:
+            self._bottom_index[...] = indices
+
+    bottom_index = property(_get_bottom_index, _set_bottom_index)
 
     def _get_state(self):
         return self._state
@@ -1460,10 +1543,12 @@ class Model(object):
 
     def start(self, verbose: bool = True, stop: bool = False):
         ready = True
-        if self.fabm.has_mask:
-            if self._mask is None:
-                log("Mask not yet assigned")
-                ready = False
+        if self.fabm.mask_type and self._mask is None:
+            log("Mask not yet assigned")
+            ready = False
+        if self.fabm.variable_bottom_index and self._bottom_index is None:
+            log("Bottom indices not yet assigned")
+            ready = False
 
         def process_dependencies(dependencies):
             ready = True

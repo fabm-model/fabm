@@ -78,21 +78,30 @@ contains
       call c_f_procpointer(cb, log_callback)
    end subroutine
 
-   subroutine get_driver_settings(ndim, idepthdim, has_mask) bind(c)
+   subroutine get_driver_settings(ndim, idepthdim, mask_type, variable_bottom_index) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_driver_settings
-      integer(c_int), intent(out) :: ndim, idepthdim, has_mask
+      integer(c_int), intent(out) :: ndim, idepthdim, mask_type, variable_bottom_index
 
       ndim = _FABM_DIMENSION_COUNT_
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-      ! We convert from 1-based Fortran index to 0-based C index, accounting for reversal of dimemnsion order!
+      ! We convert from 1-based Fortran index to 0-based C index, accounting for reversal of dimension order!
       idepthdim = _FABM_DIMENSION_COUNT_ - _FABM_DEPTH_DIMENSION_INDEX_
 #else
       idepthdim = -1
 #endif
 #ifdef _HAS_MASK_
-      has_mask = logical2int(.true.)
+#  ifdef _FABM_HORIZONTAL_MASK_
+      mask_type = 1
+#  else
+      mask_type = 2
+#  endif
 #else
-      has_mask = logical2int(.false.)
+      mask_type = 0
+#endif
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&_FABM_BOTTOM_INDEX_==-1
+      variable_bottom_index = logical2int(.true.)
+#else
+      variable_bottom_index = logical2int(.false.)
 #endif
    end subroutine get_driver_settings
 
@@ -161,9 +170,7 @@ contains
 #endif
 
 #ifdef _HAS_MASK_
-#  ifndef _FABM_HORIZONTAL_MASK_
-#    error 'Not yet implemented'
-#  endif
+#  ifdef _FABM_HORIZONTAL_MASK_
    subroutine set_mask(pmodel, horizontal_mask_) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: set_mask
       type (c_ptr),   intent(in), value  :: pmodel
@@ -179,6 +186,49 @@ contains
       call c_f_pointer(c_loc(horizontal_mask_), horizontal_mask)
 #endif
       call model%p%set_mask(horizontal_mask)
+   end subroutine
+#  else
+   subroutine set_mask(pmodel, interior_mask_, horizontal_mask_) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: set_mask
+      type (c_ptr),   intent(in), value  :: pmodel
+      integer(c_int), intent(in), target :: interior_mask_(*), horizontal_mask_(*)
+
+      type (type_model_wrapper),                     pointer :: model
+      integer(c_int) _ATTRIBUTES_GLOBAL_,            pointer :: interior_mask
+      integer(c_int) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: horizontal_mask
+
+      call c_f_pointer(pmodel, model)
+#if  _HORIZONTAL_DIMENSION_COUNT_ > 0
+      call c_f_pointer(c_loc(horizontal_mask_), horizontal_mask, model%p%domain%horizontal_shape)
+#else
+      call c_f_pointer(c_loc(horizontal_mask_), horizontal_mask)
+#endif
+#if  _FABM_DIMENSION_COUNT_ > 0
+      call c_f_pointer(c_loc(interior_mask_), interior_mask, model%p%domain%shape)
+#else
+      call c_f_pointer(c_loc(interior_mask_), interior_mask)
+#endif
+      call model%p%set_mask(interior_mask, horizontal_mask)
+   end subroutine
+#  endif
+#endif
+
+#ifdef _FABM_BOTTOM_INDEX_==-1
+   subroutine set_bottom_index(pmodel, bottom_index_) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: set_bottom_index
+      type (c_ptr),   intent(in), value  :: pmodel
+      integer(c_int), intent(in), target :: bottom_index_(*)
+
+      type (type_model_wrapper),                     pointer :: model
+      integer(c_int) _ATTRIBUTES_GLOBAL_HORIZONTAL_, pointer :: bottom_index
+
+      call c_f_pointer(pmodel, model)
+#if  _HORIZONTAL_DIMENSION_COUNT_ > 0
+      call c_f_pointer(c_loc(bottom_index_), bottom_index, model%p%domain%horizontal_shape)
+#else
+      call c_f_pointer(c_loc(bottom_index_), bottom_index)
+#endif
+      call model%p%set_bottom_index(bottom_index)
    end subroutine
 #endif
 
@@ -915,15 +965,34 @@ contains
          call model%p%get_interior_conserved_quantities(_PREARG_INTERIOR_IN_ sums_int)
          _DO_CONCURRENT_(ivar,1,size(model%p%conserved_quantities))
 #ifdef _INTERIOR_IS_VECTORIZED_
-            do _ITERATOR_ = _START_, _STOP_
-               sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) = sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) &
-                  + cell_thickness_ _INDEX_GLOBAL_INTERIOR_(_ITERATOR_) * sums_int(_ITERATOR_ - _START_ + 1,ivar)
-            end do
-#else
-            sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) = sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) &
-               + cell_thickness_ _INDEX_GLOBAL_INTERIOR_(_ITERATOR_) * sums_int(ivar)
+            _DO_CONCURRENT_(_ITERATOR_,_START_,_STOP_)
 #endif
-         end do
+
+#ifdef _HAS_MASK_
+#  ifdef _FABM_HORIZONTAL_MASK_
+               if (_IS_UNMASKED_(model%p%domain%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_ITERATOR_))) then
+#  else
+               if (_IS_UNMASKED_(model%p%domain%mask _INDEX_GLOBAL_INTERIOR_(_ITERATOR_))) then
+#  endif
+#endif
+
+                  sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) = sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) &
+                     + cell_thickness_ _INDEX_GLOBAL_INTERIOR_(_ITERATOR_) * &
+#ifdef _INTERIOR_IS_VECTORIZED_
+                     sums_int(_ITERATOR_ - _START_ + 1,ivar)
+#else
+                     sums_int(ivar)
+#endif
+
+#ifdef _HAS_MASK_
+               end if   ! if not masked
+#endif
+
+#ifdef _INTERIOR_IS_VECTORIZED_
+            end do   ! inner interior loop
+#endif
+
+         end do   ! state variable loop
       _END_OUTER_INTERIOR_LOOP_
    end subroutine get_conserved_quantities
 
