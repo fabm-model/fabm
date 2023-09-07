@@ -803,19 +803,33 @@ contains
 #endif
 
          _BEGIN_OUTER_HORIZONTAL_LOOP_
-            fluxes = 0.0_rke
+            fluxes = 0.0_rke   ! get_surface_sources increments fluxes, so zero it first
             call model%p%get_surface_sources(_PREARG_HORIZONTAL_IN_ fluxes, sources_surface_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_,:))
             if (size(model%p%interior_state_variables) > 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
                _DO_CONCURRENT_(_ITERATOR_,_START_,_STOP_)
-                  sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
-                     + fluxes(_ITERATOR_ - _START_ + 1,:) / cell_thickness_ _INDEX_LOCATION_
-               end do
-#else
-               sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
-                  + fluxes(:) / cell_thickness_ _INDEX_LOCATION_
 #endif
-            end if
+
+#ifdef _HAS_MASK_
+               if (_IS_UNMASKED_(model%p%domain%mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
+#endif   
+
+                  sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+                  + fluxes(_ITERATOR_ - _START_ + 1,:) &
+#else
+                  + fluxes(:) &
+#endif
+                      / cell_thickness_ _INDEX_LOCATION_
+
+#ifdef _HAS_MASK_
+               end if   ! if unmasked
+#endif
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+               end do   ! inner loop
+#endif
+            end if   ! if interior state variables
          _END_OUTER_HORIZONTAL_LOOP_
       end if
 
@@ -833,27 +847,39 @@ contains
 #endif
 
          _BEGIN_OUTER_HORIZONTAL_LOOP_
-            fluxes = 0.0_rke
+            fluxes = 0.0_rke   ! get_bottom_sources increments fluxes, so zero it first
             call model%p%get_bottom_sources_rhs(_PREARG_HORIZONTAL_IN_ fluxes, sources_bottom_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_,:))
             if (size(model%p%interior_state_variables) > 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
                _DO_CONCURRENT_(_ITERATOR_,_START_,_STOP_)
+#endif
+
+#ifdef _HAS_MASK_
+               if (_IS_UNMASKED_(model%p%domain%mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
+#endif
+
 #if _FABM_BOTTOM_INDEX_==-1
                   _VERTICAL_ITERATOR_ = model%p%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #endif
-                  sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
-                     + fluxes(_ITERATOR_ - _START_ + 1,:) / cell_thickness_ _INDEX_LOCATION_
-               end do
+
+           sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+                     + fluxes(_ITERATOR_ - _START_ + 1,:) &
 #else
-#if _FABM_BOTTOM_INDEX_==-1
-               _VERTICAL_ITERATOR_ = model%p%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+                     + fluxes(:) &
 #endif
-               sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
-                  + fluxes(:) / cell_thickness_ _INDEX_LOCATION_
+                     / cell_thickness_ _INDEX_LOCATION_
+
+#ifdef _HAS_MASK_
+               end if   ! if unmasked
 #endif
-            end if
+
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+               end do   ! inner loop
+#endif
+            end if   ! if interior state variables
          _END_OUTER_HORIZONTAL_LOOP_
-      end if
+      end if   ! if bottom
 
       call model%p%finalize_outputs()
    end subroutine get_sources
@@ -970,14 +996,14 @@ contains
 
 #ifdef _HAS_MASK_
 #  ifdef _FABM_HORIZONTAL_MASK_
-               if (_IS_UNMASKED_(model%p%domain%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_ITERATOR_))) then
+               if (_IS_UNMASKED_(model%p%domain%mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
 #  else
-               if (_IS_UNMASKED_(model%p%domain%mask _INDEX_GLOBAL_INTERIOR_(_ITERATOR_))) then
+               if (_IS_UNMASKED_(model%p%domain%mask _INDEX_LOCATION_)) then
 #  endif
 #endif
 
                   sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) = sums_ _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_ITERATOR_,ivar) &
-                     + cell_thickness_ _INDEX_GLOBAL_INTERIOR_(_ITERATOR_) * &
+                     + cell_thickness_ _INDEX_LOCATION_ * &
 #ifdef _INTERIOR_IS_VECTORIZED_
                      sums_int(_ITERATOR_ - _START_ + 1,ivar)
 #else
