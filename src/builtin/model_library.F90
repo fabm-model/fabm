@@ -83,6 +83,7 @@ contains
          case ('bounded_vertical_integral');allocate(type_bounded_depth_integral::model)
          case ('interior_temporal_mean');   allocate(type_interior_temporal_mean::model)
          case ('surface_temporal_mean');    allocate(type_surface_temporal_mean::model)
+         case ('bottom_temporal_mean');     allocate(type_bottom_temporal_mean::model)
          case ('surface_temporal_maximum'); allocate(type_surface_temporal_maximum::model)
          ! Add new examples models here
       end select
