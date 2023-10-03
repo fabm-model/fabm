@@ -31,7 +31,7 @@ module fabm_builtin_time_filter
       type (type_horizontal_dependency_id)      :: id_source, id_meanin
    contains
       procedure :: initialize => bottom_temporal_mean_initialize
-      procedure :: do_surface => bottom_temporal_mean_do_surface
+      procedure :: do_bottom  => bottom_temporal_mean_do_bottom
    end type
 
    type, extends(type_base_model) :: type_surface_temporal_maximum
@@ -116,7 +116,7 @@ contains
       call self%register_diagnostic_variable(self%id_meanout, 'mean',  '', 'running mean')
    end subroutine
 
-   subroutine bottom_temporal_mean_do_surface(self, _ARGUMENTS_DO_BOTTOM_)
+   subroutine bottom_temporal_mean_do_bottom(self, _ARGUMENTS_DO_BOTTOM_)
       class (type_bottom_temporal_mean), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_
 
