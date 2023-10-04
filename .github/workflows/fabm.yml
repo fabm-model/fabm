@@ -4,7 +4,7 @@ jobs:
   gfortran:
     strategy:
       matrix:
-        version: [9, 10, 11, 12]
+        version: [9, 10, 11, 12, 13]
         os: [ubuntu-latest]
         include:
           #- version: 4.8
@@ -115,12 +115,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - version: "20.9" # 2020-10
+          - version: "20.9" # released 2020-10
             exe: nvhpc_2020_209_Linux_x86_64_cuda_11.0
-          - version: "22.9" # 2022-10
+          - version: "22.9" # released 2022-10
             exe: nvhpc_2022_229_Linux_x86_64_cuda_11.7
-          - version: "23.5" # 2023-05
-            exe: nvhpc_2023_235_Linux_x86_64_cuda_12.1
+          - version: "23.7" # released 2023-07
+            exe: nvhpc_2023_237_Linux_x86_64_cuda_12.2
       fail-fast: false
     runs-on: ubuntu-latest
     env:
@@ -157,9 +157,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - version: "3.2.0" # 2021-12-10
+          - version: "3.2.0" # released 2021-12-02
             pyfabm_cmake_args: -DCMAKE_Fortran_FLAGS_DEBUG= # skip -g as that triggers segfault
-          - version: "4.0.0" # 2022-11-10
+          - version: "4.0.0" # released 2022-11-10
+          - version: "4.1.0" # released 2023-08-04
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
