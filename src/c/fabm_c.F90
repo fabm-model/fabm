@@ -213,7 +213,7 @@ contains
 #  endif
 #endif
 
-#ifdef _FABM_BOTTOM_INDEX_==-1
+#if _FABM_BOTTOM_INDEX_==-1
    subroutine set_bottom_index(pmodel, bottom_index_) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: set_bottom_index
       type (c_ptr),   intent(in), value  :: pmodel
