@@ -441,7 +441,6 @@ contains
       integer(c_int),         intent(in), value :: category, index, value
 
       type (type_model_wrapper),  pointer :: model
-      class (type_fabm_variable), pointer :: variable
 
       call c_f_pointer(pmodel, model)
 
