@@ -164,7 +164,7 @@ jobs:
             url_dir: https://download.amd.com/developer/eula/aocc-compiler
           - version: "4.1.0" # released 2023-08-04
             url_dir: https://download.amd.com/developer/eula/aocc/aocc-4-1
-        fail-fast: false
+      fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - name: Set up Python
