@@ -159,9 +159,12 @@ jobs:
         include:
           - version: "3.2.0" # released 2021-12-02
             pyfabm_cmake_args: -DCMAKE_Fortran_FLAGS_DEBUG= # skip -g as that triggers segfault
+            url_dir: https://download.amd.com/developer/eula/aocc-compiler
           - version: "4.0.0" # released 2022-11-10
+            url_dir: https://download.amd.com/developer/eula/aocc-compiler
           - version: "4.1.0" # released 2023-08-04
-      fail-fast: false
+            url_dir: https://download.amd.com/developer/eula/aocc/aocc-4-1
+        fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - name: Set up Python
@@ -173,7 +176,7 @@ jobs:
       - name: Install compiler
         run: |
           cd /home/runner
-          wget --no-verbose https://download.amd.com/developer/eula/aocc-compiler/aocc-compiler-${{ matrix.version }}.tar
+          wget --no-verbose ${{ matrix.url_dir }}/aocc-compiler-${{ matrix.version }}.tar
           tar xpf aocc-compiler-${{ matrix.version }}.tar
           rm aocc-compiler-${{ matrix.version }}.tar
           ./aocc-compiler-${{ matrix.version }}/install.sh
