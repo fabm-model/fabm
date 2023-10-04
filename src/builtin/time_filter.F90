@@ -84,7 +84,7 @@ contains
       call self%get_parameter(missing_value, 'missing_value', '', 'missing value to use until the full window size has been covered', default=-2e20_rk)
 
       call self%register_dependency(self%id_source, 'source', '', 'variable for which to compute running mean')
-      call self%register_dependency(self%id_meanin, temporal_mean(self%id_source, period=window, resolution=window / n))
+      call self%register_dependency(self%id_meanin, temporal_mean(self%id_source, period=window, resolution=window / n, missing_value=missing_value))
       call self%register_diagnostic_variable(self%id_meanout, 'mean',  '', 'running mean')
    end subroutine
 
@@ -112,7 +112,7 @@ contains
       call self%get_parameter(missing_value, 'missing_value', '', 'missing value to use until the full window size has been covered', default=-2e20_rk)
 
       call self%register_dependency(self%id_source, 'source', '', 'variable for which to compute running mean')
-      call self%register_dependency(self%id_meanin, temporal_mean(self%id_source, period=window, resolution=window / n))
+      call self%register_dependency(self%id_meanin, temporal_mean(self%id_source, period=window, resolution=window / n, missing_value=missing_value))
       call self%register_diagnostic_variable(self%id_meanout, 'mean',  '', 'running mean')
    end subroutine
 

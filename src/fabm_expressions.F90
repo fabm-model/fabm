@@ -19,6 +19,8 @@ module fabm_expressions
       real(rk) :: period   ! Time period to average over (s)
       integer  :: n
       real(rk) :: missing_value = -2.e20_rk
+      logical  :: use_incomplete_result = .false.
+
       type (type_link), pointer :: link => null()
       integer :: in = -1
 
@@ -40,14 +42,14 @@ module fabm_expressions
       real(rk) :: period   ! Time period to average over (s)
       integer  :: n
       real(rk) :: missing_value = -2.e20_rk
-      real(rk) :: last_time, next_save_time
+      logical  :: use_incomplete_result = .false.
 
       type (type_link), pointer :: link => null()
       integer :: in = -1
 
       real(rk), private :: previous_time, bin_end_time
-      integer :: ioldest  = -1
-      integer :: icurrent = -1
+      integer,  private :: ioldest  = -1
+      integer,  private :: icurrent = -1
       logical,  private :: complete = .false.
       real(rke), allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: history
 #if _HORIZONTAL_DIMENSION_COUNT_>0
@@ -55,6 +57,8 @@ module fabm_expressions
 #else   
       real(rke) :: previous_value, last_exact_mean, mean
 #endif
+   contains
+      procedure :: update => horizontal_temporal_mean_update
    end type
 
    type, extends(type_horizontal_expression) :: type_horizontal_temporal_maximum
@@ -189,6 +193,7 @@ contains
       expression%link => input%link
       expression%n = nint(period / resolution)
       expression%period = period
+      expression%use_incomplete_result = .not. present(missing_value)
       if (present(missing_value)) expression%missing_value = missing_value
    end function
 
@@ -207,6 +212,7 @@ contains
       expression%link => input%link
       expression%n = nint(period / resolution)
       expression%period = period
+      expression%use_incomplete_result = .not. present(missing_value)
       if (present(missing_value)) expression%missing_value = missing_value
    end function
 
@@ -233,7 +239,7 @@ contains
       _DECLARE_ARGUMENTS_LOCATION_RANGE_
 
       integer  :: ibin
-      real(rke) :: dt, w, dt_bin
+      real(rke) :: dt, w, dt_bin, scale
       _DECLARE_LOCATION_
 
       ! Note that all array processing below uses explicit loops in order to respect
@@ -254,10 +260,11 @@ contains
          ! Linearly interpolate to value at end-of-bin time and add that to the current bin
          dt = self%bin_end_time - self%previous_time
          w = dt / (time - self%previous_time)   ! weight for current time (leaving 1-w for previous time)
+         scale = dt / self%period
          _BEGIN_GLOBAL_LOOP_
             self%history(_PREARG_LOCATION_ self%icurrent) = self%history(_PREARG_LOCATION_ self%icurrent) &
                + ((1._rke - 0.5_rke * w) * self%previous_value _INDEX_LOCATION_ + 0.5_rke * w * value _INDEX_LOCATION_) &
-               * dt / self%period
+               * scale
          _END_GLOBAL_LOOP_
 
          if (self%complete) then
@@ -266,15 +273,13 @@ contains
                self%last_exact_mean _INDEX_LOCATION_ = self%last_exact_mean _INDEX_LOCATION_ &
                   - self%history(_PREARG_LOCATION_ self%ioldest) + self%history(_PREARG_LOCATION_ self%icurrent)
             _END_GLOBAL_LOOP_
-         elseif (self%icurrent == self%n) then
-            ! We just completed our history. Create the mean by summing all filled bins.
-            do ibin = 1, self%n
-               _BEGIN_GLOBAL_LOOP_
-                  self%last_exact_mean _INDEX_LOCATION_ = self%last_exact_mean _INDEX_LOCATION_  &
-                     + self%history(_PREARG_LOCATION_ ibin)
-               _END_GLOBAL_LOOP_
-            end do
-            self%complete = .true.
+         else
+            ! History is incomplete - just add newly filled bin
+            _BEGIN_GLOBAL_LOOP_
+               self%last_exact_mean _INDEX_LOCATION_ = self%last_exact_mean _INDEX_LOCATION_  &
+                  + self%history(_PREARG_LOCATION_ self%icurrent)
+            _END_GLOBAL_LOOP_
+            self%complete = self%icurrent == self%n
          end if
 
          ! Update previous time and value to match end of current bin
@@ -294,20 +299,36 @@ contains
       end do
 
       ! Compute average of previous and current value, multiply by time difference, pre-divide by window size, and add to current bin.
+      scale = 0.5_rke * (time - self%previous_time) / self%period
       _BEGIN_GLOBAL_LOOP_
          self%history(_PREARG_LOCATION_ self%icurrent) = self%history(_PREARG_LOCATION_ self%icurrent) &
-            + 0.5_rke * (self%previous_value _INDEX_LOCATION_ + value _INDEX_LOCATION_) &
-            * (time - self%previous_time) / self%period
+            + scale * (self%previous_value _INDEX_LOCATION_ + value _INDEX_LOCATION_)
       _END_GLOBAL_LOOP_
 
       if (self%complete) then
          ! We have a full history covering at least one window size. Update the running mean.
          ! The result is an approximation that assumes linear change over the period covered by the oldest bin.
+         scale = (time - self%bin_end_time + dt_bin) / dt_bin
          _BEGIN_GLOBAL_LOOP_
             self%mean _INDEX_LOCATION_ = self%last_exact_mean _INDEX_LOCATION_ &
                + self%history(_PREARG_LOCATION_ self%icurrent) &
-               - self%history(_PREARG_LOCATION_ self%ioldest) * (time - self%bin_end_time + dt_bin) / dt_bin
+               - scale * self%history(_PREARG_LOCATION_ self%ioldest)
          _END_GLOBAL_LOOP_
+      elseif (self%use_incomplete_result) then
+         if (self%previous_time == time .and. self%icurrent == 1) then
+            ! No results just - just the current (first) point in time
+            _BEGIN_GLOBAL_LOOP_
+               self%mean _INDEX_LOCATION_ = value _INDEX_LOCATION_
+            _END_GLOBAL_LOOP_
+         else
+            ! Use average so far. The integral has been pre-divided by self%period.
+            ! Undo this and divide instead by time integrated so far
+            scale = self%period / (self%icurrent * dt_bin + time - self%bin_end_time)
+            _BEGIN_GLOBAL_LOOP_
+               self%mean _INDEX_LOCATION_ = scale * (self%last_exact_mean _INDEX_LOCATION_ &
+                  + self%history(_PREARG_LOCATION_ self%icurrent))
+            _END_GLOBAL_LOOP_
+         end if
       end if
 
       ! Store current time and value to enable linear interpolation in subsequent call.
@@ -324,7 +345,7 @@ contains
       _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_RANGE_
 
       integer  :: ibin
-      real(rke) :: dt, w, dt_bin
+      real(rke) :: dt, w, dt_bin, scale
       _DECLARE_HORIZONTAL_LOCATION_
 
       ! Note that all array processing below uses explicit loops in order to respect
@@ -345,10 +366,11 @@ contains
          ! Linearly interpolate to value at end-of-bin time and add that to the current bin
          dt = self%bin_end_time - self%previous_time
          w = dt / (time - self%previous_time)   ! weight for current time (leaving 1-w for previous time)
+         scale = dt / self%period
          _BEGIN_OUTER_VERTICAL_LOOP_
             self%history(_PREARG_HORIZONTAL_LOCATION_ self%icurrent) = self%history(_PREARG_HORIZONTAL_LOCATION_ self%icurrent) &
                + ((1._rke - 0.5_rke * w) * self%previous_value _INDEX_HORIZONTAL_LOCATION_ + 0.5_rke * w * value _INDEX_HORIZONTAL_LOCATION_) &
-               * dt / self%period
+               * scale
          _END_OUTER_VERTICAL_LOOP_
 
          if (self%complete) then
@@ -357,15 +379,13 @@ contains
                self%last_exact_mean _INDEX_HORIZONTAL_LOCATION_ = self%last_exact_mean _INDEX_HORIZONTAL_LOCATION_ &
                   - self%history(_PREARG_HORIZONTAL_LOCATION_ self%ioldest) + self%history(_PREARG_HORIZONTAL_LOCATION_ self%icurrent)
             _END_OUTER_VERTICAL_LOOP_
-         elseif (self%icurrent == self%n) then
-            ! We just completed our history. Create the mean by summing all filled bins.
-            do ibin = 1, self%n
-               _BEGIN_OUTER_VERTICAL_LOOP_
-                  self%last_exact_mean _INDEX_HORIZONTAL_LOCATION_ = self%last_exact_mean _INDEX_HORIZONTAL_LOCATION_  &
-                     + self%history(_PREARG_HORIZONTAL_LOCATION_ ibin)
-               _END_OUTER_VERTICAL_LOOP_
-            end do
-            self%complete = .true.
+         else
+            ! History is incomplete - just add newly filled bin
+            _BEGIN_OUTER_VERTICAL_LOOP_
+               self%last_exact_mean _INDEX_HORIZONTAL_LOCATION_ = self%last_exact_mean _INDEX_HORIZONTAL_LOCATION_  &
+                  + self%history(_PREARG_HORIZONTAL_LOCATION_ self%icurrent)
+            _END_OUTER_VERTICAL_LOOP_
+            self%complete = self%icurrent == self%n
          end if
 
          ! Update previous time and value to match end of current bin
@@ -385,20 +405,36 @@ contains
       end do
 
       ! Compute average of previous and current value, multiply by time difference, pre-divide by window size, and add to current bin.
+      scale = 0.5_rke * (time - self%previous_time) / self%period
       _BEGIN_OUTER_VERTICAL_LOOP_
          self%history(_PREARG_HORIZONTAL_LOCATION_ self%icurrent) = self%history(_PREARG_HORIZONTAL_LOCATION_ self%icurrent) &
-            + 0.5_rke * (self%previous_value _INDEX_HORIZONTAL_LOCATION_ + value _INDEX_HORIZONTAL_LOCATION_) &
-            * (time - self%previous_time) / self%period
+            + scale * (self%previous_value _INDEX_HORIZONTAL_LOCATION_ + value _INDEX_HORIZONTAL_LOCATION_)
       _END_OUTER_VERTICAL_LOOP_
 
       if (self%complete) then
          ! We have a full history covering at least one window size. Update the running mean.
          ! The result is an approximation that assumes linear change over the period covered by the oldest bin.
+         scale = (time - self%bin_end_time + dt_bin) / dt_bin
          _BEGIN_OUTER_VERTICAL_LOOP_
             self%mean _INDEX_HORIZONTAL_LOCATION_ = self%last_exact_mean _INDEX_HORIZONTAL_LOCATION_ &
                + self%history(_PREARG_HORIZONTAL_LOCATION_ self%icurrent) &
-               - self%history(_PREARG_HORIZONTAL_LOCATION_ self%ioldest) * (time - self%bin_end_time + dt_bin) / dt_bin
+               - scale * self%history(_PREARG_HORIZONTAL_LOCATION_ self%ioldest)
          _END_OUTER_VERTICAL_LOOP_
+      elseif (self%use_incomplete_result) then
+         if (self%previous_time == time .and. self%icurrent == 1) then
+            ! No results just - just the current (first) point in time
+            _BEGIN_OUTER_VERTICAL_LOOP_
+               self%mean _INDEX_HORIZONTAL_LOCATION_ = value _INDEX_HORIZONTAL_LOCATION_
+            _END_OUTER_VERTICAL_LOOP_
+         else
+            ! Use average so far. The integral has been pre-divided by self%period.
+            ! Undo this and divide instead by time integrated so far
+            scale  = self%period / (self%icurrent * dt_bin + time - self%bin_end_time)
+            _BEGIN_OUTER_VERTICAL_LOOP_
+               self%mean _INDEX_HORIZONTAL_LOCATION_ = scale * (self%last_exact_mean _INDEX_HORIZONTAL_LOCATION_ &
+                  + self%history(_PREARG_HORIZONTAL_LOCATION_ self%icurrent))
+            _END_OUTER_VERTICAL_LOOP_
+         end if
       end if
 
       ! Store current time and value to enable linear interpolation in subsequent call.
@@ -435,7 +471,7 @@ contains
             self%previous_value _INDEX_HORIZONTAL_LOCATION_ = (1._rke - w) * self%previous_value _INDEX_HORIZONTAL_LOCATION_ + w * value _INDEX_HORIZONTAL_LOCATION_
          _END_OUTER_VERTICAL_LOOP_
 
-         ! Complete the current bin by taking the maximum over its previous value and the value at end-of-boin time.
+         ! Complete the current bin by taking the maximum over its previous value and the value at end-of-bin time.
          _BEGIN_OUTER_VERTICAL_LOOP_
             self%history(_PREARG_HORIZONTAL_LOCATION_ self%icurrent) = max(self%history(_PREARG_HORIZONTAL_LOCATION_ self%icurrent), &
                self%previous_value _INDEX_HORIZONTAL_LOCATION_)
