@@ -1,4 +1,3 @@
-
 import os
 import subprocess
 import shutil
@@ -72,13 +71,13 @@ class CMakeBuild(build_ext):
         subprocess.check_call(
             [
                 "cmake",
-                "-B", build_dir,
-                "-S", os.path.dirname(__file__),
+                "-B",
+                build_dir,
+                "-S",
+                os.path.dirname(__file__),
                 f"-DPYFABM_NAME={libname}",
-                f"-DPYFABM_DIR={install_prefix}"
+                f"-DPYFABM_DIR={install_prefix}",
             ]
             + cmake_args,
         )
-        subprocess.check_call(
-            ["cmake", "--build", build_dir, "--config", build_type]
-        )
+        subprocess.check_call(["cmake", "--build", build_dir, "--config", build_type])

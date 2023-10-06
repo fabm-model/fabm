@@ -7,4 +7,3 @@ def processFile(infile, outfile, subtract_background=False, add_missing=False):
     model.save_settings(
         outfile, pyfabm.DISPLAY_NORMAL if add_missing else pyfabm.DISPLAY_MINIMUM
     )
-

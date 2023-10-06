@@ -11,8 +11,12 @@ setup(
     packages=["pyfabm", "pyfabm.utils"],
     package_dir={"": "src"},
     ext_modules=[
-        CMakeExtension("pyfabm.fabm_0d", "-DPYFABM_DEFINITIONS=_FABM_DIMENSION_COUNT_=0"),
-        CMakeExtension("pyfabm.fabm_1d", "-DPYFABM_DEFINITIONS=_FABM_DIMENSION_COUNT_=1"),
+        CMakeExtension(
+            "pyfabm.fabm_0d", "-DPYFABM_DEFINITIONS=_FABM_DIMENSION_COUNT_=0"
+        ),
+        CMakeExtension(
+            "pyfabm.fabm_1d", "-DPYFABM_DEFINITIONS=_FABM_DIMENSION_COUNT_=1"
+        ),
     ],
     cmdclass={"bdist_wheel": bdist_wheel, "build_ext": CMakeBuild},
     zip_safe=False,
