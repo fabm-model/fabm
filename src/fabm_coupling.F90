@@ -220,6 +220,7 @@ contains
       class (type_coupling_task),    pointer :: coupling, next_coupling
       type (type_internal_variable), pointer :: master
       type (type_link),              pointer :: link
+      integer                                :: istart, istop
 
       ! Find root model, which will handle the individual coupling tasks.
       root => self
@@ -270,7 +271,13 @@ contains
                else
                   ! This is a coupling by variable name.
                   ! Try to find the master variable among the variables of the requesting model or its parents.
-                  if (coupling%slave%name /= coupling%master_name) then
+                  istart = index(coupling%master_name, '(')
+                  if (istart /= 0) then
+                     istop = len_trim(coupling%master_name)
+                     if (coupling%master_name(istop:istop) /= ')') call self%fatal_error('process_coupling_tasks', &
+                        'Parameterized coupling ' // trim(coupling%master_name) // ' should end with closing parenthesis.')
+                     call resolve_parameterized_coupling(coupling%master_name(1:istart-1), coupling%master_name(istart+1:istop-1), coupling)
+                  elseif (coupling%slave%name /= coupling%master_name) then
                      ! Master and slave name differ: start master search in current model, then move up tree.
                      master => self%find_object(coupling%master_name, recursive=.true., exact=.false.)
                   elseif (associated(self%parent)) then
@@ -310,6 +317,37 @@ contains
          call process_coupling_tasks(child%model, stage)
          child => child%next
       end do
+
+   contains
+
+      subroutine resolve_parameterized_coupling(name, args, task)
+         character(len=*),           intent(in)    :: name, args
+         class (type_coupling_task), intent(inout) :: task
+
+         type (type_interior_standard_variable)   :: interior_standard_variable
+         type (type_bottom_standard_variable)     :: bottom_standard_variable
+         type (type_surface_standard_variable)    :: surface_standard_variable
+         type (type_horizontal_standard_variable) :: horizontal_standard_variable
+
+         select case (name)
+         case ('standard_variable')
+            select case (task%slave%target%domain)
+            case (domain_interior)
+               interior_standard_variable%name = args
+               task%master_standard_variable => interior_standard_variable%typed_resolve()
+            case (domain_bottom)
+               bottom_standard_variable%name = args
+               task%master_standard_variable => bottom_standard_variable%typed_resolve()
+            case (domain_horizontal)
+               horizontal_standard_variable%name = args
+               task%master_standard_variable => horizontal_standard_variable%typed_resolve()
+            case default
+               call self%fatal_error('process_coupling_tasks', 'Unknown domain for ' // task%slave%name // '.')
+            end select
+         case default
+            call self%fatal_error('process_coupling_tasks', 'Unknown parameterized coupling type "' // name // '".')
+         end select
+      end subroutine
 
    end subroutine process_coupling_tasks
 
@@ -688,7 +726,7 @@ contains
 
    end subroutine create_conservation_checks
 
-   recursive subroutine couple_variables(self,master,slave)
+   recursive subroutine couple_variables(self, master, slave)
       class (type_base_model), intent(inout), target :: self
       type (type_internal_variable), pointer         :: master, slave
 
