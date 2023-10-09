@@ -6,7 +6,7 @@ jobs:
     steps:
     - name: Merge into fabm-plus
       run: |
-        git clone https://${{secrets.GITHUB_TOKEN}}:@github.com/fabm-model/fabm-plus.git fabm-plus
+        git clone https://${{secrets.FABM_PLUS_PAT}}:@github.com/fabm-model/fabm-plus.git fabm-plus
         cd fabm-plus
         git config user.name "Automerge Bot"
         git config user.email "bot@example.com"
