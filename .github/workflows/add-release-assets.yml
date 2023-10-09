@@ -1,3 +1,4 @@
+name: Add assets to release
 on:
   release:
     types: [created]
@@ -16,12 +17,13 @@ jobs:
         with:
           repository: fabm-model/fabm-plus
           submodules: recursive
+          fetch-depth: 0
       - name: Ensure code is in sync with master
         run: |
           git config user.name "Automerge Bot"
           git config user.email "bot@example.com"
           git config pull.rebase false
-          git pull https://github.com/fabm-model/fabm.git
+          git pull ${{ github.repositoryUrl }}
       - name: Archive code including submodules
         run: |
           git-archive-all code.tar.gz
