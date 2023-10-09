@@ -41,7 +41,7 @@ module fabm_expressions
    type, extends(type_horizontal_expression) :: type_horizontal_temporal_mean
       real(rk) :: period   ! Time period to average over (s)
       integer  :: n
-      real(rk) :: missing_value = -2.e20_rk
+      real(rk) :: missing_value = 0.0_rk
       logical  :: use_incomplete_result = .false.
 
       type (type_link), pointer :: link => null()
