@@ -6,22 +6,24 @@ set(DEFAULT_INSTITUTES
     au           # University of Aarhus, Denmark
     bb           # Bolding & Bruggeman - formerly Bolding & Burchard
     csiro        # Commonwealth Scientific and Industrial Research Organisation, Australia
-    ersem        # European Regional Seas Ecosystem Model
+    ersem        # European Regional Seas Ecosystem Model, https://doi.org/10.5194/gmd-9-1293-2016
     examples     # Examples supplied with FABM itself
     gotm         # Models ported from original GOTM/BIO library
     iow          # Leibniz Institute for Baltic Sea Research, Germany
     jrc          # EC - Joint Research Centre, Ispra, Italy
+    mops         # Model of Oceanic Pelagic Stoichiometry, https://doi.org/10.5194/gmd-8-2929-2015
     msi          # Marine Systems Institute, Tallinn University of Technology, Estonia
     nersc        # Nansen Environmental and Remote Sensing Center
     niva         # Norwegian Institute for Water Research, Norway
     pclake       # The PCLake model - reference implementation
+    pisces       # Pelagic Interactions Scheme for Carbon and Ecosystem Studies, https://doi.org/10.5194/gmd-8-2465-2015
     pml          # Plymouth Marine Laboratory, United Kingdom
     selma        # Simple EcoLogical Model for the Aquatic - PROGNOS
     su           # Swansea University, United Kingdom
     uhh          # University of Hamburg, Germany
 )
 
-set(OPTIONAL_INSTITUTES ersem pclake)
+set(OPTIONAL_INSTITUTES ersem mops pclake pisces)
 
 # Ensure FABM_INSTITUTES tracks the up-to-date DEFAULT_INSTITUTES list unless the user manually customized FABM_INSTITUTES.
 if(NOT FABM_DEFAULT_INSTITUTES OR NOT FABM_INSTITUTES)
@@ -48,7 +50,7 @@ foreach(institute IN LISTS ALL_INSTITUTES)
   string(TOUPPER ${institute} INSTITUTE_UC)
   find_path(FABM_${INSTITUTE_UC}_BASE
     NAMES CMakeLists.txt
-    HINTS "${CMAKE_CURRENT_LIST_DIR}/models/${institute}"
+    HINTS "${CMAKE_CURRENT_LIST_DIR}/../extern/${institute}" "${CMAKE_CURRENT_LIST_DIR}/models/${institute}"
     DOC "Path to source code of ${institute} models"
     NO_DEFAULT_PATH
     NO_CMAKE_FIND_ROOT_PATH
