@@ -23,7 +23,7 @@ jobs:
           git config user.name "Automerge Bot"
           git config user.email "bot@example.com"
           git config pull.rebase false
-          git pull ${{ github.repositoryUrl }}
+          git pull https://github.com/fabm-model/fabm.git
       - name: Archive code including submodules
         run: |
           git-archive-all code.tar.gz
