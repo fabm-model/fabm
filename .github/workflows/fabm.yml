@@ -205,11 +205,12 @@ jobs:
           python-version: ${{ matrix.python-version }}        
       - name: Install dependencies
         run: python -m pip install --upgrade pip build
-      - name: Build pyfabm distribution
+      - name: Build distribution
         run: python -m build
-      - name: Install pyfabm
+      - name: Install
+        run: python -m pip install .
+      - name: Test
         run: |
-          python -m pip install .
           python -c "import pyfabm"
           for f in testcases/*.yaml; do fabm_describe_model $f; done
           for f in testcases/*.yaml; do fabm_complete_yaml --add_missing $f; done
