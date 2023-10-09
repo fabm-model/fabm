@@ -21,13 +21,17 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "path",
-        help=("Path to a YAML file with the model configuration that needs to"
-        " be completed."),
+        help=(
+            "Path to a YAML file with the model configuration that needs to"
+            " be completed."
+        ),
     )
     parser.add_argument(
         "output_path",
-        help=("Path to save the completed YAML file to. If not provided,"
-        " this defaults to the file from which the model configuration is read.")
+        help=(
+            "Path to save the completed YAML file to. If not provided,"
+            " this defaults to the file from which the model configuration is read."
+        ),
         nargs="?",
     )
     parser.add_argument(

@@ -95,8 +95,8 @@ def evaluate(
                                 if dim not in dim2index:
                                     print(
                                         f"ERROR: Dimension {dim} of"
-                                        f" {variable.output_name} has length > 1;
-                                        f"an index must be specified with {dim}=INDEX"
+                                        f" {variable.output_name} has length > 1;"
+                                        f" an index must be specified with {dim}=INDEX"
                                     )
                                     sys.exit(1)
                                 index = dim2index[dim]
