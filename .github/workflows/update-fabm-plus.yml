@@ -1,5 +1,8 @@
 name: Merge changes into fabm-plus and push
-on: [push]
+on:
+  push:
+    branches:
+    - master
 jobs:
   merge:
     runs-on: ubuntu-latest

@@ -32,5 +32,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload ${{ github.ref_name }} code.tar.gz#"Source code including third-party biogeochemical models (tar.gz)"
-          gh release upload ${{ github.ref_name }} code.zip#"Source code including third-party biogeochemical models (zip)"
+          gh release list --repo fabm-model/fabm
+          gh release upload ${{ github.ref_name }} code.tar.gz#"Source code including externally maintained biogeochemical models (tar.gz)" --repo fabm-model/fabm
+          gh release upload ${{ github.ref_name }} code.zip#"Source code including externally maintained biogeochemical models (zip)" --repo fabm-model/fabm
