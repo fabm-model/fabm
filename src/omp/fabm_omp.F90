@@ -137,7 +137,7 @@ contains
          end if
       end do
 
-      !$OMP PARALLEL DEFAULT(SHARED) PRIVATE(ithread,task _POSTARG_LOCATION_)
+      !$OMP PARALLEL DEFAULT(SHARED) PRIVATE(ithread _POSTARG_LOCATION_)
       ithread = omp_get_thread_num() + 1
 
       task => job%first_task
@@ -147,7 +147,7 @@ contains
 #if (_FABM_DIMENSION_COUNT_==0||(_FABM_DIMENSION_COUNT_==1&&_FABM_VECTORIZED_DIMENSION_INDEX_==1))
             !$OMP SINGLE
 #else
-            !$OMP DO
+            !$OMP DO SCHEDULE(runtime)
 #endif
             _BEGIN_OUTER_INTERIOR_LOOP_
                call process_interior_slice(task,self%domain, self%catalog, self%cache_fill_values, self%store, self%caches(ithread)%interior _POSTARG_INTERIOR_IN_)
@@ -163,7 +163,7 @@ contains
 #if (_HORIZONTAL_DIMENSION_COUNT_==0||(_HORIZONTAL_DIMENSION_COUNT_==1&&_FABM_VECTORIZED_DIMENSION_INDEX_!=_FABM_DEPTH_DIMENSION_INDEX_))
             !$OMP SINGLE
 #else
-            !$OMP DO
+            !$OMP DO SCHEDULE(runtime)
 #endif
             _BEGIN_OUTER_HORIZONTAL_LOOP_
                call process_horizontal_slice(task, self%domain, self%catalog, self%cache_fill_values, self%store, self%caches(ithread)%horizontal _POSTARG_HORIZONTAL_IN_)
@@ -180,12 +180,12 @@ contains
 #else
 #  if _FABM_BOTTOM_INDEX_==-1
 #    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-            !$OMP DO PRIVATE(_VERTICAL_START_)
+            !$OMP DO PRIVATE(_VERTICAL_START_) SCHEDULE(runtime)
 #    else
-            !$OMP DO PRIVATE(_VERTICAL_STOP_)
+            !$OMP DO PRIVATE(_VERTICAL_STOP_) SCHEDULE(runtime)
 #    endif
 #  else
-            !$OMP DO
+            !$OMP DO SCHEDULE(runtime)
 #  endif
 #endif
             _BEGIN_OUTER_VERTICAL_LOOP_

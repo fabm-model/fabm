@@ -6,12 +6,15 @@ import argparse
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--omp_places", default=None, choices=("cores",))
+    parser.add_argument("--omp_schedule", default=None)
     parser.add_argument("--plot", help="file to save scaling plot to")
     args, remaining_args = parser.parse_known_args()
 
     env = dict(os.environ)
+    if args.omp_schedule:
+        env.update(OMP_SCHEDULE=args.omp_schedule)
     if args.omp_places:
-        env.update(OMP_PLACES="cores")
+        env.update(OMP_PLACES=args.omp_places)
     result = []
     for ncpus in range(1, 1 + multiprocessing.cpu_count()):
         print(f"Testing with {ncpus} cores...", end="", flush=True)

@@ -552,56 +552,40 @@ program test_omp
       call configure_mask(.not. no_mask)
 
 #if (_FABM_DIMENSION_COUNT_==0||(_FABM_DIMENSION_COUNT_==1&&_FABM_VECTORIZED_DIMENSION_INDEX_==1))
-#  define _NO_OMP_INTERIOR_
+#  define _OMP_DO_INTERIOR_ SINGLE
+#  define _OMP_END_DO_INTERIOR_ END SINGLE
+#else
+#  define _OMP_DO_INTERIOR_ DO SCHEDULE(runtime)
+#  define _OMP_END_DO_INTERIOR_ END DO
 #endif
 
 #if (_HORIZONTAL_DIMENSION_COUNT_==0||(_HORIZONTAL_DIMENSION_COUNT_==1&&_FABM_VECTORIZED_DIMENSION_INDEX_!=_FABM_DEPTH_DIMENSION_INDEX_))
-#  define _NO_OMP_HORIZONTAL_
-#endif
-
-      !$OMP PARALLEL DEFAULT(SHARED)
-
-#ifdef _NO_OMP_INTERIOR_
-      !$OMP SINGLE
+#  define _OMP_DO_HORIZONTAL_ SINGLE
+#  define _OMP_END_DO_HORIZONTAL_ END SINGLE
 #else
-      !$OMP DO
+#  define _OMP_DO_HORIZONTAL_ DO SCHEDULE(runtime)
+#  define _OMP_END_DO_HORIZONTAL_ END DO
 #endif
+
+      !$OMP PARALLEL DEFAULT(SHARED) PRIVATE(_LOCATION_)
+
+      !$OMP _OMP_DO_INTERIOR_
       _BEGIN_OUTER_INTERIOR_LOOP_
          call model%initialize_interior_state(_ARG_INTERIOR_IN_)
       _END_OUTER_INTERIOR_LOOP_
-#ifdef _NO_OMP_INTERIOR_
-      !$OMP END SINGLE
-#else
-      !$OMP END DO
-#endif
+      !$OMP _OMP_END_DO_INTERIOR_
 
-#ifdef _NO_OMP_HORIZONTAL_
-      !$OMP SINGLE
-#else
-      !$OMP DO
-#endif
+      !$OMP _OMP_DO_HORIZONTAL_
       _BEGIN_OUTER_HORIZONTAL_LOOP_
          call model%initialize_bottom_state(_ARG_HORIZONTAL_IN_)
       _END_OUTER_HORIZONTAL_LOOP_
-#ifdef _NO_OMP_HORIZONTAL_
-      !$OMP END SINGLE
-#else
-      !$OMP END DO
-#endif
+      !$OMP _OMP_END_DO_HORIZONTAL_
 
-#ifdef _NO_OMP_HORIZONTAL_
-      !$OMP SINGLE
-#else
-      !$OMP DO
-#endif
+      !$OMP _OMP_DO_HORIZONTAL_
       _BEGIN_OUTER_HORIZONTAL_LOOP_
          call model%initialize_surface_state(_ARG_HORIZONTAL_IN_)
       _END_OUTER_HORIZONTAL_LOOP_
-#ifdef _NO_OMP_HORIZONTAL_
-      !$OMP END SINGLE
-#else
-      !$OMP END DO
-#endif
+      !$OMP _OMP_END_DO_HORIZONTAL_
 
       !$OMP END PARALLEL
 
@@ -613,102 +597,54 @@ program test_omp
       do i = 1, n
          call model%prepare_inputs()
 
-         !$OMP PARALLEL DEFAULT(SHARED)
+         !$OMP PARALLEL DEFAULT(SHARED) PRIVATE(flux, sms_bt, sms_sf, dy _POSTARG_LOCATION_)
 
-#ifdef _NO_OMP_HORIZONTAL_
-         !$OMP SINGLE
-#else
-         !$OMP DO
-#endif
+         !$OMP _OMP_DO_HORIZONTAL_
          _BEGIN_OUTER_HORIZONTAL_LOOP_
             flux = 0
             sms_bt = 0
             call model%get_bottom_sources(_PREARG_HORIZONTAL_IN_ flux, sms_bt)
          _END_OUTER_HORIZONTAL_LOOP_
-#ifdef _NO_OMP_HORIZONTAL_
-         !$OMP END SINGLE
-#else
-         !$OMP END DO
-#endif
+         !$OMP _OMP_END_DO_HORIZONTAL_
 
-#ifdef _NO_OMP_HORIZONTAL_
-         !$OMP SINGLE
-#else
-         !$OMP DO
-#endif
+         !$OMP _OMP_DO_HORIZONTAL_
          _BEGIN_OUTER_HORIZONTAL_LOOP_
             flux = 0
             sms_sf = 0
             call model%get_surface_sources(_PREARG_HORIZONTAL_IN_ flux, sms_sf)
          _END_OUTER_HORIZONTAL_LOOP_
-#ifdef _NO_OMP_HORIZONTAL_
-         !$OMP END SINGLE
-#else
-         !$OMP END DO
-#endif
+         !$OMP _OMP_END_DO_HORIZONTAL_
 
-#ifdef _NO_OMP_INTERIOR_
-         !$OMP SINGLE
-#else
-         !$OMP DO
-#endif
+         !$OMP _OMP_DO_INTERIOR_
          _BEGIN_OUTER_INTERIOR_LOOP_
             dy = 0
             call model%get_interior_sources(_PREARG_INTERIOR_IN_ dy)
          _END_OUTER_INTERIOR_LOOP_
-#ifdef _NO_OMP_INTERIOR_
-         !$OMP END SINGLE
-#else
-         !$OMP END DO
-#endif
+         !$OMP _OMP_END_DO_INTERIOR_
 
          !$OMP END PARALLEL
 
          call model%finalize_outputs()
 
-         !$OMP PARALLEL DEFAULT(SHARED)
+         !$OMP PARALLEL DEFAULT(SHARED) PRIVATE(valid _POSTARG_LOCATION_)
 
-#ifdef _NO_OMP_HORIZONTAL_
-         !$OMP SINGLE
-#else
-         !$OMP DO
-#endif
+         !$OMP _OMP_DO_HORIZONTAL_
          _BEGIN_OUTER_HORIZONTAL_LOOP_
             call model%check_bottom_state(_PREARG_HORIZONTAL_IN_ repair, valid)
          _END_OUTER_HORIZONTAL_LOOP_
-#ifdef _NO_OMP_HORIZONTAL_
-         !$OMP END SINGLE
-#else
-         !$OMP END DO
-#endif
+         !$OMP _OMP_END_DO_HORIZONTAL_
 
-#ifdef _NO_OMP_HORIZONTAL_
-         !$OMP SINGLE
-#else
-         !$OMP DO
-#endif
+         !$OMP _OMP_DO_HORIZONTAL_
          _BEGIN_OUTER_HORIZONTAL_LOOP_
             call model%check_surface_state(_PREARG_HORIZONTAL_IN_ repair, valid)
          _END_OUTER_HORIZONTAL_LOOP_
-#ifdef _NO_OMP_HORIZONTAL_
-         !$OMP END SINGLE
-#else
-         !$OMP END DO
-#endif
+         !$OMP _OMP_END_DO_HORIZONTAL_
 
-#ifdef _NO_OMP_INTERIOR_
-         !$OMP SINGLE
-#else
-         !$OMP DO
-#endif
+         !$OMP _OMP_DO_INTERIOR_
          _BEGIN_OUTER_INTERIOR_LOOP_
             call model%check_interior_state(_PREARG_INTERIOR_IN_ repair, valid)
          _END_OUTER_INTERIOR_LOOP_
-#ifdef _NO_OMP_INTERIOR_
-         !$OMP END SINGLE
-#else
-         !$OMP END DO
-#endif
+         !$OMP _OMP_END_DO_INTERIOR_
 
          !$OMP END PARALLEL
          if (mod(i, ireport) == 0) write (*,'(i0,a)') int(100*i/real(n, rke)), ' % complete'
