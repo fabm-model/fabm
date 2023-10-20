@@ -9,7 +9,7 @@ module fabm_omp
    use fabm_types
    use fabm_work
    use fabm_job, only: type_job, type_task
-   use fabm_properties, only: type_property_dictionary
+   use fabm_config, only: fabm_load_settings
 
    implicit none
 
@@ -34,13 +34,13 @@ module fabm_omp
 
 contains
 
-   function fabm_create_omp_model(path, initialize, parameters, unit) result(model)
+   function fabm_create_omp_model(path, initialize, settings, unit) result(model)
       use fabm_config, only: fabm_configure_model
-      character(len=*),                optional, intent(in) :: path
-      logical,                         optional, intent(in) :: initialize
-      type (type_property_dictionary), optional, intent(in) :: parameters
-      integer,                         optional, intent(in) :: unit
-      class (type_fabm_omp_model), pointer                  :: model
+      character(len=*),                  optional, intent(in)    :: path
+      logical,                           optional, intent(in)    :: initialize
+      type (type_fabm_settings), target, optional, intent(inout) :: settings
+      integer,                           optional, intent(in)    :: unit
+      class (type_fabm_omp_model), pointer                       :: model
 
       logical :: initialize_
 
@@ -48,7 +48,14 @@ contains
       call fabm_initialize_library()
 
       allocate(model)
-      call fabm_configure_model(model%root, model%schedules, model%log, path, parameters=parameters, unit=unit)
+      model%root%parameters%path = ''
+      model%root%couplings%path = ''
+      if (present(settings)) then
+         call model%settings%take_values(settings)
+      else
+         call fabm_load_settings(model%settings, path, unit=unit)
+      end if
+      call fabm_configure_model(model%root, model%settings, model%schedules, model%log)
 
       ! Initialize model tree
       initialize_ = .true.
