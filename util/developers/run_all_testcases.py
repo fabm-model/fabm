@@ -269,7 +269,7 @@ def test_harness(args, testcases):
         success = cmake('test_harness/%s' % host, build_dir, fabm_base, args.cmake, cmake_arguments=['-DFABM_HOST=%s' % host, '-DCMAKE_BUILD_TYPE=debug'] + args.cmake_arguments, target='test_host')
         if not success:
             continue
-        exe = os.path.join(build_dir, 'Debug/test_host.exe' if os.name == 'nt' else 'test_host')
+        exe = os.path.join(build_dir, 'test', 'Debug/test_host.exe' if os.name == 'nt' else 'test_host')
         for case, path in testcases.items():
             shutil.copy(path, os.path.join(run_dir, 'fabm.yaml'))
             run('test_harness/%s/%s' % (host, case), [exe, '--simulate', '-n', '10'], cwd=run_dir)

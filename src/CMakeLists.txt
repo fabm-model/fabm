@@ -206,14 +206,11 @@ if(FABM_BUILD_OMP_API)
 endif()
 
 # Tests
-add_executable(test_host EXCLUDE_FROM_ALL
-               ${CMAKE_CURRENT_LIST_DIR}/test/host.F90
-               ${CMAKE_CURRENT_LIST_DIR}/test/models.F90
-              )
-target_link_libraries(test_host PRIVATE fabm)
+set(CMAKE_FOLDER fabm/tests)
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/test" test)
 
 # Place projects in specific solution folders (Visual Studio only).
-set_property(TARGET fabm_base fabm test_host PROPERTY FOLDER fabm)
+set_property(TARGET fabm_base fabm PROPERTY FOLDER fabm)
 
 if(NOT FABM_FORCED_HOST)
   # Re-initialize installation prefix if needed.
