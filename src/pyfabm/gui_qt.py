@@ -3,12 +3,14 @@ import pyfabm
 
 try:
     from PyQt5 import QtCore, QtGui, QtWidgets
-except ImportError:
+except ImportError as e1:
     try:
         from PySide import QtCore, QtGui
 
         QtWidgets = QtGui
-    except ImportError:
+    except ImportError as e2:
+        print(e1)
+        print(e2)
         print("Unable to load PyQt5 or PySide. Is either installed?")
         sys.exit(1)
 
