@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools >= 61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyfabm"
+version = "2.0.0"
+authors = [
+  {name = "Jorn Bruggeman", email = "jorn@bolding-bruggeman.com"}
+]
+description = "Python driver for FABM"
+requires-python = ">=3.7"
+dependencies = [
+  "numpy"
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+  "Operating System :: OS Independent"
+]
+
+[project.urls]
+"Homepage" = "https://fabm.net"
+"Documentation" = "https://fabm.net/python"
+"Repository" = "https://fabm.net/code"
+
+[project.scripts]
+fabm_complete_yaml = "pyfabm.utils.fabm_complete_yaml:main"
+fabm_configuration_gui = "pyfabm.utils.fabm_configuration_gui:main"
+fabm_describe_model = "pyfabm.utils.fabm_describe_model:main"
+fabm_evaluate = "pyfabm.utils.fabm_evaluate:main"
+fabm_stress_test = "pyfabm.utils.fabm_stress_test:main"

@@ -1,6 +1,5 @@
 module fabm_coupling
    use fabm_types
-   use fabm_properties
    use fabm_builtin_models
    use fabm_driver
 
@@ -176,24 +175,37 @@ contains
       class (type_base_model), intent(inout) :: self
 
       type (type_link),           pointer :: link
-      class (type_property),      pointer :: master_name
-      class (type_coupling_task), pointer :: task
+      character(len=:), allocatable       :: master_name
+      class (type_coupling_task), pointer :: task 
+      integer                             :: source
+      logical                             :: couplable
+      integer                             :: display
+      class (type_coupling_task), pointer :: coupling
 
       link => self%links%first
       do while (associated(link))
          ! Only process own links (those without slash in the name)
-         if (index(link%name, '/') == 0) then
-            master_name => self%couplings%find_in_tree(link%name)
-            if (associated(master_name)) then
+         source = link%original%source
+         couplable = source == source_state .or. source == source_unknown
+         if (index(link%name, '/') == 0 .and. couplable) then
+            display = display_inherit
+            if (link%original%presence == presence_internal .or. associated(self%coupling_task_list%find(link))) display = display_advanced
+            master_name = self%couplings%get_string(trim(link%name), trim(link%original%long_name), units=trim(link%original%units), default='', display=display)
+            if (master_name /= '') then
                call self%coupling_task_list%add(link, .true., task)
                task%user_specified = .true.
-               select type (master_name)
-               class is (type_string_property)
-                  task%master_name = master_name%value
-               end select
+               task%master_name = master_name
             end if    ! Coupling provided
          end if   ! Our own link, which may be coupled
          link => link%next
+      end do
+
+      ! Allow custom coupling tasks (e.g., type_coupling_from_model in fabm_particle)
+      ! to determine the final variable that is to be coupled to
+      coupling => self%coupling_task_list%first
+      do while (associated(coupling))
+         call coupling%resolve()
+         coupling => coupling%next
       end do
 
       self%coupling_task_list%includes_custom = .true.
@@ -208,6 +220,7 @@ contains
       class (type_coupling_task),    pointer :: coupling, next_coupling
       type (type_internal_variable), pointer :: master
       type (type_link),              pointer :: link
+      integer                                :: istart, istop
 
       ! Find root model, which will handle the individual coupling tasks.
       root => self
@@ -258,7 +271,13 @@ contains
                else
                   ! This is a coupling by variable name.
                   ! Try to find the master variable among the variables of the requesting model or its parents.
-                  if (coupling%slave%name /= coupling%master_name) then
+                  istart = index(coupling%master_name, '(')
+                  if (istart /= 0) then
+                     istop = len_trim(coupling%master_name)
+                     if (coupling%master_name(istop:istop) /= ')') call self%fatal_error('process_coupling_tasks', &
+                        'Parameterized coupling ' // trim(coupling%master_name) // ' should end with closing parenthesis.')
+                     call resolve_parameterized_coupling(coupling%master_name(1:istart-1), coupling%master_name(istart+1:istop-1), coupling)
+                  elseif (coupling%slave%name /= coupling%master_name) then
                      ! Master and slave name differ: start master search in current model, then move up tree.
                      master => self%find_object(coupling%master_name, recursive=.true., exact=.false.)
                   elseif (associated(self%parent)) then
@@ -298,6 +317,37 @@ contains
          call process_coupling_tasks(child%model, stage)
          child => child%next
       end do
+
+   contains
+
+      subroutine resolve_parameterized_coupling(name, args, task)
+         character(len=*),           intent(in)    :: name, args
+         class (type_coupling_task), intent(inout) :: task
+
+         type (type_interior_standard_variable)   :: interior_standard_variable
+         type (type_bottom_standard_variable)     :: bottom_standard_variable
+         type (type_surface_standard_variable)    :: surface_standard_variable
+         type (type_horizontal_standard_variable) :: horizontal_standard_variable
+
+         select case (name)
+         case ('standard_variable')
+            select case (task%slave%target%domain)
+            case (domain_interior)
+               interior_standard_variable%name = args
+               task%master_standard_variable => interior_standard_variable%typed_resolve()
+            case (domain_bottom)
+               bottom_standard_variable%name = args
+               task%master_standard_variable => bottom_standard_variable%typed_resolve()
+            case (domain_horizontal)
+               horizontal_standard_variable%name = args
+               task%master_standard_variable => horizontal_standard_variable%typed_resolve()
+            case default
+               call self%fatal_error('process_coupling_tasks', 'Unknown domain for ' // task%slave%name // '.')
+            end select
+         case default
+            call self%fatal_error('process_coupling_tasks', 'Unknown parameterized coupling type "' // name // '".')
+         end select
+      end subroutine
 
    end subroutine process_coupling_tasks
 
@@ -676,7 +726,7 @@ contains
 
    end subroutine create_conservation_checks
 
-   recursive subroutine couple_variables(self,master,slave)
+   recursive subroutine couple_variables(self, master, slave)
       class (type_base_model), intent(inout), target :: self
       type (type_internal_variable), pointer         :: master, slave
 

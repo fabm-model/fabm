@@ -26,7 +26,7 @@
 ! End of input symbol validation
 ! ========================================================
 
-#ifndef _NO_DO_CONCURRENT_
+#ifndef _FABM_NO_DO_CONCURRENT_
 #  define _DO_CONCURRENT_(iterator,start,stop) do concurrent (iterator=start:stop)
 #  define _DO_CONCURRENT_WITH_STRIDE_(iterator,start,stop,stride) do concurrent (iterator=start:stop:stride)
 #else

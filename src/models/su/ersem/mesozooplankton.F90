@@ -73,7 +73,7 @@ contains
 ! !LOCAL VARIABLES:
       integer           :: iprey
       character(len=16) :: index
-      type (type_weighted_sum),pointer :: total_prey_calculator
+      class (type_weighted_sum),pointer :: total_prey_calculator
       real(rk)          :: pu_ea,pu_eaR
       logical           :: preyispom
       real(rk)          :: c0

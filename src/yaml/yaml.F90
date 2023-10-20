@@ -22,7 +22,7 @@ module yaml
 
    private
 
-   public parse,error_length
+   public parse, error_length
 
    integer,parameter :: line_length  = 2048
    integer,parameter :: error_length = 2048
@@ -42,7 +42,7 @@ module yaml
 
 contains
 
-   function parse(path,unit,error) result(root)
+   function parse(path, unit, error) result(root)
       integer,                intent(in)  :: unit
       character(len=*),       intent(in)  :: path
       character(error_length),intent(out) :: error
@@ -180,8 +180,8 @@ contains
             if (file%indent>firstindent) then
                call file%set_error('unexpected increase in indentation following list item.')
                return
-            elseif (file%eof .or. file%indent<firstindent) then
-               ! End-of-file or decrease in indentation signifies that the list has ended.
+            elseif (file%eof .or. file%indent<firstindent .or. file%line(1:2)/='- ') then
+               ! End-of-file, decrease in indentation, or missing "- " signifies that the list has ended.
                return
             end if
          end do

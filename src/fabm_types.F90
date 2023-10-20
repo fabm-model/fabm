@@ -17,6 +17,7 @@ module fabm_types
       type_universal_standard_variable => type_universal_standard_variable
    use fabm_properties
    use fabm_driver, only: driver
+   use yaml_settings
 
    implicit none
 
@@ -59,6 +60,11 @@ module fabm_types
    public get_aggregate_variable_access, type_aggregate_variable_access, type_contribution
 
    public type_coupling_task
+
+   public type_fabm_settings
+
+   ! Expose symbols defined in yaml_settings module
+   public type_option, display_inherit, display_normal, display_advanced, display_hidden
 
    ! For backward compatibility (20200302, pre 1.0)
    public type_bulk_standard_variable
@@ -161,6 +167,8 @@ module fabm_types
       logical                                      :: user_specified = .false.
       class (type_coupling_task), pointer          :: previous    => null()
       class (type_coupling_task), pointer          :: next        => null()
+   contains
+      procedure :: resolve => coupling_task_resolve
    end type
 
    type type_coupling_task_list
@@ -168,8 +176,19 @@ module fabm_types
       logical                             :: includes_custom = .false.
    contains
       procedure :: remove     => coupling_task_list_remove
+      procedure :: find       => coupling_task_list_find
       procedure :: add        => coupling_task_list_add
       procedure :: add_object => coupling_task_list_add_object
+   end type
+
+   type,extends(type_settings) :: type_fabm_settings
+   contains
+      procedure :: create_child    => settings_create_child
+      procedure :: set_real        => settings_set_real
+      procedure :: set_integer     => settings_set_integer
+      procedure :: set_logical     => settings_set_logical
+      procedure :: set_string      => settings_set_string
+      generic :: set => set_real, set_integer, set_logical, set_string
    end type
 
    ! --------------------------------------------------------------------------
@@ -436,8 +455,8 @@ module fabm_types
       type (type_link_list) :: links
       type (type_aggregate_variable_access), pointer :: first_aggregate_variable_access => null()
 
-      type (type_hierarchical_dictionary) :: couplings
-      type (type_hierarchical_dictionary) :: parameters
+      type (type_fabm_settings) :: couplings
+      type (type_fabm_settings) :: parameters
 
       class (type_expression), pointer :: first_expression => null()
 
@@ -459,6 +478,7 @@ module fabm_types
       procedure :: add_child
 
       ! Procedures for adding variables [during initialization only]
+      procedure :: add_variable
       procedure :: add_interior_variable
       procedure :: add_horizontal_variable
       procedure :: add_scalar_variable
@@ -697,6 +717,8 @@ module fabm_types
 
    class (type_base_model_factory), pointer, save, public :: factory => null()
 
+   logical, save, public :: fabm_parameter_pointers = .false.
+
 contains
 
    subroutine base_initialize(self, configunit)
@@ -776,20 +798,20 @@ contains
       class (type_base_model), intent(inout) :: self
 
       type (type_model_list_node),           pointer :: node
+      class (type_base_model),               pointer :: child
       type (type_aggregate_variable_access), pointer :: aggregate_variable_access, next_aggregate_variable_access
       class (type_expression),               pointer :: expression, next_expression
       type (type_link),                      pointer :: link
 
       node => self%children%first
       do while (associated(node))
-         call node%model%finalize()
-         deallocate(node%model)
+         ! First assigning node%model to child seems to work around bug in nvfortran
+         child => node%model
+         call child%finalize()
+         deallocate(child)
          node => node%next
       end do
       call self%children%finalize()
-
-      call self%couplings%finalize()
-      call self%parameters%finalize()
 
       aggregate_variable_access => self%first_aggregate_variable_access
       do while (associated(aggregate_variable_access))
@@ -1003,8 +1025,8 @@ contains
          model%long_name = trim(model%name)
       end if
       model%parent => self
-      call self%parameters%add_child(model%parameters, trim(model%name))
-      call self%couplings%add_child(model%couplings, trim(model%name))
+      if (.not. associated(model%parameters%parent)) call self%parameters%attach_child(model%parameters, trim(model%name), display=display_hidden)
+      if (.not. associated(model%couplings%parent)) call self%couplings%attach_child(model%couplings, trim(model%name), display=display_hidden)
       call self%children%append(model)
       call model%initialize(-1)
       model%rdt__ = 1._rk / model%dt
@@ -1775,10 +1797,13 @@ contains
       real(rk),                      target,            optional :: background
       type (type_link),              pointer,           optional :: link
 
-      integer                   :: length, i
-      character(len=256)        :: text
-      type (type_link), pointer :: link_
+      integer                                      :: length, i
+      character(len=256)                           :: text
+      type (type_link), pointer                    :: link_
       class (type_base_standard_variable), pointer :: pstandard_variable
+      character(len=attribute_length)              :: oriname
+      integer                                      :: instance
+      logical                                      :: duplicate
 
       ! Check whether the model information may be written to (only during initialization)
       if (self%frozen) call self%fatal_error('add_variable', &
@@ -1872,6 +1897,24 @@ contains
          _ASSERT_(variable%source /= source_state, 'add_variable', 'Variable ' // trim(name) // ' being registered with source_state and write index.')
          call variable%write_indices%append(write_index)
       end if
+      if (variable%source == source_state) then
+         _ASSERT_(variable%domain == domain_interior .or. variable%domain == domain_surface .or. variable%domain == domain_bottom, 'add_variable', 'Variable ' // trim(name) // ' being registered with a domain that does not allow source_state.')
+      end if
+
+      ! Check if a link with this name exists.
+      ! If so, append an integer number to make the name unique
+      duplicate = associated(self%links%find(variable%name))
+      if (duplicate) then
+         ! Link with this name exists already.
+         ! Append numbers to the variable name until a unique name is found.
+         oriname = variable%name
+         instance = 0
+         do
+            write (variable%name,'(a,a,i0)') trim(oriname), '_', instance
+            if (.not. associated(self%links%find(variable%name))) exit
+            instance = instance + 1
+         end do
+      end if
 
       ! Create a class pointer and use that to create a link.
       link_ => add_object(self, variable)
@@ -1879,6 +1922,9 @@ contains
          if (associated(link)) call self%fatal_error('add_variable', 'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(link%name) // '.')
          link => link_
       end if
+
+      ! If this name matched that of a previous variable, create a coupling to it.
+      if (duplicate) call self%request_coupling(link_, oriname)
    end subroutine add_variable
 
    subroutine add_interior_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
@@ -1979,26 +2025,8 @@ contains
       class (type_base_model), target, intent(inout) :: self
       type (type_internal_variable), pointer         :: object
 
-      type (type_link), pointer         :: link, parent_link
-      character(len=attribute_length)   :: oriname
-      integer                           :: instance
-      logical                           :: duplicate
+      type (type_link),         pointer :: link, parent_link
       type (type_link_pointer), pointer :: link_pointer
-
-      ! First check if a link with this name exists.
-      duplicate = associated(self%links%find(object%name))
-
-      if (duplicate) then
-         ! Link with this name exists already.
-         ! Append numbers to the variable name until a unique name is found.
-         oriname = object%name
-         instance = 0
-         do
-            write (object%name,'(a,a,i0)') trim(oriname), '_', instance
-            if (.not. associated(self%links%find(object%name))) exit
-            instance = instance + 1
-         end do
-      end if
 
       ! Create link for this object.
       link => self%links%append(object, object%name)
@@ -2008,9 +2036,6 @@ contains
       link_pointer%p => link
       link_pointer%next => object%first_link
       object%first_link => link_pointer
-
-      ! If this name matched that of a previous variable, create a coupling to it.
-      if (duplicate) call self%request_coupling(link, oriname)
 
       ! Forward to parent
       if (associated(self%parent)) then
@@ -2488,187 +2513,89 @@ contains
       if (associated(self%parent)) call register_expression(self%parent, expression)
    end subroutine
 
-   subroutine get_real_parameter(self, value, name, units, long_name, default, scale_factor, minimum, maximum)
+   subroutine get_real_parameter(self, value, name, units, long_name, default, scale_factor, minimum, maximum, display)
       class (type_base_model), intent(inout), target  :: self
-      real(rk),                intent(inout)          :: value
+      real(rk),                intent(inout), target  :: value
       character(len=*),        intent(in)             :: name
       character(len=*),        intent(in),   optional :: units, long_name
       real(rk),                intent(in),   optional :: default, scale_factor, minimum, maximum
+      integer,                 intent(in),   optional :: display
 
-      class (type_property), pointer :: property
-      logical                        :: success
-      type (type_real_property)      :: current_parameter
-      character(len=13)              :: text1, text2
+      integer :: display_
 
-      if (present(default)) then
-         current_parameter%has_default = .true.
-         current_parameter%default = default
-         value = default
+      if (present(display)) then
+         display_ = display
+      elseif (self%user_created) then
+         display_ = display_normal
+      else
+         display_ = display_inherit
       end if
-
-      ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-      property => self%parameters%find_in_tree(name)
-      if (associated(property)) then
-         ! Value found - try to convert to real.
-         value = property%to_real(success=success)
-         if (.not. success) call self%fatal_error('get_real_parameter', &
-            'Value "' // trim(property%to_string()) // '" for parameter "' // trim(name) // '" is not a real number.')
-      elseif (.not.present(default)) then
-         call self%fatal_error('get_real_parameter', 'No value provided for parameter "' // trim(name) // '".')
+      if (fabm_parameter_pointers) then
+         call self%parameters%get(value, name, long_name, units, default, minimum, maximum, scale_factor, display=display_)
+      else
+         value = self%parameters%get_real(name, long_name, units, default, minimum, maximum, scale_factor, display=display_)
       end if
-
-      if (present(minimum)) then
-         if (value < minimum) then
-            write (text1,'(G13.6)') value
-            write (text2,'(G13.6)') minimum
-            call self%fatal_error('get_real_parameter', 'Value ' // trim(adjustl(text1)) // ' for parameter "' // trim(name) &
-               // '" is less than prescribed minimum of ' // trim(adjustl(text2)) // '.')
-         end if
-      end if
-      if (present(maximum)) then
-         if (value > maximum) then
-            write (text1,'(G13.6)') value
-            write (text2,'(G13.6)') maximum
-            call self%fatal_error('get_real_parameter','Value ' // trim(adjustl(text1)) // ' for parameter "' // trim(name) &
-               // '" exceeds prescribed maximum of ' // trim(adjustl(text2)) // '.')
-         end if
-      end if
-
-      ! Store parameter settings
-      current_parameter%value = value
-      call set_parameter(self, current_parameter, name, units, long_name)
-
-      ! Apply scale factor to value provided to the model (if requested).
-      if (present(scale_factor)) value = value * scale_factor
    end subroutine get_real_parameter
 
-   subroutine set_parameter(self, parameter, name, units, long_name)
-      class (type_base_model), intent(inout), target :: self
-      class (type_property),   intent(inout)         :: parameter
-      character(len=*),        intent(in)            :: name
-      character(len=*),        intent(in), optional  :: units, long_name
-
-      parameter%name = name
-      if (present(units))     parameter%units     = units
-      if (present(long_name)) parameter%long_name = long_name
-      call self%parameters%set_in_tree(parameter)
-   end subroutine set_parameter
-
-   subroutine get_integer_parameter(self, value, name, units, long_name, default, minimum, maximum)
+   subroutine get_integer_parameter(self, value, name, units, long_name, default, minimum, maximum, options, display)
       class (type_base_model), intent(inout), target :: self
       integer,                 intent(inout)         :: value
       character(len=*),        intent(in)            :: name
       character(len=*),        intent(in), optional  :: units, long_name
       integer,                 intent(in), optional  :: default, minimum, maximum
+      type (type_option),      intent(in), optional  :: options(:)
+      integer,                 intent(in), optional  :: display
 
-      class (type_property), pointer :: property
-      type (type_integer_property)   :: current_parameter
-      logical                        :: success
-      character(len=8)               :: text1, text2
+      integer :: display_
 
-      if (present(default)) then
-         current_parameter%has_default = .true.
-         current_parameter%default = default
-         value = default
+      if (present(display)) then
+         display_ = display
+      elseif (self%user_created) then
+         display_ = display_normal
+      else
+         display_ = display_inherit
       end if
-
-      ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-      property => self%parameters%find_in_tree(name)
-      if (associated(property)) then
-         ! Value found - try to convert to integer.
-         value = property%to_integer(success=success)
-         if (.not. success) call self%fatal_error('get_integer_parameter', &
-            'Value "' // trim(property%to_string()) // '" for parameter "' // trim(name) // '" is not an integer number.')
-      elseif (.not.present(default)) then
-         call self%fatal_error('get_integer_parameter', 'No value provided for parameter "' // trim(name) // '".')
-      end if
-
-      if (present(minimum)) then
-         if (value < minimum) then
-            write (text1,'(I0)') value
-            write (text2,'(I0)') minimum
-            call self%fatal_error('get_integer_parameter','Value ' // trim(adjustl(text1)) // ' for parameter "' // trim(name) &
-               // '" is less than prescribed minimum of ' // trim(adjustl(text2)) // '.')
-         end if
-      end if
-      if (present(maximum)) then
-         if (value > maximum) then
-            write (text1,'(I0)') value
-            write (text2,'(I0)') maximum
-            call self%fatal_error('get_integer_parameter','Value ' // trim(adjustl(text1)) // ' for parameter "' // trim(name) &
-               //'" exceeds prescribed maximum of ' // trim(adjustl(text2)) // '.')
-         end if
-      end if
-
-      ! Store parameter settings
-      current_parameter%value = value
-      call set_parameter(self, current_parameter, name, units, long_name)
+      value = self%parameters%get_integer(name, long_name, units, default, minimum, maximum, options, display=display_)
    end subroutine get_integer_parameter
 
-   subroutine get_logical_parameter(self, value, name, units, long_name, default)
+   subroutine get_logical_parameter(self, value, name, units, long_name, default, display)
       class (type_base_model), intent(inout), target :: self
       logical,                 intent(inout)         :: value
       character(len=*),        intent(in)            :: name
       character(len=*),        intent(in), optional  :: units, long_name
       logical,                 intent(in), optional  :: default
+      integer,                 intent(in), optional  :: display
 
-      class (type_property), pointer :: property
-      type (type_logical_property)   :: current_parameter
-      logical                        :: success
+      integer :: display_
 
-      if (present(default)) then
-         current_parameter%has_default = .true.
-         current_parameter%default = default
-         value = default
+      if (present(display)) then
+         display_ = display
+      elseif (self%user_created) then
+         display_ = display_normal
+      else
+         display_ = display_inherit
       end if
-
-      ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-      property => self%parameters%find_in_tree(name)
-      if (associated(property)) then
-         ! Value found - try to convert to logical.
-         value = property%to_logical(success=success)
-         if (.not. success) call self%fatal_error('get_logical_parameter', &
-            'Value "' // trim(property%to_string()) // '" for parameter "' // trim(name) // '" is not a Boolean value.')
-      elseif (.not. present(default)) then
-         call self%fatal_error('get_logical_parameter', 'No value provided for parameter "' // trim(name) // '".')
-      end if
-
-      ! Store parameter settings
-      current_parameter%value = value
-      call set_parameter(self, current_parameter, name, units, long_name)
+      value = self%parameters%get_logical(name, long_name, default, display=display_)
    end subroutine get_logical_parameter
 
-   recursive subroutine get_string_parameter(self, value, name, units, long_name, default)
+   recursive subroutine get_string_parameter(self, value, name, units, long_name, default, display)
       class (type_base_model), intent(inout), target :: self
       character(len=*),        intent(inout)         :: value
       character(len=*),        intent(in)            :: name
       character(len=*),        intent(in), optional  :: units, long_name
       character(len=*),        intent(in), optional  :: default
+      integer,                 intent(in), optional  :: display
 
-      class (type_property), pointer :: property
-      type (type_string_property)    :: current_parameter
-      logical                        :: success
+      integer :: display_
 
-      if (present(default)) then
-         current_parameter%has_default = .true.
-         current_parameter%default = default
-         value = default
+      if (present(display)) then
+         display_ = display
+      elseif (self%user_created) then
+         display_ = display_normal
+      else
+         display_ = display_inherit
       end if
-
-      ! Try to find a user-specified value for this parameter in our dictionary, and in those of our ancestors.
-      property => self%parameters%find_in_tree(name)
-      if (associated(property)) then
-         ! Value found - try to convert to string.
-         value = property%to_string(success=success)
-         if (.not. success) call self%fatal_error('get_string_parameter', &
-            'Value for parameter "' // trim(name) // '" cannot be converted to string.')
-      elseif (.not. present(default)) then
-         call self%fatal_error('get_string_parameter','No value provided for parameter "' // trim(name) // '".')
-      end if
-
-      ! Store parameter settings
-      current_parameter%value = value
-      call set_parameter(self, current_parameter, name, units, long_name)
+      value = self%parameters%get_string(name, long_name, units, default, display=display_)
    end subroutine get_string_parameter
 
    function find_object(self, name, recursive, exact) result(object)
@@ -2776,7 +2703,7 @@ contains
             if (length == 2 .and. name(istart:istart + length - 1) == '..') then
                found_model => found_model%parent
             elseif (.not. (length == 1 .and. name(istart:istart + length - 1) == '.')) then
-               node => found_model%children%find(name(istart:istart + length - 1))
+               node => found_model%children%find_name(name(istart:istart + length - 1))
                found_model => null()
                if (associated(node)) found_model => node%model
             end if
@@ -2943,6 +2870,10 @@ contains
       self%first_child => null()
    end subroutine abstract_model_factory_finalize
 
+   subroutine coupling_task_resolve(self)
+      class (type_coupling_task), intent(inout) :: self
+   end subroutine
+
    subroutine coupling_task_list_remove(self, task)
       class (type_coupling_task_list), intent(inout) :: self
       class (type_coupling_task), pointer            :: task
@@ -2955,6 +2886,18 @@ contains
       deallocate(task)
    end subroutine
 
+   function coupling_task_list_find(self, link) result(existing_task)
+      class (type_coupling_task_list), intent(inout) :: self
+      type (type_link), target,        intent(in)    :: link
+      class (type_coupling_task), pointer :: existing_task
+
+      existing_task => self%first
+      do while (associated(existing_task))
+         if (associated(existing_task%slave, link)) return
+         existing_task => existing_task%next
+      end do
+   end function coupling_task_list_find
+
    function coupling_task_list_add_object(self, task, always_create) result(used)
       class (type_coupling_task_list), intent(inout) :: self
       class (type_coupling_task), pointer            :: task
@@ -2965,19 +2908,16 @@ contains
 
       ! First try to find an existing coupling task for this link. If one exists, we'll replace it.
       used = .false.
-      existing_task => self%first
-      do while (associated(existing_task))
-         ! Check if we have found an existing task for the same link.
-         if (associated(existing_task%slave, task%slave)) then
-            ! If existing one has higher priority, do not add the new task and return (used=.false.)
-            if (existing_task%user_specified .and. .not. always_create) return
 
-            ! We will overwrite the existing task - remove existing task and exit loop
-            call self%remove(existing_task)
-            exit
-         end if
-         existing_task => existing_task%next
-      end do
+      ! Check if we have found an existing task for the same link.
+      existing_task => self%find(task%slave)
+      if (associated(existing_task)) then
+         ! If existing one has higher priority, do not add the new task and return (used=.false.)
+         if (existing_task%user_specified .and. .not. always_create) return
+
+         ! We will overwrite the existing task - remove existing task and exit loop
+         call self%remove(existing_task)
+      end if
 
       used = .true.
       if (.not. associated(self%first)) then
@@ -3168,6 +3108,52 @@ contains
       self%first => null()
       self%count = 0
    end subroutine
+
+   function settings_create_child(self) result(child)
+      class (type_fabm_settings), intent(in) :: self
+      class (type_settings),  pointer        :: child
+      allocate(type_fabm_settings::child)
+   end function settings_create_child
+
+   subroutine settings_set_real(self, key, value)
+      class (type_fabm_settings), intent(inout) :: self
+      character(len=*),           intent(in)    :: key
+      real(rk),                   intent(in)    :: value
+
+      real(rk) :: final_value
+
+      final_value = self%get_real(key, key, '', default=value)
+   end subroutine settings_set_real
+
+   subroutine settings_set_integer(self, key, value)
+      class (type_fabm_settings), intent(inout) :: self
+      character(len=*),           intent(in)    :: key
+      integer,                    intent(in)    :: value
+
+      integer :: final_value
+
+      final_value = self%get_integer(key, key, default=value)
+   end subroutine settings_set_integer
+
+   subroutine settings_set_logical(self, key, value)
+      class (type_fabm_settings), intent(inout) :: self
+      character(len=*),           intent(in)    :: key
+      logical,                    intent(in)    :: value
+
+      logical :: final_value
+
+      final_value = self%get_logical(key, key, default=value)
+   end subroutine settings_set_logical
+
+   subroutine settings_set_string(self, key, value)
+      class (type_fabm_settings), intent(inout) :: self
+      character(len=*),           intent(in)    :: key
+      character(len=*),           intent(in)    :: value
+
+      character(len=:), allocatable :: final_value
+
+      final_value = self%get_string(key, key, default=value)
+   end subroutine settings_set_string
 
 end module fabm_types
 

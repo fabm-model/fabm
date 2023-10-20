@@ -6,7 +6,7 @@ add_library(fabm_models_akvaplan OBJECT
             antiparasitic.F90
            )
 
-add_dependencies(fabm_models_akvaplan fabm_base)
+target_link_libraries(fabm_models_akvaplan PRIVATE fabm_base)
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2016 - Akvaplan-niva

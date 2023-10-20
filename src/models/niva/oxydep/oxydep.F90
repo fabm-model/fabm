@@ -296,7 +296,7 @@ call self%register_diagnostic_variable(self%id_Autolys,'Autolys','mmol/m**3/d', 
  !      LimT     = 1.-temp*temp/(temp*temp +12.*12.) !Dependence on Temperature (ERGOM for dia)
  !      LimT     = 2.**((temp- 10.)/10.) -2**((temp-32.)/3.) !(ERSEM
  !      LimT     =q10*(T-20)/10 !Q10=1.88 (Gr., 2000)       
-       LimN     = yy(self%Knut,nut/(max(0.0001,phy)))             !Dependence on nutrients
+       LimN     = yy(self%Knut,nut/(max(0.0001_rk,phy)))             !Dependence on nutrients
      GrowthPhy = self%Max_uptake*LimLight*LimT*LimN*phy
 
    ! Respiraion of Phy and increase of NUT
@@ -314,10 +314,10 @@ call self%register_diagnostic_variable(self%id_Autolys,'Autolys','mmol/m**3/d', 
 ! Het
 !--------------------------------------------------------------
    ! Grazing of Het on Phy
-    GrazPhy = het*self%r_phy_het*yy(self%Kphy,(max(0.0_rk,phy-0.01))/max(het,0.0001))
+    GrazPhy = het*self%r_phy_het*yy(self%Kphy,(max(0.0_rk,phy-0.01))/max(het,0.0001_rk))
 
    ! Grazing of Het on POM
-    GrazPOM = self%r_pop_het*het*yy(self%Kpop,(max(0.0_rk,pom-0.01))/max(het,0.0001))
+    GrazPOM = self%r_pop_het*het*yy(self%Kpop,(max(0.0_rk,pom-0.01))/max(het,0.0001_rk))
 
    ! Respiraion of Het and increase of NUT
     RespHet = self%r_het_nut*het !*(0.5+0.5*tanh(oxy-self%O2_suboxic))

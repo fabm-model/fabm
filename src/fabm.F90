@@ -167,6 +167,8 @@ module fabm
       character(len=attribute_length), allocatable, dimension(:) :: dependencies_hz
       character(len=attribute_length), allocatable, dimension(:) :: dependencies_scalar
 
+      type (type_fabm_settings) :: settings
+
       ! Individual jobs
       type (type_job) :: get_interior_sources_job
       type (type_job) :: get_bottom_sources_job
@@ -389,13 +391,13 @@ contains
    ! --------------------------------------------------------------------------
    ! fabm_create_model: create a model from a yaml-based configuration file
    ! --------------------------------------------------------------------------
-   function fabm_create_model(path, initialize, parameters, unit) result(model)
-      use fabm_config, only: fabm_configure_model
-      character(len=*),                optional, intent(in) :: path
-      logical,                         optional, intent(in) :: initialize
-      type (type_property_dictionary), optional, intent(in) :: parameters
-      integer,                         optional, intent(in) :: unit
-      class (type_fabm_model), pointer                      :: model
+   function fabm_create_model(path, initialize, settings, unit) result(model)
+      use fabm_config, only: fabm_configure_model, fabm_load_settings
+      character(len=*),                  optional, intent(in)    :: path
+      logical,                           optional, intent(in)    :: initialize
+      type (type_fabm_settings), target, optional, intent(inout) :: settings
+      integer,                           optional, intent(in)    :: unit
+      class (type_fabm_model), pointer                           :: model
 
       logical :: initialize_
 
@@ -403,7 +405,14 @@ contains
       call fabm_initialize_library()
 
       allocate(model)
-      call fabm_configure_model(model%root, model%schedules, model%log, path, parameters=parameters, unit=unit)
+      model%root%parameters%path = ''
+      model%root%couplings%path = ''
+      if (present(settings)) then
+         call model%settings%take_values(settings)
+      else
+         call fabm_load_settings(model%settings, path, unit=unit)
+      end if
+      call fabm_configure_model(model%root, model%settings, model%schedules, model%log)
 
       ! Initialize model tree
       initialize_ = .true.
@@ -421,9 +430,7 @@ contains
    subroutine initialize(self)
       class (type_fabm_model), target, intent(inout) :: self
 
-      class (type_property), pointer :: property => null()
-      integer                        :: islash
-      integer                        :: ivar
+      integer :: ivar
 
       if (self%status >= status_initialize_done) &
          call fatal_error('initialize', 'initialize has already been called on this model object.')
@@ -439,15 +446,7 @@ contains
       ! This will resolve all FABM dependencies and generate final authoritative lists of variables of different types.
       call freeze_model_info(self%root)
 
-      ! Raise error for unused coupling commands.
-      property => self%root%couplings%first
-      do while (associated(property))
-         if (.not.self%root%couplings%retrieved%contains(trim(property%name))) then
-            islash = index(property%name, '/', .true.)
-            call fatal_error('initialize', 'model ' // property%name(1:islash-1) // ' does not contain variable "' // trim(property%name(islash+1:)) // '" mentioned in coupling section.')
-         end if
-         property => property%next
-      end do
+      if (.not. self%settings%check_all_used(finalize_store=.false.)) call fatal_error('initialize', 'invalid configuration')
 
       ! Build final authoritative arrays with variable metadata.
       call classify_variables(self)
@@ -520,6 +519,8 @@ contains
 
       call self%job_manager%finalize()
       call self%variable_register%finalize()
+      call self%settings%finalize()
+      call self%settings%finalize_store()
       call self%root%finalize()
       call self%links_postcoupling%finalize()
    end subroutine finalize
@@ -575,10 +576,14 @@ contains
                ! Moving average of horizontal variable
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / seconds_per_time_unit
-               allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 3))
+               allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 1))
                expression%history = 0.0_rke
-               call self%link_horizontal_data(expression%output_name, &
-                                              expression%history(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%n + 3))
+#if _HORIZONTAL_DIMENSION_COUNT_>0
+               allocate(expression%previous_value _INDEX_HORIZONTAL_LOCATION_, expression%last_exact_mean _INDEX_HORIZONTAL_LOCATION_, expression%mean _INDEX_HORIZONTAL_LOCATION_)
+#endif
+               expression%last_exact_mean = 0.0_rke
+               expression%mean = expression%missing_value
+               call self%link_horizontal_data(expression%output_name, expression%mean)
             class is (type_horizontal_temporal_maximum)
                ! Moving maximum of horizontal variable
                expression%in = expression%link%target%catalog_index
@@ -791,7 +796,7 @@ contains
          open(unit=log_unit, file=log_prefix // 'task_order.log', action='write', status='replace', iostat=ios)
          if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'task_order.log')
       end if
-      call self%job_manager%initialize(self%variable_register, self%schedules, log_unit)
+      call self%job_manager%initialize(self%variable_register, self%schedules, log_unit, self%finalize_outputs_job)
       if (self%log) then
          close(log_unit)
          open(unit=log_unit, file=log_prefix // 'graph.gv', action='write', status='replace', iostat=ios)
@@ -1161,7 +1166,7 @@ contains
       if (self%status < status_initialize_done) &
          call fatal_error('require_horizontal_data', 'This procedure can only be called after model initialization.')
       if (self%status >= status_start_done) &
-         call fatal_error('require_horizontal_data', 'This procedure cannot be called after check_ready is called.')
+         call fatal_error('require_horizontal_data', 'This procedure cannot be called after start is called.')
 
       id = self%get_horizontal_variable_id(standard_variable)
       if (.not. associated(id%variable)) &
@@ -2229,7 +2234,8 @@ contains
                _ASSERT_(associated(self%catalog%interior(expression%in)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
                call expression%update(t, self%catalog%interior(expression%in)%p _POSTARG_LOCATION_RANGE_)
             class is (type_horizontal_temporal_mean)
-               call update_horizontal_temporal_mean(expression)
+               _ASSERT_(associated(self%catalog%horizontal(expression%in)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
+               call expression%update(t, self%catalog%horizontal(expression%in)%p _POSTARG_HORIZONTAL_LOCATION_RANGE_)
             class is (type_horizontal_temporal_maximum)
                _ASSERT_(associated(self%catalog%horizontal(expression%in)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
                call expression%update(t, self%catalog%horizontal(expression%in)%p _POSTARG_HORIZONTAL_LOCATION_RANGE_)
@@ -2238,70 +2244,6 @@ contains
          end do
       end if
 
-   contains
-
-      subroutine update_horizontal_temporal_mean(expression)
-         class (type_horizontal_temporal_mean), intent(inout) :: expression
-
-         integer  :: i
-         real(rke) :: weight_right, frac_outside
-
-         if (expression%ioldest == -1) then
-            ! Start of simulation; set entire history equal to current value.
-            do i = 1, expression%n + 3
-               _BEGIN_OUTER_VERTICAL_LOOP_
-                  expression%history(_PREARG_HORIZONTAL_LOCATION_ i) = self%catalog%horizontal(expression%in)%p _INDEX_HORIZONTAL_LOCATION_
-               _END_OUTER_VERTICAL_LOOP_
-            end do
-            expression%next_save_time = t + expression%period / expression%n
-            expression%ioldest = 1
-         end if
-         do while (t >= expression%next_save_time)
-            ! Weight for linear interpolation between last stored point and current point, to get at values for desired time.
-            weight_right = (expression%next_save_time - expression%last_time) / (t - expression%last_time)
-
-            ! Remove contribution of oldest point from historical mean
-            _BEGIN_OUTER_VERTICAL_LOOP_
-               expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 2) = expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 2) &
-                  - expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%ioldest) / expression%n
-            _END_OUTER_VERTICAL_LOOP_
-
-            ! Linearly interpolate to desired time
-            _BEGIN_OUTER_VERTICAL_LOOP_
-               expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%ioldest) = (1.0_rke - weight_right)*expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 1) &
-                  + weight_right*self%catalog%horizontal(expression%in)%p _INDEX_HORIZONTAL_LOCATION_
-            _END_OUTER_VERTICAL_LOOP_
-
-            ! Add contribution of new point to historical mean
-            _BEGIN_OUTER_VERTICAL_LOOP_
-               expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 2) = expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 2) &
-                  + expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%ioldest) / expression%n
-            _END_OUTER_VERTICAL_LOOP_
-
-            ! Compute next time for which we want to store output
-            expression%next_save_time = expression%next_save_time + expression%period / expression%n
-
-            ! Increment index for oldest time point
-            expression%ioldest = expression%ioldest + 1
-            if (expression%ioldest > expression%n) expression%ioldest = 1
-         end do
-
-         ! Compute extent of time period outside history
-         frac_outside = (t - (expression%next_save_time - expression%period / expression%n)) / expression%period
-
-         ! Store current value to enable linear interpolation to next output time in subsequent call.
-         _BEGIN_OUTER_VERTICAL_LOOP_
-            expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 1) = self%catalog%horizontal(expression%in)%p _INDEX_HORIZONTAL_LOCATION_
-         _END_OUTER_VERTICAL_LOOP_
-
-         ! Set corrected running mean (move window by removing part of the start, and appending to the end)
-         _BEGIN_OUTER_VERTICAL_LOOP_
-            expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 3) = expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 2) &
-               + frac_outside * (-expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%ioldest) + expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 1))
-         _END_OUTER_VERTICAL_LOOP_
-
-         expression%last_time = t
-      end subroutine
    end subroutine prepare_inputs1
 
    subroutine prepare_inputs2(self, t, year, month, day, seconds)

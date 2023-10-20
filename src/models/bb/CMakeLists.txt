@@ -5,7 +5,7 @@ add_library(fabm_models_bb OBJECT
             passive/passive.F90
            )
 
-add_dependencies(fabm_models_bb fabm_base)
+target_link_libraries(fabm_models_bb PRIVATE fabm_base)
 
 
 #-----------------------------------------------------------------------

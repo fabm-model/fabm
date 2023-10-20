@@ -4,7 +4,7 @@ add_library(fabm_models_jrc OBJECT
             med_ergom/med_ergom.F90
            )
 
-add_dependencies(fabm_models_jrc fabm_base)
+target_link_libraries(fabm_models_jrc PRIVATE fabm_base)
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2016 - Karsten Bolding and Jorn Bruggeman (BB)         !

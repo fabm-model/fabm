@@ -3,7 +3,7 @@
 
 module fabm_work
 
-#ifndef _NO_IEEE_ARITHMETIC_
+#ifndef _FABM_NO_IEEE_ARITHMETIC_
    use, intrinsic :: ieee_arithmetic
 #endif
 
@@ -146,6 +146,7 @@ contains
       real(rki), optional,    intent(in)  :: missing(:)
 
       allocate(target(lb:size(fill)))
+      if (lb == 0) target(0) = 0.0_rki
       target(1:) = fill
    end subroutine
 
@@ -159,6 +160,7 @@ contains
       integer :: i
 
       allocate(target(1:n, lb:size(fill)))
+      if (lb == 0) target(:, 0) = 0.0_rki
       do i = 1, size(fill)
          target(:, i) = fill(i)
          if (present(nvalid)) target(nvalid + 1:, i) = missing(i)
@@ -884,7 +886,7 @@ end subroutine end_vertical_task
       output_variable => call_node%graph_node%outputs%first
       do while (associated(output_variable))
          _ASSERT_(output_variable%p%target%domain == domain_interior, 'check_interior_call_output', 'output not for interior domain')
-#ifndef _NO_IEEE_ARITHMETIC_
+#ifndef _FABM_NO_IEEE_ARITHMETIC_
          _LOOP_BEGIN_
             if (.not. ieee_is_finite(cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
                call driver%fatal_error('check_interior_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' wrote non-finite data for ' // trim(output_variable%p%target%name))
@@ -912,7 +914,7 @@ end subroutine end_vertical_task
       output_variable => call_node%graph_node%outputs%first
       do while (associated(output_variable))
          _ASSERT_(iand(output_variable%p%target%domain, domain_horizontal) /= 0, 'check_horizontal_call_output', 'output not for horizontal domain')
-#ifndef _NO_IEEE_ARITHMETIC_
+#ifndef _FABM_NO_IEEE_ARITHMETIC_
          _HORIZONTAL_LOOP_BEGIN_
             if (.not. ieee_is_finite(cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
                call driver%fatal_error('check_horizontal_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' wrote non-finite data for ' // trim(output_variable%p%target%name))
@@ -941,7 +943,7 @@ end subroutine end_vertical_task
       do while (associated(output_variable))
          select case (output_variable%p%target%domain)
          case (domain_interior)
-#ifndef _NO_IEEE_ARITHMETIC_
+#ifndef _FABM_NO_IEEE_ARITHMETIC_
             _VERTICAL_LOOP_BEGIN_
                if (.not. ieee_is_finite(cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
                   call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' wrote non-finite data for ' // trim(output_variable%p%target%name))
@@ -954,7 +956,7 @@ end subroutine end_vertical_task
                _VERTICAL_LOOP_END_
             end if
          case (domain_surface, domain_bottom, domain_horizontal)
-#ifndef _NO_IEEE_ARITHMETIC_
+#ifndef _FABM_NO_IEEE_ARITHMETIC_
             if (.not. ieee_is_finite(cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
                call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' wrote non-finite data for ' // trim(output_variable%p%target%name))
 #endif

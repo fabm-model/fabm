@@ -111,6 +111,7 @@ module fabm_standard_variables
 #include "standard_variables.h"
    contains
       procedure :: initialize => standard_variable_collection_initialize
+      procedure :: find       => standard_variable_collection_find
       procedure :: finalize   => standard_variable_collection_finalize
    end type
 
@@ -298,6 +299,21 @@ contains
       class (type_standard_variable_collection), intent(inout) :: self
 #include "standard_variable_assignments.h"
    end subroutine
+
+   function standard_variable_collection_find(self, name) result(p)
+      class (type_standard_variable_collection), intent(in) :: self
+      character(len=*),                          intent(in) :: name
+      class (type_base_standard_variable), pointer :: p
+
+      type (type_standard_variable_node), pointer :: node
+
+      p => null()
+      node => self%first
+      do while (associated(node))
+         if (node%p%name == name) p => node%p
+         node => node%next
+      end do
+   end function
 
    subroutine standard_variable_collection_finalize(self)
       class (type_standard_variable_collection), intent(inout) :: self

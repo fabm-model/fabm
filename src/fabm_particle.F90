@@ -28,7 +28,6 @@
 module fabm_particle
 
    use fabm_types
-   use fabm_properties
 
    implicit none
 
@@ -56,6 +55,9 @@ module fabm_particle
    type, extends(type_coupling_task) :: type_coupling_from_model
       type (type_model_reference), pointer :: model_reference => null()
       integer                              :: access          = access_read
+      class (type_particle_model), pointer :: owner           => null()
+   contains
+      procedure :: resolve => coupling_from_model_resolve
    end type
 
    type, extends(type_base_model) :: type_particle_model
@@ -153,7 +155,7 @@ contains
    end function resolve_model_dependency
 
    subroutine request_coupling_to_model_generic(self, slave, master_model, master_model_name, master_name, master_standard_variable)
-      class (type_particle_model),         intent(inout)           :: self
+      class (type_particle_model), target, intent(inout)           :: self
       type (type_link),target                                      :: slave
       type (type_model_id),                intent(inout), optional :: master_model
       character(len=*),                    intent(in),    optional :: master_name, master_model_name
@@ -167,6 +169,7 @@ contains
       ! This must be a pointer, because FABM will manage its memory and deallocate when appropriate.
       allocate(coupling)
       coupling%slave => slave
+      coupling%owner => self
       if (present(master_name)) coupling%master_name = master_name
       if (present(master_standard_variable)) then
          standard_variable => master_standard_variable%resolve()
@@ -196,10 +199,10 @@ contains
    end subroutine request_coupling_to_model_generic
 
    subroutine request_named_coupling_to_model(self, slave_variable, master_model, master_variable)
-      class (type_particle_model), intent(inout) :: self
-      class (type_variable_id),    intent(in)    :: slave_variable
-      type (type_model_id),        intent(inout) :: master_model
-      character(len=*),            intent(in)    :: master_variable
+      class (type_particle_model), target, intent(inout) :: self
+      class (type_variable_id),            intent(in)    :: slave_variable
+      type (type_model_id),                intent(inout) :: master_model
+      character(len=*),                    intent(in)    :: master_variable
 
       if (.not. associated(slave_variable%link)) &
          call self%fatal_error('request_named_coupling_to_model', 'slave variable must be registered before it is coupled.')
@@ -207,7 +210,7 @@ contains
    end subroutine request_named_coupling_to_model
 
    subroutine request_standard_coupling_to_model(self, slave_variable, master_model, master_variable)
-      class (type_particle_model),         intent(inout) :: self
+      class (type_particle_model), target, intent(inout) :: self
       class (type_variable_id),            intent(in)    :: slave_variable
       type (type_model_id),                intent(inout) :: master_model
       class (type_base_standard_variable), intent(in)    :: master_variable
@@ -218,10 +221,10 @@ contains
    end subroutine request_standard_coupling_to_model
 
    subroutine request_named_coupling_to_named_model(self, slave_variable, master_model, master_variable)
-      class (type_particle_model), intent(inout) :: self
-      class (type_variable_id),    intent(in)    :: slave_variable
-      character(len=*),            intent(in)    :: master_model
-      character(len=*),            intent(in)    :: master_variable
+      class (type_particle_model), target, intent(inout) :: self
+      class (type_variable_id),            intent(in)    :: slave_variable
+      character(len=*),                    intent(in)    :: master_model
+      character(len=*),                    intent(in)    :: master_variable
 
       if (.not. associated(slave_variable%link)) &
          call self%fatal_error('request_named_coupling_to_named_model', 'slave variable must be registered before it is coupled.')
@@ -229,7 +232,7 @@ contains
    end subroutine request_named_coupling_to_named_model
 
    subroutine request_standard_coupling_to_named_model(self, slave_variable, master_model, master_variable)
-      class (type_particle_model),         intent(inout) :: self
+      class (type_particle_model), target, intent(inout) :: self
       class (type_variable_id),            intent(in)    :: slave_variable
       character(len=*),                    intent(in)    :: master_model
       class (type_base_standard_variable), intent(in)    :: master_variable
@@ -246,7 +249,7 @@ contains
       class (type_base_model), pointer :: model
 
       type (type_model_reference), pointer :: reference2
-      class (type_property),       pointer :: model_master_name
+      character(len=:), allocatable        :: model_master_name
       integer                              :: istart
       class (type_particle_model), pointer :: source_model
       logical                              :: require_internal_variables_
@@ -264,56 +267,49 @@ contains
       reference%state = busy
 
       ! First find a coupling for the referenced model.
-      model_master_name => self%couplings%find_in_tree(reference%name)
-      if (.not. associated(model_master_name)) then
-         call self%fatal_error('resolve_model_reference', 'Model reference "' // trim(reference%name) // '" was not coupled.')
-         return
+      model_master_name = self%couplings%get_string(trim(reference%name), trim(reference%name))
+
+      ! Try to find referenced model among actual models (as opposed to among model dependencies)
+      reference%model => self%find_model(model_master_name, recursive=.true.)
+
+      if (.not. associated(reference%model)) then
+         ! Find starting position of local name (excluding any preprended path components)
+         istart = index(model_master_name, '/', .true.) + 1
+
+         source_model => null()
+         reference2 => null()
+         if (istart == 1) then
+            ! No slash in path; search model references within current model
+            source_model => self
+         else
+            ! Try model references in specified other model
+            model => self%find_model(model_master_name(:istart-1), recursive=.true.)
+            if (associated(model)) then
+               select type (model)
+               class is (type_particle_model)
+                  source_model => model
+               end select
+            end if
+         end if
+
+         ! Search model references
+         if (associated(source_model)) then
+            reference2 => source_model%first_model_reference
+            do while (associated(reference2))
+               if (model_master_name(istart:) == reference2%name) then
+                  reference%model => source_model%resolve_model_reference(reference2)
+                  exit
+               end if
+               reference2 => reference2%next
+            end do
+         end if
       end if
 
-      select type (model_master_name)
-      class is (type_string_property)
-         ! Try to find references model among actual models (as opposed to among model dependencies)
-         reference%model => self%find_model(model_master_name%value, recursive=.true.)
-
-         if (.not. associated(reference%model)) then
-            ! Find starting position of local name (excluding any preprended path components)
-            istart = index(model_master_name%value, '/', .true.) + 1
-
-            source_model => null()
-            reference2 => null()
-            if (istart == 1) then
-               ! No slash in path; search model references within current model
-               source_model => self
-            else
-               ! Try model references in specified other model
-               model => self%find_model(model_master_name%value(:istart-1), recursive=.true.)
-               if (associated(model)) then
-                  select type (model)
-                  class is (type_particle_model)
-                     source_model => model
-                  end select
-               end if
-            end if
-
-            ! Search model references
-            if (associated(source_model)) then
-               reference2 => source_model%first_model_reference
-               do while (associated(reference2))
-                  if (model_master_name%value(istart:) == reference2%name) then
-                     reference%model => source_model%resolve_model_reference(reference2)
-                     exit
-                  end if
-                  reference2 => reference2%next
-               end do
-            end if
-         end if
-
-         if (.not. associated(reference%model)) then
-            call self%fatal_error('resolve_model_reference', &
-               'Referenced model instance "' // trim(model_master_name%value) // '" not found.')
-            return
-         end if
-      end select
+      if (.not. associated(reference%model)) then
+         call self%fatal_error('resolve_model_reference', &
+            'Referenced model instance "' // model_master_name // '" not found.')
+         return
+      end if
 
       reference%state = done
       model => reference%model
@@ -349,17 +345,18 @@ contains
    recursive subroutine before_coupling(self)
       class (type_particle_model), intent(inout) :: self
 
-      type (type_model_reference),           pointer :: reference
-      class (type_base_model),               pointer :: model
-      class (type_coupling_task),            pointer :: coupling, next_coupling
-      type (type_aggregate_variable_access), pointer :: aggregate_variable_access
-      character(len=attribute_length)                :: master_name
+      type (type_model_reference), pointer :: reference
+      class (type_base_model),     pointer :: model
 
+      ! For model references that include the model state, buid the corresponding lists
+      ! of state variable identifiers now, and request their coupling to the referenced model.
+      ! This must be done before the actual [variable] coupling starts, and therefore has
+      ! to happen here, in before_coupling.
       reference => self%first_model_reference
       do while (associated(reference))
-         model => resolve_model_reference(self, reference, require_internal_variables=associated(reference%id))
-         if (.not. associated(model)) return
          if (associated(reference%id)) then
+            model => resolve_model_reference(self, reference, require_internal_variables=.true.)
+            if (.not. associated(model)) return
             call build_state_id_list(self, reference, domain_interior)
             call build_state_id_list(self, reference, domain_surface)
             call build_state_id_list(self, reference, domain_bottom)
@@ -367,28 +364,28 @@ contains
          reference => reference%next
       end do
 
-      ! Resolve all couplings to variables in specific other models.
-      coupling => self%coupling_task_list%first
-      do while (associated(coupling))
-         next_coupling => coupling%next
-         select type (model_coupling => coupling)
-         class is (type_coupling_from_model)
-            if (coupling%master_name /= '') then
-               ! Coupling to a named variable
-               master_name = trim(model_coupling%model_reference%model%get_path()) // '/' // trim(coupling%master_name)
-            else
-               ! Coupling to a standard [aggregate] variable
-               aggregate_variable_access => get_aggregate_variable_access(model_coupling%model_reference%model, model_coupling%master_standard_variable)
-               aggregate_variable_access%access = ior(aggregate_variable_access%access, model_coupling%access)
-               master_name = trim(model_coupling%model_reference%model%get_path()) // '/' // trim(model_coupling%master_standard_variable%name)
-            end if
-            call self%request_coupling(coupling%slave, master_name)
-         end select
-         coupling => next_coupling
-      end do
-
       call complete_internal_variables_if_needed(self)
    end subroutine before_coupling
+
+   subroutine coupling_from_model_resolve(self)
+      class (type_coupling_from_model), intent(inout) :: self
+
+      class (type_base_model),               pointer :: model
+      type (type_aggregate_variable_access), pointer :: aggregate_variable_access
+
+      model => resolve_model_reference(self%owner, self%model_reference)
+      if (.not. associated(model)) return
+      if (self%master_name /= '') then
+         ! Coupling to a named variable
+         self%master_name = trim(self%model_reference%model%get_path()) // '/' // trim(self%master_name)
+      else
+         ! Coupling to a standard [aggregate] variable
+         aggregate_variable_access => get_aggregate_variable_access(self%model_reference%model, self%master_standard_variable)
+         aggregate_variable_access%access = ior(aggregate_variable_access%access, self%access)
+         self%master_name = trim(self%model_reference%model%get_path()) // '/' // trim(self%master_standard_variable%name)
+      end if
+      self%master_standard_variable => null()
+end subroutine
 
    subroutine build_state_id_list(self, reference, domain)
       class (type_particle_model), intent(inout) :: self
@@ -446,7 +443,7 @@ contains
 
    end subroutine build_state_id_list
 
-   subroutine finalize(self)
+   recursive subroutine finalize(self)
       class (type_particle_model),  intent(inout) :: self
 
       type (type_model_reference), pointer :: reference, next_reference

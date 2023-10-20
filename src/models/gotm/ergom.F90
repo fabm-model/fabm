@@ -282,7 +282,7 @@ contains
       class (type_gotm_ergom), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_
 
-      real(rk) :: fl,amb,nib,pob,deb,oxb,taub,temp
+      real(rk) :: fl,nib,deb,oxb,taub,temp
       real(rk) :: llds,llsd,llsa,wo=30.0_rk,wn=0.1_rk,dot2=0.2_rk
       real(rk) :: thopnp,thomnp,thomnm,thsum
 
@@ -292,10 +292,8 @@ contains
       _BOTTOM_LOOP_BEGIN_
 
          ! Retrieve current (local) state variable values.
-         _GET_(self%id_am,amb)
          _GET_(self%id_de,deb)
          _GET_(self%id_ni,nib)
-         _GET_(self%id_po,pob)
          _GET_(self%id_o2,oxb)
          _GET_BOTTOM_(self%id_fl,fl)
 
@@ -389,7 +387,7 @@ contains
       class (type_gotm_ergom), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_SURFACE_
 
-      real(rk)            :: temp,wnd,salt,o2,ni,am,po
+      real(rk)            :: temp,wnd,salt,o2
       real(rk), parameter :: secs_pr_day=86400.0_rk
       real(rk)            :: p_vel,sc,flo2
       integer, parameter  :: newflux=1
@@ -398,15 +396,11 @@ contains
          _GET_(self%id_temp,temp)
          _GET_(self%id_salt,salt)
          _GET_SURFACE_(self%id_wind,wnd)
-
          _GET_(self%id_o2,o2)
-         _GET_(self%id_ni,ni)
-         _GET_(self%id_am,am)
-         _GET_(self%id_po,po)
 
-         ! Calculation of the surface oxygen flux
+         ! Air-sea exchange of oxygen
          if (newflux .eq. 1) then
-            sc=1450.+(1.1*temp-71.0_rk)*temp
+            sc=1450.0_rk+(1.1_rk*temp-71.0_rk)*temp
             if (wnd .gt. 13.0_rk) then
                p_vel = 5.9_rk*(5.9_rk*wnd-49.3_rk)/sqrt(sc)
             else
@@ -426,6 +420,7 @@ contains
          end if
          _ADD_SURFACE_FLUX_(self%id_o2,flo2)
 
+         ! Surface deposition of nitrate, ammonium, phosphate
          _ADD_SURFACE_FLUX_(self%id_ni,self%sfl_ni)
          _ADD_SURFACE_FLUX_(self%id_am,self%sfl_am)
          _ADD_SURFACE_FLUX_(self%id_po,self%sfl_po)
