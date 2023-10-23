@@ -137,7 +137,7 @@ contains
          end if
       end do
 
-      !$OMP PARALLEL DEFAULT(SHARED) PRIVATE(ithread _POSTARG_LOCATION_)
+      !$OMP PARALLEL DEFAULT(SHARED) PRIVATE(ithread, task _POSTARG_LOCATION_)
       ithread = omp_get_thread_num() + 1
 
       task => job%first_task
