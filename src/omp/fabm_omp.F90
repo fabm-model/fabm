@@ -150,7 +150,7 @@ contains
             !$OMP DO SCHEDULE(runtime)
 #endif
             _BEGIN_OUTER_INTERIOR_LOOP_
-               call process_interior_slice(task,self%domain, self%catalog, self%cache_fill_values, self%store, self%caches(ithread)%interior _POSTARG_INTERIOR_IN_)
+               call process_interior_slice(task, self%domain, self%catalog, self%cache_fill_values, self%store, self%caches(ithread)%interior _POSTARG_INTERIOR_IN_)
             _END_OUTER_INTERIOR_LOOP_
 #if (_FABM_DIMENSION_COUNT_==0||(_FABM_DIMENSION_COUNT_==1&&_FABM_VECTORIZED_DIMENSION_INDEX_==1))
             !$OMP END SINGLE
@@ -201,12 +201,19 @@ contains
                if (_IS_UNMASKED_(self%domain%mask_hz _INDEX_HORIZONTAL_LOCATION_)) call process_vertical_slice(task, self%domain, &
                   self%catalog, self%cache_fill_values, self%store, self%caches(ithread)%vertical _POSTARG_VERTICAL_IN_)
             _END_OUTER_VERTICAL_LOOP_
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-            _VERTICAL_START_ = self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
-            _VERTICAL_STOP_ = self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
-#endif
 #if (_HORIZONTAL_DIMENSION_COUNT_==0)
             !$OMP END SINGLE
+#else
+            !$OMP END DO
+#endif
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#  if _FABM_BOTTOM_INDEX_==-1
+#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+            _VERTICAL_START_ = self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
+#    else
+            _VERTICAL_STOP_ = self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
+#    endif
+#  endif
 #endif
          end select
          task => task%next
