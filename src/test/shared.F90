@@ -54,16 +54,16 @@ contains
          stop 2
       end if
 
+      call driver%log_message('Loading environment from ' // path)
       select type (yaml_root)
       class is (type_yaml_dictionary)
          yaml_pair => yaml_root%first
          do while (associated(yaml_pair))
             select type (node => yaml_pair%value)
             class is (type_scalar)
-               call driver%log_message('Setting '//trim(yaml_pair%key)//' to '//trim(node%string))
                value = node%to_real(0._yaml_real_kind, success)
                if (.not. success) then
-                  call driver%log_message('Cannot parse '//trim(node%string)//' as real.')
+                  call driver%log_message('Cannot parse ' // trim(node%string) // ' as real.')
                   stop 2
                end if
                allocate(input)
@@ -84,17 +84,18 @@ contains
                         input%scalar_data = value
                         call model%link_scalar(input%scalar_id, input%scalar_data)
                      else
-                        call driver%log_message('WARNING: environment variable '//trim(yaml_pair%key) &
-                           //' is not used by FABM model and will be ignored.')
+                        !call driver%log_message('WARNING: environment variable '//trim(yaml_pair%key) &
+                        !   //' is not used by FABM model and will be ignored.')
                         deallocate(input)
                      end if
                   end if
                end if
+               if (associated(input)) then
+                  call driver%log_message('  ' // trim(yaml_pair%key) // ': ' // trim(node%string))
+                  input%next => first_input
+                  first_input => input
+               end if
             end select
-            if (associated(input)) then
-               input%next => first_input
-               first_input => input
-            end if
             yaml_pair => yaml_pair%next
          end do
       class default
