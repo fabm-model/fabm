@@ -16,6 +16,7 @@ if __name__ == "__main__":
     if args.omp_places:
         env.update(OMP_PLACES=args.omp_places)
     result = []
+    ref_ranges = None
     for ncpus in range(1, 1 + multiprocessing.cpu_count()):
         print(f"Testing with {ncpus} cores...", end="", flush=True)
         p = subprocess.run(
@@ -25,10 +26,29 @@ if __name__ == "__main__":
             stderr=subprocess.STDOUT,
             encoding="ascii",
         )
-        last_line = p.stdout.rsplit("\n", 2)[1].strip()
-        assert last_line.startswith("Wall time:")
-        nsec = float(last_line[10:-2].strip())
+        nsec = None
+        read_ranges = False
+        ranges = {}
+        for line in p.stdout.split("\n"):
+            if line.startswith("Wall time:"):
+                nsec = float(line[10:-2].strip())
+            if read_ranges:
+                read_ranges = line.startswith("  ")
+                if read_ranges:
+                    name, minval, maxval = line.strip().split(" ")
+                    ranges[name] = (float(minval), float(maxval))
+            else:
+                read_ranges = line.startswith("Final variable ranges:") or ()
         print(f" {nsec} s")
+        if ref_ranges is None:
+            ref_ranges = ranges
+        else:
+            for name, (minref, maxref) in ref_ranges.items():
+                minval, maxval = ranges[name]
+                if minval != minref or maxval != maxref:
+                    print(
+                        f"  {name} mismatch: {minval} - {maxval} vs {minref} - {maxref}"
+                    )
         result.append([ncpus, nsec])
 
     if args.plot:
@@ -41,4 +61,5 @@ if __name__ == "__main__":
         ax.set_xlabel("number of cores")
         ax.set_ylabel("wall time relative to serial run (%)")
         ax.grid()
+        ax.set_ylim(0.0, 100.0)
         fig.savefig(args.plot, dpi=150)

@@ -345,7 +345,7 @@ program test_omp
    allocate(total_hz(size(model%conserved_quantities)))
 #endif
 
-   print *, 'Using ', omp_get_max_threads(), ' threads'
+   write (*,'(a, i0, a)') 'Using ', omp_get_max_threads(), ' threads'
    call simulate(ntest)
 
    call model%finalize()
@@ -540,6 +540,8 @@ program test_omp
       logical, parameter :: repair = .false.
       logical :: valid
       integer(8) :: clock, clock_start, ticks_per_sec
+      real(rke), parameter :: dt = 600.0_rke
+      real(rke) :: minvalue, maxvalue
 
       ireport = n / 10
 
@@ -556,7 +558,7 @@ program test_omp
 #  define _OMP_END_DO_INTERIOR_ END SINGLE
 #else
 #  define _OMP_DO_INTERIOR_ DO SCHEDULE(runtime)
-#  define _OMP_END_DO_INTERIOR_ END DO
+#  define _OMP_END_DO_INTERIOR_ END DO NOWAIT
 #endif
 
 #if (_HORIZONTAL_DIMENSION_COUNT_==0||(_HORIZONTAL_DIMENSION_COUNT_==1&&_FABM_VECTORIZED_DIMENSION_INDEX_!=_FABM_DEPTH_DIMENSION_INDEX_))
@@ -564,7 +566,7 @@ program test_omp
 #  define _OMP_END_DO_HORIZONTAL_ END SINGLE
 #else
 #  define _OMP_DO_HORIZONTAL_ DO SCHEDULE(runtime)
-#  define _OMP_END_DO_HORIZONTAL_ END DO
+#  define _OMP_END_DO_HORIZONTAL_ END DO NOWAIT
 #endif
 
       !$OMP PARALLEL DEFAULT(SHARED) PRIVATE(_LOCATION_)
@@ -604,6 +606,7 @@ program test_omp
             flux = 0
             sms_bt = 0
             call model%get_bottom_sources(_PREARG_HORIZONTAL_IN_ flux, sms_bt)
+            bottom_state _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_, :) = bottom_state _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_, :) + sms_bt * dt
          _END_OUTER_HORIZONTAL_LOOP_
          !$OMP _OMP_END_DO_HORIZONTAL_
 
@@ -612,6 +615,7 @@ program test_omp
             flux = 0
             sms_sf = 0
             call model%get_surface_sources(_PREARG_HORIZONTAL_IN_ flux, sms_sf)
+            surface_state _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_, :) = surface_state _INDEX_GLOBAL_HORIZONTAL_PLUS_1_(_START_:_STOP_, :) + sms_sf * dt
          _END_OUTER_HORIZONTAL_LOOP_
          !$OMP _OMP_END_DO_HORIZONTAL_
 
@@ -619,6 +623,13 @@ program test_omp
          _BEGIN_OUTER_INTERIOR_LOOP_
             dy = 0
             call model%get_interior_sources(_PREARG_INTERIOR_IN_ dy)
+            interior_state _INDEX_GLOBAL_INTERIOR_PLUS_1_(_START_:_STOP_, :) = interior_state _INDEX_GLOBAL_INTERIOR_PLUS_1_(_START_:_STOP_, :) + dy * dt
+         _END_OUTER_INTERIOR_LOOP_
+         !$OMP _OMP_END_DO_INTERIOR_
+
+         !$OMP _OMP_DO_INTERIOR_
+         _BEGIN_OUTER_INTERIOR_LOOP_
+            call model%get_vertical_movement(_PREARG_INTERIOR_IN_ w)
          _END_OUTER_INTERIOR_LOOP_
          !$OMP _OMP_END_DO_INTERIOR_
 
@@ -652,6 +663,18 @@ program test_omp
 
       call system_clock( count=clock, count_rate=ticks_per_sec)
       call cpu_time(time_end)
+
+      write (*,'(a)') 'Final variable ranges:'
+      do ivar = 1, size(model%interior_state_variables)
+#ifdef _HAS_MASK_
+         minvalue = minval(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), mask=mask==_FABM_UNMASKED_VALUE_)
+         maxvalue = maxval(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), mask=mask==_FABM_UNMASKED_VALUE_)
+#else
+         minvalue = minval(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar))
+         maxvalue = maxval(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar))
+#endif
+         write (*,'(a,a,e23.15E3,e23.15E3)') '  ', trim(model%interior_state_variables(ivar)%name), minvalue, maxvalue
+      end do
 
       write (*,'(a)') 'Simulation complete.'
       write (*,'(a,f8.3,a)') 'CPU time: ', time_end - time_begin, ' s'
