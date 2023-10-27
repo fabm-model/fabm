@@ -86,7 +86,7 @@ endif()
 # Use solution folders in IDEs
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# Use "include" rather than "add_subdirecory" to avoid inserting a separate
+# Use "include" rather than "add_subdirectory" to avoid inserting a separate
 # "src" level in the current binary directory
 include("${CMAKE_CURRENT_LIST_DIR}/src/CMakeLists.txt")
 
