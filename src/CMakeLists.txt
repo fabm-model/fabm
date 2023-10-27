@@ -25,6 +25,10 @@ set(DEFAULT_INSTITUTES
 
 set(OPTIONAL_INSTITUTES ersem mops pclake pisces)
 
+if(CMAKE_CURRENT_LIST_DIR STREQUAL CMAKE_SOURCE_DIR)
+  message(FATAL_ERROR "Please point cmake to the top-level directory with FABM source code, not to its src subdirectory.")
+endif()
+
 # Ensure FABM_INSTITUTES tracks the up-to-date DEFAULT_INSTITUTES list unless the user manually customized FABM_INSTITUTES.
 if(NOT FABM_DEFAULT_INSTITUTES OR NOT FABM_INSTITUTES)
   set(FABM_DEFAULT_INSTITUTES "${DEFAULT_INSTITUTES}" CACHE INTERNAL "Default institutes at the time FABM_INSTITUTES was initialized or updated automatically.")
