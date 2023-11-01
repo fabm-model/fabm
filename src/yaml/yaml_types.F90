@@ -554,9 +554,9 @@ contains
       inode = 0
       item => self%first
       do while (associated(item))
+         inode = inode + 1
          write (strindex,'(i0)') inode
          call item%node%set_path(trim(self%path)//'['//trim(strindex)//']')
-         inode = inode + 1
          item => item%next
       end do
    end subroutine list_set_path

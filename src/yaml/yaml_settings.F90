@@ -279,6 +279,7 @@ contains
       character(len=*),   intent(in) :: name
       integer,            intent(in) :: display
       integer                        :: maxdepth
+      maxdepth = -1
       stop 'value_get_maximum_depth not overridden'
    end function
 
@@ -1264,7 +1265,7 @@ contains
             write (strindex,'(i0)') i
             allocate(item)
             allocate(type_value::item%value)
-            item%value%path = self%path//'['//strindex//']'
+            item%value%path = self%path//'['//trim(strindex)//']'
             item%value%backing_store_node => yaml_item%node
             item%value%parent => self
             if (.not. associated(last_item)) then

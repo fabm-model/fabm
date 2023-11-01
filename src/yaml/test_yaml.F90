@@ -35,5 +35,7 @@ program test_yaml
       stop 1
    end if
    call root%dump(unit=output_unit,indent=0)
+   call root%finalize()
+   deallocate(root)
 
 end program
