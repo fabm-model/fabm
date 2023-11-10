@@ -229,6 +229,7 @@ jobs:
           repository: gotm-model/code
           ref: v6.0
           path: gotm
+          submodules: true
       - name: Build
         run: |
           cmake -S src/drivers/0d -B build -DGOTM_BASE=gotm

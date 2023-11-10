@@ -1,8 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
-
-if(POLICY CMP0048)
-  cmake_policy(SET CMP0048 NEW)
-endif()
+cmake_minimum_required(VERSION 3.12)
 
 # Use solution folders in IDEs
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
