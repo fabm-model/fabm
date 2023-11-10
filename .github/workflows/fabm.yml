@@ -226,7 +226,7 @@ jobs:
       - name: Clone GOTM
         uses: actions/checkout@v4
         with:
-          repository: https://github.com/gotm-model/code.git
+          repository: gotm-model/code
           ref: v6.0
           path: gotm
       - name: Build
