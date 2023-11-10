@@ -40,7 +40,7 @@ add_subdirectory(${GOTM_BASE} gotm EXCLUDE_FROM_ALL)
 
 # Force FABM_HOST to 0d and include FABM CMakeLists.txt.
 set(FABM_FORCED_HOST 0d)
-add_subdirectory(${PROJECT_SOURCE_DIR}/../.. fabm EXCLUDE_FROM_ALL)
+add_subdirectory(${PROJECT_SOURCE_DIR}/../../.. fabm EXCLUDE_FROM_ALL)
 
 # Build 0d executable.
 add_executable (fabm0d
