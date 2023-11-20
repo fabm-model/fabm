@@ -247,5 +247,6 @@ jobs:
       - name: Build
         run: |
           cmake -S src/drivers/0d -B build -DGOTM_BASE=gotm -DFABM_USE_NetCDF=OFF
-          cmake --build build
+          cmake --build build --target install
+          stat ~/local/fabm/0d/bin/fabm0d
 

@@ -86,5 +86,4 @@ else()
 endif()
 message(STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}")
 
-install(TARGETS fabm0d
-  DESTINATION bin)
+install(TARGETS fabm0d)
