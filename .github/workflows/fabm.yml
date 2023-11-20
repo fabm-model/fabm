@@ -233,6 +233,10 @@ jobs:
   fabm0d:
     runs-on: ubuntu-latest
     steps:
+      - name: Install NetCDF
+        run: |
+          sudo apt-get update
+          sudo apt-get install libnetcdff-dev
       - name: Clone FABM
         uses: actions/checkout@v4
         with:
@@ -246,7 +250,7 @@ jobs:
           submodules: recursive
       - name: Build
         run: |
-          cmake -S src/drivers/0d -B build -DGOTM_BASE=gotm -DFABM_USE_NetCDF=OFF
+          cmake -S src/drivers/0d -B build -DGOTM_BASE=gotm
           cmake --build build --target install
           stat ~/local/fabm/0d/bin/fabm0d
 
