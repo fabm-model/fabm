@@ -86,6 +86,19 @@ endif()
 # Use solution folders in IDEs
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+# Add YAML parsing library, unless the yaml target was already defined by a parent CMakeLists.txt
+if(NOT TARGET yaml)
+  include(GNUInstallDirs)
+  add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/src/yaml" yaml EXCLUDE_FROM_ALL)
+  set_property(TARGET yaml PROPERTY FOLDER fabm/yaml)
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/yaml/modules/\${BUILD_TYPE}/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/yaml)
+  install(TARGETS yaml EXPORT fabmConfig)
+else()
+  # Since we allow FABM to be imported from the build tree - export(EXPORT fabmConfig) below -
+  # we also need to make the externally defined yaml target available there
+  export(EXPORT yamlConfig)
+endif()
+
 # Use "include" rather than "add_subdirectory" to avoid inserting a separate
 # "src" level in the current binary directory
 include("${CMAKE_CURRENT_LIST_DIR}/src/CMakeLists.txt")

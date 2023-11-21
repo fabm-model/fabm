@@ -100,18 +100,6 @@ if(FABM_EMBED_VERSION)
   set_property(TARGET fabm_version PROPERTY FOLDER fabm)
 endif()
 
-# Add YAML parsing library
-if(NOT TARGET yaml)
-  add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/yaml" yaml EXCLUDE_FROM_ALL)
-  set_property(TARGET yaml PROPERTY FOLDER fabm/yaml)
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/yaml/modules/\${BUILD_TYPE}/ DESTINATION include/yaml)
-  install(TARGETS yaml EXPORT fabmConfig)
-else()
-  # Since we allow FABM to be imported from the build tree - export(EXPORT fabmConfig) below -
-  # we also need to make the externally defined yaml target available there
-  export(EXPORT yamlConfig)
-endif(NOT TARGET yaml)
-
 configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_parameters.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_parameters.F90)
 
 add_library(fabm_base OBJECT
@@ -227,16 +215,14 @@ endif()
 
 # Install FABM library and include files, unless the host overruled this.
 if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
-  install(TARGETS fabm
-    EXPORT fabmConfig
-    DESTINATION lib)
+  install(TARGETS fabm EXPORT fabmConfig)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules/\${BUILD_TYPE}/
-    DESTINATION include)
+    TYPE include)
   install(FILES
     ${CMAKE_CURRENT_LIST_DIR}/../include/fabm.h
     ${CMAKE_CURRENT_LIST_DIR}/../include/fabm_version.h
     ${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}/fabm_driver.h
-    DESTINATION include)
+    TYPE include)
 endif()
 
 export(EXPORT fabmConfig)
