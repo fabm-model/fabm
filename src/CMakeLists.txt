@@ -217,12 +217,12 @@ endif()
 if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
   install(TARGETS fabm EXPORT fabmConfig)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules/\${BUILD_TYPE}/
-    TYPE include)
+    TYPE INCLUDE)
   install(FILES
     ${CMAKE_CURRENT_LIST_DIR}/../include/fabm.h
     ${CMAKE_CURRENT_LIST_DIR}/../include/fabm_version.h
     ${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}/fabm_driver.h
-    TYPE include)
+    TYPE INCLUDE)
 endif()
 
 export(EXPORT fabmConfig)
