@@ -9,6 +9,7 @@ set(DEFAULT_INSTITUTES
     ersem        # European Regional Seas Ecosystem Model, https://doi.org/10.5194/gmd-9-1293-2016
     examples     # Examples supplied with FABM itself
     gotm         # Models ported from original GOTM/BIO library
+    ihamocc      # isopycnic coordinate HAMburg Ocean Carbon Cycle model, https://doi.org/10.5194/gmd-13-2393-2020
     iow          # Leibniz Institute for Baltic Sea Research, Germany
     jrc          # EC - Joint Research Centre, Ispra, Italy
     mops         # Model of Oceanic Pelagic Stoichiometry, https://doi.org/10.5194/gmd-8-2929-2015
@@ -23,7 +24,7 @@ set(DEFAULT_INSTITUTES
     uhh          # University of Hamburg, Germany
 )
 
-set(OPTIONAL_INSTITUTES ersem mops pclake pisces)
+set(OPTIONAL_INSTITUTES ersem mops pclake pisces ihamocc)
 
 if(CMAKE_CURRENT_LIST_DIR STREQUAL CMAKE_SOURCE_DIR)
   message(FATAL_ERROR "Please point cmake to the top-level directory with FABM source code, not to its src subdirectory.")
