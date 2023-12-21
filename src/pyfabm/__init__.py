@@ -873,7 +873,7 @@ class NamedObjectList(Sequence):
                 return True
             except KeyError:
                 return False
-        return Sequence.__contains__(self, key)
+        return super().__contains__(key)
 
     def __repr__(self) -> str:
         return repr(self._data)
