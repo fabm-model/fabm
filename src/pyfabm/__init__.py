@@ -16,6 +16,13 @@ from typing import (
 )
 
 try:
+    import importlib.metadata
+
+    __version__ = importlib.metadata.version("pyfabm")
+except ImportError:
+    pass
+
+try:
     import numpy as np
 except ImportError:
     print("Unable to import NumPy. Please ensure it is installed.")

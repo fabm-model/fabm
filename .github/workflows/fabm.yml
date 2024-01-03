@@ -227,7 +227,7 @@ jobs:
         run: python -m pip install .
       - name: Test
         run: |
-          python -c "import pyfabm"
+          python -c "import pyfabm;print('pyfabm version =', getattr(pyfabm, '__version__', None))"
           for f in testcases/*.yaml; do fabm_describe_model $f; done
           for f in testcases/*.yaml; do fabm_complete_yaml --add_missing $f; done
   fabm0d:
