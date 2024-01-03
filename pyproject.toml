@@ -6,7 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "pyfabm"
 version = "2.0.0"
 authors = [
-  {name = "Jorn Bruggeman", email = "jorn@bolding-bruggeman.com"}
+  {name = "Jorn Bruggeman", email = "jorn@bolding-bruggeman.com"},
+  {name = "Karsten Bolding", email = "karsten@bolding-bruggeman.com"}
 ]
 description = "Python driver for FABM"
 requires-python = ">=3.7"
