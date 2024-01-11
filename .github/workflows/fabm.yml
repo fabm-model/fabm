@@ -266,7 +266,7 @@ jobs:
       - name: Download and extract cmake
         run: |
           wget --no-verbose https://cmake.org/files/v${{ matrix.cmake-version }}/cmake-${{ matrix.cmake-version }}.0-Linux-x86_64.tar.gz
-          tar -xfv cmake-${{ matrix.cmake-version }}.0-Linux-x86_64.tar.gz
+          tar -xvf cmake-${{ matrix.cmake-version }}.0-Linux-x86_64.tar.gz
       - name: Build
         run: |
           cmake-${{ matrix.cmake-version }}.0-Linux-x86_64/bin/cmake -S . -B build
