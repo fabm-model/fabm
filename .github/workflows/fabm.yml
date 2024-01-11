@@ -253,4 +253,21 @@ jobs:
           cmake -S src/drivers/0d -B build -DGOTM_BASE=gotm
           cmake --build build --target install
           stat ~/local/fabm/0d/bin/fabm0d
-
+  cmake:
+    strategy:
+      matrix:
+        cmake-version: ["3.13"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download and extract cmake
+        run: |
+          wget https://cmake.org/files/v${{ matrix.cmake-version }}/cmake-${{ matrix.cmake-version }}.0-Linux-x86_64.tar.gz
+          tar -xf cmake-${{ matrix.cmake-version }}.0-Linux-x86_64.tar.gz
+      - name: Clone FABM
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Build
+        run: |
+          cmake-${{ matrix.cmake-version }}.0-Linux-x86_64/bin/cmake -S . -B build
+          cmake-${{ matrix.cmake-version }}.0-Linux-x86_64/bin/cmake --build build --target install
