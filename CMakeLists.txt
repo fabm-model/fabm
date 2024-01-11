@@ -1,7 +1,8 @@
 # Minimum cmake version:
 # - 3.12 is needed for https://cmake.org/cmake/help/latest/command/target_link_libraries.html#id8
 # - 3.12 is needed for https://cmake.org/cmake/help/latest/command/add_compile_definitions.html
-cmake_minimum_required(VERSION 3.12)
+# - 3.13 is needed to install targets that were created in other directories (https://cmake.org/cmake/help/latest/command/install.html)
+cmake_minimum_required(VERSION 3.13)
 
 project(fabm
   VERSION 2.0.1
@@ -86,9 +87,11 @@ endif()
 # Use solution folders in IDEs
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+# Determine default installation directories (CMAKE_INSTALL_LIBDIR, CMAKE_INSTALL_INCLUDEDIR)
+include(GNUInstallDirs)
+
 # Add YAML parsing library, unless the yaml target was already defined by a parent CMakeLists.txt
 if(NOT TARGET yaml)
-  include(GNUInstallDirs)
   add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/src/yaml" yaml EXCLUDE_FROM_ALL)
   set_property(TARGET yaml PROPERTY FOLDER fabm/yaml)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/yaml/modules/\${BUILD_TYPE}/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/yaml)

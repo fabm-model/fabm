@@ -216,14 +216,18 @@ endif()
 
 # Install FABM library and include files, unless the host overruled this.
 if (NOT DEFINED FABM_NO_LIBRARY_INSTALL)
-  install(TARGETS fabm EXPORT fabmConfig)
+  # Note: using an implicit destination for install(TARGETS ...) below,
+  # or TYPE instead of DESTINATION, requires cmake >= 3.14
+  install(TARGETS fabm
+    EXPORT fabmConfig
+    DESTINATION ${CMAKE_INSTALL_LIBDIR})
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules/\${BUILD_TYPE}/
-    TYPE INCLUDE)
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
   install(FILES
     ${CMAKE_CURRENT_LIST_DIR}/../include/fabm.h
     ${CMAKE_CURRENT_LIST_DIR}/../include/fabm_version.h
     ${CMAKE_CURRENT_LIST_DIR}/drivers/${FABM_HOST}/fabm_driver.h
-    TYPE INCLUDE)
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endif()
 
 export(EXPORT fabmConfig)
