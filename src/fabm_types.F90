@@ -54,6 +54,7 @@ module fabm_types
    public get_free_unit
    public get_safe_name
    public source2string
+   public domain2string
 
    public type_expression, type_interior_expression, type_horizontal_expression
 
@@ -2979,6 +2980,18 @@ contains
          write (source2string,'(i0)') source
       end select
    end function source2string
+
+   character(len=32) function domain2string(domain)
+      integer, intent(in) :: domain
+      select case (domain)
+      case (domain_interior);   domain2string = 'interior'
+      case (domain_surface);    domain2string = 'surface'
+      case (domain_bottom);     domain2string = 'bottom'
+      case (domain_horizontal); domain2string = 'horizontal'
+      case default
+         write (domain2string,'(i0)') domain
+      end select
+   end function domain2string
 
    subroutine variable_set_add(self, variable)
       class (type_variable_set), intent(inout) :: self

@@ -289,7 +289,7 @@ contains
                   end if
                end if
             case (couple_aggregate_standard_variables)
-               if (associated(coupling%master_standard_variable)) master => generate_standard_master(root, coupling)
+               if (associated(coupling%master_standard_variable)) call generate_standard_master(root, coupling)
          end select
 
          ! Save pointer to the next coupling task in advance, because current task may
@@ -444,14 +444,12 @@ contains
       end do
    end subroutine create_flux_sums
 
-   function generate_standard_master(self, task) result(master)
+   subroutine generate_standard_master(self, task)
       class (type_base_model),    intent(inout), target :: self
       class (type_coupling_task), intent(inout)         :: task
-      type (type_internal_variable), pointer            :: master
 
       type (type_aggregate_variable_access), pointer :: aggregate_variable_access
 
-      master => null()
       if (task%master_standard_variable%aggregate_variable) then
          ! Make sure that an aggregate variable will be created on the fly
          aggregate_variable_access => get_aggregate_variable_access(self, task%master_standard_variable)
@@ -459,7 +457,7 @@ contains
          task%master_name = trim(task%master_standard_variable%name)
          task%master_standard_variable => null()
       end if
-   end function generate_standard_master
+   end subroutine generate_standard_master
 
    subroutine aggregate_variable_list_print(self)
       class (type_aggregate_variable_list), intent(in) :: self
@@ -612,14 +610,14 @@ contains
 
          select type (standard_variable => aggregate_variable%standard_variable)
          class is (type_interior_standard_variable)
-            sum%units = trim(aggregate_variable%standard_variable%units)
+            sum%units = trim(standard_variable%units)
             sum%access = aggregate_variable_access%access
             if (associated(self%parent)) then
                sum%result_output = output_none
             else
                sum%standard_variable => standard_variable
             end if
-            if (.not. sum%add_to_parent(self, trim(aggregate_variable%standard_variable%name), aggregate_variable=standard_variable)) deallocate(sum)
+            if (.not. sum%add_to_parent(self, trim(standard_variable%name), aggregate_variable=standard_variable)) deallocate(sum)
          class is (type_horizontal_standard_variable)
             horizontal_sum%units = trim(standard_variable%units)
             horizontal_sum%access = aggregate_variable_access%access
@@ -752,13 +750,17 @@ contains
                // trim(slave%name) // ' to non-state variable ' // trim(master%name) // '.')
          end if
          if ((slave%domain == domain_bottom .and. master%domain == domain_surface) .or. (slave%domain == domain_surface .and. master%domain == domain_bottom)) &
-            call fatal_error('couple_variables', 'Cannot couple ' // trim(slave%name) // ' to '//trim(master%name) // ', because their domains are incompatible.')
+            call fatal_error('couple_variables', &
+               'Cannot couple ' // trim(slave%name) // ' (' // trim(domain2string(slave%domain)) // ') to ' // trim(master%name) &
+               // ' (' // trim(domain2string(master%domain)) // '), because their domains are incompatible.')
       end if
       !if (slave%domain/=master%domain.and..not.(slave%domain==domain_horizontal.and. &
       !   (master%domain==domain_surface.or.master%domain==domain_bottom))) call fatal_error('couple_variables', &
       !   'Cannot couple '//trim(slave%name)//' to '//trim(master%name)//', because their domains are incompatible.')
-      if (iand(slave%domain, master%domain) == 0) call fatal_error('couple_variables', &
-         'Cannot couple ' // trim(slave%name) // ' to ' // trim(master%name) // ', because their domains are incompatible.')
+      if (iand(slave%domain, master%domain) == 0) &
+         call fatal_error('couple_variables', &
+         'Cannot couple ' // trim(slave%name) // ' (' // trim(domain2string(slave%domain)) // ') to ' // trim(master%name) &
+         // ' (' // trim(domain2string(master%domain)) // '), because their domains are incompatible.')
 
       if (debug_coupling) call log_message(trim(slave%name) // ' --> ' // trim(master%name))
 
