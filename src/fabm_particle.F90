@@ -38,7 +38,7 @@ module fabm_particle
    integer, parameter :: not_done = 0, busy = 1, done   = 2
 
    type type_model_reference
-      integer                                 :: resolving = .false.
+      logical                                 :: resolving = .false.
       character(len=attribute_length)         :: name  = ''
       class (type_base_model),        pointer :: model => null()
       type (type_model_id),           pointer :: id    => null()
