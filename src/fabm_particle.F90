@@ -38,7 +38,7 @@ module fabm_particle
    integer, parameter :: not_done = 0, busy = 1, done   = 2
 
    type type_model_reference
-      integer                                 :: state = not_done
+      integer                                 :: resolving = .false.
       character(len=attribute_length)         :: name  = ''
       class (type_base_model),        pointer :: model => null()
       type (type_model_id),           pointer :: id    => null()
@@ -70,6 +70,7 @@ module fabm_particle
       procedure :: request_standard_coupling_to_model
       procedure :: request_named_coupling_to_named_model
       procedure :: request_standard_coupling_to_named_model
+      procedure :: request_coupling_to_model_generic
       generic :: request_coupling_to_model => request_named_coupling_to_model,request_standard_coupling_to_model, &
                                               request_named_coupling_to_named_model,request_standard_coupling_to_named_model
       procedure :: resolve_model_dependency
@@ -165,6 +166,9 @@ contains
       class (type_coupling_task),          pointer :: base_coupling
       class (type_base_standard_variable), pointer :: standard_variable
 
+      if (self%coupling_task_list%includes_custom) call self%fatal_error('request_coupling_to_model_generic', &
+         'Too late to add custom couplings (of type type_coupling_from_model')
+
       ! Create object describing the coupling, and send it to FABM.
       ! This must be a pointer, because FABM will manage its memory and deallocate when appropriate.
       allocate(coupling)
@@ -254,64 +258,70 @@ contains
       class (type_particle_model), pointer :: source_model
       logical                              :: require_internal_variables_
 
-      model => null()
-
-      select case (reference%state)
-      case (busy)
-         call self%fatal_error('resolve_model_reference', 'Circular dependency')
-      case (done)
-         model => reference%model
-         return
-      end select
-
-      reference%state = busy
-
-      ! First find a coupling for the referenced model.
-      model_master_name = self%couplings%get_string(trim(reference%name), trim(reference%name))
-
-      ! Try to find referenced model among actual models (as opposed to among model dependencies)
-      reference%model => self%find_model(model_master_name, recursive=.true.)
+      ! If the model reference has been resolved before, we do not return immediately but continue
+      ! below in case this is the first time that require_internal_variables was set.
 
       if (.not. associated(reference%model)) then
-         ! Find starting position of local name (excluding any preprended path components)
-         istart = index(model_master_name, '/', .true.) + 1
+         ! If this model reference is *already* in the process of being resolved,
+         ! that can only be because it is pointing to itself, either directly or indirectly.
+         if (reference%resolving) then
+            call self%fatal_error('resolve_model_reference', 'Circular dependency')
+            return
+         end if
 
-         source_model => null()
-         reference2 => null()
-         if (istart == 1) then
-            ! No slash in path; search model references within current model
-            source_model => self
-         else
-            ! Try model references in specified other model
-            model => self%find_model(model_master_name(:istart-1), recursive=.true.)
-            if (associated(model)) then
-               select type (model)
-               class is (type_particle_model)
-                  source_model => model
-               end select
+         ! Flag this references as "in the process of being resolved",
+         ! in order to support detection of circular dependencies
+         reference%resolving = .true.
+
+         ! First find a coupling for the referenced model.
+         model_master_name = self%couplings%get_string(trim(reference%name), trim(reference%name))
+
+         ! Try to find referenced model among actual models (as opposed to among model dependencies)
+         reference%model => self%find_model(model_master_name, recursive=.true.)
+
+         if (.not. associated(reference%model)) then
+            ! Search among named model dependencies instead
+
+            ! Find starting position of local name (excluding any preprended path components)
+            istart = index(model_master_name, '/', .true.) + 1
+
+            if (istart == 1) then
+               ! No slash in path; search model references within current model
+               source_model => self
+            else
+               ! Try model references in specified other model
+               source_model => null()
+               model => self%find_model(model_master_name(:istart - 1), recursive=.true.)
+               if (associated(model)) then
+                  select type (model)
+                  class is (type_particle_model)
+                     source_model => model
+                  end select
+               end if
+            end if
+
+            ! Search references in source model
+            if (associated(source_model)) then
+               reference2 => source_model%first_model_reference
+               do while (associated(reference2))
+                  if (model_master_name(istart:) == reference2%name) then
+                     reference%model => source_model%resolve_model_reference(reference2)
+                     exit
+                  end if
+                  reference2 => reference2%next
+               end do
             end if
          end if
 
-         ! Search model references
-         if (associated(source_model)) then
-            reference2 => source_model%first_model_reference
-            do while (associated(reference2))
-               if (model_master_name(istart:) == reference2%name) then
-                  reference%model => source_model%resolve_model_reference(reference2)
-                  exit
-               end if
-               reference2 => reference2%next
-            end do
+         if (.not. associated(reference%model)) then
+            call self%fatal_error('resolve_model_reference', &
+               'Referenced model instance "' // model_master_name // '" not found.')
+            return
          end if
+
+         reference%resolving = .false.
       end if
 
-      if (.not. associated(reference%model)) then
-         call self%fatal_error('resolve_model_reference', &
-            'Referenced model instance "' // model_master_name // '" not found.')
-         return
-      end if
-
-      reference%state = done
       model => reference%model
 
       require_internal_variables_ = .false.
@@ -427,15 +437,15 @@ end subroutine
             case (domain_interior)
                call self%register_state_dependency(reference%id%state(n), trim(reference%name) // '_state' // trim(strindex), &
                   link%target%units, trim(reference%name) // ' state variable ' // trim(strindex))
-               call self%request_coupling_to_model(reference%id%state(n), reference%id, link%name)
+               call self%request_coupling(reference%id%state(n), link%target%name)
             case (domain_bottom)
                call self%register_state_dependency(reference%id%bottom_state(n), trim(reference%name) // '_bottom_state' // trim(strindex), &
                   link%target%units, trim(reference%name) // ' bottom state variable ' // trim(strindex))
-               call self%request_coupling_to_model(reference%id%bottom_state(n), reference%id, link%name)
+               call self%request_coupling(reference%id%bottom_state(n), link%target%name)
             case (domain_surface)
                call self%register_state_dependency(reference%id%surface_state(n), trim(reference%name) // '_surface_state' // trim(strindex), &
                   link%target%units, trim(reference%name) // ' surface state variable ' // trim(strindex))
-               call self%request_coupling_to_model(reference%id%surface_state(n), reference%id, link%name)
+               call self%request_coupling(reference%id%surface_state(n), link%target%name)
             end select
          end if
          link => link%next
