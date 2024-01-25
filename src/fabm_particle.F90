@@ -377,24 +377,25 @@ contains
       call complete_internal_variables_if_needed(self)
    end subroutine before_coupling
 
-   subroutine coupling_from_model_resolve(self)
+   function coupling_from_model_resolve(self) result(link)
       class (type_coupling_from_model), intent(inout) :: self
+      type (type_link), pointer :: link
 
       class (type_base_model), pointer :: model
-      type (type_link),        pointer :: link
 
       model => resolve_model_reference(self%owner, self%model_reference)
-      if (.not. associated(model)) return
-      if (self%master_name /= '') then
-         ! Coupling to a named variable
-         self%master_name = trim(self%model_reference%model%get_path()) // '/' // trim(self%master_name)
-      else
+      if (.not. associated(model)) then
+         ! Model not found. A fatal error will already have been reported.
+         ! Just return a harmless result so the host gets the opportunity for error handling
+         link => null()
+      elseif (associated(self%master_standard_variable)) then
          ! Coupling to a standard [aggregate] variable
-         link => get_aggregate_variable_access(self%model_reference%model, self%master_standard_variable, self%access)
-         self%master_name = link%target%name
+         link => get_aggregate_variable_access(model, self%master_standard_variable, self%access)
+      else
+         ! Coupling to a named variable
+         link => model%find_link(trim(self%master_name))
       end if
-      self%master_standard_variable => null()
-   end subroutine
+   end function
 
    subroutine build_state_id_list(self, reference, domain)
       class (type_particle_model), intent(inout) :: self

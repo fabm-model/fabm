@@ -2888,9 +2888,11 @@ contains
       self%first_child => null()
    end subroutine abstract_model_factory_finalize
 
-   subroutine coupling_task_resolve(self)
+   function coupling_task_resolve(self) result(link)
       class (type_coupling_task), intent(inout) :: self
-   end subroutine
+      type (type_link), pointer :: link
+      link => null()
+   end function
 
    subroutine coupling_task_list_remove(self, task)
       class (type_coupling_task_list), intent(inout) :: self

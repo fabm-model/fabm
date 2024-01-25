@@ -175,7 +175,6 @@ contains
       integer                             :: source
       logical                             :: couplable
       integer                             :: display
-      class (type_coupling_task), pointer :: coupling
 
       link => self%links%first
       do while (associated(link))
@@ -193,14 +192,6 @@ contains
             end if    ! Coupling provided
          end if   ! Our own link, which may be coupled
          link => link%next
-      end do
-
-      ! Allow custom coupling tasks (e.g., type_coupling_from_model in fabm_particle)
-      ! to determine the final variable that is to be coupled to
-      coupling => self%coupling_task_list%first
-      do while (associated(coupling))
-         call coupling%resolve()
-         coupling => coupling%next
       end do
 
       self%coupling_task_list%includes_custom = .true.
@@ -231,8 +222,33 @@ contains
       coupling => self%coupling_task_list%first
       do while (associated(coupling))
 
-         master => null()
-         if (associated(coupling%master_standard_variable)) then
+         ! First try if the coupling object can resolve the variable reference itself
+         ! (e.g., type_coupling_from_model in fabm_particle)
+         link => coupling%resolve()
+
+         if (.not. associated(link) .and. .not. associated(coupling%master_standard_variable)) then
+            ! This is a coupling by variable name.
+            ! Try to find the master variable among the variables of the requesting model or its parents.
+            istart = index(coupling%master_name, '(')
+            if (istart /= 0) then
+               ! The coupling name includes an opening parenthesis. Interpret it as a parametrized coupling (one with arguments)
+               istop = len_trim(coupling%master_name)
+               if (coupling%master_name(istop:istop) /= ')') call self%fatal_error('process_coupling_tasks', &
+                  'Parameterized coupling ' // trim(coupling%master_name) // ' should end with closing parenthesis.')
+               call resolve_parameterized_coupling(coupling%master_name(1:istart-1), coupling%master_name(istart+1:istop-1), coupling)
+            elseif (coupling%slave%name /= coupling%master_name) then
+               ! Master and slave name differ: start master search in current model, then move up tree.
+               link => self%find_link(coupling%master_name, recursive=.true., exact=.false.)
+            elseif (associated(self%parent)) then
+               ! Master and slave name are identical: start master search in parent model, then move up tree.
+               link => self%parent%find_link(coupling%master_name, recursive=.true., exact=.false.)
+            else
+               call self%fatal_error('process_coupling_tasks', &
+                  'Master and slave name are identical: "' // trim(coupling%master_name) // '". This is not valid at the root of the model tree.')
+            end if
+         end if
+
+         if (.not. associated(link) .and. associated(coupling%master_standard_variable)) then
             ! This is a coupling to a standard variable. First try to find the corresponding standard variable.
             ! We search within the root model, because there all variables are found together.
             link => root%links%first
@@ -262,36 +278,15 @@ contains
                      standard_variable=standard_variable, presence=presence_external_optional, link=link)
                end select
             end if
-
-            ! Store link to master variable
-            if (associated(link)) master => link%target
-         else
-            ! This is a coupling by variable name.
-            ! Try to find the master variable among the variables of the requesting model or its parents.
-            istart = index(coupling%master_name, '(')
-            if (istart /= 0) then
-               istop = len_trim(coupling%master_name)
-               if (coupling%master_name(istop:istop) /= ')') call self%fatal_error('process_coupling_tasks', &
-                  'Parameterized coupling ' // trim(coupling%master_name) // ' should end with closing parenthesis.')
-               call resolve_parameterized_coupling(coupling%master_name(1:istart-1), coupling%master_name(istart+1:istop-1), coupling)
-            elseif (coupling%slave%name /= coupling%master_name) then
-               ! Master and slave name differ: start master search in current model, then move up tree.
-               master => self%find_object(coupling%master_name, recursive=.true., exact=.false.)
-            elseif (associated(self%parent)) then
-               ! Master and slave name are identical: start master search in parent model, then move up tree.
-               master => self%parent%find_object(coupling%master_name, recursive=.true., exact=.false.)
-            else
-               call self%fatal_error('process_coupling_tasks', &
-                  'Master and slave name are identical: "' // trim(coupling%master_name) // '". This is not valid at the root of the model tree.')
-            end if
          end if
 
          ! Save pointer to the next coupling task in advance, because current task may
          ! be deallocated from self%coupling_task_list%remove.
          next_coupling => coupling%next
 
-         if (associated(master)) then
+         if (associated(link)) then
             ! Target variable found: perform the coupling.
+            master => link%target
             call couple_variables(root, master, coupling%slave%target)
 
             ! Remove coupling task from the list
