@@ -2718,10 +2718,11 @@ contains
       end do
    end function find_model
 
-   function get_aggregate_variable_access(self, standard_variable, access) result(link)
+   function get_aggregate_variable_access(self, standard_variable, access, output) result(link)
       class (type_base_model),                        intent(inout) :: self
       class (type_domain_specific_standard_variable), target        :: standard_variable
       integer, optional,                              intent(in)    :: access
+      integer, optional,                              intent(in)    :: output
       type (type_link), pointer :: link
 
       type (type_aggregate_variable_access), pointer :: aggregate_variable_access
@@ -2741,19 +2742,20 @@ contains
          aggregate_variable_access%standard_variable => standard_variable
          select type (standard_variable => aggregate_variable_access%standard_variable)
          class is (type_interior_standard_variable)
-            call self%add_interior_variable(standard_variable%name, standard_variable%units, standard_variable%name, link=aggregate_variable_access%link)
+            call self%add_interior_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, link=aggregate_variable_access%link)
          class is (type_surface_standard_variable)
-            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, domain=domain_surface, link=aggregate_variable_access%link)
+            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, domain=domain_surface, link=aggregate_variable_access%link)
          class is (type_bottom_standard_variable)
-            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, domain=domain_bottom, link=aggregate_variable_access%link)
+            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, domain=domain_bottom, link=aggregate_variable_access%link)
          class is (type_horizontal_standard_variable)
-            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, link=aggregate_variable_access%link)
+            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, link=aggregate_variable_access%link)
          end select
          aggregate_variable_access%next => self%first_aggregate_variable_access
          self%first_aggregate_variable_access => aggregate_variable_access
       end if
       link => aggregate_variable_access%link
       if (present(access)) link%target%fake_state_variable = link%target%fake_state_variable .or. iand(access, access_set_source) /= 0
+      if (present(output)) link%target%output = output
    end function get_aggregate_variable_access
 
    function get_free_unit() result(unit)

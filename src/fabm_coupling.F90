@@ -551,7 +551,7 @@ contains
       if (.not. associated(self%parent)) then
          aggregate_variable => list%first
          do while (associated(aggregate_variable))
-            link => get_aggregate_variable_access(self, aggregate_variable%standard_variable)
+            link => get_aggregate_variable_access(self, aggregate_variable%standard_variable, output=output_instantaneous)
             aggregate_variable => aggregate_variable%next
          end do
       end if
@@ -591,13 +591,11 @@ contains
             contributing_variable => contributing_variable%next
          end do
 
-         if (associated(self%parent)) then
-            ! Not the root model - exclude aggregate variables from output by default
-            aggregate_variable_access%link%target%output = output_none
-         else
-            ! Root model - register the created aggregate variable with the standard variable identity
+         ! If we are the root model, then claim the standard variable identity associated with this aggregate variable.
+         ! This is useful to the host, who can then find this variable with standard variable lookup, see associated
+         ! CF standard names, etc.
+         if (.not. associated(self%parent)) &
             call aggregate_variable_access%link%target%standard_variables%add(aggregate_variable%standard_variable)
-         end if
 
          select type (standard_variable => aggregate_variable%standard_variable)
          class is (type_interior_standard_variable)
