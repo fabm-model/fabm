@@ -2526,26 +2526,14 @@ contains
       do while (associated(link))
          if (link%target%source == source_state) then
             ! This is a state variable
-            select case (domain)
-            case (domain_interior)
-               if (link%target%domain == domain_interior .and. associated(link%target%sms_sum)) &
-                  call self%request_variable(link%target%sms_sum%target)
-            case (domain_bottom)
-               if (link%target%domain == domain_bottom .and. associated(link%target%sms_sum)) then
-                  call self%request_variable(link%target%sms_sum%target)
-               elseif (link%target%domain == domain_interior .and. associated(link%target%bottom_flux_sum)) then
-                  call self%request_variable(link%target%bottom_flux_sum%target)
-               end if
-            case (domain_surface)
-               if (link%target%domain == domain_surface .and. associated(link%target%sms_sum)) then
-                  call self%request_variable(link%target%sms_sum%target)
-               elseif (link%target%domain == domain_interior .and. associated(link%target%surface_flux_sum)) then
-                  call self%request_variable(link%target%surface_flux_sum%target)
-               end if
-            case (domain_interior + 999)
-               if (link%target%domain == domain_interior .and. associated(link%target%movement_sum)) &
-                  call self%request_variable(link%target%movement_sum%target)
-            end select
+            if (link%target%domain == domain) &
+               call self%request_variable(link%target%sms_sum%target)
+            if (link%target%domain == domain_interior .and. domain == domain_bottom) &
+               call self%request_variable(link%target%bottom_flux_sum%target)
+            if (link%target%domain == domain_interior .and. domain == domain_surface) &
+               call self%request_variable(link%target%surface_flux_sum%target)
+            if (link%target%domain == domain_interior .and. domain == domain_interior + 999) &
+               call self%request_variable(link%target%movement_sum%target)
          end if
          link => link%next
       end do

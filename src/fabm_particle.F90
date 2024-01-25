@@ -380,8 +380,8 @@ contains
    subroutine coupling_from_model_resolve(self)
       class (type_coupling_from_model), intent(inout) :: self
 
-      class (type_base_model),               pointer :: model
-      type (type_aggregate_variable_access), pointer :: aggregate_variable_access
+      class (type_base_model), pointer :: model
+      type (type_link),        pointer :: link
 
       model => resolve_model_reference(self%owner, self%model_reference)
       if (.not. associated(model)) return
@@ -390,21 +390,20 @@ contains
          self%master_name = trim(self%model_reference%model%get_path()) // '/' // trim(self%master_name)
       else
          ! Coupling to a standard [aggregate] variable
-         aggregate_variable_access => get_aggregate_variable_access(self%model_reference%model, self%master_standard_variable)
-         aggregate_variable_access%access = ior(aggregate_variable_access%access, self%access)
-         self%master_name = trim(self%model_reference%model%get_path()) // '/' // trim(self%master_standard_variable%name)
+         link => get_aggregate_variable_access(self%model_reference%model, self%master_standard_variable, self%access)
+         self%master_name = link%target%name
       end if
       self%master_standard_variable => null()
-end subroutine
+   end subroutine
 
    subroutine build_state_id_list(self, reference, domain)
       class (type_particle_model), intent(inout) :: self
       type (type_model_reference), intent(inout) :: reference
       integer,                     intent(in)    :: domain
 
-      type (type_link),pointer :: link
-      integer                  :: n
-      character(len=10)        :: strindex
+      type (type_link), pointer :: link
+      integer                   :: n
+      character(len=10)         :: strindex
 
       ! Count number of state variables in target model.
       n = 0

@@ -283,7 +283,7 @@ module fabm_types
 
    type type_aggregate_variable_access
       class (type_domain_specific_standard_variable), pointer :: standard_variable => null()
-      integer                                                 :: access            = access_none
+      type (type_link),                               pointer :: link              => null()
       type (type_aggregate_variable_access),          pointer :: next              => null()
    end type
 
@@ -1389,7 +1389,7 @@ contains
 
    subroutine create_coupling_task(self, link, task)
       class (type_base_model),  intent(inout) :: self
-      type (type_link), target, intent(inout) :: link
+      type (type_link), target, intent(in)    :: link
       class (type_coupling_task), pointer     :: task
 
       type (type_link), pointer :: current_link
@@ -1415,7 +1415,7 @@ contains
 
    subroutine request_coupling_for_link(self, link, master)
       class (type_base_model),  intent(inout) :: self
-      type (type_link), target, intent(inout) :: link
+      type (type_link), target, intent(in)    :: link
       character(len=*),         intent(in)    :: master
 
       class (type_coupling_task), pointer :: task
@@ -2718,9 +2718,11 @@ contains
       end do
    end function find_model
 
-   function get_aggregate_variable_access(self, standard_variable) result(aggregate_variable_access)
+   function get_aggregate_variable_access(self, standard_variable, access) result(link)
       class (type_base_model),                        intent(inout) :: self
       class (type_domain_specific_standard_variable), target        :: standard_variable
+      integer, optional,                              intent(in)    :: access
+      type (type_link), pointer :: link
 
       type (type_aggregate_variable_access), pointer :: aggregate_variable_access
       logical,                               pointer :: pmember
@@ -2730,15 +2732,28 @@ contains
       pmember => standard_variable%aggregate_variable
       do while (associated(aggregate_variable_access))
          ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
-         if (associated(pmember, aggregate_variable_access%standard_variable%aggregate_variable)) return
+         if (associated(pmember, aggregate_variable_access%standard_variable%aggregate_variable)) exit
          aggregate_variable_access => aggregate_variable_access%next
       end do
 
-      ! Not found - create a new requests object.
-      allocate(aggregate_variable_access)
-      aggregate_variable_access%standard_variable => standard_variable
-      aggregate_variable_access%next => self%first_aggregate_variable_access
-      self%first_aggregate_variable_access => aggregate_variable_access
+      if (.not. associated(aggregate_variable_access)) then
+         allocate(aggregate_variable_access)
+         aggregate_variable_access%standard_variable => standard_variable
+         select type (standard_variable => aggregate_variable_access%standard_variable)
+         class is (type_interior_standard_variable)
+            call self%add_interior_variable(standard_variable%name, standard_variable%units, standard_variable%name, link=aggregate_variable_access%link)
+         class is (type_surface_standard_variable)
+            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, domain=domain_surface, link=aggregate_variable_access%link)
+         class is (type_bottom_standard_variable)
+            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, domain=domain_bottom, link=aggregate_variable_access%link)
+         class is (type_horizontal_standard_variable)
+            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, link=aggregate_variable_access%link)
+         end select
+         aggregate_variable_access%next => self%first_aggregate_variable_access
+         self%first_aggregate_variable_access => aggregate_variable_access
+      end if
+      link => aggregate_variable_access%link
+      if (present(access)) link%target%fake_state_variable = link%target%fake_state_variable .or. iand(access, access_set_source) /= 0
    end function get_aggregate_variable_access
 
    function get_free_unit() result(unit)
@@ -2941,10 +2956,10 @@ contains
    end function coupling_task_list_add_object
 
    subroutine coupling_task_list_add(self, link, always_create, task)
-      class (type_coupling_task_list), intent(inout)         :: self
-      type (type_link),                intent(inout), target :: link
-      logical,                         intent(in)            :: always_create
-      class (type_coupling_task), pointer                    :: task
+      class (type_coupling_task_list), intent(inout)      :: self
+      type (type_link),                intent(in), target :: link
+      logical,                         intent(in)         :: always_create
+      class (type_coupling_task), pointer                 :: task
 
       logical :: used
 
