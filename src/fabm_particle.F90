@@ -172,7 +172,9 @@ contains
       ! Create object describing the coupling, and send it to FABM.
       ! This must be a pointer, because FABM will manage its memory and deallocate when appropriate.
       allocate(coupling)
-      coupling%slave => slave
+      base_coupling => coupling
+      call self%request_coupling(slave, base_coupling)
+      if (.not. associated(base_coupling)) return
       coupling%owner => self
       if (present(master_name)) coupling%master_name = master_name
       if (present(master_standard_variable)) then
@@ -198,8 +200,6 @@ contains
             'BUG: master_model or master_model_name must be provided.')
          coupling%model_reference => add_model_reference(self, master_model_name, require_empty_id=.false.)
       end if
-      base_coupling => coupling
-      if (.not. self%coupling_task_list%add_object(base_coupling, .false.)) deallocate(coupling)
    end subroutine request_coupling_to_model_generic
 
    subroutine request_named_coupling_to_model(self, slave_variable, master_model, master_variable)

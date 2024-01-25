@@ -165,21 +165,26 @@ module fabm_types
       type (type_link), pointer                    :: slave       => null()
       character(len=attribute_length)              :: master_name = ''
       class (type_domain_specific_standard_variable), pointer :: master_standard_variable => null()
-      logical                                      :: user_specified = .false.
+      integer                                      :: priority = 0
       class (type_coupling_task), pointer          :: previous    => null()
       class (type_coupling_task), pointer          :: next        => null()
    contains
       procedure :: resolve => coupling_task_resolve
    end type
 
+   type, extends(type_coupling_task) :: type_link_coupling_task
+      type (type_link), pointer :: master => null()
+   contains
+      procedure :: remove => link_coupling_task_resolve
+   end type
+
    type type_coupling_task_list
       class (type_coupling_task), pointer :: first => null()
       logical                             :: includes_custom = .false.
    contains
-      procedure :: remove     => coupling_task_list_remove
-      procedure :: find       => coupling_task_list_find
-      procedure :: add        => coupling_task_list_add
-      procedure :: add_object => coupling_task_list_add_object
+      procedure :: remove => coupling_task_list_remove
+      procedure :: find   => coupling_task_list_find
+      procedure :: add    => coupling_task_list_add
    end type
 
    type,extends(type_settings) :: type_fabm_settings
@@ -491,13 +496,16 @@ module fabm_types
       procedure :: find_model
 
       ! Procedures for requesting coupling between variables
+      procedure :: request_coupling_lt
       procedure :: request_coupling_for_link
       procedure :: request_coupling_for_name
       procedure :: request_coupling_for_id
       procedure :: request_standard_coupling_for_link
       procedure :: request_standard_coupling_for_id
+      procedure :: request_link_coupling_for_link
       generic   :: request_coupling => request_coupling_for_link, request_coupling_for_name, request_coupling_for_id, &
-                                       request_standard_coupling_for_link, request_standard_coupling_for_id
+                                       request_standard_coupling_for_link, request_standard_coupling_for_id, &
+                                       request_link_coupling_for_link, request_coupling_lt
 
       ! Procedures that may be used to query parameter values during initialization.
       procedure :: get_real_parameter
@@ -1387,10 +1395,10 @@ contains
       self%first => null()
    end subroutine link_list_finalize
 
-   subroutine create_coupling_task(self, link, task)
-      class (type_base_model),  intent(inout) :: self
-      type (type_link), target, intent(in)    :: link
-      class (type_coupling_task), pointer     :: task
+   subroutine request_coupling_lt(self, link, task)
+      class (type_base_model),             intent(inout) :: self
+      type (type_link), target,            intent(in)    :: link
+      class (type_coupling_task), pointer, intent(inout) :: task
 
       type (type_link), pointer :: current_link
 
@@ -1410,8 +1418,9 @@ contains
          &not inherited ones such as the current ' // trim(link%name) // '.')
 
       ! Create a coupling task (reuse existing one if available, and not user-specified)
-      call self%coupling_task_list%add(link, .false., task)
-   end subroutine create_coupling_task
+      task%slave => link
+      call self%coupling_task_list%add(task, priority=0)
+   end subroutine request_coupling_lt
 
    subroutine request_coupling_for_link(self, link, master)
       class (type_base_model),  intent(inout) :: self
@@ -1420,11 +1429,9 @@ contains
 
       class (type_coupling_task), pointer :: task
 
-      ! Create a coupling task (reuse existing one if available, and not user-specified)
-      call create_coupling_task(self, link, task)
-      if (.not. associated(task)) return   ! We already have a user-specified task, which takes priority
-
-      ! Configure coupling task
+      allocate(task)
+      call self%request_coupling(link, task)
+      if (.not. associated(task)) return
       task%master_name = master
    end subroutine request_coupling_for_link
 
@@ -1468,8 +1475,9 @@ contains
 
       class (type_coupling_task), pointer :: task
 
-      call create_coupling_task(self, link, task)
-      if (.not. associated(task)) return   ! We already have a user-specified task, which takes priority
+      allocate(task)
+      call self%request_coupling(link, task)
+      if (.not. associated(task)) return
       task%master_standard_variable => master%typed_resolve()
    end subroutine request_standard_coupling_for_link
 
@@ -1482,6 +1490,23 @@ contains
          'The provided variable identifier has not been registered yet.')
       call self%request_standard_coupling_for_link(id%link, master)
    end subroutine request_standard_coupling_for_id
+
+   subroutine request_link_coupling_for_link(self, link, master)
+      use fabm_standard_variables   ! workaround for bug in Cray compiler 8.3.4
+      class (type_base_model),                        intent(inout)      :: self
+      type (type_link), target,                       intent(inout)      :: link
+      type (type_link), target,                       intent(inout)      :: master
+
+      class (type_link_coupling_task), pointer :: task
+      class (type_coupling_task),      pointer :: base_class_pointer
+
+      allocate(task)
+      base_class_pointer => task
+      allocate(task)
+      call self%request_coupling(link, base_class_pointer)
+      if (.not. associated(base_class_pointer)) return
+      task%master => master
+   end subroutine request_link_coupling_for_link
 
    subroutine integer_pointer_set_append(self, value)
       class (type_integer_pointer_set), intent(inout) :: self
@@ -2894,6 +2919,12 @@ contains
       link => null()
    end function
 
+   function link_coupling_task_resolve(self) result(link)
+      class (type_link_coupling_task), intent(inout) :: self
+      type (type_link), pointer :: link
+      link => self%master
+   end function
+
    subroutine coupling_task_list_remove(self, task)
       class (type_coupling_task_list), intent(inout) :: self
       class (type_coupling_task), pointer            :: task
@@ -2918,28 +2949,26 @@ contains
       end do
    end function coupling_task_list_find
 
-   function coupling_task_list_add_object(self, task, always_create) result(used)
+   subroutine coupling_task_list_add(self, task, priority)
       class (type_coupling_task_list), intent(inout) :: self
-      class (type_coupling_task), pointer            :: task
-      logical,                         intent(in)    :: always_create
-      logical                                        :: used
+      class (type_coupling_task), pointer            :: task  ! must be pointer to preserve deallocate functionality
+      integer,                         intent(in)    :: priority
 
       class (type_coupling_task), pointer :: existing_task
-
-      ! First try to find an existing coupling task for this link. If one exists, we'll replace it.
-      used = .false.
 
       ! Check if we have found an existing task for the same link.
       existing_task => self%find(task%slave)
       if (associated(existing_task)) then
          ! If existing one has higher priority, do not add the new task and return (used=.false.)
-         if (existing_task%user_specified .and. .not. always_create) return
+         if (existing_task%priority > priority) then
+            deallocate(task)
+            return
+         end if
 
          ! We will overwrite the existing task - remove existing task and exit loop
          call self%remove(existing_task)
       end if
 
-      used = .true.
       if (.not. associated(self%first)) then
          ! Task list is empty - add first.
          self%first => task
@@ -2956,21 +2985,7 @@ contains
          existing_task%next => task
          task%previous => existing_task
       end if
-      task%next => null()
-   end function coupling_task_list_add_object
-
-   subroutine coupling_task_list_add(self, link, always_create, task)
-      class (type_coupling_task_list), intent(inout)      :: self
-      type (type_link),                intent(in), target :: link
-      logical,                         intent(in)         :: always_create
-      class (type_coupling_task), pointer                 :: task
-
-      logical :: used
-
-      allocate(task)
-      task%slave => link
-      used = self%add_object(task, always_create)
-      if (.not. used) deallocate(task)
+      task%priority = priority
    end subroutine coupling_task_list_add
 
    character(len=32) function source2string(source)

@@ -186,9 +186,10 @@ contains
             if (link%original%presence == presence_internal .or. associated(self%coupling_task_list%find(link))) display = display_advanced
             master_name = self%couplings%get_string(trim(link%name), trim(link%original%long_name), units=trim(link%original%units), default='', display=display)
             if (master_name /= '') then
-               call self%coupling_task_list%add(link, .true., task)
-               task%user_specified = .true.
+               allocate(task)
+               task%slave => link
                task%master_name = master_name
+               call self%coupling_task_list%add(task, priority=1)
             end if    ! Coupling provided
          end if   ! Our own link, which may be coupled
          link => link%next
