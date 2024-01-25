@@ -12,7 +12,10 @@ add_library(fabm_models_examples OBJECT
             light_cycle.F90
            )
 
+add_subdirectory(particle)
+
 source_group(npzd REGULAR_EXPRESSION npzd/)
+source_group(particle REGULAR_EXPRESSION particle/)
 
 target_link_libraries(fabm_models_examples PRIVATE fabm_base)
 
