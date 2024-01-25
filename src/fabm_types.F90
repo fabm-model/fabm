@@ -496,17 +496,20 @@ module fabm_types
       procedure :: find_model
 
       ! Procedures for requesting coupling between variables
-      procedure :: request_coupling_lt
+      ! The last two letters of each name indicate the type of slave and master, respectively
+      ! l=link, n=name, s=standard variable, i=variable identifier, t=task
+      procedure :: request_coupling_ln
+      procedure :: request_coupling_in
+      procedure :: request_coupling_nn
+      procedure :: request_coupling_ls
+      procedure :: request_coupling_is
+      procedure :: request_coupling_ll
       procedure :: request_coupling_il
-      procedure :: request_coupling_for_link
-      procedure :: request_coupling_for_name
-      procedure :: request_coupling_for_id
-      procedure :: request_standard_coupling_for_link
-      procedure :: request_standard_coupling_for_id
-      procedure :: request_link_coupling_for_link
-      generic   :: request_coupling => request_coupling_for_link, request_coupling_for_name, request_coupling_for_id, &
-                                       request_standard_coupling_for_link, request_standard_coupling_for_id, &
-                                       request_link_coupling_for_link, request_coupling_lt, request_coupling_il
+      procedure :: request_coupling_lt
+      generic   :: request_coupling => request_coupling_ln, request_coupling_in, request_coupling_nn, &
+                                       request_coupling_ls, request_coupling_is, &
+                                       request_coupling_ll, request_coupling_il, &
+                                       request_coupling_lt
 
       ! Procedures that may be used to query parameter values during initialization.
       procedure :: get_real_parameter
@@ -1409,12 +1412,12 @@ contains
          if (associated(current_link, link)) exit
          current_link => current_link%next
       end do
-      if (.not.associated(current_link)) call self%fatal_error('request_coupling_for_link', &
+      if (.not.associated(current_link)) call self%fatal_error('request_coupling_ln', &
          'Couplings can only be requested for variables that you own yourself.')
 
       ! Make sure that the link also points to a variable that we registered ourselves,
       ! rather than one registered by a child model.
-      if (index(link%name, '/') /= 0) call self%fatal_error('request_coupling_for_link', &
+      if (index(link%name, '/') /= 0) call self%fatal_error('request_coupling_ln', &
          'Couplings can only be requested for variables that you registered yourself, &
          &not inherited ones such as the current ' // trim(link%name) // '.')
 
@@ -1423,7 +1426,7 @@ contains
       call self%coupling_task_list%add(task, priority=0)
    end subroutine request_coupling_lt
 
-   subroutine request_coupling_for_link(self, link, master)
+   subroutine request_coupling_ln(self, link, master)
       class (type_base_model),  intent(inout) :: self
       type (type_link), target, intent(in)    :: link
       character(len=*),         intent(in)    :: master
@@ -1431,12 +1434,12 @@ contains
       class (type_coupling_task), pointer :: task
 
       allocate(task)
-      call self%request_coupling(link, task)
+      call request_coupling_lt(self, link, task)
       if (.not. associated(task)) return
       task%master_name = master
-   end subroutine request_coupling_for_link
+   end subroutine request_coupling_ln
 
-   recursive subroutine request_coupling_for_name(self, slave, master)
+   recursive subroutine request_coupling_nn(self, slave, master)
       class (type_base_model), intent(inout), target :: self
       character(len=*),        intent(in)            :: slave, master
 
@@ -1448,71 +1451,73 @@ contains
       islash = index(slave, '/', .true.)
       if (islash /= 0) then
          parent => self%find_model(slave(:islash - 1))
-         call request_coupling_for_name(parent, slave(islash + 1:), master)
+         call request_coupling_nn(parent, slave(islash + 1:), master)
          return
       end if
 
       link => self%links%find(slave)
-      if (.not. associated(link)) call self%fatal_error('request_coupling_for_name', &
+      if (.not. associated(link)) call self%fatal_error('request_coupling_nn', &
          'Specified slave (' // trim(slave) // ') not found. Make sure the variable is registered before calling request_coupling.')
-      call request_coupling_for_link(self, link, master)
-   end subroutine request_coupling_for_name
+      call request_coupling_ln(self, link, master)
+   end subroutine request_coupling_nn
 
-   subroutine request_coupling_for_id(self, id, master)
+   subroutine request_coupling_in(self, id, master)
       class (type_base_model),  intent(inout) :: self
-      class (type_variable_id), intent(inout) :: id
+      class (type_variable_id), intent(in)    :: id
       character(len=*),         intent(in)    :: master
 
-      if (.not. associated(id%link)) call self%fatal_error('request_coupling_for_id', &
+      if (.not. associated(id%link)) call self%fatal_error('request_coupling_in', &
          'The provided variable identifier has not been registered yet.')
-      call self%request_coupling(id%link, master)
-   end subroutine request_coupling_for_id
+      call request_coupling_ln(self, id%link, master)
+   end subroutine request_coupling_in
 
-   subroutine request_standard_coupling_for_link(self, link, master)
+   subroutine request_coupling_ls(self, link, master)
       use fabm_standard_variables   ! workaround for bug in Cray compiler 8.3.4
       class (type_base_model),                        intent(inout)      :: self
-      type (type_link), target,                       intent(inout)      :: link
+      type (type_link), target,                       intent(in)         :: link
       class (type_domain_specific_standard_variable), intent(in), target :: master
 
       class (type_coupling_task), pointer :: task
 
       allocate(task)
-      call self%request_coupling(link, task)
+      call request_coupling_lt(self, link, task)
       if (.not. associated(task)) return
       task%master_standard_variable => master%typed_resolve()
-   end subroutine request_standard_coupling_for_link
+   end subroutine request_coupling_ls
 
-   subroutine request_standard_coupling_for_id(self, id, master)
+   subroutine request_coupling_is(self, id, master)
       class (type_base_model),                        intent(inout)      :: self
-      class (type_variable_id),                       intent(inout)      :: id
+      class (type_variable_id),                       intent(in)         :: id
       class (type_domain_specific_standard_variable), intent(in), target :: master
 
-      if (.not. associated(id%link)) call self%fatal_error('request_standard_coupling_for_id', &
+      if (.not. associated(id%link)) call self%fatal_error('request_coupling_is', &
          'The provided variable identifier has not been registered yet.')
-      call self%request_standard_coupling_for_link(id%link, master)
-   end subroutine request_standard_coupling_for_id
+      call request_coupling_ls(self, id%link, master)
+   end subroutine request_coupling_is
 
-   subroutine request_link_coupling_for_link(self, link, master)
+   subroutine request_coupling_ll(self, link, master)
       class (type_base_model),  intent(inout) :: self
-      type (type_link), target, intent(inout) :: link
-      type (type_link), target, intent(inout) :: master
+      type (type_link), target, intent(in)    :: link
+      type (type_link), target, intent(in)    :: master
 
       class (type_link_coupling_task), pointer :: task
       class (type_coupling_task),      pointer :: base_class_pointer
 
       allocate(task)
       base_class_pointer => task
-      call self%request_coupling(link, base_class_pointer)
+      call request_coupling_lt(self, link, base_class_pointer)
       if (.not. associated(base_class_pointer)) return
       task%master => master
-   end subroutine request_link_coupling_for_link
+   end subroutine request_coupling_ll
 
    subroutine request_coupling_il(self, id, master)
       class (type_base_model),  intent(inout) :: self
       class (type_variable_id), intent(in)    :: id
-      type (type_link), target, intent(inout) :: master
+      type (type_link), target, intent(in)    :: master
 
-      call self%request_coupling(id%link, master)
+      if (.not. associated(id%link)) call self%fatal_error('request_coupling_il', &
+         'The provided variable identifier has not been registered yet.')
+      call request_coupling_ll(self, id%link, master)
    end subroutine request_coupling_il
 
    subroutine integer_pointer_set_append(self, value)
