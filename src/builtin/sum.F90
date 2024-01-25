@@ -144,17 +144,12 @@ contains
       end if
    end function weighted_sum_add_to_parent
 
-   subroutine weighted_sum_initialize(self, configunit)
-      class (type_weighted_sum), intent(inout), target :: self
-      integer,                   intent(in)            :: configunit
+   function base_initialize(self) result(n)
+      class (type_base_sum), intent(inout) :: self
+      integer                              :: n
 
+      integer                        :: i
       type (type_component), pointer :: component
-      integer           :: i, n
-      character(len=10) :: temp
-      class (type_weighted_sum_sms_distributor), pointer :: sms_distributor
-      logical, parameter :: act_as_state_variable = .false.
-
-      call self%register_implemented_routines((/source_do/))
 
       call self%get_parameter(n, 'n', '', 'number of terms in summation', default=0, minimum=0)
       do i = 1, n
@@ -168,6 +163,24 @@ contains
          n = n + 1
          component => component%next
       end do
+
+      self%components_frozen = .true.
+   end function
+
+   subroutine weighted_sum_initialize(self, configunit)
+      class (type_weighted_sum), intent(inout), target :: self
+      integer,                   intent(in)            :: configunit
+
+      type (type_component), pointer :: component
+      integer           :: n
+      character(len=10) :: temp
+      class (type_weighted_sum_sms_distributor), pointer :: sms_distributor
+      logical, parameter :: act_as_state_variable = .false.
+
+      call self%register_implemented_routines((/source_do/))
+
+      n = base_initialize(self)
+
       allocate(self%id_terms(n))
 
       n = 0
@@ -208,12 +221,10 @@ contains
             component => component%next
          end do
       end if
-
-      self%components_frozen = .true.
    end subroutine
 
    subroutine add_component(self, name, weight, include_background, link)
-      class (type_base_sum),intent(inout) :: self
+      class (type_base_sum),    intent(inout) :: self
       character(len=*),         intent(in)    :: name
       real(rk), optional,       intent(in)    :: weight
       logical,  optional,       intent(in)    :: include_background
@@ -250,7 +261,7 @@ contains
 
       ! At this stage, the background values for all variables (if any) are fixed. We can therefore
       ! compute background contributions already, and add those to the space- and time-invariant offset.
-      background = 0
+      background = 0.0_rk
       i = 0
       component => self%first
       do while (associated(component))
@@ -266,15 +277,14 @@ contains
       call self%id_output%link%target%background_values%set_value(background)
    end subroutine
 
-   subroutine weighted_sum_merge_components(self, log_unit)
-      class (type_weighted_sum), intent(inout) :: self
-      integer, optional,         intent(in)    :: log_unit
+   function base_merge_components(self, sum_variable, log_unit) result(n)
+      class (type_base_sum),                 intent(inout) :: self
+      type (type_internal_variable), target, intent(inout) :: sum_variable
+      integer, optional,                     intent(in)    :: log_unit
+      integer :: n
 
-      integer                                :: i, n
-      type (type_internal_variable), pointer :: sum_variable
-      type (type_component),         pointer :: component, component_next, component_previous
+      type (type_component), pointer :: component, component_next, component_previous
 
-      sum_variable => self%id_output%link%target
       sum_variable%prefill_value = sum_variable%prefill_value + self%offset
       allocate(sum_variable%cowriters)
       if (present(log_unit)) write (log_unit,'(a)') 'Reindexing ' // trim(sum_variable%name)
@@ -283,7 +293,7 @@ contains
       n = 0
       do while (associated(component))
          component_next => component%next
-         if (merge_component(component%link, component%weight, sum_variable, log_unit)) then
+         if (merge_component(component)) then
             ! Component was merged into target
             if (associated(component_previous)) then
                component_previous%next => component_next
@@ -310,6 +320,54 @@ contains
       end if
 
       call sum_variable%cowriters%add(sum_variable)
+
+   contains
+
+      logical function merge_component(component)
+         type (type_component), intent(in) :: component
+
+         type (type_internal_variable), pointer :: component_variable
+
+         component_variable => component%link%target
+
+         merge_component = .false.
+         if (iand(component_variable%write_operator, operator_merge_forbidden) /= 0) then
+            if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it is accessed by FABM or host'
+         elseif (component_variable%write_operator /= operator_add .and. component_variable%source /= source_constant) then
+            if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it assigns directly'
+         elseif (component%weight /= 1.0_rk) then
+            if (present(log_unit)) write (log_unit,'(a,g0.6)') '- kept '// trim(component_variable%name) // ' because it uses scale factor ', component%weight
+         elseif (size(component_variable%read_indices%pointers) > 1) then
+            if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it is accessed by other models'
+         else
+            ! This component does not need a separate diagnostic - it will be merged into the target
+            sum_variable%prefill_value = sum_variable%prefill_value + component_variable%prefill_value
+            if (component_variable%source == source_constant) then
+               ! This component is a constant that we can just add to our offset
+               if (present(log_unit)) write (log_unit,'(a,g0.6,a)') '- merged ' // trim(component_variable%name) // ' - constant ', component_variable%prefill_value, ' added to offset'
+            else
+               ! This component can increment the sum result directly
+               if (present(log_unit)) write (log_unit,'(a,g0.6,a)') '- merged ' // trim(component_variable%name) // ' - to be written in-place'
+               component_variable%write_owner => sum_variable
+               call sum_variable%cowriters%add(component_variable)
+            end if
+            call component_variable%read_indices%set_value(-1)
+            call component_variable%read_indices%finalize()
+            component%link%original%read_index => null()
+            merge_component = .true.
+         end if
+      end function
+
+   end function
+
+   subroutine weighted_sum_merge_components(self, log_unit)
+      class (type_weighted_sum), intent(inout) :: self
+      integer, optional,         intent(in)    :: log_unit
+
+      integer                        :: i, n
+      type (type_component), pointer :: component
+
+      n = base_merge_components(self, self%id_output%link%target, log_unit)
 
       ! Put all ids and weights in a single array to minimize memory bottlenecks when computing sum
       allocate(self%sources(n))
@@ -336,88 +394,14 @@ contains
       call self%type_reduction_operator%finalize()
    end subroutine finalize
 
-   logical function merge_component(component_link, weight, target_variable, log_unit)
-      type (type_link),              intent(inout)         :: component_link
-      type (type_internal_variable), intent(inout), target :: target_variable
-      real(rk),                      intent(in)            :: weight
-      integer, optional,             intent(in)            :: log_unit
-
-      type (type_internal_variable), pointer :: component_variable
-
-      component_variable => component_link%target
-
-      merge_component = .false.
-      if (iand(component_variable%write_operator, operator_merge_forbidden) /= 0) then
-         if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it is accessed by FABM or host'
-      elseif (component_variable%write_operator /= operator_add .and. component_variable%source /= source_constant) then
-         if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it assigns directly'
-      elseif (weight /= 1.0_rk) then
-         if (present(log_unit)) write (log_unit,'(a,g0.6)') '- kept '// trim(component_variable%name) // ' because it uses scale factor ', weight
-      elseif (size(component_variable%read_indices%pointers) > 1) then
-         if (present(log_unit)) write (log_unit,'(a)') '- kept ' // trim(component_variable%name) // ' because it is accessed by other models'
-      else
-         ! This component does not need a separate diagnostic - it will be merged into the target
-         target_variable%prefill_value = target_variable%prefill_value + component_variable%prefill_value
-         if (component_variable%source == source_constant) then
-            ! This component is a constant that we can just add to our offset
-            if (present(log_unit)) write (log_unit,'(a,g0.6,a)') '- merged ' // trim(component_variable%name) // ' - constant ', component_variable%prefill_value, ' added to offset'
-         else
-            ! This component can increment the sum result directly
-            if (present(log_unit)) write (log_unit,'(a,g0.6,a)') '- merged ' // trim(component_variable%name) // ' - to be written in-place'
-            component_variable%write_owner => target_variable
-            call target_variable%cowriters%add(component_variable)
-         end if
-         call component_variable%read_indices%set_value(-1)
-         call component_variable%read_indices%finalize()
-         component_link%original%read_index => null()
-         merge_component = .true.
-      end if
-   end function
-
    subroutine horizontal_weighted_sum_merge_components(self, log_unit)
       class (type_horizontal_weighted_sum), intent(inout) :: self
       integer, optional,                    intent(in)    :: log_unit
 
-      integer                                :: i, n
-      type (type_internal_variable), pointer :: sum_variable
-      type (type_component),         pointer :: component, component_next, component_previous
+      integer                        :: i, n
+      type (type_component), pointer :: component
 
-      sum_variable => self%id_output%link%target
-      sum_variable%prefill_value = sum_variable%prefill_value + self%offset
-      allocate(sum_variable%cowriters)
-      if (present(log_unit)) write (log_unit,'(a)') 'Reindexing ' // trim(sum_variable%name)
-      component_previous => null()
-      component => self%first
-      n = 0
-      do while (associated(component))
-         component_next => component%next
-         if (merge_component(component%link, component%weight, sum_variable, log_unit)) then
-            ! Component was merged into target
-            if (associated(component_previous)) then
-               component_previous%next => component_next
-            else
-               self%first => component_next
-            end if
-            deallocate(component)
-         else
-            ! Component was left stand-alone (not merged)
-            component_previous => component
-            n = n + 1
-         end if
-         component => component_next
-      end do
-
-      if (n == 0) then
-         if (associated(sum_variable%cowriters%first)) then
-            if (present(log_unit)) write (log_unit,'(a)') '- all contributions written in place - skipping actual sum'
-         else
-            if (present(log_unit)) write (log_unit,'(a,g0.6)') '- no contributions left - sum becomes a constant with value ', sum_variable%prefill_value
-            sum_variable%source = source_constant
-         end if
-         return
-      end if
-
-      call sum_variable%cowriters%add(sum_variable)
+      n = base_merge_components(self, self%id_output%link%target, log_unit)
 
       ! Put all ids and weights in a single array to minimize memory bottlenecks when computing sum
       allocate(self%sources(n))
@@ -506,23 +490,13 @@ contains
       integer,                              intent(in)            :: configunit
 
       type (type_component), pointer :: component
-      integer           :: i, n
+      integer           :: n
       character(len=10) :: temp
 
       call self%register_implemented_routines((/source_do_horizontal/))
 
-      call self%get_parameter(n,'n','','number of terms in summation',default=0,minimum=0)
-      do i = 1, n
-         call self%add_component('')
-      end do
-      call self%get_parameter(self%units,'units','','units',default=trim(self%units))
+      n = base_initialize(self)
 
-      n = 0
-      component => self%first
-      do while (associated(component))
-         n = n + 1
-         component => component%next
-      end do
       allocate(self%id_terms(n))
 
       n = 0
@@ -537,12 +511,10 @@ contains
       end do
       call self%add_horizontal_variable('result', self%units, 'result', missing_value=self%missing_value, fill_value=0.0_rk, output=self%result_output, &
          write_index=self%id_output%horizontal_sum_index, link=self%id_output%link, source=source_do_horizontal)
-
-      self%components_frozen = .true.
    end subroutine
 
    subroutine horizontal_weighted_sum_after_coupling(self)
-      class (type_horizontal_weighted_sum),intent(inout) :: self
+      class (type_horizontal_weighted_sum), intent(inout) :: self
 
       type (type_component), pointer :: component
       real(rk) :: background
@@ -550,7 +522,7 @@ contains
 
       ! At this stage, the background values for all variables (if any) are fixed. We can therefore
       ! compute background contributions already, and add those to the space- and time-invariant offset.
-      background = 0
+      background = 0.0_rk
       component => self%first
       i = 0
       do while (associated(component))
