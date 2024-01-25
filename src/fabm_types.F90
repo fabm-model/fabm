@@ -175,7 +175,7 @@ module fabm_types
    type, extends(type_coupling_task) :: type_link_coupling_task
       type (type_link), pointer :: master => null()
    contains
-      procedure :: remove => link_coupling_task_resolve
+      procedure :: resolve => link_coupling_task_resolve
    end type
 
    type type_coupling_task_list
@@ -497,6 +497,7 @@ module fabm_types
 
       ! Procedures for requesting coupling between variables
       procedure :: request_coupling_lt
+      procedure :: request_coupling_il
       procedure :: request_coupling_for_link
       procedure :: request_coupling_for_name
       procedure :: request_coupling_for_id
@@ -505,7 +506,7 @@ module fabm_types
       procedure :: request_link_coupling_for_link
       generic   :: request_coupling => request_coupling_for_link, request_coupling_for_name, request_coupling_for_id, &
                                        request_standard_coupling_for_link, request_standard_coupling_for_id, &
-                                       request_link_coupling_for_link, request_coupling_lt
+                                       request_link_coupling_for_link, request_coupling_lt, request_coupling_il
 
       ! Procedures that may be used to query parameter values during initialization.
       procedure :: get_real_parameter
@@ -1492,21 +1493,27 @@ contains
    end subroutine request_standard_coupling_for_id
 
    subroutine request_link_coupling_for_link(self, link, master)
-      use fabm_standard_variables   ! workaround for bug in Cray compiler 8.3.4
-      class (type_base_model),                        intent(inout)      :: self
-      type (type_link), target,                       intent(inout)      :: link
-      type (type_link), target,                       intent(inout)      :: master
+      class (type_base_model),  intent(inout) :: self
+      type (type_link), target, intent(inout) :: link
+      type (type_link), target, intent(inout) :: master
 
       class (type_link_coupling_task), pointer :: task
       class (type_coupling_task),      pointer :: base_class_pointer
 
       allocate(task)
       base_class_pointer => task
-      allocate(task)
       call self%request_coupling(link, base_class_pointer)
       if (.not. associated(base_class_pointer)) return
       task%master => master
    end subroutine request_link_coupling_for_link
+
+   subroutine request_coupling_il(self, id, master)
+      class (type_base_model),  intent(inout) :: self
+      class (type_variable_id), intent(in)    :: id
+      type (type_link), target, intent(inout) :: master
+
+      call self%request_coupling(id%link, master)
+   end subroutine request_coupling_il
 
    subroutine integer_pointer_set_append(self, value)
       class (type_integer_pointer_set), intent(inout) :: self

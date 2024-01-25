@@ -71,6 +71,7 @@ contains
 
       ! Create summations of source terms and surface/bottom fluxes.
       call create_flux_sums(self)
+      call request_flux_sum_coupling(self)
 
       ! Process the any remaining coupling tasks.
       call process_coupling_tasks(self, final=.true.)
@@ -353,7 +354,7 @@ contains
       sum%missing_value = 0
       component_link => link_list%first
       do while (associated(component_link))
-         call sum%add_component(component_link%target%name)
+         call sum%add_component('', link=component_link)
          component_link => component_link%next
       end do
       if (.not. sum%add_to_parent(parent, link)) deallocate(sum)
@@ -371,7 +372,7 @@ contains
       sum%missing_value = 0
       component_link => link_list%first
       do while (associated(component_link))
-         call sum%add_component(component_link%target%name)
+         call sum%add_component('', link=component_link)
          component_link => component_link%next
       end do
       if (.not. sum%add_to_parent(parent, link)) deallocate(sum)
@@ -413,18 +414,6 @@ contains
                case (domain_horizontal, domain_surface, domain_bottom)
                   call create_horizontal_sum(self, link%target%sms_sum, link%target%sms_list)
                end select
-            else
-               ! We do not own this variable.
-               ! Couple to summations for sources-sinks and surface/bottom fluxes created by the target.
-               select case (link%target%domain)
-               case (domain_interior)
-                  call self%request_coupling(link%original%sms_sum, trim(link%target%name) // '_sms_tot')
-                  call self%request_coupling(link%original%surface_flux_sum, trim(link%target%name) // '_sfl_tot')
-                  call self%request_coupling(link%original%bottom_flux_sum, trim(link%target%name) // '_bfl_tot')
-                  call self%request_coupling(link%original%movement_sum, trim(link%target%name) // '_w_tot')
-               case (domain_horizontal, domain_surface, domain_bottom)
-                  call self%request_coupling(link%original%sms_sum, trim(link%target%name) // '_sms_tot')
-               end select
             end if
          end if
          link => link%next
@@ -437,6 +426,39 @@ contains
          child => child%next
       end do
    end subroutine create_flux_sums
+
+   recursive subroutine request_flux_sum_coupling(self)
+      class (type_base_model), intent(inout), target :: self
+
+      type (type_link),            pointer :: link
+      type (type_model_list_node), pointer :: child
+
+      link => self%links%first
+      do while (associated(link))
+         if (index(link%name, '/') == 0 .and. (link%original%source == source_state .or. link%original%fake_state_variable) .and. .not. associated(link%target, link%original)) then
+            ! This is a state variable, or a diagnostic pretending to be one, that we have registered (it is owned by "self")
+            ! We do not own this variable.
+            ! Couple to summations for sources-sinks and surface/bottom fluxes created by the target.
+            select case (link%target%domain)
+            case (domain_interior)
+               call self%request_coupling(link%original%sms_sum, link%target%sms_sum)
+               call self%request_coupling(link%original%surface_flux_sum, link%target%surface_flux_sum)
+               call self%request_coupling(link%original%bottom_flux_sum, link%target%bottom_flux_sum)
+               call self%request_coupling(link%original%movement_sum, link%target%movement_sum)
+            case (domain_horizontal, domain_surface, domain_bottom)
+               call self%request_coupling(link%original%sms_sum, link%target%sms_sum)
+            end select
+         end if
+         link => link%next
+      end do
+
+      ! Process child models
+      child => self%children%first
+      do while (associated(child))
+         call request_flux_sum_coupling(child%model)
+         child => child%next
+      end do
+   end subroutine request_flux_sum_coupling
 
    subroutine aggregate_variable_list_print(self)
       class (type_aggregate_variable_list), intent(in) :: self

@@ -10,7 +10,7 @@ module fabm_builtin_sum
 
    private
 
-   public type_weighted_sum, type_horizontal_weighted_sum
+   public type_base_sum, type_weighted_sum, type_horizontal_weighted_sum
 
    type type_sum_term
       type (type_dependency_id) :: id
@@ -24,55 +24,47 @@ module fabm_builtin_sum
 
    type type_component
       character(len=attribute_length) :: name   = ''
+      type (type_link), pointer       :: link => null()
       real(rk)                        :: weight = 1._rk
       logical                         :: include_background = .false.
-      type (type_dependency_id)       :: id
       type (type_component), pointer  :: next   => null()
    end type
 
-   type type_horizontal_component
-      character(len=attribute_length)           :: name   = ''
-      real(rk)                                  :: weight = 1._rk
-      logical                                   :: include_background = .false.
-      type (type_horizontal_dependency_id)      :: id
-      type (type_horizontal_component), pointer :: next   => null()
-   end type
-
-   type, extends(type_reduction_operator) :: type_weighted_sum
+   type, extends(type_reduction_operator) :: type_base_sum
       character(len=attribute_length) :: units         = ''
       integer                         :: result_output = output_instantaneous
       real(rk)                        :: offset        = 0.0_rk
       real(rk)                        :: missing_value = -2.e20_rk
-      type (type_add_id)              :: id_output
+      logical                         :: components_frozen = .false.
       type (type_component), pointer  :: first => null()
-      type (type_sum_term), allocatable :: sources(:)
+   contains
+      procedure :: add_component
+      procedure :: finalize
+   end type
+
+   type, extends(type_base_sum) :: type_weighted_sum
+      type (type_dependency_id), allocatable :: id_terms(:)
+      type (type_add_id)                     :: id_output
+      type (type_sum_term),      allocatable :: sources(:)
    contains
       procedure :: initialize       => weighted_sum_initialize
-      procedure :: add_component    => weighted_sum_add_component
       procedure :: do               => weighted_sum_do
       procedure :: after_coupling   => weighted_sum_after_coupling
       procedure :: add_to_parent    => weighted_sum_add_to_parent
       procedure :: merge_components => weighted_sum_merge_components
-      procedure :: finalize         => weighted_sum_finalize
    end type
 
-   type, extends(type_reduction_operator) :: type_horizontal_weighted_sum
-      character(len=attribute_length) :: units         = ''
-      integer                         :: result_output = output_instantaneous
-      real(rk)                        :: offset        = 0.0_rk
-      real(rk)                        :: missing_value = -2.e20_rk
-      integer                         :: domain        = domain_horizontal
-      type (type_horizontal_add_id)   :: id_output
-      type (type_horizontal_component), pointer   :: first => null()
-      type (type_horizontal_sum_term), allocatable :: sources(:)
+   type, extends(type_base_sum) :: type_horizontal_weighted_sum
+      integer                                           :: domain = domain_horizontal
+      type (type_horizontal_dependency_id), allocatable :: id_terms(:)
+      type (type_horizontal_add_id)                     :: id_output
+      type (type_horizontal_sum_term),      allocatable :: sources(:)
    contains
-      procedure :: add_component    => horizontal_weighted_sum_add_component
       procedure :: initialize       => horizontal_weighted_sum_initialize
       procedure :: do_horizontal    => horizontal_weighted_sum_do_horizontal
       procedure :: after_coupling   => horizontal_weighted_sum_after_coupling
       procedure :: add_to_parent    => horizontal_weighted_sum_add_to_parent
       procedure :: merge_components => horizontal_weighted_sum_merge_components
-      procedure :: finalize         => horizontal_weighted_sum_finalize
    end type
 
    type, extends(type_base_model) :: type_weighted_sum_sms_distributor
@@ -85,11 +77,23 @@ module fabm_builtin_sum
 
 contains
 
+   subroutine request_coupling_to_component(parent, target_link, component)
+      class (type_base_model), intent(inout), target :: parent
+      type (type_link), target :: target_link
+      class (type_component), intent(in) :: component
+
+      if (associated(component%link)) then
+         call parent%request_coupling(target_link, component%link)
+      else
+         call parent%request_coupling(target_link, component%name)
+      end if
+   end subroutine
+
    function weighted_sum_add_to_parent(self, parent, link, create_for_one, aggregate_variable) result(sum_used)
       class (type_weighted_sum),              intent(inout), target :: self
       class (type_base_model),                intent(inout), target :: parent
       type (type_link),                       intent(in),    target :: link
-      logical,optional,                       intent(in)            :: create_for_one
+      logical, optional,                      intent(in)            :: create_for_one
       type (type_interior_standard_variable), intent(in), optional  :: aggregate_variable
 
       logical                                        :: sum_used, create_for_one_
@@ -112,19 +116,19 @@ contains
          ! One component only.
          if (self%first%weight == 1.0_rk .and. .not. create_for_one_) then
             ! One component with scale factor 1 - directly link to the component's source variable.
-            call parent%request_coupling(link, self%first%name)
+            call request_coupling_to_component(parent, link, self%first)
          else
             ! One component with scale factor other than 1 (or a user-specified requirement NOT to make a direct link to the source variable)
             allocate(scaled_variable)
             call parent%add_child(scaled_variable, trim(link%name) // '_calculator')
             call scaled_variable%register_dependency(scaled_variable%id_source, 'source', self%units, 'source variable')
-            call scaled_variable%request_coupling(scaled_variable%id_source, self%first%name)
+            call request_coupling_to_component(scaled_variable, scaled_variable%id_source%link, self%first)
             call scaled_variable%register_diagnostic_variable(scaled_variable%id_result, 'result', self%units, 'result', &
                missing_value=self%missing_value, output=self%result_output, act_as_state_variable=link%target%fake_state_variable)
             scaled_variable%weight = self%first%weight
             scaled_variable%include_background = self%first%include_background
             scaled_variable%offset = self%offset
-            call parent%request_coupling(link, trim(link%name)//'_calculator/result')
+            call parent%request_coupling(link, trim(link%name) // '_calculator/result')
             if (link%target%fake_state_variable) then
                ! This scaled variable acts as a state variable. Create a child model to distribute source terms to the original source variable.
                call copy_fluxes(scaled_variable, scaled_variable%id_result, self%first%name, scale_factor=1.0_rk / scaled_variable%weight)
@@ -145,27 +149,35 @@ contains
       integer,                   intent(in)            :: configunit
 
       type (type_component), pointer :: component
-      integer           :: ncomponents, i
+      integer           :: i, n
       character(len=10) :: temp
       class (type_weighted_sum_sms_distributor), pointer :: sms_distributor
       logical, parameter :: act_as_state_variable = .false.
 
       call self%register_implemented_routines((/source_do/))
 
-      call self%get_parameter(ncomponents, 'n', '', 'number of terms in summation', default=0, minimum=0)
-      do i = 1, ncomponents
+      call self%get_parameter(n, 'n', '', 'number of terms in summation', default=0, minimum=0)
+      do i = 1, n
          call self%add_component('')
       end do
       call self%get_parameter(self%units, 'units', '', 'units', default=trim(self%units))
 
-      ncomponents = 0
+      n = 0
       component => self%first
       do while (associated(component))
-         ncomponents = ncomponents + 1
-         write (temp,'(i0)') ncomponents
+         n = n + 1
+         component => component%next
+      end do
+      allocate(self%id_terms(n))
+
+      n = 0
+      component => self%first
+      do while (associated(component))
+         n = n + 1
+         write (temp,'(i0)') n
          call self%get_parameter(component%weight, 'weight' // trim(temp), '-', 'weight for term ' // trim(temp), default=component%weight)
-         call self%register_dependency(component%id, 'term' // trim(temp), self%units, 'term ' // trim(temp))
-         if (component%name /= '') call self%request_coupling(component%id, trim(component%name))
+         call self%register_dependency(self%id_terms(n), 'term' // trim(temp), self%units, 'term ' // trim(temp))
+         call request_coupling_to_component(self, self%id_terms(n)%link, component)
          component => component%next
       end do
 
@@ -182,32 +194,35 @@ contains
          call self%add_child(sms_distributor, 'sms_distributor')
          call sms_distributor%register_dependency(sms_distributor%id_total_sms, 'total_sms', trim(self%units) // '/s', 'sources-sinks of sum')
          call sms_distributor%request_coupling(sms_distributor%id_total_sms, 'result_sms_tot')
-         allocate(sms_distributor%weights(ncomponents))
-         allocate(sms_distributor%id_targets(ncomponents))
+         allocate(sms_distributor%weights(n))
+         allocate(sms_distributor%id_targets(n))
 
-         ncomponents = 0
+         n = 0
          component => self%first
          do while (associated(component))
-            ncomponents = ncomponents + 1
-            write (temp,'(i0)') ncomponents
-            call sms_distributor%register_state_dependency(sms_distributor%id_targets(ncomponents), 'target'//trim(temp), self%units, 'target '//trim(temp))
-            call sms_distributor%request_coupling(sms_distributor%id_targets(ncomponents), trim(component%name))
-            sms_distributor%weights(ncomponents) = component%weight
+            n = n + 1
+            write (temp,'(i0)') n
+            call sms_distributor%register_state_dependency(sms_distributor%id_targets(n), 'target'//trim(temp), self%units, 'target '//trim(temp))
+            call sms_distributor%request_coupling(sms_distributor%id_targets(n), trim(component%name))
+            sms_distributor%weights(n) = component%weight
             component => component%next
          end do
       end if
+
+      self%components_frozen = .true.
    end subroutine
 
-   subroutine weighted_sum_add_component(self, name, weight, include_background)
-      class (type_weighted_sum),intent(inout) :: self
+   subroutine add_component(self, name, weight, include_background, link)
+      class (type_base_sum),intent(inout) :: self
       character(len=*),         intent(in)    :: name
       real(rk), optional,       intent(in)    :: weight
       logical,  optional,       intent(in)    :: include_background
+      type (type_link), target, optional      :: link
 
       type (type_component), pointer :: component
 
-      if (_VARIABLE_REGISTERED_(self%id_output)) &
-         call self%fatal_error('weighted_sum_add_component', 'cannot be called after model initialization')
+      if (self%components_frozen) &
+         call self%fatal_error('base_sum_add_component', 'cannot be called after model initialization')
 
       if (.not. associated(self%first)) then
          allocate(self%first)
@@ -221,6 +236,7 @@ contains
          component => component%next
       end if
       component%name = name
+      if (present(link)) component%link => link
       if (present(weight)) component%weight = weight
       if (present(include_background)) component%include_background = include_background
    end subroutine
@@ -230,16 +246,20 @@ contains
 
       type (type_component), pointer :: component
       real(rk)                       :: background
+      integer                        :: i
 
       ! At this stage, the background values for all variables (if any) are fixed. We can therefore
       ! compute background contributions already, and add those to the space- and time-invariant offset.
       background = 0
+      i = 0
       component => self%first
       do while (associated(component))
+         i = i + 1
+         component%link => self%id_terms(i)%link
          if (component%include_background) then
-            self%offset = self%offset + component%weight * component%id%background
+            self%offset = self%offset + component%weight * self%id_terms(i)%background
          else
-            background = background + component%weight * component%id%background
+            background = background + component%weight * self%id_terms(i)%background
          end if
          component => component%next
       end do
@@ -263,7 +283,7 @@ contains
       n = 0
       do while (associated(component))
          component_next => component%next
-         if (merge_component(component%id%link, component%weight, sum_variable, log_unit)) then
+         if (merge_component(component%link, component%weight, sum_variable, log_unit)) then
             ! Component was merged into target
             if (associated(component_previous)) then
                component_previous%next => component_next
@@ -296,13 +316,13 @@ contains
       component => self%first
       do i = 1, n
          self%sources(i)%weight = component%weight
-         call component%id%link%target%read_indices%append(self%sources(i)%id%index)
+         call component%link%target%read_indices%append(self%sources(i)%id%index)
          component => component%next
       end do
    end subroutine weighted_sum_merge_components
 
-   subroutine weighted_sum_finalize(self)
-      class (type_weighted_sum), intent(inout) :: self
+   subroutine finalize(self)
+      class (type_base_sum), intent(inout) :: self
 
       type (type_component), pointer :: component, component_next
 
@@ -314,7 +334,7 @@ contains
       end do
       self%first => null()
       call self%type_reduction_operator%finalize()
-   end subroutine weighted_sum_finalize
+   end subroutine finalize
 
    logical function merge_component(component_link, weight, target_variable, log_unit)
       type (type_link),              intent(inout)         :: component_link
@@ -358,9 +378,9 @@ contains
       class (type_horizontal_weighted_sum), intent(inout) :: self
       integer, optional,                    intent(in)    :: log_unit
 
-      integer                                   :: i, n
-      type (type_internal_variable),    pointer :: sum_variable
-      type (type_horizontal_component), pointer :: component, component_next, component_previous
+      integer                                :: i, n
+      type (type_internal_variable), pointer :: sum_variable
+      type (type_component),         pointer :: component, component_next, component_previous
 
       sum_variable => self%id_output%link%target
       sum_variable%prefill_value = sum_variable%prefill_value + self%offset
@@ -371,7 +391,7 @@ contains
       n = 0
       do while (associated(component))
          component_next => component%next
-         if (merge_component(component%id%link, component%weight, sum_variable, log_unit)) then
+         if (merge_component(component%link, component%weight, sum_variable, log_unit)) then
             ! Component was merged into target
             if (associated(component_previous)) then
                component_previous%next => component_next
@@ -404,25 +424,10 @@ contains
       component => self%first
       do i = 1, n
          self%sources(i)%weight = component%weight
-         call component%id%link%target%read_indices%append(self%sources(i)%id%horizontal_index)
+         call component%link%target%read_indices%append(self%sources(i)%id%horizontal_index)
          component => component%next
       end do
    end subroutine horizontal_weighted_sum_merge_components
-
-   subroutine horizontal_weighted_sum_finalize(self)
-      class (type_horizontal_weighted_sum), intent(inout) :: self
-
-      type (type_horizontal_component), pointer :: component, component_next
-
-      component => self%first
-      do while (associated(component))
-         component_next => component%next
-         deallocate(component)
-         component => component_next
-      end do
-      self%first => null()
-      call self%type_reduction_operator%finalize()
-   end subroutine horizontal_weighted_sum_finalize
 
    subroutine weighted_sum_do(self, _ARGUMENTS_DO_)
       class (type_weighted_sum), intent(in) :: self
@@ -444,7 +449,7 @@ contains
       class (type_horizontal_weighted_sum),      intent(inout), target :: self
       class (type_base_model),                   intent(inout), target :: parent
       type (type_link),                          intent(in),    target :: link
-      logical,optional,                          intent(in)            :: create_for_one
+      logical, optional,                         intent(in)            :: create_for_one
       class (type_horizontal_standard_variable), intent(in), optional  :: aggregate_variable
 
       logical :: sum_used, create_for_one_
@@ -468,20 +473,20 @@ contains
          ! One component only.
          if (self%first%weight == 1.0_rk .and. .not. create_for_one_) then
             ! One component with scale factor 1 - directly link to the component's source variable.
-            call parent%request_coupling(link, self%first%name)
+            call request_coupling_to_component(parent, link, self%first)
          else
             ! One component with scale factor other than 1 (or a user-specified requirement NOT to make a direct link to the source variable)
             allocate(scaled_variable)
             call parent%add_child(scaled_variable, trim(link%name) // '_calculator')
             call scaled_variable%register_dependency(scaled_variable%id_source, 'source', self%units, 'source variable')
-            call scaled_variable%request_coupling(scaled_variable%id_source, self%first%name)
+            call request_coupling_to_component(scaled_variable, scaled_variable%id_source%link, self%first)
             call scaled_variable%register_diagnostic_variable(scaled_variable%id_result, 'result', self%units, 'result', &
                missing_value=self%missing_value, output=self%result_output, act_as_state_variable= &
                link%target%fake_state_variable, source=source_do_horizontal, domain=link%target%domain)
             scaled_variable%weight = self%first%weight
             scaled_variable%include_background = self%first%include_background
             scaled_variable%offset = self%offset
-            call parent%request_coupling(link, trim(link%name)//'_calculator/result')
+            call parent%request_coupling(link, trim(link%name) // '_calculator/result')
             if (link%target%fake_state_variable) then
                call copy_horizontal_fluxes(scaled_variable, scaled_variable%id_result, self%first%name, scale_factor=1.0_rk / scaled_variable%weight)
                if (present(aggregate_variable)) call scaled_variable%add_to_aggregate_variable(aggregate_variable, scaled_variable%id_result)
@@ -500,78 +505,65 @@ contains
       class (type_horizontal_weighted_sum), intent(inout), target :: self
       integer,                              intent(in)            :: configunit
 
-      type (type_horizontal_component),pointer :: component
-      integer           :: i,n
+      type (type_component), pointer :: component
+      integer           :: i, n
       character(len=10) :: temp
 
       call self%register_implemented_routines((/source_do_horizontal/))
 
       call self%get_parameter(n,'n','','number of terms in summation',default=0,minimum=0)
-      do i=1,n
+      do i = 1, n
          call self%add_component('')
       end do
       call self%get_parameter(self%units,'units','','units',default=trim(self%units))
 
-      i = 0
+      n = 0
       component => self%first
       do while (associated(component))
-         i = i + 1
-         write (temp,'(i0)') i
-         call self%get_parameter(component%weight,'weight'//trim(temp),'-','weight for term '//trim(temp),default=component%weight)
-         call self%register_dependency(component%id,'term'//trim(temp),self%units,'term '//trim(temp))
-         call self%request_coupling(component%id,trim(component%name))
+         n = n + 1
+         component => component%next
+      end do
+      allocate(self%id_terms(n))
+
+      n = 0
+      component => self%first
+      do while (associated(component))
+         n = n + 1
+         write (temp,'(i0)') n
+         call self%get_parameter(component%weight, 'weight' // trim(temp), '-', 'weight for term ' // trim(temp), default=component%weight)
+         call self%register_dependency(self%id_terms(n), 'term' // trim(temp), self%units, 'term ' // trim(temp))
+         call request_coupling_to_component(self, self%id_terms(n)%link, component)
          component => component%next
       end do
       call self%add_horizontal_variable('result', self%units, 'result', missing_value=self%missing_value, fill_value=0.0_rk, output=self%result_output, &
          write_index=self%id_output%horizontal_sum_index, link=self%id_output%link, source=source_do_horizontal)
+
+      self%components_frozen = .true.
    end subroutine
 
    subroutine horizontal_weighted_sum_after_coupling(self)
       class (type_horizontal_weighted_sum),intent(inout) :: self
 
-      type (type_horizontal_component),pointer :: component
+      type (type_component), pointer :: component
       real(rk) :: background
+      integer :: i
 
       ! At this stage, the background values for all variables (if any) are fixed. We can therefore
       ! compute background contributions already, and add those to the space- and time-invariant offset.
       background = 0
       component => self%first
+      i = 0
       do while (associated(component))
+         i = i + 1
+         component%link => self%id_terms(i)%link
          if (component%include_background) then
-            self%offset = self%offset + component%weight*component%id%background
+            self%offset = self%offset + component%weight * self%id_terms(i)%background
          else
-            background = background + component%weight*component%id%background
+            background = background + component%weight * self%id_terms(i)%background
          end if
          component => component%next
       end do
       call self%id_output%link%target%background_values%set_value(background)
-   end subroutine
-
-   subroutine horizontal_weighted_sum_add_component(self,name,weight,include_background)
-      class (type_horizontal_weighted_sum),intent(inout) :: self
-      character(len=*),                    intent(in)    :: name
-      real(rk),optional,                   intent(in)    :: weight
-      logical,optional,                    intent(in)    :: include_background
-
-      type (type_horizontal_component),pointer :: component
-
-      if (_VARIABLE_REGISTERED_(self%id_output)) &
-         call self%fatal_error('weighted_sum_add_component','cannot be called after model initialization')
-
-      if (.not.associated(self%first)) then
-         allocate(self%first)
-         component => self%first
-      else
-         component => self%first
-         do while (associated(component%next))
-            component => component%next
-         end do
-         allocate(component%next)
-         component => component%next
-      end if
-      component%name = name
-      if (present(weight)) component%weight = weight
-      if (present(include_background)) component%include_background = include_background
    end subroutine
 
    subroutine horizontal_weighted_sum_do_horizontal(self,_ARGUMENTS_HORIZONTAL_)

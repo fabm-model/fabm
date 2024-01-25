@@ -437,15 +437,15 @@ contains
             case (domain_interior)
                call self%register_state_dependency(reference%id%state(n), trim(reference%name) // '_state' // trim(strindex), &
                   link%target%units, trim(reference%name) // ' state variable ' // trim(strindex))
-               call self%request_coupling(reference%id%state(n), link%target%name)
+               call self%request_coupling(reference%id%state(n), link)
             case (domain_bottom)
                call self%register_state_dependency(reference%id%bottom_state(n), trim(reference%name) // '_bottom_state' // trim(strindex), &
                   link%target%units, trim(reference%name) // ' bottom state variable ' // trim(strindex))
-               call self%request_coupling(reference%id%bottom_state(n), link%target%name)
+               call self%request_coupling(reference%id%bottom_state(n), link)
             case (domain_surface)
                call self%register_state_dependency(reference%id%surface_state(n), trim(reference%name) // '_surface_state' // trim(strindex), &
                   link%target%units, trim(reference%name) // ' surface state variable ' // trim(strindex))
-               call self%request_coupling(reference%id%surface_state(n), link%target%name)
+               call self%request_coupling(reference%id%surface_state(n), link)
             end select
          end if
          link => link%next
