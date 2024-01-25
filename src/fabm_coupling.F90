@@ -355,7 +355,6 @@ contains
 
       allocate(sum)
       sum%missing_value = 0
-      sum%result_output = output_none
       component_link => link_list%first
       do while (associated(component_link))
          call sum%add_component(component_link%target%name)
@@ -374,7 +373,6 @@ contains
 
       allocate(sum)
       sum%missing_value = 0
-      sum%result_output = output_none
       component_link => link_list%first
       do while (associated(component_link))
          call sum%add_component(component_link%target%name)
@@ -399,12 +397,12 @@ contains
             ! These links will be coupled to the result of the source/flux summations at the next stage.
             select case (link%target%domain)
             case (domain_interior)
-               call self%add_interior_variable  (trim(link%name) // '_sms_tot', trim(link%original%units) // ' s-1',   trim(link%original%long_name) // ' sources', link=link%original%sms_sum)
-               call self%add_horizontal_variable(trim(link%name) // '_sfl_tot', trim(link%original%units) // ' m s-1', trim(link%original%long_name) // ' surface flux', domain=domain_surface, link=link%original%surface_flux_sum)
-               call self%add_horizontal_variable(trim(link%name) // '_bfl_tot', trim(link%original%units) // ' m s-1', trim(link%original%long_name) // ' bottom flux', domain=domain_bottom, link=link%original%bottom_flux_sum)
-               call self%add_interior_variable  (trim(link%name) // '_w_tot',   'm s-1',                               trim(link%original%long_name) // ' vertical velocity', link=link%original%movement_sum)
+               call self%add_interior_variable  (trim(link%name) // '_sms_tot', trim(link%original%units) // ' s-1',   trim(link%original%long_name) // ' sources', link=link%original%sms_sum, output=output_none)
+               call self%add_horizontal_variable(trim(link%name) // '_sfl_tot', trim(link%original%units) // ' m s-1', trim(link%original%long_name) // ' surface flux', domain=domain_surface, link=link%original%surface_flux_sum, output=output_none)
+               call self%add_horizontal_variable(trim(link%name) // '_bfl_tot', trim(link%original%units) // ' m s-1', trim(link%original%long_name) // ' bottom flux', domain=domain_bottom, link=link%original%bottom_flux_sum, output=output_none)
+               call self%add_interior_variable  (trim(link%name) // '_w_tot',   'm s-1',                               trim(link%original%long_name) // ' vertical velocity', link=link%original%movement_sum, output=output_none)
             case (domain_horizontal, domain_surface, domain_bottom)
-               call self%add_horizontal_variable(trim(link%name) // '_sms_tot', trim(link%original%units) // ' s-1',   trim(link%original%long_name) // ' sources', domain=link%target%domain, link=link%original%sms_sum)
+               call self%add_horizontal_variable(trim(link%name) // '_sms_tot', trim(link%original%units) // ' s-1',   trim(link%original%long_name) // ' sources', domain=link%target%domain, link=link%original%sms_sum, output=output_none)
             end select
 
             if (associated(link%target, link%original)) then
