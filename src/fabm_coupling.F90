@@ -599,10 +599,10 @@ contains
                 .and. (index(contributing_variable%link%name, '/') == 0 .or. .not. associated(self%parent))) then     ! Variable must be owned by the model itself unless we are aggregating at root level
                select case (contributing_variable%link%target%domain)
                case (domain_interior)
-                  call sum%add_component(trim(contributing_variable%link%name), &
+                  call sum%add_component(trim(contributing_variable%link%name), link=contributing_variable%link, &
                      weight=contributing_variable%scale_factor, include_background=contributing_variable%include_background)
                case (domain_bottom, domain_surface, domain_horizontal)
-                  call horizontal_sum%add_component(trim(contributing_variable%link%name), &
+                  call horizontal_sum%add_component(trim(contributing_variable%link%name), link=contributing_variable%link, &
                      weight=contributing_variable%scale_factor, include_background=contributing_variable%include_background)
                end select
             end if
