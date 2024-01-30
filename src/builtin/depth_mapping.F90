@@ -27,11 +27,11 @@ module fabm_builtin_depth_mapping
    end type
 
    type, extends(type_base_model), public :: type_weighted_depth_integral
-      type (type_dependency_id)                     :: id_source
-      type (type_dependency_id)                     :: id_h
-      type (type_dependency_id)                     :: id_w
-      type (type_horizontal_dependency_id)          :: id_w_int
-      type (type_horizontal_diagnostic_variable_id) :: id_result
+      type (type_dependency_id)                     :: id_source  ! depth-explicit variable to integrate
+      type (type_dependency_id)                     :: id_h       ! layer thicknesses (m)
+      type (type_dependency_id)                     :: id_w       ! vertical distribution weights
+      type (type_horizontal_dependency_id)          :: id_w_int   ! depth-integrated vertical distribution weights (for averaging)
+      type (type_horizontal_diagnostic_variable_id) :: id_result  ! result (depth integral or average)
 
       logical :: average               = .false.
       logical :: act_as_state_variable = .false.
@@ -44,7 +44,7 @@ module fabm_builtin_depth_mapping
 
    type, extends(type_base_model) :: type_absolute_rate_distributor
       type (type_horizontal_dependency_id) :: id_int        ! Depth-integrated target variable
-      type (type_horizontal_dependency_id) :: id_sms_int    ! Depth-integrated sources-sinks of target variable
+      type (type_horizontal_dependency_id) :: id_sms_int    ! Depth-integrated sources-minus-sinks of target variable
       type (type_state_variable_id)        :: id_target     ! Depth-explicit variable that should absorb the sources-sinks
       type (type_dependency_id)            :: id_w          ! Weights for the vertical distribution of the sinks and sources
       type (type_horizontal_dependency_id) :: id_w_int      ! Depth integral of weights
@@ -84,6 +84,7 @@ module fabm_builtin_depth_mapping
       procedure :: initialize                  => particle_integrator_initialize
       procedure :: complete_internal_variables => particle_integrator_complete_internal_variables
    end type
+
 contains
 
    subroutine vertical_depth_range_initialize(self, configunit)
@@ -206,7 +207,8 @@ contains
       call self%get_parameter(self%average, 'average', '', 'average', default=self%average)
       call self%get_parameter(self%act_as_state_variable, 'act_as_state_variable', '', 'act as state variable', default=self%act_as_state_variable)
 
-      call self%register_diagnostic_variable(self%id_result, 'result', 'm', 'integral', source=source_do_column, act_as_state_variable=self%act_as_state_variable, domain=self%domain)
+      call self%register_diagnostic_variable(self%id_result, 'result', 'm', 'integral', source=source_do_column, &
+         act_as_state_variable=self%act_as_state_variable, domain=self%domain)
 
       call self%register_dependency(self%id_w, 'w', '1', 'weights')
       call self%register_dependency(self%id_h, standard_variables%cell_thickness)
@@ -311,14 +313,21 @@ contains
 
       class (type_particle_integrator), pointer :: integrator
 
+      ! Set up a child instance that depth-integrates all state variables of the
+      ! depth-explicit (pelagic) model instance identified by the "name" argument
       allocate(integrator)
       if (present(domain)) integrator%domain = domain
       if (present(proportional_change)) integrator%proportional_change = proportional_change
-      call self%register_model_dependency(name=name)
       call self%add_child(integrator, name // '_integrator')
-      call integrator%couplings%set_string('source', '../' // name)
+
+      ! Allow the user to coupled the requesting model instance (the parent of the integrator)
+      ! to the named depth-explicit instance. Mkae sure the integrator uses that.
+      call self%register_model_dependency(name=name)
+      call integrator%request_coupling('source', '../' // name)
+
+      ! Link the provided model identifier to the depth-integrated model instance
       call self%register_model_dependency(id, name // '_int')
-      call self%couplings%set_string(name // '_int', './' // name // '_integrator')
+      call self%request_coupling(name // '_int', './' // name // '_integrator')
    end subroutine
 
    subroutine depth_integrated_particle_request_mapped_coupling1(self, id, standard_variable, average)
@@ -329,7 +338,8 @@ contains
 
       type (type_link), pointer :: link
 
-      call register_depth_explicit_dependency(self, id, trim(standard_variable%name), trim(standard_variable%units), trim(standard_variable%name), link=link, average=average)
+      call register_depth_explicit_dependency(self, id, trim(standard_variable%name), trim(standard_variable%units), &
+         trim(standard_variable%name), link=link, average=average)
       call self%request_coupling(link, standard_variable)
    end subroutine
 
@@ -341,7 +351,8 @@ contains
 
       type (type_link), pointer :: link
 
-      call register_depth_explicit_dependency(self, id, trim(standard_variable%name), trim(standard_variable%units), trim(standard_variable%name), link=link, average=average)
+      call register_depth_explicit_dependency(self, id, trim(standard_variable%name), trim(standard_variable%units), &
+         trim(standard_variable%name), link=link, average=average)
       call self%request_coupling(link, standard_variable)
    end subroutine
 
@@ -372,7 +383,8 @@ contains
 
       type (type_link), pointer :: link
 
-      call register_depth_explicit_dependency(self, id, name // '_' // trim(standard_variable%name), trim(standard_variable%units), trim(standard_variable%name) // ' in ' // name, link=link, average=average)
+      call register_depth_explicit_dependency(self, id, name // '_' // trim(standard_variable%name), &
+         trim(standard_variable%units), trim(standard_variable%name) // ' in ' // name, link=link, average=average)
       call self%request_coupling_to_model_generic(link, master_model_name=name, master_standard_variable=standard_variable)
    end subroutine
 
@@ -385,7 +397,8 @@ contains
 
       type (type_link), pointer :: link
 
-      call register_depth_explicit_dependency(self, id, name // '_' // trim(standard_variable%name), trim(standard_variable%units), trim(standard_variable%name) // ' in ' // name, link=link, average=average)
+      call register_depth_explicit_dependency(self, id, name // '_' // trim(standard_variable%name), &
+         trim(standard_variable%units), trim(standard_variable%name) // ' in ' // name, link=link, average=average)
       call self%request_coupling_to_model_generic(link, master_model_name=name, master_standard_variable=standard_variable)
    end subroutine
 
@@ -399,7 +412,9 @@ contains
       type (type_link), pointer :: link
       class (type_weighted_depth_integral),   pointer :: depth_integral
 
-      call register_depth_explicit_state_dependency(self, id%link, name // '_' // trim(standard_variable%name), trim(standard_variable%units), trim(standard_variable%name) // ' in ' // name, link=link, proportional_change=proportional_change, depth_integral_out=depth_integral, domain=domain_bottom)
+      call register_depth_explicit_state_dependency(self, id%link, name // '_' // trim(standard_variable%name), &
+         trim(standard_variable%units), trim(standard_variable%name) // ' in ' // name, link=link, &
+         proportional_change=proportional_change, depth_integral_out=depth_integral, domain=domain_bottom)
       call self%add_to_aggregate_variable(standard_variable, depth_integral%id_result)
       call self%request_coupling_to_model_generic(link, master_model_name=name, master_standard_variable=standard_variable)
    end subroutine
@@ -414,7 +429,9 @@ contains
       type (type_link), pointer :: link
       class (type_weighted_depth_integral),   pointer :: depth_integral
 
-      call register_depth_explicit_state_dependency(self, id%link, name // '_' // trim(standard_variable%name), trim(standard_variable%units), trim(standard_variable%name) // ' in ' // name, link=link, proportional_change=proportional_change, depth_integral_out=depth_integral, domain=domain_surface)
+      call register_depth_explicit_state_dependency(self, id%link, name // '_' // trim(standard_variable%name), &
+         trim(standard_variable%units), trim(standard_variable%name) // ' in ' // name, link=link, &
+         proportional_change=proportional_change, depth_integral_out=depth_integral, domain=domain_surface)
       call self%add_to_aggregate_variable(standard_variable, depth_integral%id_result)
       call self%request_coupling_to_model_generic(link, master_model_name=name, master_standard_variable=standard_variable)
    end subroutine
@@ -428,43 +445,55 @@ contains
 
    subroutine particle_integrator_initialize(self, configunit)
       class (type_particle_integrator), intent(inout), target :: self
-      integer,                           intent(in)            :: configunit
+      integer,                          intent(in)            :: configunit
 
-      call self%register_implemented_routines()
+      ! Register a dependence on the depth-explicit model instance for which we will provide depth integrals.
       call self%register_model_dependency(name='source')
    end subroutine
 
    recursive subroutine particle_integrator_complete_internal_variables(self)
       class (type_particle_integrator), intent(inout) :: self
 
-      type (type_base_model), pointer :: source
-      type (type_link),       pointer :: link, link_int
+      type (type_base_model),               pointer :: source
+      type (type_link),                     pointer :: link, link_int
       class (type_weighted_depth_integral), pointer :: depth_integral
-      type (type_contribution),          pointer :: contribution
+      type (type_contribution),             pointer :: contribution
 
-      source => self%resolve_model_dependency('source', .true.)
+      ! Retrieve the coupled depth-explcit model, ensurig that all its variables have been registered.
+      source => self%resolve_model_dependency('source', require_internal_variables=.true.)
 
+      ! Enumerate all state variables (and diagnostics acting as state variable) of the
+      ! original depth explicit model, and for each create a depth-integrated equivalent.
       link => source%links%first
       do while (associated(link))
          if (index(link%name,'/') == 0 .and. link%original%presence == presence_internal &
              .and. (link%original%source == source_state .or. link%original%fake_state_variable)) then
             select case (link%target%domain)
             case (domain_interior)
+               ! Create a child instance that depth-integrates the original depth-explicit state variable
                allocate(depth_integral)
                depth_integral%act_as_state_variable = .true.
                depth_integral%proportional_change = self%proportional_change
                depth_integral%domain = self%domain
                call self%add_child(depth_integral, trim(link%name) // '_int_calculator')
-               call depth_integral%request_coupling('source', trim(link%target%name))
-               call depth_integral%request_coupling('w', '../w')
 
+               ! Couple the weights and source variable of the depth integral
+               call depth_integral%request_coupling(depth_integral%id_source, link)
+               call depth_integral%request_coupling(depth_integral%id_w, '../w')
+
+               ! Set up a alias for the depth-integrated variable (coupled to the result of the depth integrator)
                link_int => null()
-               call self%add_horizontal_variable(trim(link%name), trim(link%target%units) // '*m', 'depth-integrated ' // trim(link%target%long_name), act_as_state_variable=.true., link=link_int, domain=self%domain)
-               call self%request_coupling(trim(link_int%name), trim(link%name) // '_int_calculator/result')
+               call self%add_horizontal_variable(trim(link%name), trim(link%target%units) // '*m', 'depth-integrated ' &
+                  // trim(link%target%long_name), act_as_state_variable=.true., link=link_int, domain=self%domain)
+               call self%request_coupling(link_int, trim(link%name) // '_int_calculator/result')
 
+               ! For the depth-integrated fake state variable, make sure it contributes to the same aggregate variable(s)
+               ! that its depth-explicit source variable contributes to. This ensures conservation checks will work for
+               ! models that provide source terms for the depth-integrated fake state variable.
                contribution => link%target%contributions%first
                do while (associated(contribution))
-                  call depth_integral%add_to_aggregate_variable(contribution%target%universal, depth_integral%id_result, contribution%scale_factor, contribution%include_background)
+                  call depth_integral%add_to_aggregate_variable(contribution%target%universal, depth_integral%id_result, &
+                     contribution%scale_factor, contribution%include_background)
                   contribution => contribution%next
                end do
             end select

@@ -27,7 +27,7 @@ module examples_particle_depth_integrated_predator
    !   current treatment of N and P. If not incorporated in predator biomass,
    !   their ingested fluxes can be sent directly to the waste pool.
    ! * More complex dynamics for predation, predator population growth, etc.:
-   !   modify logic in do_bottom accordingly. Additional parameters should be added
+   !   modify logic in do_surface accordingly. Additional parameters should be added
    !   to the type_depth_integrated_predator type and their value retrieved from
    !   initialize. Additional environental inputs can be handled just like
    !   temperature. Any additional waste pools (e.g., to distinguish dissolved
@@ -91,9 +91,9 @@ contains
       call self%register_dependency(self%id_prey_c, 'prey_c', 'mmol C m-3', 'depth-averaged prey carbon')
       call self%register_dependency(self%id_prey_n, 'prey_n', 'mmol N m-3', 'depth-averaged prey nitrogen')
       call self%register_dependency(self%id_prey_p, 'prey_p', 'mmol P m-3', 'depth-averaged prey phosphorus')
-      call self%register_state_dependency(self%id_waste_c, 'waste_c', 'mmol C m-2', 'depth-averaged carbon waste')
-      call self%register_state_dependency(self%id_waste_n, 'waste_n', 'mmol N m-2', 'depth-averaged nitrogen waste')
-      call self%register_state_dependency(self%id_waste_p, 'waste_p', 'mmol P m-2', 'depth-averaged phosphorus waste')
+      call self%register_state_dependency(self%id_waste_c, 'waste_c', 'mmol C m-2', 'depth-integrated carbon waste')
+      call self%register_state_dependency(self%id_waste_n, 'waste_n', 'mmol N m-2', 'depth-integrated nitrogen waste')
+      call self%register_state_dependency(self%id_waste_p, 'waste_p', 'mmol P m-2', 'depth-integrated phosphorus waste')
 
       ! Derive depth-averaged dependencies from depth-explicit sources
       ! * Environmental variables are typically depth-averaged over the predator habitat,
@@ -118,7 +118,7 @@ contains
       ! Access depth-integrated prey state that we will apply specific loss rates to.
       ! The local (depth-explicit) prey loss is expected to be proportional to prey biomass.
       ! This is specified by proportional_change=.true. The result of this is that the
-      ! same specific prey loss rate (ultipled by distribution weights) will be applied over
+      ! same specific prey loss rate (multiplied by distribution weights) will be applied over
       ! the predator depth range.
       call self%register_mapped_model_dependency(self%id_prey_int, 'prey', proportional_change=.true., domain=domain_surface)
    end subroutine
