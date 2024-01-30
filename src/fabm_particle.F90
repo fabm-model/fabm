@@ -74,6 +74,7 @@ module fabm_particle
       generic :: request_coupling_to_model => request_named_coupling_to_model,request_standard_coupling_to_model, &
                                               request_named_coupling_to_named_model,request_standard_coupling_to_named_model
       procedure :: resolve_model_dependency
+      procedure :: request_coupling_nn
 
       ! Hooks called by FABM:
       procedure :: before_coupling
@@ -136,24 +137,49 @@ contains
       reference%name = name
    end function add_model_reference
 
+   function find_model_reference(self, name) result(reference)
+      class (type_particle_model), intent(inout) :: self
+      character(len=*),            intent(in)    :: name
+      type (type_model_reference), pointer :: reference
+
+      reference => self%first_model_reference
+      do while (associated(reference))
+         if (reference%name == name) then
+            return
+         end if
+         reference => reference%next
+      end do
+   end function find_model_reference
+
    function resolve_model_dependency(self, name, require_internal_variables) result(model)
       class (type_particle_model), intent(inout) :: self
       character(len=*),            intent(in)    :: name
-      logical,optional,            intent(in)    :: require_internal_variables
+      logical, optional,           intent(in)    :: require_internal_variables
       class (type_base_model), pointer :: model
 
       type (type_model_reference), pointer :: reference
 
       model => null()
-      reference => self%first_model_reference
-      do while (associated(reference))
-         if (reference%name == name) then
-            model => self%resolve_model_reference(reference, require_internal_variables)
-            return
-         end if
-         reference => reference%next
-      end do
+      reference => find_model_reference(self, name)
+      if (associated(reference)) model => self%resolve_model_reference(reference, require_internal_variables)
    end function resolve_model_dependency
+
+   recursive subroutine request_coupling_nn(self, slave, master)
+      class (type_particle_model), intent(inout), target :: self
+      character(len=*),            intent(in)            :: slave, master
+
+      type (type_model_reference), pointer :: reference
+
+      reference => find_model_reference(self, slave)
+      if (associated(reference)) then
+         ! The slave is a coupled model instance
+         call self%couplings%set_string(slave, master)
+      else
+         ! The slave is not a coupled model instance and therefore must be a variable.
+         ! Forward to base type
+         call self%type_base_model%request_coupling_nn(slave, master)
+      end if
+   end subroutine request_coupling_nn
 
    subroutine request_coupling_to_model_generic(self, slave, master_model, master_model_name, master_name, master_standard_variable)
       class (type_particle_model), target, intent(inout)           :: self
@@ -302,14 +328,8 @@ contains
 
             ! Search references in source model
             if (associated(source_model)) then
-               reference2 => source_model%first_model_reference
-               do while (associated(reference2))
-                  if (model_master_name(istart:) == reference2%name) then
-                     reference%model => source_model%resolve_model_reference(reference2)
-                     exit
-                  end if
-                  reference2 => reference2%next
-               end do
+               reference2 => find_model_reference(source_model, model_master_name(istart:))
+               if (associated(reference2)) reference%model => source_model%resolve_model_reference(reference2)
             end if
          end if
 
