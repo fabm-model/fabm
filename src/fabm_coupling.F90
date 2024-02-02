@@ -706,13 +706,13 @@ contains
 
             ! Process sums now that all contributing terms are known.
             link => null()
-            call self%add_interior_variable('change_in_' // trim(standard_variable%name), trim(standard_variable%units) // '/s', trim(standard_variable%name), link=link)
+            call self%add_interior_variable('change_in_' // trim(standard_variable%name), trim(standard_variable%units) // ' s-1', 'change in ' // trim(standard_variable%name), link=link)
             if (.not. sum%add_to_parent(self, link, create_for_one=.true.)) deallocate(sum)
             link => null()
-            call self%add_horizontal_variable('change_in_' // trim(standard_variable%name) // '_at_surface', trim(standard_variable%units) // '*m/s', trim(standard_variable%name), domain=domain_surface, link=link)
+            call self%add_horizontal_variable('change_in_' // trim(standard_variable%name) // '_at_surface', trim(standard_variable%units) // ' m s-1', 'change in ' // trim(standard_variable%name) // ' at surface', domain=domain_surface, link=link)
             if (.not. surface_sum%add_to_parent(self, link, create_for_one=.true.)) deallocate(surface_sum)
             link => null()
-            call self%add_horizontal_variable('change_in_' // trim(standard_variable%name) // '_at_bottom', trim(standard_variable%units) // '*m/s', trim(standard_variable%name), domain=domain_bottom, link=link)
+            call self%add_horizontal_variable('change_in_' // trim(standard_variable%name) // '_at_bottom', trim(standard_variable%units) // ' m s-1', 'change in ' // trim(standard_variable%name)// ' at bottom', domain=domain_bottom, link=link)
             if (.not. bottom_sum%add_to_parent(self, link, create_for_one=.true.)) deallocate(bottom_sum)
          end select
 
