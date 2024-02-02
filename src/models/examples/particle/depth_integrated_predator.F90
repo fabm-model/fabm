@@ -68,8 +68,15 @@ contains
 
       class (type_vertical_depth_range), pointer :: depth_distribution
 
+      ! This adds a dependency ("w") on the weights that define the vertical habitat
+      ! Additionally, it adds a dependency on the vertical integral of the weights (id_w_int),
+      ! which can be used to convert between depth integrals and depth-averages
+      call self%type_depth_integrated_particle%initialize(configunit)
+
+      ! For now, specify a prescribed depth distribution
       allocate(depth_distribution)
-      call self%set_vertical_distribution(depth_distribution)
+      call self%add_child(depth_distribution, 'habitat')
+      call self%request_coupling('w', 'habitat/w')
 
       ! Predator biomass and its contribution to different elemental pools
       call self%register_state_variable(self%id_c, 'c', 'mmol C m-2', 'density')
