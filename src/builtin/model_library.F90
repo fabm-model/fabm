@@ -9,6 +9,7 @@ module fabm_builtin_models
    use fabm_builtin_depth_integral
    use fabm_builtin_source
    use fabm_builtin_relaxation
+   use fabm_builtin_depth_mapping
 
    implicit none
 
@@ -85,6 +86,8 @@ contains
          case ('surface_temporal_mean');    allocate(type_surface_temporal_mean::model)
          case ('bottom_temporal_mean');     allocate(type_bottom_temporal_mean::model)
          case ('surface_temporal_maximum'); allocate(type_surface_temporal_maximum::model)
+         case ('depth_integrated_particle_override'); allocate(type_depth_integrated_particle_override::model)
+         case ('vertical_depth_range'); allocate(type_vertical_depth_range::model)
          ! Add new examples models here
       end select
 
