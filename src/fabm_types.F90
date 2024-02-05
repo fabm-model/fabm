@@ -463,6 +463,7 @@ module fabm_types
 
       type (type_fabm_settings) :: couplings
       type (type_fabm_settings) :: parameters
+      type (type_fabm_settings) :: initialization
 
       class (type_expression), pointer :: first_expression => null()
 

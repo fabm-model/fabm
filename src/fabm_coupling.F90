@@ -2,6 +2,7 @@ module fabm_coupling
    use fabm_types
    use fabm_builtin_models
    use fabm_driver
+   use yaml_settings, only: default_minimum_real, default_maximum_real
 
    implicit none
 
@@ -33,14 +34,17 @@ module fabm_coupling
 
 contains
 
-   subroutine freeze_model_info(self, coupling_log_unit)
+   subroutine freeze_model_info(self, require_initialization, coupling_log_unit)
       class (type_base_model), intent(inout), target :: self
+      logical,                 intent(in)            :: require_initialization
       integer,                 intent(in)            :: coupling_log_unit
 
       if (associated(self%parent)) call self%fatal_error('freeze_model_info', &
          'BUG: freeze_model_info can only operate on the root model.')
 
       call before_coupling(self)
+
+      call get_initial_state(self, require_initialization)
 
       ! Coupling stage 1: implicit - couple variables based on overlapping standard identities.
       call couple_standard_variables(self)
@@ -88,7 +92,7 @@ contains
    end subroutine freeze_model_info
 
    recursive subroutine before_coupling(self)
-      class (type_base_model),intent(inout),target :: self
+      class (type_base_model), intent(inout), target :: self
 
       type (type_model_list_node), pointer :: node
 
@@ -96,6 +100,41 @@ contains
       node => self%children%first
       do while (associated(node))
          call before_coupling(node%model)
+         node => node%next
+      end do
+   end subroutine
+
+   recursive subroutine get_initial_state(self, require_initialization)
+      class (type_base_model), intent(inout) :: self
+      logical,                 intent(in)    :: require_initialization
+
+      type (type_link),            pointer :: link
+      real(rk)                             :: minimum
+      real(rk)                             :: maximum
+      type (type_model_list_node), pointer :: node
+
+      ! Transfer user-specified initial state to the model.
+      link => self%links%first
+      do while (associated(link))
+         minimum = default_minimum_real
+         maximum = default_maximum_real
+         if (link%target%minimum /= -1.e20_rk) minimum = link%target%minimum
+         if (link%target%maximum /=  1.e20_rk) maximum = link%target%maximum
+         if (index(link%name, '/') == 0 .and. link%target%source == source_state .and. link%target%presence == presence_internal) then
+            if (require_initialization) then
+               call self%initialization%get(link%target%initial_value, trim(link%name), trim(link%target%long_name), &
+                  trim(link%target%units), minimum=minimum, maximum=maximum)
+            else
+               call self%initialization%get(link%target%initial_value, trim(link%name), trim(link%target%long_name), &
+                  trim(link%target%units), minimum=minimum, maximum=maximum, default=link%target%initial_value)
+            end if
+         end if
+         link => link%next
+      end do
+
+      node => self%children%first
+      do while (associated(node))
+         call get_initial_state(node%model, require_initialization)
          node => node%next
       end do
    end subroutine

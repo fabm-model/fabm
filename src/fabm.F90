@@ -190,6 +190,7 @@ module fabm
 
       integer :: status = status_none
       logical :: log = .false.
+      logical :: require_initialization = .false.
 
       type (type_link_list) :: links_postcoupling
 
@@ -410,7 +411,7 @@ contains
       else
          call fabm_load_settings(model%settings, path, unit=unit)
       end if
-      call fabm_configure_model(model%root, model%settings, model%schedules, model%log)
+      call fabm_configure_model(model%root, model%settings, model%schedules, model%log, model%require_initialization)
 
       ! Initialize model tree
       initialize_ = .true.
@@ -449,7 +450,7 @@ contains
       end if
 
       ! This will resolve all FABM dependencies and generate final authoritative lists of variables of different types.
-      call freeze_model_info(self%root, coupling_log_unit=log_unit)
+      call freeze_model_info(self%root, self%require_initialization, coupling_log_unit=log_unit)
 
       if (self%log) close(log_unit)
 
