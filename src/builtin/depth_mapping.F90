@@ -517,7 +517,7 @@ contains
    subroutine depth_integrated_particle_request_mapped_coupling3(self, id, standard_variable, average)
       class (type_depth_integrated_particle),   intent(inout) :: self
       type (type_bottom_dependency_id), target, intent(inout) :: id
-      type (type_universal_standard_variable),   intent(in)    :: standard_variable
+      type (type_universal_standard_variable),  intent(in)    :: standard_variable
       logical, optional,                        intent(in)    :: average
 
       call self%request_mapped_coupling(id, standard_variable%in_interior(), average)
@@ -526,7 +526,7 @@ contains
    subroutine depth_integrated_particle_request_mapped_coupling4(self, id, standard_variable, average)
       class (type_depth_integrated_particle),    intent(inout) :: self
       type (type_surface_dependency_id), target, intent(inout) :: id
-      type (type_universal_standard_variable),    intent(in)    :: standard_variable
+      type (type_universal_standard_variable),   intent(in)    :: standard_variable
       logical, optional,                         intent(in)    :: average
 
       call self%request_mapped_coupling(id, standard_variable%in_interior(), average)
@@ -617,8 +617,8 @@ contains
       ! original depth explicit model instance, and for each create a depth-integrated equivalent.
       link => source%links%first
       do while (associated(link))
-         if (index(link%name,'/') == 0 .and. link%original%presence == presence_internal &
-             .and. (link%original%source == source_state .or. link%original%fake_state_variable)) then
+         if (index(link%name,'/') == 0 .and. link%target%presence == presence_internal &
+             .and. (link%target%source == source_state .or. link%target%fake_state_variable)) then
             select case (link%target%domain)
             case (domain_interior)
                ! Create a child instance that depth-integrates the original depth-explicit state variable
@@ -633,9 +633,11 @@ contains
                call depth_integral%request_coupling(depth_integral%id_w, '../w')
 
                ! Set up an alias for the depth-integrated variable (coupled to the result of the depth integrator)
+               ! Note: the variable must be flagged as state variable (source=source_state or act_as_state_variable=.true.) in
+               ! order to be included in state variable id lists set up when a particle-based coupling to this instance is made.
                link_int => null()
                call self%add_horizontal_variable(trim(link%name), trim(link%target%units) // ' m', 'depth-integrated ' &
-                  // trim(link%target%long_name), act_as_state_variable=.true., link=link_int, domain=self%domain)
+                  // trim(link%target%long_name), source=source_state, link=link_int, domain=self%domain)
                call self%request_coupling(link_int, trim(link%name) // '_int_calculator/result')
 
                ! For the depth-integrated fake state variable, make sure it contributes to the same aggregate variable(s)
@@ -678,8 +680,8 @@ contains
       ! Projection over the water column is done by a child model
       link_int => source%links%first
       do while (associated(link_int))
-         if (index(link_int%name,'/') == 0 .and. link_int%original%presence == presence_internal &
-             .and. (link_int%original%source == source_state .or. link_int%original%fake_state_variable)) then
+         if (index(link_int%name,'/') == 0 .and. link_int%target%presence == presence_internal &
+             .and. (link_int%target%source == source_state .or. link_int%target%fake_state_variable)) then
             select case (link_int%target%domain)
             case (domain_bottom, domain_surface)
                ! Create a child instance that projects the depth-integrated state variable over the pelagic
@@ -692,10 +694,12 @@ contains
                call projector%request_coupling(projector%id_w, '../w')
                call projector%request_coupling(projector%id_w_int, '../w_int')
 
-               ! Set up a alias for the depth-explicit variable (coupled to the result of the depth integrator)
+               ! Set up a alias for the depth-explicit variable (coupled to the result of the child model that projects over depth)
+               ! Note: the variable must be flagged as state variable (source=source_state or act_as_state_variable=.true.) in
+               ! order to be included in state variable id lists set up when a particle-based coupling to this instance is made.
                link => null()
                call self%add_interior_variable(trim(link_int%name), trim(link_int%target%units) // ' m-1', 'depth-explicit ' &
-                  // trim(link_int%target%long_name), act_as_state_variable=.true., link=link)
+                  // trim(link_int%target%long_name), source=source_state, link=link)
                call self%request_coupling(link, trim(link_int%name) // '_calculator/result')
 
                ! For the depth-explicit fake state variable, make sure it contributes to the same aggregate variable(s)
@@ -719,12 +723,15 @@ contains
 
       type (type_projected_particle), pointer :: projection
 
+      ! Alllow the base class to initialize
+      ! This sets up a dependency on vertial distribution weights w
       call self%type_depth_integrated_particle%initialize(configunit)
 
       ! Register a dependence on the depth-explicit model instance for which we will
       ! replace interior state variables with depth-integrated ones
       call self%register_model_dependency(name='target')
 
+      ! Add a child model that will project our depth-integrated variables over the water column
       allocate(projection)
       call self%add_child(projection, 'projection')
       call projection%request_coupling('source', '..')
@@ -740,11 +747,12 @@ contains
       ! Retrieve the coupled depth-explicit model instance, ensuring that all its variables have been registered.
       target_instance => self%resolve_model_dependency('target', require_internal_variables=.true.)
 
-      ! Enumerate all depth-explicit state variables  coupled model instance, and for each create a depth-integrated equivalent.
+      ! Enumerate all depth-explicit state variables from coupled model instance,
+      ! and for each create a depth-integrated equivalent.
       link => target_instance%links%first
       do while (associated(link))
-         if (index(link%name,'/') == 0 .and. link%original%presence == presence_internal &
-             .and. link%original%source == source_state .and. link%target%domain == domain_interior) then
+         if (index(link%name,'/') == 0 .and. link%target%presence == presence_internal &
+             .and. link%target%source == source_state .and. link%target%domain == domain_interior) then
 
             ! Create the depth-integrated state variable that will replace the original depth-explicit state variable
             link_int => null()
@@ -752,7 +760,8 @@ contains
                // trim(link%target%long_name), source=source_state, link=link_int, domain=self%domain)
 
             ! Ensure the depth-integrated state variable contributes to the same aggregate variable(s) that the original
-            ! depth-explicit source variable contributes to.
+            ! depth-explicit source variable contributes to. Make sure to register contributions to bottom/surface as
+            ! well as to interfaces in general. The latter is used to compute totals of conserved quantities.
             contribution => link%target%contributions%first
             do while (associated(contribution))
                call link_int%target%contributions%add(contribution%target%universal%at_interfaces(), &
