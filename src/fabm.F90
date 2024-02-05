@@ -324,6 +324,8 @@ module fabm
 
    end type type_fabm_model
 
+   character(len=*), parameter :: log_prefix = 'fabm_'
+
 contains
 
    ! --------------------------------------------------------------------------
@@ -426,7 +428,7 @@ contains
    subroutine initialize(self)
       class (type_fabm_model), target, intent(inout) :: self
 
-      integer :: ivar
+      integer :: ivar, log_unit, ios
 
       if (self%status >= status_initialize_done) &
          call fatal_error('initialize', 'initialize has already been called on this model object.')
@@ -439,8 +441,17 @@ contains
       ! The remainder, if any, must be handled by the host model.
       call filter_expressions(self)
 
+      log_unit = -1
+      if (self%log) then
+         log_unit = get_free_unit()
+         open(unit=log_unit, file=log_prefix // 'coupling.log', action='write', status='replace', iostat=ios)
+         if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'coupling.log')
+      end if
+
       ! This will resolve all FABM dependencies and generate final authoritative lists of variables of different types.
-      call freeze_model_info(self%root)
+      call freeze_model_info(self%root, coupling_log_unit=log_unit)
+
+      if (self%log) close(log_unit)
 
       if (.not. self%settings%check_all_used(finalize_store=.false.)) call fatal_error('initialize', 'invalid configuration')
 
@@ -710,7 +721,6 @@ contains
       logical                             :: ready
       type (type_variable_node),pointer   :: variable_node
       type (type_link), pointer           :: link
-      character(len=*), parameter         :: log_prefix = 'fabm_'
       integer                             :: log_unit, ios
       class (type_fabm_variable), pointer :: pvariables(:)
 

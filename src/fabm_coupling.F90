@@ -10,8 +10,6 @@ module fabm_coupling
    public freeze_model_info
    public collect_aggregate_variables, type_aggregate_variable_list, type_aggregate_variable
 
-   logical,parameter :: debug_coupling = .false.
-
    type type_contributing_variable
       type (type_link),                 pointer :: link               => null()
       real(rk)                                  :: scale_factor       = 1.0_rk
@@ -35,8 +33,9 @@ module fabm_coupling
 
 contains
 
-   subroutine freeze_model_info(self)
+   subroutine freeze_model_info(self, coupling_log_unit)
       class (type_base_model), intent(inout), target :: self
+      integer,                 intent(in)            :: coupling_log_unit
 
       if (associated(self%parent)) call self%fatal_error('freeze_model_info', &
          'BUG: freeze_model_info can only operate on the root model.')
@@ -47,7 +46,8 @@ contains
       call couple_standard_variables(self)
 
       ! Coupling stage 2: explicit - resolve user- or model-specified links between variables.
-      call process_coupling_tasks(self, final=.false.)
+      if (coupling_log_unit > 0) write (coupling_log_unit, '(a)') 'process_coupling_tasks_1:'
+      call process_coupling_tasks(self, final=.false., log_unit=coupling_log_unit)
 
       ! Create models for aggregate variables:
       ! * at root level, e.g. for totals of conserved quantities [included in default output]
@@ -62,7 +62,8 @@ contains
       ! Perform coupling for any new aggregate models.
       ! This may append items to existing lists of source terms and bottom/surface fluxes,
       ! so it has to precede the call to create_flux_sums.
-      call process_coupling_tasks(self, final=.false.)
+      if (coupling_log_unit > 0) write (coupling_log_unit, '(a)') 'process_coupling_tasks_2:'
+      call process_coupling_tasks(self, final=.false., log_unit=coupling_log_unit)
 
       ! Now that coupling for non-rate variables is complete, contributions to aggregate quantities
       ! (including ones of slave variables) are final.
@@ -74,7 +75,8 @@ contains
       call request_flux_sum_coupling(self)
 
       ! Process the any remaining coupling tasks.
-      call process_coupling_tasks(self, final=.true.)
+      if (coupling_log_unit > 0) write (coupling_log_unit, '(a)') 'process_coupling_tasks_3:'
+      call process_coupling_tasks(self, final=.true., log_unit=coupling_log_unit)
 
       ! Allow inheriting models to perform additional tasks after coupling.
       call after_coupling(self)
@@ -199,9 +201,10 @@ contains
       self%coupling_task_list%includes_custom = .true.
    end subroutine collect_user_specified_couplings
 
-   recursive subroutine process_coupling_tasks(self, final)
+   recursive subroutine process_coupling_tasks(self, final, log_unit)
       class (type_base_model), intent(inout), target :: self
       logical,                 intent(in)            :: final
+      integer,                 intent(in)            :: log_unit
 
       class (type_base_model),       pointer :: root
       type (type_model_list_node),   pointer :: child
@@ -289,6 +292,7 @@ contains
          if (associated(link)) then
             ! Target variable found: perform the coupling.
             master => link%target
+            if (log_unit > 0) write (log_unit, '(a,a,a,a)') '  ', trim(coupling%slave%target%name), ': ', trim(master%name)
             call couple_variables(root, master, coupling%slave%target)
 
             ! Remove coupling task from the list
@@ -305,7 +309,7 @@ contains
       ! Process coupling tasks registered with child models.
       child => self%children%first
       do while (associated(child))
-         call process_coupling_tasks(child%model, final)
+         call process_coupling_tasks(child%model, final, log_unit)
          child => child%next
       end do
 
@@ -758,8 +762,6 @@ contains
          call fatal_error('couple_variables', &
          'Cannot couple ' // trim(slave%name) // ' (' // trim(domain2string(slave%domain)) // ') to ' // trim(master%name) &
          // ' (' // trim(domain2string(master%domain)) // '), because their domains are incompatible.')
-
-      if (debug_coupling) call log_message(trim(slave%name) // ' --> ' // trim(master%name))
 
       ! Merge all information from the slave into the master.
       call master%state_indices%extend(slave%state_indices)
