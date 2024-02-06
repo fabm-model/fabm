@@ -331,7 +331,7 @@ contains
          if (associated(link)) then
             ! Target variable found: perform the coupling.
             master => link%target
-            if (log_unit > 0) write (log_unit, '(a,a,a,a)') '  ', trim(coupling%slave%target%name), ': ', trim(master%name)
+            if (log_unit /= -1) write (log_unit, '(a,a,a,a)') '  ', trim(coupling%slave%target%name), ': ', trim(master%name)
             call couple_variables(root, master, coupling%slave%target)
 
             ! Remove coupling task from the list
