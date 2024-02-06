@@ -44,7 +44,7 @@ module fabm_builtin_sum
 
    type, extends(type_base_sum) :: type_weighted_sum
       type (type_dependency_id), allocatable :: id_terms(:)
-      type (type_add_id)                     :: id_output
+      type (type_add_id)                     :: id_result
       type (type_sum_term),      allocatable :: sources(:)
    contains
       procedure :: initialize       => weighted_sum_initialize
@@ -57,7 +57,7 @@ module fabm_builtin_sum
    type, extends(type_base_sum) :: type_horizontal_weighted_sum
       integer                                           :: domain = domain_horizontal
       type (type_horizontal_dependency_id), allocatable :: id_terms(:)
-      type (type_horizontal_add_id)                     :: id_output
+      type (type_horizontal_add_id)                     :: id_result
       type (type_horizontal_sum_term),      allocatable :: sources(:)
    contains
       procedure :: initialize       => horizontal_weighted_sum_initialize
@@ -128,7 +128,7 @@ contains
             scaled_variable%weight = self%first%weight
             scaled_variable%include_background = self%first%include_background
             scaled_variable%offset = self%offset
-            call parent%request_coupling(link, trim(link%name) // '_calculator/result')
+            call parent%request_coupling(link, scaled_variable%id_result%link)
             if (link%target%fake_state_variable) then
                ! This scaled variable acts as a state variable. Create a child model to distribute source terms to the original source variable.
                call copy_fluxes(scaled_variable, scaled_variable%id_result, self%first%name, scale_factor=1.0_rk / scaled_variable%weight)
@@ -139,7 +139,7 @@ contains
       else
          ! Multiple components. Create the sum.
          call parent%add_child(self, trim(link%name) // '_calculator')
-         call parent%request_coupling(link, trim(link%name) // '_calculator/result')
+         call parent%request_coupling(link, self%id_result%link)
          sum_used = .true.
       end if
    end function weighted_sum_add_to_parent
@@ -195,8 +195,8 @@ contains
       end do
 
       call self%add_interior_variable('result', self%units, 'result', fill_value=0.0_rk, missing_value=self%missing_value, &
-         output=self%result_output, write_index=self%id_output%sum_index, link=self%id_output%link, source=source_do)
-      self%id_output%link%target%fake_state_variable = act_as_state_variable
+         output=self%result_output, write_index=self%id_result%sum_index, link=self%id_result%link, source=source_do)
+      self%id_result%link%target%fake_state_variable = act_as_state_variable
 
       if (act_as_state_variable) then
          ! NB this does not function yet (hence the act_as_state_variable=.false. above)
@@ -274,7 +274,7 @@ contains
          end if
          component => component%next
       end do
-      call self%id_output%link%target%background_values%set_value(background)
+      call self%id_result%link%target%background_values%set_value(background)
    end subroutine
 
    function base_merge_components(self, sum_variable, log_unit) result(n)
@@ -367,7 +367,7 @@ contains
       integer                        :: i, n
       type (type_component), pointer :: component
 
-      n = base_merge_components(self, self%id_output%link%target, log_unit)
+      n = base_merge_components(self, self%id_result%link%target, log_unit)
 
       ! Put all ids and weights in a single array to minimize memory bottlenecks when computing sum
       allocate(self%sources(n))
@@ -401,7 +401,7 @@ contains
       integer                        :: i, n
       type (type_component), pointer :: component
 
-      n = base_merge_components(self, self%id_output%link%target, log_unit)
+      n = base_merge_components(self, self%id_result%link%target, log_unit)
 
       ! Put all ids and weights in a single array to minimize memory bottlenecks when computing sum
       allocate(self%sources(n))
@@ -424,7 +424,7 @@ contains
       do i = 1, size(self%sources)
          _CONCURRENT_LOOP_BEGIN_
             _GET_(self%sources(i)%id, value)
-            _ADD_(self%id_output, self%sources(i)%weight * value)
+            _ADD_(self%id_result, self%sources(i)%weight * value)
          _LOOP_END_
       end do
    end subroutine
@@ -470,7 +470,7 @@ contains
             scaled_variable%weight = self%first%weight
             scaled_variable%include_background = self%first%include_background
             scaled_variable%offset = self%offset
-            call parent%request_coupling(link, trim(link%name) // '_calculator/result')
+            call parent%request_coupling(link, scaled_variable%id_result%link)
             if (link%target%fake_state_variable) then
                call copy_horizontal_fluxes(scaled_variable, scaled_variable%id_result, self%first%name, scale_factor=1.0_rk / scaled_variable%weight)
                if (present(aggregate_variable)) call scaled_variable%add_to_aggregate_variable(aggregate_variable, scaled_variable%id_result)
@@ -480,7 +480,7 @@ contains
       else
          ! One component with scale factor unequal to 1, or multiple components. Create the sum.
          call parent%add_child(self, trim(link%name) // '_calculator')
-         call parent%request_coupling(link, trim(link%name) // '_calculator/result')
+         call parent%request_coupling(link, self%id_result%link)
          sum_used = .true.
       end if
    end function horizontal_weighted_sum_add_to_parent
@@ -510,7 +510,7 @@ contains
          component => component%next
       end do
       call self%add_horizontal_variable('result', self%units, 'result', missing_value=self%missing_value, fill_value=0.0_rk, output=self%result_output, &
-         write_index=self%id_output%horizontal_sum_index, link=self%id_output%link, source=source_do_horizontal)
+         write_index=self%id_result%horizontal_sum_index, link=self%id_result%link, source=source_do_horizontal)
    end subroutine
 
    subroutine horizontal_weighted_sum_after_coupling(self)
@@ -535,7 +535,7 @@ contains
          end if
          component => component%next
       end do
-      call self%id_output%link%target%background_values%set_value(background)
+      call self%id_result%link%target%background_values%set_value(background)
    end subroutine
 
    subroutine horizontal_weighted_sum_do_horizontal(self,_ARGUMENTS_HORIZONTAL_)
@@ -548,7 +548,7 @@ contains
       do i = 1, size(self%sources)
          _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
             _GET_HORIZONTAL_(self%sources(i)%id, value)
-            _ADD_HORIZONTAL_(self%id_output, self%sources(i)%weight * value)
+            _ADD_HORIZONTAL_(self%id_result, self%sources(i)%weight * value)
          _HORIZONTAL_LOOP_END_
       end do
    end subroutine horizontal_weighted_sum_do_horizontal
