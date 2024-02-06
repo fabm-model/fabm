@@ -1838,11 +1838,10 @@ contains
 
       integer                                      :: length, i
       character(len=256)                           :: text
-      type (type_link), pointer                    :: link_
+      type (type_link), pointer                    :: link_, duplicate
       class (type_base_standard_variable), pointer :: pstandard_variable
       character(len=attribute_length)              :: oriname
       integer                                      :: instance
-      logical                                      :: duplicate
 
       ! Check whether the model information may be written to (only during initialization)
       if (self%frozen) call self%fatal_error('add_variable', &
@@ -1942,8 +1941,8 @@ contains
 
       ! Check if a link with this name exists.
       ! If so, append an integer number to make the name unique
-      duplicate = associated(self%links%find(variable%name))
-      if (duplicate) then
+      duplicate => self%links%find(variable%name)
+      if (associated(duplicate)) then
          ! Link with this name exists already.
          ! Append numbers to the variable name until a unique name is found.
          oriname = variable%name
@@ -1963,7 +1962,7 @@ contains
       end if
 
       ! If this name matched that of a previous variable, create a coupling to it.
-      if (duplicate) call self%request_coupling(link_, oriname)
+      if (associated(duplicate)) call self%request_coupling(link_, duplicate)
    end subroutine add_variable
 
    subroutine add_interior_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
