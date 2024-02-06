@@ -38,7 +38,9 @@ module fabm_builtin_sum
       logical                         :: components_frozen = .false.
       type (type_component), pointer  :: first => null()
    contains
-      procedure :: add_component
+      procedure :: add_component_by_name
+      procedure :: add_component_by_link
+      generic :: add_component => add_component_by_name, add_component_by_link
       procedure :: finalize
    end type
 
@@ -223,12 +225,10 @@ contains
       end if
    end subroutine
 
-   subroutine add_component(self, name, weight, include_background, link)
-      class (type_base_sum),    intent(inout) :: self
-      character(len=*),         intent(in)    :: name
-      real(rk), optional,       intent(in)    :: weight
-      logical,  optional,       intent(in)    :: include_background
-      type (type_link), target, optional      :: link
+   function append_component(self, weight, include_background) result(component)
+      class (type_base_sum), intent(inout) :: self
+      real(rk), optional,    intent(in)    :: weight
+      logical,  optional,    intent(in)    :: include_background
 
       type (type_component), pointer :: component
 
@@ -246,10 +246,35 @@ contains
          allocate(component%next)
          component => component%next
       end if
-      component%name = name
-      if (present(link)) component%link => link
       if (present(weight)) component%weight = weight
       if (present(include_background)) component%include_background = include_background
+   end function
+
+   subroutine add_component_by_name(self, name, weight, include_background)
+      class (type_base_sum),    intent(inout) :: self
+      character(len=*),         intent(in)    :: name
+      real(rk), optional,       intent(in)    :: weight
+      logical,  optional,       intent(in)    :: include_background
+
+      type (type_component), pointer :: component
+
+      component => append_component(self, weight, include_background)
+      component%name = name
+   end subroutine
+
+   subroutine add_component_by_link(self, link, weight, include_background)
+      class (type_base_sum),    intent(inout) :: self
+      type (type_link), target                :: link
+      real(rk), optional,       intent(in)    :: weight
+      logical,  optional,       intent(in)    :: include_background
+
+      type (type_component), pointer :: component
+
+      component => append_component(self, weight, include_background)
+      component%link => link
+
+      ! Temporary: also store the name for use in calls to copy_fluxes from add_to_parent
+      component%name = link%target%name
    end subroutine
 
    subroutine weighted_sum_after_coupling(self)

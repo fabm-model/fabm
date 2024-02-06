@@ -397,7 +397,7 @@ contains
       sum%missing_value = 0
       component_link => link_list%first
       do while (associated(component_link))
-         call sum%add_component('', link=component_link)
+         call sum%add_component(component_link)
          component_link => component_link%next
       end do
       if (.not. sum%add_to_parent(parent, link)) deallocate(sum)
@@ -415,7 +415,7 @@ contains
       sum%missing_value = 0
       component_link => link_list%first
       do while (associated(component_link))
-         call sum%add_component('', link=component_link)
+         call sum%add_component(component_link)
          component_link => component_link%next
       end do
       if (.not. sum%add_to_parent(parent, link)) deallocate(sum)
@@ -642,10 +642,10 @@ contains
                 .and. (index(contributing_variable%link%name, '/') == 0 .or. .not. associated(self%parent))) then     ! Variable must be owned by the model itself unless we are aggregating at root level
                select case (contributing_variable%link%target%domain)
                case (domain_interior)
-                  call sum%add_component(trim(contributing_variable%link%name), link=contributing_variable%link, &
+                  call sum%add_component(contributing_variable%link, &
                      weight=contributing_variable%scale_factor, include_background=contributing_variable%include_background)
                case (domain_bottom, domain_surface, domain_horizontal)
-                  call horizontal_sum%add_component(trim(contributing_variable%link%name), link=contributing_variable%link, &
+                  call horizontal_sum%add_component(contributing_variable%link, &
                      weight=contributing_variable%scale_factor, include_background=contributing_variable%include_background)
                end select
             end if
@@ -722,9 +722,9 @@ contains
             contributing_variable => aggregate_variable%first_contributing_variable
             do while (associated(contributing_variable))
                if (index(contributing_variable%link%name, '/') == 0) then
-                  if (associated(contributing_variable%link%original%sms))          call sum%add_component        (contributing_variable%link%original%sms%name,          contributing_variable%scale_factor)
-                  if (associated(contributing_variable%link%original%surface_flux)) call surface_sum%add_component(contributing_variable%link%original%surface_flux%name, contributing_variable%scale_factor)
-                  if (associated(contributing_variable%link%original%bottom_flux))  call bottom_sum%add_component (contributing_variable%link%original%bottom_flux%name,  contributing_variable%scale_factor)
+                  if (associated(contributing_variable%link%original%sms))          call sum%add_component        (contributing_variable%link%original%sms,          contributing_variable%scale_factor)
+                  if (associated(contributing_variable%link%original%surface_flux)) call surface_sum%add_component(contributing_variable%link%original%surface_flux, contributing_variable%scale_factor)
+                  if (associated(contributing_variable%link%original%bottom_flux))  call bottom_sum%add_component (contributing_variable%link%original%bottom_flux,  contributing_variable%scale_factor)
                end if
                contributing_variable => contributing_variable%next
             end do
@@ -734,7 +734,7 @@ contains
             contributing_variable => aggregate_variable%first_contributing_variable
             do while (associated(contributing_variable))
                if (index(contributing_variable%link%name, '/') == 0 .and. associated(contributing_variable%link%original%sms)) &
-                  call surface_sum%add_component(contributing_variable%link%original%sms%name, contributing_variable%scale_factor)
+                  call surface_sum%add_component(contributing_variable%link%original%sms, contributing_variable%scale_factor)
                contributing_variable => contributing_variable%next
             end do
 
@@ -743,7 +743,7 @@ contains
             contributing_variable => aggregate_variable%first_contributing_variable
             do while (associated(contributing_variable))
                if (index(contributing_variable%link%name, '/') == 0 .and. associated(contributing_variable%link%original%sms)) &
-                  call bottom_sum%add_component(contributing_variable%link%original%sms%name, contributing_variable%scale_factor)
+                  call bottom_sum%add_component(contributing_variable%link%original%sms, contributing_variable%scale_factor)
                contributing_variable => contributing_variable%next
             end do
 
