@@ -437,12 +437,12 @@ contains
             ! These links will be coupled to the result of the source/flux summations at the next stage.
             select case (link%target%domain)
             case (domain_interior)
-               call self%add_interior_variable  (trim(link%name) // '_sms_tot', trim(link%original%units) // ' s-1',   trim(link%original%long_name) // ' sources', link=link%original%sms_sum, output=output_none)
-               call self%add_horizontal_variable(trim(link%name) // '_sfl_tot', trim(link%original%units) // ' m s-1', trim(link%original%long_name) // ' surface flux', domain=domain_surface, link=link%original%surface_flux_sum, output=output_none)
-               call self%add_horizontal_variable(trim(link%name) // '_bfl_tot', trim(link%original%units) // ' m s-1', trim(link%original%long_name) // ' bottom flux', domain=domain_bottom, link=link%original%bottom_flux_sum, output=output_none)
-               call self%add_interior_variable  (trim(link%name) // '_w_tot',   'm s-1',                               trim(link%original%long_name) // ' vertical velocity', link=link%original%movement_sum, output=output_none)
+               call self%add_interior_variable  (trim(link%name) // '_sms_tot', trim(link%original%units) // ' s-1',   trim(link%original%long_name) // ' total sources', link=link%original%sms_sum, output=output_none)
+               call self%add_horizontal_variable(trim(link%name) // '_sfl_tot', trim(link%original%units) // ' m s-1', trim(link%original%long_name) // ' total surface flux', domain=domain_surface, link=link%original%surface_flux_sum, output=output_none)
+               call self%add_horizontal_variable(trim(link%name) // '_bfl_tot', trim(link%original%units) // ' m s-1', trim(link%original%long_name) // ' total bottom flux', domain=domain_bottom, link=link%original%bottom_flux_sum, output=output_none)
+               call self%add_interior_variable  (trim(link%name) // '_w_tot',   'm s-1',                               trim(link%original%long_name) // ' total vertical velocity', link=link%original%movement_sum, output=output_none)
             case (domain_horizontal, domain_surface, domain_bottom)
-               call self%add_horizontal_variable(trim(link%name) // '_sms_tot', trim(link%original%units) // ' s-1',   trim(link%original%long_name) // ' sources', domain=link%target%domain, link=link%original%sms_sum, output=output_none)
+               call self%add_horizontal_variable(trim(link%name) // '_sms_tot', trim(link%original%units) // ' s-1',   trim(link%original%long_name) // ' total sources', domain=link%target%domain, link=link%original%sms_sum, output=output_none)
             end select
 
             if (associated(link%target, link%original)) then
@@ -612,7 +612,8 @@ contains
       if (.not. associated(self%parent)) then
          aggregate_variable => list%first
          do while (associated(aggregate_variable))
-            link => get_aggregate_variable_access(self, aggregate_variable%standard_variable, output=output_instantaneous)
+            link => get_aggregate_variable_access(self, aggregate_variable%standard_variable)
+            link%target%output = ior(output_instantaneous, output_always_available)
             aggregate_variable => aggregate_variable%next
          end do
       end if
@@ -749,14 +750,14 @@ contains
 
             ! Process sums now that all contributing terms are known.
             link => null()
-            call self%add_interior_variable('change_in_' // trim(standard_variable%name), trim(standard_variable%units) // ' s-1', 'change in ' // trim(standard_variable%name), link=link)
-            if (.not. sum%add_to_parent(self, link, create_for_one=.true.)) deallocate(sum)
+            call self%add_interior_variable('change_in_' // trim(standard_variable%name), trim(standard_variable%units) // ' s-1', 'change in ' // trim(standard_variable%name), link=link, output=ior(output_instantaneous, output_always_available))
+            if (.not. sum%add_to_parent(self, link)) deallocate(sum)
             link => null()
-            call self%add_horizontal_variable('change_in_' // trim(standard_variable%name) // '_at_surface', trim(standard_variable%units) // ' m s-1', 'change in ' // trim(standard_variable%name) // ' at surface', domain=domain_surface, link=link)
-            if (.not. surface_sum%add_to_parent(self, link, create_for_one=.true.)) deallocate(surface_sum)
+            call self%add_horizontal_variable('change_in_' // trim(standard_variable%name) // '_at_surface', trim(standard_variable%units) // ' m s-1', 'change in ' // trim(standard_variable%name) // ' at surface', domain=domain_surface, link=link, output=ior(output_instantaneous, output_always_available))
+            if (.not. surface_sum%add_to_parent(self, link)) deallocate(surface_sum)
             link => null()
-            call self%add_horizontal_variable('change_in_' // trim(standard_variable%name) // '_at_bottom', trim(standard_variable%units) // ' m s-1', 'change in ' // trim(standard_variable%name)// ' at bottom', domain=domain_bottom, link=link)
-            if (.not. bottom_sum%add_to_parent(self, link, create_for_one=.true.)) deallocate(bottom_sum)
+            call self%add_horizontal_variable('change_in_' // trim(standard_variable%name) // '_at_bottom', trim(standard_variable%units) // ' m s-1', 'change in ' // trim(standard_variable%name)// ' at bottom', domain=domain_bottom, link=link, output=ior(output_instantaneous, output_always_available))
+            if (.not. bottom_sum%add_to_parent(self, link)) deallocate(bottom_sum)
          end select
 
          standard_variable_node => standard_variable_node%next

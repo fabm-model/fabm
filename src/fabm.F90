@@ -2491,8 +2491,10 @@ contains
       ! Build a list of all master variables (those that not have been coupled)
       link => self%root%links%first
       do while (associated(link))
-         if (associated(link%target, link%original)) &
-            newlink => self%links_postcoupling%append(link%target, link%target%name)
+         if (associated(link%target, link%original) .or. iand(link%original%output, output_always_available) /= 0) then
+            newlink => self%links_postcoupling%append(link%original, link%original%name)
+            newlink%target => link%target
+         end if
          link => link%next
       end do
 
@@ -2557,9 +2559,8 @@ contains
          _ASSERT_(object%source /= source_state .or. object%write_indices%is_empty(), 'classify_variables', 'variable ' // trim(object%name) // ' has source_state and one or more write indices.')
          select case (object%domain)
          case (domain_interior)
-            select case (object%source)
-            case (source_unknown)   ! Interior dependency
-            case (source_state)     ! Interior state variable
+            if (associated(link%target, link%original) .and. object%source == source_state) then
+               ! Interior state variable
                select case (object%presence)
                case (presence_internal)
                   nstate = nstate + 1
@@ -2572,13 +2573,13 @@ contains
                   ! Demote to simple optional dependency; any sources will be ignored.
                   object%source = source_unknown
                end select
-            case default            ! Interior diagnostic variable
+            elseif (object%source /= source_unknown .or. .not. associated(link%target, link%original)) then
+               ! Interior diagnostic variable
                ndiag = ndiag + 1
-            end select
+            end if
          case (domain_horizontal, domain_surface, domain_bottom)
-            select case (object%source)
-            case (source_unknown)   ! Horizontal dependency
-            case (source_state)     ! Horizontal state variable
+            if (associated(link%target, link%original) .and. object%source == source_state) then
+               ! Horizontal state variable
                select case (object%presence)
                case (presence_internal)
                   select case (object%domain)
@@ -2597,9 +2598,10 @@ contains
                   ! Demote to simple optional dependency; any sources will be ignored.
                   object%source = source_unknown
                end select
-            case default            ! Horizontal diagnostic variable
+            elseif (object%source /= source_unknown .or. .not. associated(link%target, link%original)) then
+               ! Horizontal diagnostic variable
                ndiag_hz = ndiag_hz + 1
-            end select
+            end if
          end select
          link => link%next
       end do
@@ -2627,9 +2629,8 @@ contains
          object => link%target
          select case (link%target%domain)
          case (domain_interior)
-            select case (object%source)
-            case (source_unknown)   ! Interior dependency
-            case (source_state)     ! Interior state variable
+            if (associated(link%target, link%original) .and. object%source == source_state) then
+               ! Interior state variable
                if (object%presence == presence_internal) then
                   nstate = nstate + 1
                   statevar => self%interior_state_variables(nstate)
@@ -2648,10 +2649,11 @@ contains
                   call object%bottom_flux_sum%target%write_indices%append(self%get_bottom_sources_job%arg1_sources(nstate))
                   call object%movement_sum%target%write_indices%append(self%get_vertical_movement_job%arg1_sources(nstate))
                end if
-            case default            ! Interior diagnostic variable
+            elseif (object%source /= source_unknown .or. .not. associated(link%target, link%original)) then
+               ! Interior diagnostic variable
                ndiag = ndiag + 1
                diagvar => self%interior_diagnostic_variables(ndiag)
-               call copy_variable_metadata(object, diagvar)
+               call copy_variable_metadata(link%original, diagvar)
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable => object%standard_variables%first%p)
                   class is (type_interior_standard_variable)
@@ -2660,11 +2662,11 @@ contains
                end if
                diagvar%save = diagvar%output /= output_none
                diagvar%source = object%source
-            end select
+               diagvar%target => object
+            end if
          case (domain_horizontal, domain_surface, domain_bottom)
-            select case (object%source)
-            case (source_unknown)   ! Horizontal dependency
-            case (source_state)     ! Horizontal state variable
+            if (associated(link%target, link%original) .and. object%source == source_state) then
+               ! Horizontal state variable
                if (object%presence == presence_internal) then
                   select case (object%domain)
                   case (domain_bottom)
@@ -2687,10 +2689,11 @@ contains
                   end if
                   hz_statevar%initial_value = object%initial_value
                end if
-            case default            ! Horizontal diagnostic variable
+            elseif (object%source /= source_unknown .or. .not. associated(link%target, link%original)) then
+               ! Horizontal diagnostic variable
                ndiag_hz = ndiag_hz + 1
                hz_diagvar => self%horizontal_diagnostic_variables(ndiag_hz)
-               call copy_variable_metadata(object, hz_diagvar)
+               call copy_variable_metadata(link%original, hz_diagvar)
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable => object%standard_variables%first%p)
                   class is (type_horizontal_standard_variable)
@@ -2699,7 +2702,8 @@ contains
                end if
                hz_diagvar%save = hz_diagvar%output /= output_none
                hz_diagvar%source = object%source
-            end select
+               hz_diagvar%target => object
+            end if
          end select
          link => link%next
       end do
@@ -2752,7 +2756,7 @@ contains
          external_variable%minimum         = internal_variable%minimum
          external_variable%maximum         = internal_variable%maximum
          external_variable%missing_value   = internal_variable%missing_value
-         external_variable%output          = internal_variable%output
+         external_variable%output          = iand(internal_variable%output, not(output_always_available))
          external_variable%target          => internal_variable
 
          ! Prepend long names of ancestor models to long name of variable.

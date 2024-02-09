@@ -91,21 +91,17 @@ contains
       end if
    end subroutine
 
-   function weighted_sum_add_to_parent(self, parent, link, create_for_one, aggregate_variable) result(sum_used)
+   function weighted_sum_add_to_parent(self, parent, link, aggregate_variable) result(sum_used)
       class (type_weighted_sum),              intent(inout), target :: self
       class (type_base_model),                intent(inout), target :: parent
       type (type_link),                       intent(in),    target :: link
-      logical, optional,                      intent(in)            :: create_for_one
       type (type_interior_standard_variable), intent(in), optional  :: aggregate_variable
 
-      logical                                        :: sum_used, create_for_one_
+      logical                                        :: sum_used
       class (type_scaled_interior_variable), pointer :: scaled_variable
 
-      create_for_one_ = .false.
-      if (present(create_for_one)) create_for_one_ = create_for_one
-
       self%units = link%target%units
-      self%result_output = link%target%output
+      self%result_output = output_none
 
       sum_used = .false.
       if (.not. associated(self%first)) then
@@ -116,7 +112,7 @@ contains
          link%target%output = self%result_output
       elseif (.not. associated(self%first%next)) then
          ! One component only.
-         if (self%first%weight == 1.0_rk .and. .not. create_for_one_) then
+         if (self%first%weight == 1.0_rk) then
             ! One component with scale factor 1 - directly link to the component's source variable.
             call request_coupling_to_component(parent, link, self%first)
          else
@@ -454,21 +450,17 @@ contains
       end do
    end subroutine
 
-   function horizontal_weighted_sum_add_to_parent(self, parent, link, create_for_one, aggregate_variable) result(sum_used)
+   function horizontal_weighted_sum_add_to_parent(self, parent, link, aggregate_variable) result(sum_used)
       class (type_horizontal_weighted_sum),      intent(inout), target :: self
       class (type_base_model),                   intent(inout), target :: parent
       type (type_link),                          intent(in),    target :: link
-      logical, optional,                         intent(in)            :: create_for_one
       class (type_horizontal_standard_variable), intent(in), optional  :: aggregate_variable
 
-      logical :: sum_used, create_for_one_
+      logical :: sum_used
       class (type_scaled_horizontal_variable), pointer :: scaled_variable
 
-      create_for_one_ = .false.
-      if (present(create_for_one)) create_for_one_ = create_for_one
-
       self%units = link%target%units
-      self%result_output = link%target%output
+      self%result_output = output_none
       self%domain = link%target%domain
 
       sum_used = .false.
@@ -480,7 +472,7 @@ contains
          link%target%output = self%result_output
       elseif (.not. associated(self%first%next)) then
          ! One component only.
-         if (self%first%weight == 1.0_rk .and. .not. create_for_one_) then
+         if (self%first%weight == 1.0_rk) then
             ! One component with scale factor 1 - directly link to the component's source variable.
             call request_coupling_to_component(parent, link, self%first)
          else

@@ -124,7 +124,8 @@ module fabm_types
                                  output_instantaneous        = 1, &
                                  output_time_integrated      = 2, &
                                  output_time_step_averaged   = 4, &
-                                 output_time_step_integrated = 8
+                                 output_time_step_integrated = 8, &
+                                 output_always_available     = 16
 
    ! --------------------------------------------------------------------------
    ! Data types for pointers to variable values
@@ -2755,11 +2756,10 @@ contains
       end do
    end function find_model
 
-   function get_aggregate_variable_access(self, standard_variable, access, output) result(link)
+   function get_aggregate_variable_access(self, standard_variable, access) result(link)
       class (type_base_model),                        intent(inout) :: self
       class (type_domain_specific_standard_variable), target        :: standard_variable
       integer, optional,                              intent(in)    :: access
-      integer, optional,                              intent(in)    :: output
       type (type_link), pointer :: link
 
       type (type_aggregate_variable_access), pointer :: aggregate_variable_access
@@ -2792,7 +2792,6 @@ contains
       end if
       link => aggregate_variable_access%link
       if (present(access)) link%target%fake_state_variable = link%target%fake_state_variable .or. iand(access, access_set_source) /= 0
-      if (present(output)) link%target%output = output
    end function get_aggregate_variable_access
 
    function get_free_unit() result(unit)
