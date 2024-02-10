@@ -394,13 +394,15 @@ contains
       class (type_weighted_sum), pointer :: sum
 
       allocate(sum)
+      sum%result_output = output_always_available
       sum%missing_value = 0
       component_link => link_list%first
       do while (associated(component_link))
          call sum%add_component(component_link)
          component_link => component_link%next
       end do
-      if (.not. sum%add_to_parent(parent, link)) deallocate(sum)
+      call parent%add_child(sum, trim(link%name) // '_calculator')
+      call parent%request_coupling(link, sum%id_result%link)
    end subroutine create_sum
 
    subroutine create_horizontal_sum(parent, link, link_list)
@@ -412,13 +414,15 @@ contains
       class (type_horizontal_weighted_sum), pointer :: sum
 
       allocate(sum)
+      sum%result_output = output_always_available
       sum%missing_value = 0
       component_link => link_list%first
       do while (associated(component_link))
          call sum%add_component(component_link)
          component_link => component_link%next
       end do
-      if (.not. sum%add_to_parent(parent, link)) deallocate(sum)
+      call parent%add_child(sum, trim(link%name) // '_calculator')
+      call parent%request_coupling(link, sum%id_result%link)
    end subroutine create_horizontal_sum
 
    recursive subroutine create_flux_sums(self)
@@ -661,9 +665,17 @@ contains
 
          select type (standard_variable => aggregate_variable%standard_variable)
          class is (type_interior_standard_variable)
-            if (.not. sum%add_to_parent(self, aggregate_variable_access%link, aggregate_variable=standard_variable)) deallocate(sum)
+            sum%aggregate_variable => standard_variable
+            sum%act_as_state_variable = aggregate_variable_access%link%target%fake_state_variable
+            sum%result_output = output_none
+            call self%add_child(sum, trim(aggregate_variable_access%link%name) // '_calculator')
+            call self%request_coupling(aggregate_variable_access%link, sum%id_result%link)
          class is (type_horizontal_standard_variable)
-            if (.not. horizontal_sum%add_to_parent(self, aggregate_variable_access%link, aggregate_variable=standard_variable)) deallocate(horizontal_sum)
+            horizontal_sum%aggregate_variable => standard_variable
+            horizontal_sum%act_as_state_variable = aggregate_variable_access%link%target%fake_state_variable
+            horizontal_sum%result_output = output_none
+            call self%add_child(horizontal_sum, trim(aggregate_variable_access%link%name) // '_calculator')
+            call self%request_coupling(aggregate_variable_access%link, horizontal_sum%id_result%link)
          end select
          aggregate_variable_access => aggregate_variable_access%next
       end do
@@ -717,6 +729,9 @@ contains
          class is (type_universal_standard_variable)
             ! Allocate objects that will sum fluxes for each of the different domains (interior, surface, bottom).
             allocate(sum, surface_sum, bottom_sum)
+            sum%result_output = output_none
+            surface_sum%result_output = output_none
+            bottom_sum%result_output = output_none
 
             ! Enumerate contributions to interior field.
             aggregate_variable => aggregate_variable_list%get(standard_variable%in_interior())
@@ -751,13 +766,16 @@ contains
             ! Process sums now that all contributing terms are known.
             link => null()
             call self%add_interior_variable('change_in_' // trim(standard_variable%name), trim(standard_variable%units) // ' s-1', 'change in ' // trim(standard_variable%name), link=link, output=ior(output_instantaneous, output_always_available))
-            if (.not. sum%add_to_parent(self, link)) deallocate(sum)
+            call self%add_child(sum, trim(link%name) // '_calculator')
+            call self%request_coupling(link, sum%id_result%link)
             link => null()
             call self%add_horizontal_variable('change_in_' // trim(standard_variable%name) // '_at_surface', trim(standard_variable%units) // ' m s-1', 'change in ' // trim(standard_variable%name) // ' at surface', domain=domain_surface, link=link, output=ior(output_instantaneous, output_always_available))
-            if (.not. surface_sum%add_to_parent(self, link)) deallocate(surface_sum)
+            call self%add_child(surface_sum, trim(link%name) // '_calculator')
+            call self%request_coupling(link, surface_sum%id_result%link)
             link => null()
             call self%add_horizontal_variable('change_in_' // trim(standard_variable%name) // '_at_bottom', trim(standard_variable%units) // ' m s-1', 'change in ' // trim(standard_variable%name)// ' at bottom', domain=domain_bottom, link=link, output=ior(output_instantaneous, output_always_available))
-            if (.not. bottom_sum%add_to_parent(self, link)) deallocate(bottom_sum)
+            call self%add_child(bottom_sum, trim(link%name) // '_calculator')
+            call self%request_coupling(link, bottom_sum%id_result%link)
          end select
 
          standard_variable_node => standard_variable_node%next
