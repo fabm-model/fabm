@@ -387,7 +387,7 @@ contains
       end do
    end subroutine weighted_sum_merge_components
 
-   subroutine finalize(self)
+   recursive subroutine finalize(self)
       class (type_base_sum), intent(inout) :: self
 
       type (type_component), pointer :: component, component_next
