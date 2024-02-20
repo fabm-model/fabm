@@ -141,6 +141,7 @@ module fabm_types
 
    type type_real_pointer_set
       type (type_real_pointer), allocatable :: pointers(:)
+      real(rk)                              :: value = 0.0_rk
    contains
       procedure :: append    => real_pointer_set_append
       procedure :: extend    => real_pointer_set_extend
@@ -1524,7 +1525,7 @@ contains
 
    subroutine integer_pointer_set_append(self, value)
       class (type_integer_pointer_set), intent(inout) :: self
-      integer, target                                 :: value
+      integer, target,                  intent(inout) :: value
 
       type (type_integer_pointer), allocatable :: oldarray(:)
 
@@ -1540,7 +1541,7 @@ contains
 
       ! Add pointer to provided integer to the list.
       self%pointers(size(self%pointers))%p => value
-      self%pointers(size(self%pointers))%p = self%value
+      value = self%value
    end subroutine integer_pointer_set_append
 
    subroutine integer_pointer_set_extend(self, other)
@@ -1585,7 +1586,7 @@ contains
 
    subroutine real_pointer_set_append(self, value)
       class (type_real_pointer_set), intent(inout) :: self
-      real(rk),target                              :: value
+      real(rk), target,              intent(inout) :: value
 
       type (type_real_pointer), allocatable :: oldarray(:)
 
@@ -1601,7 +1602,7 @@ contains
 
       ! Add pointer to provided real to the list.
       self%pointers(size(self%pointers))%p => value
-      self%pointers(size(self%pointers))%p = self%pointers(1)%p
+      value = self%value
    end subroutine real_pointer_set_append
 
    subroutine real_pointer_set_extend(self, other)
@@ -1628,6 +1629,7 @@ contains
             self%pointers(i)%p = value
          end do
       end if
+      self%value = value
    end subroutine real_pointer_set_set_value
 
    subroutine register_interior_state_variable(self, id, name, units, long_name, &
@@ -1920,12 +1922,11 @@ contains
          call variable%state_indices%append(state_index)
       end if
 
-      if (present(background)) then
-         ! Store a pointer to the variable that should hold the background value.
-         ! If the background value itself is also prescribed, use it.
-         call variable%background_values%append(background)
-         if (present(background_value)) call variable%background_values%set_value(background_value)
-      end if
+      ! Set the background value (0 by default)
+      if (present(background_value)) call variable%background_values%set_value(background_value)
+
+      ! Store a pointer to the variable that should hold the background value (if any).
+      if (present(background)) call variable%background_values%append(background)
 
       if (present(read_index)) then
          variable%read_index => read_index

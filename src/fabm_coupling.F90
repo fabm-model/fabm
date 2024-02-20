@@ -402,7 +402,7 @@ contains
          component_link => component_link%next
       end do
       call parent%add_child(sum, trim(link%name) // '_calculator')
-      call parent%request_coupling(link, sum%id_result%link)
+      call parent%request_coupling(link, sum%result_link)
    end subroutine create_sum
 
    subroutine create_horizontal_sum(parent, link, link_list)
@@ -422,7 +422,7 @@ contains
          component_link => component_link%next
       end do
       call parent%add_child(sum, trim(link%name) // '_calculator')
-      call parent%request_coupling(link, sum%id_result%link)
+      call parent%request_coupling(link, sum%result_link)
    end subroutine create_horizontal_sum
 
    recursive subroutine create_flux_sums(self)
@@ -669,13 +669,13 @@ contains
             sum%act_as_state_variable = aggregate_variable_access%link%target%fake_state_variable
             sum%result_output = output_none
             call self%add_child(sum, trim(aggregate_variable_access%link%name) // '_calculator')
-            call self%request_coupling(aggregate_variable_access%link, sum%id_result%link)
+            call self%request_coupling(aggregate_variable_access%link, sum%result_link)
          class is (type_horizontal_standard_variable)
             horizontal_sum%aggregate_variable => standard_variable
             horizontal_sum%act_as_state_variable = aggregate_variable_access%link%target%fake_state_variable
             horizontal_sum%result_output = output_none
             call self%add_child(horizontal_sum, trim(aggregate_variable_access%link%name) // '_calculator')
-            call self%request_coupling(aggregate_variable_access%link, horizontal_sum%id_result%link)
+            call self%request_coupling(aggregate_variable_access%link, horizontal_sum%result_link)
          end select
          aggregate_variable_access => aggregate_variable_access%next
       end do
@@ -767,15 +767,15 @@ contains
             link => null()
             call self%add_interior_variable('change_in_' // trim(standard_variable%name), trim(standard_variable%units) // ' s-1', 'change in ' // trim(standard_variable%name), link=link, output=ior(output_instantaneous, output_always_available))
             call self%add_child(sum, trim(link%name) // '_calculator')
-            call self%request_coupling(link, sum%id_result%link)
+            call self%request_coupling(link, sum%result_link)
             link => null()
             call self%add_horizontal_variable('change_in_' // trim(standard_variable%name) // '_at_surface', trim(standard_variable%units) // ' m s-1', 'change in ' // trim(standard_variable%name) // ' at surface', domain=domain_surface, link=link, output=ior(output_instantaneous, output_always_available))
             call self%add_child(surface_sum, trim(link%name) // '_calculator')
-            call self%request_coupling(link, surface_sum%id_result%link)
+            call self%request_coupling(link, surface_sum%result_link)
             link => null()
             call self%add_horizontal_variable('change_in_' // trim(standard_variable%name) // '_at_bottom', trim(standard_variable%units) // ' m s-1', 'change in ' // trim(standard_variable%name)// ' at bottom', domain=domain_bottom, link=link, output=ior(output_instantaneous, output_always_available))
             call self%add_child(bottom_sum, trim(link%name) // '_calculator')
-            call self%request_coupling(link, bottom_sum%id_result%link)
+            call self%request_coupling(link, bottom_sum%result_link)
          end select
 
          standard_variable_node => standard_variable_node%next
