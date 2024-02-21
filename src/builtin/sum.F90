@@ -35,11 +35,12 @@ module fabm_builtin_sum
       integer                         :: result_output = output_instantaneous
       real(rk)                        :: offset        = 0.0_rk
       real(rk)                        :: missing_value = -2.e20_rk
-      logical                         :: components_frozen = .false.
       logical                         :: act_as_state_variable = .false.
       type (type_link), pointer       :: result_link => null()
-      logical                         :: active = .false.
-      type (type_component), pointer  :: first => null()
+
+      logical, private :: components_frozen = .false.
+      logical, private :: active = .false.
+      type (type_component), pointer, private  :: first => null()
    contains
       procedure :: add_component_by_name
       procedure :: add_component_by_link
@@ -52,7 +53,7 @@ module fabm_builtin_sum
       type (type_interior_standard_variable), pointer :: aggregate_variable => null()
       type (type_dependency_id), allocatable :: id_terms(:)
       type (type_add_id)                     :: id_result
-      type (type_sum_term),      allocatable :: sources(:)
+      type (type_sum_term), private, allocatable :: sources(:)
    contains
       procedure :: initialize       => weighted_sum_initialize
       procedure :: do               => weighted_sum_do
@@ -64,7 +65,7 @@ module fabm_builtin_sum
       integer                                           :: domain = domain_horizontal
       type (type_horizontal_dependency_id), allocatable :: id_terms(:)
       type (type_horizontal_add_id)                     :: id_result
-      type (type_horizontal_sum_term),      allocatable :: sources(:)
+      type (type_horizontal_sum_term), private, allocatable :: sources(:)
    contains
       procedure :: initialize       => horizontal_weighted_sum_initialize
       procedure :: do_horizontal    => horizontal_weighted_sum_do_horizontal
