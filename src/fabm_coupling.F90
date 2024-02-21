@@ -385,46 +385,6 @@ contains
 
    end subroutine process_coupling_tasks
 
-   subroutine create_sum(parent, link, link_list)
-      class (type_base_model), intent(inout), target :: parent
-      type (type_link),        intent(in),    target :: link
-      type (type_link_list),   intent(in)            :: link_list
-
-      type (type_link),          pointer :: component_link
-      class (type_weighted_sum), pointer :: sum
-
-      allocate(sum)
-      sum%result_output = output_always_available
-      sum%missing_value = 0
-      component_link => link_list%first
-      do while (associated(component_link))
-         call sum%add_component(component_link)
-         component_link => component_link%next
-      end do
-      call parent%add_child(sum, trim(link%name) // '_calculator')
-      call parent%request_coupling(link, sum%result_link)
-   end subroutine create_sum
-
-   subroutine create_horizontal_sum(parent, link, link_list)
-      class (type_base_model), intent(inout), target :: parent
-      type (type_link),        intent(in),    target :: link
-      type (type_link_list),   intent(in)            :: link_list
-
-      type (type_link),                     pointer :: component_link
-      class (type_horizontal_weighted_sum), pointer :: sum
-
-      allocate(sum)
-      sum%result_output = output_always_available
-      sum%missing_value = 0
-      component_link => link_list%first
-      do while (associated(component_link))
-         call sum%add_component(component_link)
-         component_link => component_link%next
-      end do
-      call parent%add_child(sum, trim(link%name) // '_calculator')
-      call parent%request_coupling(link, sum%result_link)
-   end subroutine create_horizontal_sum
-
    recursive subroutine create_flux_sums(self)
       class (type_base_model), intent(inout), target :: self
 
@@ -454,12 +414,12 @@ contains
                ! Create summations for sources-sinks and surface/bottom fluxes.
                select case (link%target%domain)
                case (domain_interior)
-                  call create_sum(self, link%target%sms_sum, link%target%sms_list)
-                  call create_horizontal_sum(self, link%target%surface_flux_sum, link%target%surface_flux_list)
-                  call create_horizontal_sum(self, link%target%bottom_flux_sum, link%target%bottom_flux_list)
-                  call create_sum(self, link%target%movement_sum, link%target%movement_list)
+                  call create_sum(link%target%sms_sum, link%target%sms_list, domain_interior)
+                  call create_sum(link%target%surface_flux_sum, link%target%surface_flux_list, domain_surface)
+                  call create_sum(link%target%bottom_flux_sum, link%target%bottom_flux_list, domain_bottom)
+                  call create_sum(link%target%movement_sum, link%target%movement_list, domain_interior)
                case (domain_horizontal, domain_surface, domain_bottom)
-                  call create_horizontal_sum(self, link%target%sms_sum, link%target%sms_list)
+                  call create_sum(link%target%sms_sum, link%target%sms_list, link%target%domain)
                end select
             end if
          end if
@@ -472,6 +432,33 @@ contains
          call create_flux_sums(child%model)
          child => child%next
       end do
+
+   contains
+
+      subroutine create_sum(link, link_list, domain)
+         type (type_link),      intent(in), target :: link
+         type (type_link_list), intent(in)         :: link_list
+         integer,               intent(in)         :: domain
+
+         class (type_base_sum), pointer :: sum
+         type (type_link),      pointer :: component_link
+
+         if (domain == domain_interior) then
+            allocate(type_weighted_sum::sum)
+         else
+            allocate(type_horizontal_weighted_sum::sum)
+         end if
+         sum%result_output = output_always_available
+         sum%missing_value = 0.0_rk
+         component_link => link_list%first
+         do while (associated(component_link))
+            call sum%add_component(component_link)
+            component_link => component_link%next
+         end do
+         call self%add_child(sum, trim(link%name) // '_calculator')
+         call self%request_coupling(link, sum%result_link)
+      end subroutine create_sum
+
    end subroutine create_flux_sums
 
    recursive subroutine request_flux_sum_coupling(self)
