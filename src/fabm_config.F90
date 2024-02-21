@@ -131,9 +131,9 @@ contains
       subsettings => instance_settings%get_child('background', display=display_advanced)
       link => model%links%first
       do while (associated(link))
-         if (index(link%name, '/') == 0 .and. link%target%source == source_state) then
+         if (index(link%name, '/') == 0 .and. link%target%source == source_state .and. link%target%presence == presence_internal) then
             realvalue = subsettings%get_real(trim(link%name), trim(link%target%long_name), trim(link%target%units), &
-               default=link%target%background_values%pointers(1)%p, display=display_advanced)
+               default=link%target%background_values%value, display=display_advanced)
             call link%target%background_values%set_value(realvalue)
          end if
          link => link%next
