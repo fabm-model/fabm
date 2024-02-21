@@ -112,8 +112,8 @@ module fabm_types
 
    integer, parameter, public :: access_none       = 0, &
                                  access_read       = 1, &
-                                 access_set_source = 2, &
-                                 access_state      = ior(access_read,access_set_source)
+                                 access_add_source = 2, &
+                                 access_state      = ior(access_read, access_add_source)
 
    integer, parameter, public :: store_index_none = -1
 
@@ -2788,7 +2788,7 @@ contains
          self%first_aggregate_variable_access => aggregate_variable_access
       end if
       link => aggregate_variable_access%link
-      if (present(access)) link%target%fake_state_variable = link%target%fake_state_variable .or. iand(access, access_set_source) /= 0
+      if (present(access)) link%target%fake_state_variable = link%target%fake_state_variable .or. iand(access, access_add_source) /= 0
    end function get_aggregate_variable_access
 
    function get_free_unit() result(unit)
