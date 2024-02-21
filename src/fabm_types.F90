@@ -55,6 +55,7 @@ module fabm_types
    public get_safe_name
    public source2string
    public domain2string
+   public standard_variable2domain
 
    public type_expression, type_interior_expression, type_horizontal_expression
 
@@ -1154,16 +1155,9 @@ contains
       class is (type_interior_standard_variable)
          call self%add_interior_variable('_constant_*', standard_variable%units, standard_variable%name, source=source_constant, &
             fill_value=value, output=output_none, link=link)
-         call link%target%contributions%add(standard_variable)
-      class is (type_surface_standard_variable)
-         call self%add_horizontal_variable('_constant_*', standard_variable%units, standard_variable%name, source=source_constant, &
-            fill_value=value, domain=domain_surface, output=output_none, link=link)
-      class is (type_bottom_standard_variable)
-         call self%add_horizontal_variable('_constant_*', standard_variable%units, standard_variable%name, source=source_constant, &
-            fill_value=value, domain=domain_bottom, output=output_none, link=link)
       class is (type_horizontal_standard_variable)
          call self%add_horizontal_variable('_constant_*', standard_variable%units, standard_variable%name, source=source_constant, &
-            fill_value=value, output=output_none, link=link)
+            fill_value=value, output=output_none, link=link, domain=standard_variable2domain(standard_variable))
       end select
       call link%target%contributions%add(standard_variable)
    end subroutine add_constant_to_aggregate_variable
@@ -2781,13 +2775,15 @@ contains
          select type (standard_variable => aggregate_variable_access%standard_variable)
          class is (type_interior_standard_variable)
             call self%add_interior_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, link=aggregate_variable_access%link)
-         class is (type_surface_standard_variable)
-            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, domain=domain_surface, link=aggregate_variable_access%link)
-         class is (type_bottom_standard_variable)
-            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, domain=domain_bottom, link=aggregate_variable_access%link)
          class is (type_horizontal_standard_variable)
-            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, link=aggregate_variable_access%link)
+            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, link=aggregate_variable_access%link, domain=standard_variable2domain(standard_variable))
          end select
+
+         ! If we are the root model, then claim the standard variable identity associated with this aggregate variable.
+         ! This is useful to the host, who can then find this variable with standard variable lookup, see associated
+         ! CF standard names, etc.
+         if (.not. associated(self%parent)) call aggregate_variable_access%link%target%standard_variables%add(standard_variable)
+
          aggregate_variable_access%next => self%first_aggregate_variable_access
          self%first_aggregate_variable_access => aggregate_variable_access
       end if
@@ -3038,6 +3034,23 @@ contains
          write (domain2string,'(i0)') domain
       end select
    end function domain2string
+
+   integer function standard_variable2domain(standard_variable)
+      class (type_domain_specific_standard_variable), intent(in) :: standard_variable
+
+      select type (standard_variable)
+      class is (type_interior_standard_variable)
+         standard_variable2domain = domain_interior
+      class is (type_surface_standard_variable)
+         standard_variable2domain = domain_surface
+      class is (type_bottom_standard_variable)
+         standard_variable2domain = domain_bottom
+      class is (type_horizontal_standard_variable)
+         standard_variable2domain = domain_horizontal
+      class is (type_global_standard_variable)
+         standard_variable2domain = domain_scalar
+      end select
+   end function standard_variable2domain
 
    subroutine variable_set_add(self, variable)
       class (type_variable_set), intent(inout) :: self

@@ -1,6 +1,6 @@
 module fabm_coupling
    use fabm_types
-   use fabm_builtin_models
+   use fabm_builtin_sum
    use fabm_driver
    use yaml_settings, only: default_minimum_real, default_maximum_real
 
@@ -602,8 +602,9 @@ contains
 
       type (type_aggregate_variable_access), pointer :: aggregate_variable_access
       type (type_aggregate_variable),        pointer :: aggregate_variable
-      class (type_weighted_sum),             pointer :: sum
+      class (type_weighted_sum),             pointer :: interior_sum
       class (type_horizontal_weighted_sum),  pointer :: horizontal_sum
+      class (type_base_sum),                 pointer :: sum
       type (type_contributing_variable),     pointer :: contributing_variable
       type (type_aggregate_variable_list)            :: list
       type (type_model_list_node),           pointer :: child
@@ -624,59 +625,36 @@ contains
 
       aggregate_variable_access => self%first_aggregate_variable_access
       do while (associated(aggregate_variable_access))
-         sum => null()
-         horizontal_sum => null()
-
          aggregate_variable => list%get(aggregate_variable_access%standard_variable)
+
+         ! Allocate and configure child model that will do the summation
          select type (standard_variable => aggregate_variable%standard_variable)
          class is (type_interior_standard_variable)
-            allocate(sum)
-         class is (type_surface_standard_variable)
-            allocate(horizontal_sum)
-            horizontal_sum%domain = domain_surface
-         class is (type_bottom_standard_variable)
-            allocate(horizontal_sum)
-            horizontal_sum%domain = domain_bottom
+            allocate(interior_sum)
+            interior_sum%aggregate_variable => standard_variable
+            sum => interior_sum
          class is (type_horizontal_standard_variable)
             allocate(horizontal_sum)
+            horizontal_sum%aggregate_variable => standard_variable
+            horizontal_sum%domain = standard_variable2domain(standard_variable)
+            sum => horizontal_sum
          end select
+         sum%act_as_state_variable = aggregate_variable_access%link%target%fake_state_variable
+         sum%result_output = output_none
+
          contributing_variable => aggregate_variable%first_contributing_variable
          do while (associated(contributing_variable))
             if (associated(contributing_variable%link%target, contributing_variable%link%original) &                  ! Variable must not be coupled
                 .and. (associated(self%parent) .or. .not. contributing_variable%link%target%fake_state_variable) &    ! Only include fake state variable for non-root models
-                .and. (index(contributing_variable%link%name, '/') == 0 .or. .not. associated(self%parent))) then     ! Variable must be owned by the model itself unless we are aggregating at root level
-               select case (contributing_variable%link%target%domain)
-               case (domain_interior)
-                  call sum%add_component(contributing_variable%link, &
-                     weight=contributing_variable%scale_factor, include_background=contributing_variable%include_background)
-               case (domain_bottom, domain_surface, domain_horizontal)
-                  call horizontal_sum%add_component(contributing_variable%link, &
-                     weight=contributing_variable%scale_factor, include_background=contributing_variable%include_background)
-               end select
-            end if
+                .and. (index(contributing_variable%link%name, '/') == 0 .or. .not. associated(self%parent))) &        ! Variable must be owned by the model itself unless we are aggregating at root level
+               call sum%add_component(contributing_variable%link, &
+                  weight=contributing_variable%scale_factor, include_background=contributing_variable%include_background)
             contributing_variable => contributing_variable%next
          end do
 
-         ! If we are the root model, then claim the standard variable identity associated with this aggregate variable.
-         ! This is useful to the host, who can then find this variable with standard variable lookup, see associated
-         ! CF standard names, etc.
-         if (.not. associated(self%parent)) &
-            call aggregate_variable_access%link%target%standard_variables%add(aggregate_variable%standard_variable)
+         call self%add_child(sum, trim(aggregate_variable_access%link%name) // '_calculator')
+         call self%request_coupling(aggregate_variable_access%link, sum%result_link)
 
-         select type (standard_variable => aggregate_variable%standard_variable)
-         class is (type_interior_standard_variable)
-            sum%aggregate_variable => standard_variable
-            sum%act_as_state_variable = aggregate_variable_access%link%target%fake_state_variable
-            sum%result_output = output_none
-            call self%add_child(sum, trim(aggregate_variable_access%link%name) // '_calculator')
-            call self%request_coupling(aggregate_variable_access%link, sum%result_link)
-         class is (type_horizontal_standard_variable)
-            horizontal_sum%aggregate_variable => standard_variable
-            horizontal_sum%act_as_state_variable = aggregate_variable_access%link%target%fake_state_variable
-            horizontal_sum%result_output = output_none
-            call self%add_child(horizontal_sum, trim(aggregate_variable_access%link%name) // '_calculator')
-            call self%request_coupling(aggregate_variable_access%link, horizontal_sum%result_link)
-         end select
          aggregate_variable_access => aggregate_variable_access%next
       end do
 
