@@ -1653,6 +1653,7 @@ contains
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
+      _ASSERT_(self%status >= status_start_done, 'initialize_interior_state', 'This routine can only be called after model start.')
       call check_interior_location(self%domain%start, self%domain%stop _POSTARG_INTERIOR_IN_, 'initialize_interior_state')
 #endif
 
@@ -1693,6 +1694,7 @@ contains
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
+      _ASSERT_(self%status >= status_start_done, 'initialize_bottom_state', 'This routine can only be called after model start.')
       call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'initialize_bottom_state')
 #endif
 
@@ -1733,6 +1735,7 @@ contains
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
+      _ASSERT_(self%status >= status_start_done, 'initialize_surface_state', 'This routine can only be called after model start.')
       call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'initialize_surface_state')
 #endif
 
@@ -1776,6 +1779,7 @@ contains
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
+      _ASSERT_(self%status >= status_start_done, 'get_interior_sources_rhs', 'This routine can only be called after model start.')
       call check_interior_location(self%domain%start, self%domain%stop _POSTARG_INTERIOR_IN_, 'get_interior_sources_rhs')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
       call check_extents_2d(dy, _STOP_ - _START_ + 1, size(self%interior_state_variables), 'get_interior_sources_rhs', 'dy', 'stop-start+1, # interior state variables')
@@ -1802,6 +1806,7 @@ contains
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
+      _ASSERT_(self%status >= status_start_done, 'get_interior_sources_ppdd', 'This routine can only be called after model start.')
       call check_interior_location(self%domain%start, self%domain%stop _POSTARG_INTERIOR_IN_, 'get_interior_sources_ppdd')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
       call check_extents_3d(pp, _STOP_ - _START_ + 1, size(self%interior_state_variables), size(self%interior_state_variables), 'get_interior_sources_ppdd', 'pp', 'stop-start+1, # interior state variables, # interior state variables')
@@ -1852,6 +1857,7 @@ contains
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
+      _ASSERT_(self%status >= status_start_done, 'check_interior_state', 'This routine can only be called after model start.')
       call check_interior_location(self%domain%start, self%domain%stop _POSTARG_INTERIOR_IN_, 'check_interior_state')
 #endif
 
@@ -1938,6 +1944,7 @@ contains
       logical, intent(out) :: valid
 
 #ifndef NDEBUG
+      _ASSERT_(self%status >= status_start_done, 'check_bottom_state', 'This routine can only be called after model start.')
       call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'check_bottom_state')
 #endif
 
@@ -1958,6 +1965,7 @@ contains
       logical, intent(out) :: valid
 
 #ifndef NDEBUG
+      _ASSERT_(self%status >= status_start_done, 'check_surface_state', 'This routine can only be called after model start.')
       call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'check_surface_state')
 #endif
 
@@ -2133,6 +2141,7 @@ contains
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
+      _ASSERT_(self%status >= status_start_done, 'get_surface_sources', 'This routine can only be called after model start.')
       call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'get_surface_sources')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
       call check_extents_2d(flux_pel, _STOP_ - _START_ + 1, size(self%interior_state_variables), 'get_surface_sources', 'flux_pel', 'stop-start+1, # interior state variables')
@@ -2180,6 +2189,7 @@ contains
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
+      _ASSERT_(self%status >= status_start_done, 'get_bottom_sources_rhs', 'This routine can only be called after model start.')
       call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'get_bottom_sources_rhs')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
       call check_extents_2d(flux_pel, _STOP_ - _START_ + 1, size(self%interior_state_variables), 'get_bottom_sources_rhs', 'flux_pel', 'stop-start+1, # interior state variables')
@@ -2215,6 +2225,7 @@ contains
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
+      _ASSERT_(self%status >= status_start_done, 'get_bottom_sources_ppdd', 'This routine can only be called after model start.')
       call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'get_bottom_sources_ppdd')
 #endif
 
@@ -2254,6 +2265,7 @@ contains
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
+      _ASSERT_(self%status >= status_start_done, 'get_vertical_movement', 'This routine can only be called after model start.')
       call check_interior_location(self%domain%start, self%domain%stop _POSTARG_INTERIOR_IN_, 'get_vertical_movement')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
       call check_extents_2d(velocity, _STOP_ - _START_ + 1, size(self%interior_state_variables), 'get_vertical_movement', 'velocity', 'stop-start+1, # interior state variables')
@@ -2283,6 +2295,7 @@ contains
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
+      _ASSERT_(self%status >= status_start_done, 'get_interior_conserved_quantities', 'This routine can only be called after model start.')
       call check_interior_location(self%domain%start, self%domain%stop _POSTARG_INTERIOR_IN_, 'get_interior_conserved_quantities')
 #  ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
       call check_extents_2d(sums, _STOP_ - _START_ + 1, size(self%conserved_quantities), 'get_interior_conserved_quantities', 'sums', 'stop-start+1, # conserved quantities')
@@ -2310,6 +2323,7 @@ contains
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
+      _ASSERT_(self%status >= status_start_done, 'get_horizontal_conserved_quantities', 'This routine can only be called after model start.')
       call check_horizontal_location(self%domain%start, self%domain%stop _POSTARG_HORIZONTAL_IN_, 'get_horizontal_conserved_quantities')
 #  ifdef _HORIZONTAL_IS_VECTORIZED_
       call check_extents_2d(sums, _STOP_ - _START_ + 1, size(self%conserved_quantities), 'get_horizontal_conserved_quantities', 'sums', 'stop-start+1, # conserved quantities')
