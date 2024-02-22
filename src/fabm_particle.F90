@@ -40,6 +40,7 @@ module fabm_particle
    type type_model_reference
       logical                                 :: resolving = .false.
       character(len=attribute_length)         :: name  = ''
+      character(len=attribute_length)         :: long_name  = ''
       class (type_base_model),        pointer :: model => null()
       type (type_model_id),           pointer :: id    => null()
       type (type_model_reference),    pointer :: next  => null()
@@ -65,7 +66,10 @@ module fabm_particle
       integer                              :: internal_variable_state = not_done
    contains
       ! Used by inheriting biogeochemical models:
-      procedure :: register_model_dependency
+      procedure :: register_model_dependency1
+      procedure :: register_model_dependency2
+      generic :: register_model_dependency => register_model_dependency1, register_model_dependency2
+
       procedure :: request_named_coupling_to_model
       procedure :: request_standard_coupling_to_model
       procedure :: request_named_coupling_to_named_model
@@ -86,10 +90,11 @@ module fabm_particle
 
 contains
 
-   subroutine register_model_dependency(self, id, name)
+   subroutine register_model_dependency1(self, id, name, long_name)
       class (type_particle_model),  intent(inout)           :: self
-      type (type_model_id), target, intent(inout), optional :: id
+      type (type_model_id), target, intent(inout)           :: id
       character(len=*),             intent(in)              :: name
+      character(len=*), optional,   intent(in)              :: long_name
 
       type (type_model_reference), pointer :: reference
 
@@ -97,26 +102,36 @@ contains
       if (self%frozen) call self%fatal_error('register_model_dependency',&
          'Dependencies may only be registered during initialization.')
 
-      reference => add_model_reference(self, name, require_empty_id=.true.)
-      if (present(id)) then
-         reference%id => id
-         id%reference => reference
-      end if
-   end subroutine register_model_dependency
+      reference => add_model_reference(self, name, long_name, require_empty_id=.true.)
+      reference%id => id
+      id%reference => reference
+   end subroutine register_model_dependency1
 
-   function add_model_reference(self, name, require_empty_id) result(reference)
+   subroutine register_model_dependency2(self, name, long_name)
+      class (type_particle_model),  intent(inout) :: self
+      character(len=*),             intent(in)    :: name
+      character(len=*), optional,   intent(in)    :: long_name
+
+      type (type_model_reference), pointer :: reference
+
+      ! Check whether the model information may be written to (only during initialization)
+      if (self%frozen) call self%fatal_error('register_model_dependency',&
+         'Dependencies may only be registered during initialization.')
+
+      reference => add_model_reference(self, name, long_name)
+   end subroutine register_model_dependency2
+
+   function add_model_reference(self, name, long_name, require_empty_id) result(reference)
       class (type_particle_model), intent(inout) :: self
       character(len=*),            intent(in)    :: name
-      logical,                     intent(in)    :: require_empty_id
+      character(len=*), optional,  intent(in)    :: long_name
+      logical,          optional,  intent(in)    :: require_empty_id
 
       type (type_model_reference), pointer :: reference
 
       ! First search for existing model reference.
-      reference => self%first_model_reference
-      do while (associated(reference))
-         if (reference%name == name .and. .not. (associated(reference%id) .and. require_empty_id)) return
-         reference => reference%next
-      end do
+      reference => find_model_reference(self, name, require_empty_id)
+      if (associated(reference)) return
 
       ! Register this model reference.
       if (.not. associated(self%first_model_reference)) then
@@ -135,18 +150,27 @@ contains
 
       ! Set attributes of the model reference.
       reference%name = name
+      if (present(long_name)) then
+         reference%long_name = long_name
+      else
+         reference%long_name = name
+      end if
    end function add_model_reference
 
-   function find_model_reference(self, name) result(reference)
+   function find_model_reference(self, name, require_empty_id) result(reference)
       class (type_particle_model), intent(inout) :: self
       character(len=*),            intent(in)    :: name
+      logical,          optional,  intent(in)    :: require_empty_id
+
+      logical                              :: require_empty_id_
       type (type_model_reference), pointer :: reference
+
+      require_empty_id_ = .false.
+      if (present(require_empty_id)) require_empty_id_ = require_empty_id
 
       reference => self%first_model_reference
       do while (associated(reference))
-         if (reference%name == name) then
-            return
-         end if
+         if (reference%name == name .and. .not. (associated(reference%id) .and. require_empty_id_)) return
          reference => reference%next
       end do
    end function find_model_reference
@@ -224,7 +248,7 @@ contains
       else
          if (.not. present(master_model_name)) call self%fatal_error('request_coupling_to_model_generic', &
             'BUG: master_model or master_model_name must be provided.')
-         coupling%model_reference => add_model_reference(self, master_model_name, require_empty_id=.false.)
+         coupling%model_reference => add_model_reference(self, master_model_name)
       end if
    end subroutine request_coupling_to_model_generic
 
@@ -300,7 +324,7 @@ contains
          reference%resolving = .true.
 
          ! First find a coupling for the referenced model.
-         model_master_name = self%couplings%get_string(trim(reference%name), trim(reference%name))
+         model_master_name = self%couplings%get_string(trim(reference%name), trim(reference%long_name))
 
          ! Try to find referenced model among actual models (as opposed to among model dependencies)
          reference%model => self%find_model(model_master_name, recursive=.true.)
