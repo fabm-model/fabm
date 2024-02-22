@@ -471,8 +471,8 @@ contains
       call self%add_child(integrator, name // '_integrator')
 
       ! Allow the user to coupled the requesting model instance (the parent of the integrator)
-      ! to the named depth-explicit instance. Mkae sure the integrator uses that.
-      call self%register_model_dependency(name=name)
+      ! to the named depth-explicit instance. Make sure the integrator uses that.
+      call self%register_model_dependency(name)
       call integrator%request_coupling('source', '../' // name)
 
       ! Link the provided model identifier to the depth-integrated model instance
@@ -599,7 +599,7 @@ contains
       integer,                          intent(in)            :: configunit
 
       ! Register a dependency on the depth-explicit model instance for which we will provide depth integrals.
-      call self%register_model_dependency(name='source')
+      call self%register_model_dependency('source', 'model instance to depth-integrate')
    end subroutine
 
    recursive subroutine particle_integrator_complete_internal_variables(self)
@@ -661,7 +661,7 @@ contains
 
       ! Register a dependency on the depth-integrated model instance for which we will
       ! create depth-explicit projections of each state variable
-      call self%register_model_dependency(name='source')
+      call self%register_model_dependency('source', 'model instance to project over water column')
    end subroutine
 
    subroutine projected_particle_complete_internal_variables(self)
@@ -729,7 +729,7 @@ contains
 
       ! Register a dependence on the depth-explicit model instance for which we will
       ! replace interior state variables with depth-integrated ones
-      call self%register_model_dependency(name='target')
+      call self%register_model_dependency('target', 'model instance in which to replace depth-explicit state variables with projected depth-integrated ones')
 
       ! Add a child model that will project our depth-integrated variables over the water column
       allocate(projection)
