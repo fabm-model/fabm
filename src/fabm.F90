@@ -558,6 +558,7 @@ contains
             select type (expression)
             class is (type_interior_temporal_mean)
                ! Moving average of interior variable
+               call self%finalize_outputs_job%request_variable(expression%link%target, store=.true.)
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / seconds_per_time_unit
                allocate(expression%history(_PREARG_LOCATION_ expression%n + 1))
@@ -570,6 +571,7 @@ contains
                call self%link_interior_data(expression%output_name, expression%mean)
             class is (type_horizontal_temporal_mean)
                ! Moving average of horizontal variable
+               call self%finalize_outputs_job%request_variable(expression%link%target, store=.true.)
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / seconds_per_time_unit
                allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 1))
@@ -582,6 +584,7 @@ contains
                call self%link_horizontal_data(expression%output_name, expression%mean)
             class is (type_horizontal_temporal_maximum)
                ! Moving maximum of horizontal variable
+               call self%finalize_outputs_job%request_variable(expression%link%target, store=.true.)
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / seconds_per_time_unit
                allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n))
