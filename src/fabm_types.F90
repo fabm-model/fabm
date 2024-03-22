@@ -2774,9 +2774,9 @@ contains
          aggregate_variable_access%standard_variable => standard_variable
          select type (standard_variable => aggregate_variable_access%standard_variable)
          class is (type_interior_standard_variable)
-            call self%add_interior_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, link=aggregate_variable_access%link)
+            call self%add_interior_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, link=aggregate_variable_access%link, presence=presence_external_required)
          class is (type_horizontal_standard_variable)
-            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, link=aggregate_variable_access%link, domain=standard_variable2domain(standard_variable))
+            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, link=aggregate_variable_access%link, domain=standard_variable2domain(standard_variable), presence=presence_external_required)
          end select
 
          ! If we are the root model, then claim the standard variable identity associated with this aggregate variable.

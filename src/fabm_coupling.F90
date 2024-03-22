@@ -401,12 +401,12 @@ contains
             ! These links will be coupled to the result of the source/flux summations at the next stage.
             select case (link%target%domain)
             case (domain_interior)
-               call self%add_interior_variable  (trim(link%name) // '_sms_tot', trim(link%original%units) // ' s-1',   trim(link%original%long_name) // ' total sources', link=link%original%sms_sum, output=output_none)
-               call self%add_horizontal_variable(trim(link%name) // '_sfl_tot', trim(link%original%units) // ' m s-1', trim(link%original%long_name) // ' total surface flux', domain=domain_surface, link=link%original%surface_flux_sum, output=output_none)
-               call self%add_horizontal_variable(trim(link%name) // '_bfl_tot', trim(link%original%units) // ' m s-1', trim(link%original%long_name) // ' total bottom flux', domain=domain_bottom, link=link%original%bottom_flux_sum, output=output_none)
-               call self%add_interior_variable  (trim(link%name) // '_w_tot',   'm s-1',                               trim(link%original%long_name) // ' total vertical velocity', link=link%original%movement_sum, output=output_none)
+               call self%add_interior_variable  (trim(link%name) // '_sms_tot', trim(link%original%units) // ' s-1',   trim(link%original%long_name) // ' total sources', link=link%original%sms_sum, output=output_none, presence=presence_external_required)
+               call self%add_horizontal_variable(trim(link%name) // '_sfl_tot', trim(link%original%units) // ' m s-1', trim(link%original%long_name) // ' total surface flux', domain=domain_surface, link=link%original%surface_flux_sum, output=output_none, presence=presence_external_required)
+               call self%add_horizontal_variable(trim(link%name) // '_bfl_tot', trim(link%original%units) // ' m s-1', trim(link%original%long_name) // ' total bottom flux', domain=domain_bottom, link=link%original%bottom_flux_sum, output=output_none, presence=presence_external_required)
+               call self%add_interior_variable  (trim(link%name) // '_w_tot',   'm s-1',                               trim(link%original%long_name) // ' total vertical velocity', link=link%original%movement_sum, output=output_none, presence=presence_external_required)
             case (domain_horizontal, domain_surface, domain_bottom)
-               call self%add_horizontal_variable(trim(link%name) // '_sms_tot', trim(link%original%units) // ' s-1',   trim(link%original%long_name) // ' total sources', domain=link%target%domain, link=link%original%sms_sum, output=output_none)
+               call self%add_horizontal_variable(trim(link%name) // '_sms_tot', trim(link%original%units) // ' s-1',   trim(link%original%long_name) // ' total sources', domain=link%target%domain, link=link%original%sms_sum, output=output_none, presence=presence_external_required)
             end select
 
             if (associated(link%target, link%original)) then
@@ -469,7 +469,7 @@ contains
 
       link => self%links%first
       do while (associated(link))
-         if (index(link%name, '/') == 0 .and. (link%original%source == source_state .or. link%original%fake_state_variable) .and. .not. associated(link%target, link%original)) then
+         if (index(link%name, '/') == 0 .and. .not. associated(link%target, link%original) .and. (link%original%source == source_state .or. link%original%fake_state_variable) .and. (link%target%source == source_state .or. link%target%fake_state_variable)) then
             ! This is a state variable, or a diagnostic pretending to be one, that we have registered (it is owned by "self")
             ! We do not own this variable.
             ! Couple to summations for sources-sinks and surface/bottom fluxes created by the target.
@@ -730,15 +730,15 @@ contains
 
             ! Process sums now that all contributing terms are known.
             link => null()
-            call self%add_interior_variable('change_in_' // trim(standard_variable%name), trim(standard_variable%units) // ' s-1', 'change in ' // trim(standard_variable%name), link=link, output=ior(output_instantaneous, output_always_available))
+            call self%add_interior_variable('change_in_' // trim(standard_variable%name), trim(standard_variable%units) // ' s-1', 'change in ' // trim(standard_variable%name), link=link, output=ior(output_instantaneous, output_always_available), presence=presence_external_required)
             call self%add_child(sum, trim(link%name) // '_calculator')
             call self%request_coupling(link, sum%result_link)
             link => null()
-            call self%add_horizontal_variable('change_in_' // trim(standard_variable%name) // '_at_surface', trim(standard_variable%units) // ' m s-1', 'change in ' // trim(standard_variable%name) // ' at surface', domain=domain_surface, link=link, output=ior(output_instantaneous, output_always_available))
+            call self%add_horizontal_variable('change_in_' // trim(standard_variable%name) // '_at_surface', trim(standard_variable%units) // ' m s-1', 'change in ' // trim(standard_variable%name) // ' at surface', domain=domain_surface, link=link, output=ior(output_instantaneous, output_always_available), presence=presence_external_required)
             call self%add_child(surface_sum, trim(link%name) // '_calculator')
             call self%request_coupling(link, surface_sum%result_link)
             link => null()
-            call self%add_horizontal_variable('change_in_' // trim(standard_variable%name) // '_at_bottom', trim(standard_variable%units) // ' m s-1', 'change in ' // trim(standard_variable%name)// ' at bottom', domain=domain_bottom, link=link, output=ior(output_instantaneous, output_always_available))
+            call self%add_horizontal_variable('change_in_' // trim(standard_variable%name) // '_at_bottom', trim(standard_variable%units) // ' m s-1', 'change in ' // trim(standard_variable%name)// ' at bottom', domain=domain_bottom, link=link, output=ior(output_instantaneous, output_always_available), presence=presence_external_required)
             call self%add_child(bottom_sum, trim(link%name) // '_calculator')
             call self%request_coupling(link, bottom_sum%result_link)
          end select
@@ -770,8 +770,9 @@ contains
          ! Extra checks when coupling state variables
          if (.not. master_is_state_variable) then
             if (slave%presence == presence_external_optional) return
-            call fatal_error('couple_variables', 'Attempt to couple state variable ' &
-               // trim(slave%name) // ' to non-state variable ' // trim(master%name) // '.')
+            call log_message('Warning: state variable ' &
+               // trim(slave%name) // ' is coupled to non-state variable ' // trim(master%name) // '.' &
+               // ' Any sources applied to ' // trim(slave%name) // ' will be ignored.')
          end if
          if ((slave%domain == domain_bottom .and. master%domain == domain_surface) .or. (slave%domain == domain_surface .and. master%domain == domain_bottom)) &
             call fatal_error('couple_variables', &
