@@ -174,9 +174,9 @@ contains
 
       link => model%links%first
       do while (associated(link))
-         if (associated(link%original%sms) .and. .not. (link%target%source == source_state .or. link%target%fake_state_variable)) then
-            call model%log_message('Warning: sources provided for ' // trim(link%name) // ' will be ignored as it has been coupled to a non-state variable (' // trim(link%target%name) // ').')
-         end if
+         if (associated(link%original%sms) .and. .not. (link%target%source == source_state .or. link%target%fake_state_variable)) &
+            call model%log_message('Warning: sources provided for ' // trim(link%name) // ' will be ignored as it has been coupled&
+               & to a non-state variable (' // trim(link%target%name) // ').')
          link => link%next
       end do
    end subroutine
