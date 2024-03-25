@@ -532,66 +532,66 @@ contains
       call self%request_mapped_coupling(id, standard_variable%in_interior(), average)
    end subroutine
 
-   subroutine depth_integrated_particle_request_mapped_coupling_to_model1(self, id, name, standard_variable, average)
+   subroutine depth_integrated_particle_request_mapped_coupling_to_model1(self, id, target_model_name, standard_variable, average)
       class (type_depth_integrated_particle),   intent(inout) :: self
-      character(len=*),                         intent(in)    :: name
       type (type_bottom_dependency_id), target, intent(inout) :: id
+      character(len=*),                         intent(in)    :: target_model_name
       type (type_universal_standard_variable),  intent(in)    :: standard_variable
       logical, optional,                        intent(in)    :: average
 
       type (type_link), pointer :: link
 
-      call register_depth_explicit_dependency(self, id, name // '_' // trim(standard_variable%name), &
-         trim(standard_variable%units), trim(standard_variable%name) // ' in ' // name, link=link, average=average)
-      call self%request_coupling_to_model_generic(link, master_model_name=name, master_standard_variable=standard_variable)
+      call register_depth_explicit_dependency(self, id, target_model_name // '_' // trim(standard_variable%name), &
+         trim(standard_variable%units), trim(standard_variable%name) // ' in ' // target_model_name, link=link, average=average)
+      call self%request_coupling_to_model_generic(link, target_model_name=target_model_name, target_standard_variable=standard_variable)
    end subroutine
 
-   subroutine depth_integrated_particle_request_mapped_coupling_to_model2(self, id, name, standard_variable, average)
+   subroutine depth_integrated_particle_request_mapped_coupling_to_model2(self, id, target_model_name, standard_variable, average)
       class (type_depth_integrated_particle),    intent(inout) :: self
-      character(len=*),                          intent(in)    :: name
       type (type_surface_dependency_id), target, intent(inout) :: id
+      character(len=*),                          intent(in)    :: target_model_name
       type (type_universal_standard_variable),   intent(in)    :: standard_variable
       logical, optional,                         intent(in)    :: average
 
       type (type_link), pointer :: link
 
-      call register_depth_explicit_dependency(self, id, name // '_' // trim(standard_variable%name), &
-         trim(standard_variable%units), trim(standard_variable%name) // ' in ' // name, link=link, average=average)
-      call self%request_coupling_to_model_generic(link, master_model_name=name, master_standard_variable=standard_variable)
+      call register_depth_explicit_dependency(self, id, target_model_name // '_' // trim(standard_variable%name), &
+         trim(standard_variable%units), trim(standard_variable%name) // ' in ' // target_model_name, link=link, average=average)
+      call self%request_coupling_to_model_generic(link, target_model_name=target_model_name, target_standard_variable=standard_variable)
    end subroutine
 
-   subroutine depth_integrated_particle_request_mapped_coupling_to_model3(self, id, name, standard_variable, proportional_change)
+   subroutine depth_integrated_particle_request_mapped_coupling_to_model3(self, id, target_model_name, standard_variable, proportional_change)
       class (type_depth_integrated_particle),  intent(inout)         :: self
-      character(len=*),                        intent(in)            :: name
       type (type_bottom_state_variable_id),    intent(inout), target :: id
+      character(len=*),                        intent(in)            :: target_model_name
       type (type_universal_standard_variable), intent(in)            :: standard_variable
       logical, optional,                       intent(in)            :: proportional_change
 
       type (type_link), pointer :: link
       class (type_weighted_depth_integral),   pointer :: depth_integral
 
-      call register_depth_explicit_state_dependency(self, id%link, name // '_' // trim(standard_variable%name), &
-         trim(standard_variable%units), trim(standard_variable%name) // ' in ' // name, link=link, &
+      call register_depth_explicit_state_dependency(self, id%link, target_model_name // '_' // trim(standard_variable%name), &
+         trim(standard_variable%units), trim(standard_variable%name) // ' in ' // target_model_name, link=link, &
          proportional_change=proportional_change, depth_integral_out=depth_integral, domain=domain_bottom)
       call self%add_to_aggregate_variable(standard_variable, depth_integral%id_result)
-      call self%request_coupling_to_model_generic(link, master_model_name=name, master_standard_variable=standard_variable)
+      call self%request_coupling_to_model_generic(link, target_model_name=target_model_name, target_standard_variable=standard_variable)
    end subroutine
 
-   subroutine depth_integrated_particle_request_mapped_coupling_to_model4(self, id, name, standard_variable, proportional_change)
+   subroutine depth_integrated_particle_request_mapped_coupling_to_model4(self, id, target_model_name, standard_variable, proportional_change)
       class (type_depth_integrated_particle),   intent(inout)         :: self
-      character(len=*),                         intent(in)            :: name
       type (type_surface_state_variable_id),    intent(inout), target :: id
+      character(len=*),                         intent(in)            :: target_model_name
       type (type_universal_standard_variable),  intent(in)            :: standard_variable
       logical, optional,                        intent(in)            :: proportional_change
 
       type (type_link), pointer :: link
       class (type_weighted_depth_integral),   pointer :: depth_integral
 
-      call register_depth_explicit_state_dependency(self, id%link, name // '_' // trim(standard_variable%name), &
-         trim(standard_variable%units), trim(standard_variable%name) // ' in ' // name, link=link, &
+      call register_depth_explicit_state_dependency(self, id%link, target_model_name // '_' // trim(standard_variable%name), &
+         trim(standard_variable%units), trim(standard_variable%name) // ' in ' // target_model_name, link=link, &
          proportional_change=proportional_change, depth_integral_out=depth_integral, domain=domain_surface)
       call self%add_to_aggregate_variable(standard_variable, depth_integral%id_result)
-      call self%request_coupling_to_model_generic(link, master_model_name=name, master_standard_variable=standard_variable)
+      call self%request_coupling_to_model_generic(link, target_model_name=target_model_name, target_standard_variable=standard_variable)
    end subroutine
 
    subroutine particle_integrator_initialize(self, configunit)

@@ -2509,7 +2509,7 @@ contains
       type (type_standard_variable_set)           :: standard_variable_set
       type (type_standard_variable_node), pointer :: standard_variable_node
 
-      ! Build a list of all master variables (those that not have been coupled)
+      ! Build a list of all variables that are either uncoupled, or coupled but flagged as available for output
       link => self%root%links%first
       do while (associated(link))
          if (associated(link%target, link%original) .or. iand(link%original%output, output_always_available) /= 0) then

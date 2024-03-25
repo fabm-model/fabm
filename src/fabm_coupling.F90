@@ -70,7 +70,7 @@ contains
       call process_coupling_tasks(self, final=.false., log_unit=coupling_log_unit)
 
       ! Now that coupling for non-rate variables is complete, contributions to aggregate quantities
-      ! (including ones of slave variables) are final.
+      ! (including contributions from variables that were coupled to another) are final.
       ! Create conservation checks where needed.
       call create_conservation_checks(self)
 
@@ -207,11 +207,12 @@ contains
             if (link%target%standard_variables%contains(node%p)) then
                if (associated(first_link)) then
                   if (link%target%write_indices%is_empty() .and. .not. (first_link%target%presence /= presence_internal .and. link%target%presence == presence_internal)) then
-                     ! Default coupling: early variable (first_link) is master, later variable (link) is slave.
-                     call couple_variables(model, first_link%target, link%target)
-                  else
-                     ! Later variable (link) is write-only and therefore can only be master. Try coupling with early variable (first_link) as slave.
+                     ! Default coupling: later variable (link) is coupled to early variable (first_link)
                      call couple_variables(model, link%target, first_link%target)
+                  else
+                     ! Later variable (link) is write-only and therefore cannot be coupled to a target.
+                     ! Try coupling early variable (first_link) to later variable (link).
+                     call couple_variables(model, first_link%target, link%target)
                   end if
                else
                   first_link => link
@@ -228,7 +229,7 @@ contains
       class (type_base_model), intent(inout) :: self
 
       type (type_link),           pointer :: link
-      character(len=:), allocatable       :: master_name
+      character(len=:), allocatable       :: target_name
       class (type_coupling_task), pointer :: task 
       integer                             :: source
       logical                             :: couplable
@@ -242,11 +243,11 @@ contains
          if (index(link%name, '/') == 0 .and. couplable) then
             display = display_inherit
             if (link%original%presence == presence_internal .or. associated(self%coupling_task_list%find(link))) display = display_advanced
-            master_name = self%couplings%get_string(trim(link%name), trim(link%original%long_name), units=trim(link%original%units), default='', display=display)
-            if (master_name /= '') then
+            target_name = self%couplings%get_string(trim(link%name), trim(link%original%long_name), units=trim(link%original%units), default='', display=display)
+            if (target_name /= '') then
                allocate(task)
-               task%slave => link
-               task%master_name = master_name
+               task%link => link
+               task%target_name = target_name
                call self%coupling_task_list%add(task, priority=1)
             end if    ! Coupling provided
          end if   ! Our own link, which may be coupled
@@ -264,7 +265,7 @@ contains
       class (type_base_model),       pointer :: root
       type (type_model_list_node),   pointer :: child
       class (type_coupling_task),    pointer :: coupling, next_coupling
-      type (type_internal_variable), pointer :: master
+      type (type_internal_variable), pointer :: target_variable
       type (type_link),              pointer :: link
       integer                                :: istart, istop
 
@@ -286,47 +287,47 @@ contains
          ! (e.g., type_coupling_from_model in fabm_particle)
          link => coupling%resolve()
 
-         if (.not. associated(link) .and. .not. associated(coupling%master_standard_variable)) then
+         if (.not. associated(link) .and. .not. associated(coupling%target_standard_variable)) then
             ! This is a coupling by variable name.
-            ! Try to find the master variable among the variables of the requesting model or its parents.
-            istart = index(coupling%master_name, '(')
+            ! Try to find the target variable among the variables of the requesting model or its parents.
+            istart = index(coupling%target_name, '(')
             if (istart /= 0) then
                ! The coupling name includes an opening parenthesis. Interpret it as a parametrized coupling (one with arguments)
-               istop = len_trim(coupling%master_name)
-               if (coupling%master_name(istop:istop) /= ')') call self%fatal_error('process_coupling_tasks', &
-                  'Parameterized coupling ' // trim(coupling%master_name) // ' should end with closing parenthesis.')
-               call resolve_parameterized_coupling(coupling%master_name(1:istart-1), coupling%master_name(istart+1:istop-1), coupling)
-            elseif (coupling%slave%name /= coupling%master_name) then
-               ! Master and slave name differ: start master search in current model, then move up tree.
-               link => self%find_link(coupling%master_name, recursive=.true., exact=.false.)
+               istop = len_trim(coupling%target_name)
+               if (coupling%target_name(istop:istop) /= ')') call self%fatal_error('process_coupling_tasks', &
+                  'Parameterized coupling ' // trim(coupling%target_name) // ' should end with closing parenthesis.')
+               call resolve_parameterized_coupling(coupling%target_name(1:istart-1), coupling%target_name(istart+1:istop-1), coupling)
+            elseif (coupling%link%name /= coupling%target_name) then
+               ! Names of variable and its target differ: start target search in current model, then move up tree.
+               link => self%find_link(coupling%target_name, recursive=.true., exact=.false.)
             elseif (associated(self%parent)) then
-               ! Master and slave name are identical: start master search in parent model, then move up tree.
-               link => self%parent%find_link(coupling%master_name, recursive=.true., exact=.false.)
+               ! Names of variable and its target are identical: start target search in parent model, then move up tree.
+               link => self%parent%find_link(coupling%target_name, recursive=.true., exact=.false.)
             else
                call self%fatal_error('process_coupling_tasks', &
-                  'Master and slave name are identical: "' // trim(coupling%master_name) // '". This is not valid at the root of the model tree.')
+                  'Names of variable and its target are identical: "' // trim(coupling%target_name) // '". This is not valid at the root of the model tree.')
             end if
          end if
 
-         if (.not. associated(link) .and. associated(coupling%master_standard_variable)) then
+         if (.not. associated(link) .and. associated(coupling%target_standard_variable)) then
             ! This is a coupling to a standard variable. First try to find the corresponding standard variable.
             ! We search within the root model, because there all variables are found together.
             link => root%links%first
             do while (associated(link))
-               if (link%target%standard_variables%contains(coupling%master_standard_variable)) exit
+               if (link%target%standard_variables%contains(coupling%target_standard_variable)) exit
                link => link%next
             end do
 
-            if (.not. associated(link) .and. coupling%master_standard_variable%aggregate_variable) &
+            if (.not. associated(link) .and. coupling%target_standard_variable%aggregate_variable) &
                ! Create an aggregate variable at the level of the root model
-               link => get_aggregate_variable_access(root, coupling%master_standard_variable)
+               link => get_aggregate_variable_access(root, coupling%target_standard_variable)
 
-            if (final .and. .not. associated(link) .and. (coupling%slave%target%source /= source_state &
-               .or. coupling%slave%target%presence == presence_external_optional)) then
+            if (final .and. .not. associated(link) .and. (coupling%link%target%source /= source_state &
+               .or. coupling%link%target%presence == presence_external_optional)) then
                ! Target variable was not found, but this is our last chance.
                ! Therefore, create a placeholder variable at the root level.
                ! This variable will still need to be provided by the host.
-               select type (standard_variable => coupling%master_standard_variable)
+               select type (standard_variable => coupling%target_standard_variable)
                class is (type_interior_standard_variable)
                   call root%add_interior_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
                      standard_variable=standard_variable, presence=presence_external_optional, link=link)
@@ -346,15 +347,15 @@ contains
 
          if (associated(link)) then
             ! Target variable found: perform the coupling.
-            master => link%target
-            if (log_unit /= -1) write (log_unit, '(a,a,a,a)') '  ', trim(coupling%slave%target%name), ': ', trim(master%name)
-            call couple_variables(root, master, coupling%slave%target)
+            target_variable => link%target
+            if (log_unit /= -1) write (log_unit, '(a,a,a,a)') '  ', trim(coupling%link%target%name), ': ', trim(target_variable%name)
+            call couple_variables(root, coupling%link%target, target_variable)
 
             ! Remove coupling task from the list
             call self%coupling_task_list%remove(coupling)
          elseif (final) then
             call self%fatal_error('process_coupling_tasks', &
-               'Coupling target "' // trim(coupling%master_name) // '" for "' // trim(coupling%slave%name) // '" was not found.')
+               'Coupling target "' // trim(coupling%target_name) // '" for "' // trim(coupling%link%name) // '" was not found.')
          end if
 
          ! Move to next coupling task.
@@ -381,18 +382,18 @@ contains
 
          select case (name)
          case ('standard_variable')
-            select case (task%slave%target%domain)
+            select case (task%link%target%domain)
             case (domain_interior)
                interior_standard_variable%name = args
-               task%master_standard_variable => interior_standard_variable%typed_resolve()
+               task%target_standard_variable => interior_standard_variable%typed_resolve()
             case (domain_bottom)
                bottom_standard_variable%name = args
-               task%master_standard_variable => bottom_standard_variable%typed_resolve()
+               task%target_standard_variable => bottom_standard_variable%typed_resolve()
             case (domain_horizontal)
                horizontal_standard_variable%name = args
-               task%master_standard_variable => horizontal_standard_variable%typed_resolve()
+               task%target_standard_variable => horizontal_standard_variable%typed_resolve()
             case default
-               call self%fatal_error('process_coupling_tasks', 'Unknown domain for ' // task%slave%name // '.')
+               call self%fatal_error('process_coupling_tasks', 'Unknown domain for ' // task%link%name // '.')
             end select
          case default
             call self%fatal_error('process_coupling_tasks', 'Unknown parameterized coupling type "' // name // '".')
@@ -764,59 +765,59 @@ contains
 
    end subroutine create_conservation_checks
 
-   recursive subroutine couple_variables(self, master, slave)
+   recursive subroutine couple_variables(self, variable, target_variable)
       class (type_base_model), intent(inout), target :: self
-      type (type_internal_variable), pointer         :: master, slave
+      type (type_internal_variable), pointer         :: variable, target_variable
 
       type (type_link_pointer), pointer :: link_pointer, next_link_pointer
 
-      ! If slave and master are the same, we are done - return.
-      if (associated(slave, master)) return
+      ! If the variable and its target are the same, we are done - return.
+      if (associated(variable, target_variable)) return
 
       if (associated(self%parent)) call self%fatal_error('couple_variables', 'BUG: must be called on root node.')
-      if (associated(slave%write_index)) &
+      if (associated(variable%write_index)) &
          call fatal_error('couple_variables', 'Attempt to couple write-only variable ' &
-            // trim(slave%name) // ' to ' // trim(master%name) // '.')
-      if (slave%source == source_state .or. slave%fake_state_variable) then
+            // trim(variable%name) // ' to ' // trim(target_variable%name) // '.')
+      if (variable%source == source_state .or. variable%fake_state_variable) then
          ! Extra checks when coupling state variables
-         if ((slave%domain == domain_bottom .and. master%domain == domain_surface) .or. (slave%domain == domain_surface .and. master%domain == domain_bottom)) &
+         if ((variable%domain == domain_bottom .and. target_variable%domain == domain_surface) .or. (variable%domain == domain_surface .and. target_variable%domain == domain_bottom)) &
             call fatal_error('couple_variables', &
-               'Cannot couple ' // trim(slave%name) // ' (' // trim(domain2string(slave%domain)) // ') to ' // trim(master%name) &
-               // ' (' // trim(domain2string(master%domain)) // '), because their domains are incompatible.')
+               'Cannot couple ' // trim(variable%name) // ' (' // trim(domain2string(variable%domain)) // ') to ' // trim(target_variable%name) &
+               // ' (' // trim(domain2string(target_variable%domain)) // '), because their domains are incompatible.')
       end if
-      !if (slave%domain/=master%domain.and..not.(slave%domain==domain_horizontal.and. &
-      !   (master%domain==domain_surface.or.master%domain==domain_bottom))) call fatal_error('couple_variables', &
-      !   'Cannot couple '//trim(slave%name)//' to '//trim(master%name)//', because their domains are incompatible.')
-      if (iand(slave%domain, master%domain) == 0) &
+      !if (variable%domain/=target_variable%domain .and. .not. (variable%domain==domain_horizontal.and. &
+      !   (target_variable%domain==domain_surface.or.target_variable%domain==domain_bottom))) call fatal_error('couple_variables', &
+      !   'Cannot couple '//trim(variable%name)//' to '//trim(target_variable%name)//', because their domains are incompatible.')
+      if (iand(variable%domain, target_variable%domain) == 0) &
          call fatal_error('couple_variables', &
-         'Cannot couple ' // trim(slave%name) // ' (' // trim(domain2string(slave%domain)) // ') to ' // trim(master%name) &
-         // ' (' // trim(domain2string(master%domain)) // '), because their domains are incompatible.')
+         'Cannot couple ' // trim(variable%name) // ' (' // trim(domain2string(variable%domain)) // ') to ' // trim(target_variable%name) &
+         // ' (' // trim(domain2string(target_variable%domain)) // '), because their domains are incompatible.')
 
-      ! Merge all information from the slave into the master.
-      call master%state_indices%extend(slave%state_indices)
-      call master%read_indices%extend(slave%read_indices)
-      call master%write_indices%extend(slave%write_indices)
-      call master%background_values%extend(slave%background_values)
-      call master%properties%update(slave%properties,overwrite=.false.)
-      call master%sms_list%extend(slave%sms_list)
-      call master%surface_flux_list%extend(slave%surface_flux_list)
-      call master%bottom_flux_list%extend(slave%bottom_flux_list)
-      call master%movement_list%extend(slave%movement_list)
+      ! Merge all information into the target variable.
+      call target_variable%state_indices%extend(variable%state_indices)
+      call target_variable%read_indices%extend(variable%read_indices)
+      call target_variable%write_indices%extend(variable%write_indices)
+      call target_variable%background_values%extend(variable%background_values)
+      call target_variable%properties%update(variable%properties,overwrite=.false.)
+      call target_variable%sms_list%extend(variable%sms_list)
+      call target_variable%surface_flux_list%extend(variable%surface_flux_list)
+      call target_variable%bottom_flux_list%extend(variable%bottom_flux_list)
+      call target_variable%movement_list%extend(variable%movement_list)
 
-      call master%standard_variables%update(slave%standard_variables)
+      call target_variable%standard_variables%update(variable%standard_variables)
 
-      if (master%presence == presence_external_optional .and. slave%presence /= presence_external_optional) &
-         master%presence = presence_external_required
+      if (target_variable%presence == presence_external_optional .and. variable%presence /= presence_external_optional) &
+         target_variable%presence = presence_external_required
 
-      ! Make all links that originally pointed to the slave now point to the master.
-      ! Then include those links in the master's link set.
-      link_pointer => slave%first_link
-      slave%first_link => null()
+      ! Make all links that originally pointed to the coupled variable now point to its target.
+      ! Then include those links in the target's link set.
+      link_pointer => variable%first_link
+      variable%first_link => null()
       do while (associated(link_pointer))
          next_link_pointer => link_pointer%next
-         link_pointer%p%target => master
-         link_pointer%next => master%first_link
-         master%first_link => link_pointer
+         link_pointer%p%target => target_variable
+         link_pointer%next => target_variable%first_link
+         target_variable%first_link => link_pointer
          link_pointer => next_link_pointer
       end do
    end subroutine couple_variables
@@ -831,8 +832,9 @@ contains
       do while (associated(link))
          if (index(link%name, '/') == 0 .and. .not. associated(link%target, link%original)) then
             if (link%target%units/=''.and. link%original%units/=''.and. link%target%units /= link%original%units) &
-               call log_message('WARNING: unit mismatch between master ' // trim(link%target%name) // ' (' // trim(link%target%units) // &
-                  ') and slave ' // trim(link%original%name) // ' (' // trim(link%original%units) // ').')
+               call log_message('WARNING: unit mismatch between ' // trim(link%original%name) &
+                   // ' (' // trim(link%original%units) // ') and its coupling target ' // trim(link%target%name) &
+                   // ' (' // trim(link%target%units) // ').')
          end if
          link => link%next
       end do

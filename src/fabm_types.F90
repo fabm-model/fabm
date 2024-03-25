@@ -165,9 +165,9 @@ module fabm_types
    ! --------------------------------------------------------------------------
 
    type type_coupling_task
-      type (type_link), pointer                    :: slave       => null()
-      character(len=attribute_length)              :: master_name = ''
-      class (type_domain_specific_standard_variable), pointer :: master_standard_variable => null()
+      type (type_link), pointer                    :: link       => null()
+      character(len=attribute_length)              :: target_name = ''
+      class (type_domain_specific_standard_variable), pointer :: target_standard_variable => null()
       integer                                      :: priority = 0
       class (type_coupling_task), pointer          :: previous    => null()
       class (type_coupling_task), pointer          :: next        => null()
@@ -176,7 +176,7 @@ module fabm_types
    end type
 
    type, extends(type_coupling_task) :: type_link_coupling_task
-      type (type_link), pointer :: master => null()
+      type (type_link), pointer :: target_link => null()
    contains
       procedure :: resolve => link_coupling_task_resolve
    end type
@@ -500,7 +500,7 @@ module fabm_types
       procedure :: find_model
 
       ! Procedures for requesting coupling between variables
-      ! The last two letters of each name indicate the type of slave and master, respectively
+      ! The last two letters of each name indicate the type of the coupled variable and its target, respectively
       ! l=link, n=name, s=standard variable, i=variable identifier, t=task
       procedure :: request_coupling_ln
       procedure :: request_coupling_in
@@ -1419,83 +1419,83 @@ contains
          &not inherited ones such as the current ' // trim(link%name) // '.')
 
       ! Create a coupling task (reuse existing one if available, and not user-specified)
-      task%slave => link
+      task%link => link
       call self%coupling_task_list%add(task, priority=0)
    end subroutine request_coupling_lt
 
-   subroutine request_coupling_ln(self, link, master)
+   subroutine request_coupling_ln(self, link, target_name)
       class (type_base_model),  intent(inout) :: self
       type (type_link), target, intent(in)    :: link
-      character(len=*),         intent(in)    :: master
+      character(len=*),         intent(in)    :: target_name
 
       class (type_coupling_task), pointer :: task
 
       allocate(task)
       call request_coupling_lt(self, link, task)
       if (.not. associated(task)) return
-      task%master_name = master
+      task%target_name = target_name
    end subroutine request_coupling_ln
 
-   recursive subroutine request_coupling_nn(self, slave, master)
+   recursive subroutine request_coupling_nn(self, name, target_name)
       class (type_base_model), intent(inout), target :: self
-      character(len=*),        intent(in)            :: slave, master
+      character(len=*),        intent(in)            :: name, target_name
 
       class (type_base_model), pointer :: parent
       type (type_link),        pointer :: link
       integer                          :: islash
 
       ! If a path with / is given, redirect to tentative parent model.
-      islash = index(slave, '/', .true.)
+      islash = index(name, '/', .true.)
       if (islash /= 0) then
-         parent => self%find_model(slave(:islash - 1))
-         call request_coupling_nn(parent, slave(islash + 1:), master)
+         parent => self%find_model(name(:islash - 1))
+         call request_coupling_nn(parent, name(islash + 1:), target_name)
          return
       end if
 
-      link => self%links%find(slave)
+      link => self%links%find(name)
       if (.not. associated(link)) call self%fatal_error('request_coupling_nn', &
-         'Specified slave (' // trim(slave) // ') not found. Make sure the variable is registered before calling request_coupling.')
-      call request_coupling_ln(self, link, master)
+         'Specified variable (' // trim(name) // ') not found. Make sure the variable is registered before calling request_coupling.')
+      call request_coupling_ln(self, link, target_name)
    end subroutine request_coupling_nn
 
-   subroutine request_coupling_in(self, id, master)
+   subroutine request_coupling_in(self, id, target_name)
       class (type_base_model),  intent(inout) :: self
       class (type_variable_id), intent(in)    :: id
-      character(len=*),         intent(in)    :: master
+      character(len=*),         intent(in)    :: target_name
 
       if (.not. associated(id%link)) call self%fatal_error('request_coupling_in', &
          'The provided variable identifier has not been registered yet.')
-      call request_coupling_ln(self, id%link, master)
+      call request_coupling_ln(self, id%link, target_name)
    end subroutine request_coupling_in
 
-   subroutine request_coupling_ls(self, link, master)
+   subroutine request_coupling_ls(self, link, target_standard_variable)
       use fabm_standard_variables   ! workaround for bug in Cray compiler 8.3.4
       class (type_base_model),                        intent(inout)      :: self
       type (type_link), target,                       intent(in)         :: link
-      class (type_domain_specific_standard_variable), intent(in), target :: master
+      class (type_domain_specific_standard_variable), intent(in), target :: target_standard_variable
 
       class (type_coupling_task), pointer :: task
 
       allocate(task)
       call request_coupling_lt(self, link, task)
       if (.not. associated(task)) return
-      task%master_standard_variable => master%typed_resolve()
+      task%target_standard_variable => target_standard_variable%typed_resolve()
    end subroutine request_coupling_ls
 
-   subroutine request_coupling_is(self, id, master)
+   subroutine request_coupling_is(self, id, target_standard_variable)
       class (type_base_model),                        intent(inout)      :: self
       class (type_variable_id),                       intent(in)         :: id
-      class (type_domain_specific_standard_variable), intent(in), target :: master
+      class (type_domain_specific_standard_variable), intent(in), target :: target_standard_variable
 
       if (.not. associated(id%link)) call self%fatal_error('request_coupling_is', &
          'The provided variable identifier has not been registered yet.')
-      call request_coupling_ls(self, id%link, master)
+      call request_coupling_ls(self, id%link, target_standard_variable)
    end subroutine request_coupling_is
 
-   subroutine request_coupling_ll(self, link, master)
+   subroutine request_coupling_ll(self, link, target_link)
       class (type_base_model),  intent(inout) :: self
       type (type_link), target, intent(in)    :: link
-      type (type_link), target, intent(in)    :: master
+      type (type_link), target, intent(in)    :: target_link
 
       class (type_link_coupling_task), pointer :: task
       class (type_coupling_task),      pointer :: base_class_pointer
@@ -1504,17 +1504,17 @@ contains
       base_class_pointer => task
       call request_coupling_lt(self, link, base_class_pointer)
       if (.not. associated(base_class_pointer)) return
-      task%master => master
+      task%target_link => target_link
    end subroutine request_coupling_ll
 
-   subroutine request_coupling_il(self, id, master)
+   subroutine request_coupling_il(self, id, target_link)
       class (type_base_model),  intent(inout) :: self
       class (type_variable_id), intent(in)    :: id
-      type (type_link), target, intent(in)    :: master
+      type (type_link), target, intent(in)    :: target_link
 
       if (.not. associated(id%link)) call self%fatal_error('request_coupling_il', &
          'The provided variable identifier has not been registered yet.')
-      call request_coupling_ll(self, id%link, master)
+      call request_coupling_ll(self, id%link, target_link)
    end subroutine request_coupling_il
 
    subroutine integer_pointer_set_append(self, value)
@@ -2930,7 +2930,7 @@ contains
    function link_coupling_task_resolve(self) result(link)
       class (type_link_coupling_task), intent(inout) :: self
       type (type_link), pointer :: link
-      link => self%master
+      link => self%target_link
    end function
 
    subroutine coupling_task_list_remove(self, task)
@@ -2952,7 +2952,7 @@ contains
 
       existing_task => self%first
       do while (associated(existing_task))
-         if (associated(existing_task%slave, link)) return
+         if (associated(existing_task%link, link)) return
          existing_task => existing_task%next
       end do
    end function coupling_task_list_find
@@ -2965,7 +2965,7 @@ contains
       class (type_coupling_task), pointer :: existing_task
 
       ! Check if we have found an existing task for the same link.
-      existing_task => self%find(task%slave)
+      existing_task => self%find(task%link)
       if (associated(existing_task)) then
          ! If existing one has higher priority, do not add the new task and return (used=.false.)
          if (existing_task%priority > priority) then

@@ -188,29 +188,29 @@ contains
       if (associated(reference)) model => self%resolve_model_reference(reference, require_internal_variables)
    end function resolve_model_dependency
 
-   recursive subroutine request_coupling_nn(self, slave, master)
+   recursive subroutine request_coupling_nn(self, name, target_name)
       class (type_particle_model), intent(inout), target :: self
-      character(len=*),            intent(in)            :: slave, master
+      character(len=*),            intent(in)            :: name, target_name
 
       type (type_model_reference), pointer :: reference
 
-      reference => find_model_reference(self, slave)
+      reference => find_model_reference(self, name)
       if (associated(reference)) then
-         ! The slave is a coupled model instance
-         call self%couplings%set_string(slave, master)
+         ! The provided name is a local model reference that needs to be coupled to another model instance
+         call self%couplings%set_string(name, target_name)
       else
-         ! The slave is not a coupled model instance and therefore must be a variable.
-         ! Forward to base type
-         call self%type_base_model%request_coupling_nn(slave, master)
+         ! The provided name does not match that of a local model reference.
+         ! It therefore must be a variable. Forward to base type
+         call self%type_base_model%request_coupling_nn(name, target_name)
       end if
    end subroutine request_coupling_nn
 
-   subroutine request_coupling_to_model_generic(self, slave, master_model, master_model_name, master_name, master_standard_variable)
+   subroutine request_coupling_to_model_generic(self, link, target_model, target_model_name, target_name, target_standard_variable)
       class (type_particle_model), target, intent(inout)           :: self
-      type (type_link),target                                      :: slave
-      type (type_model_id),                intent(inout), optional :: master_model
-      character(len=*),                    intent(in),    optional :: master_name, master_model_name
-      class (type_base_standard_variable), intent(in),    optional :: master_standard_variable
+      type (type_link),target                                      :: link
+      type (type_model_id),                intent(inout), optional :: target_model
+      character(len=*),                    intent(in),    optional :: target_name, target_model_name
+      class (type_base_standard_variable), intent(in),    optional :: target_standard_variable
 
       type (type_coupling_from_model),     pointer :: coupling
       class (type_coupling_task),          pointer :: base_coupling
@@ -223,77 +223,77 @@ contains
       ! This must be a pointer, because FABM will manage its memory and deallocate when appropriate.
       allocate(coupling)
       base_coupling => coupling
-      call self%request_coupling(slave, base_coupling)
+      call self%request_coupling(link, base_coupling)
       if (.not. associated(base_coupling)) return
       coupling%owner => self
-      if (present(master_name)) coupling%master_name = master_name
-      if (present(master_standard_variable)) then
-         standard_variable => master_standard_variable%resolve()
+      if (present(target_name)) coupling%target_name = target_name
+      if (present(target_standard_variable)) then
+         standard_variable => target_standard_variable%resolve()
          select type (standard_variable)
          class is (type_universal_standard_variable)
-            select case (coupling%slave%target%domain)
-            case (domain_interior);   coupling%master_standard_variable => standard_variable%in_interior()
-            case (domain_surface);    coupling%master_standard_variable => standard_variable%at_surface()
-            case (domain_bottom);     coupling%master_standard_variable => standard_variable%at_bottom()
-            case (domain_horizontal); coupling%master_standard_variable => standard_variable%at_interfaces()
+            select case (coupling%link%target%domain)
+            case (domain_interior);   coupling%target_standard_variable => standard_variable%in_interior()
+            case (domain_surface);    coupling%target_standard_variable => standard_variable%at_surface()
+            case (domain_bottom);     coupling%target_standard_variable => standard_variable%at_bottom()
+            case (domain_horizontal); coupling%target_standard_variable => standard_variable%at_interfaces()
             end select
          class is (type_domain_specific_standard_variable)
-            coupling%master_standard_variable => standard_variable
+            coupling%target_standard_variable => standard_variable
          end select
-         if (coupling%slave%target%source == source_state .or. coupling%slave%target%fake_state_variable) &
+         if (coupling%link%target%source == source_state .or. coupling%link%target%fake_state_variable) &
             coupling%access = access_state
       end if
-      if (present(master_model)) then
-         coupling%model_reference => master_model%reference
+      if (present(target_model)) then
+         coupling%model_reference => target_model%reference
       else
-         if (.not. present(master_model_name)) call self%fatal_error('request_coupling_to_model_generic', &
-            'BUG: master_model or master_model_name must be provided.')
-         coupling%model_reference => add_model_reference(self, master_model_name)
+         if (.not. present(target_model_name)) call self%fatal_error('request_coupling_to_model_generic', &
+            'BUG: target_model or target_model_name must be provided.')
+         coupling%model_reference => add_model_reference(self, target_model_name)
       end if
    end subroutine request_coupling_to_model_generic
 
-   subroutine request_named_coupling_to_model(self, slave_variable, master_model, master_variable)
+   subroutine request_named_coupling_to_model(self, id, target_model, target_name)
       class (type_particle_model), target, intent(inout) :: self
-      class (type_variable_id),            intent(in)    :: slave_variable
-      type (type_model_id),                intent(inout) :: master_model
-      character(len=*),                    intent(in)    :: master_variable
+      class (type_variable_id),            intent(in)    :: id
+      type (type_model_id),                intent(inout) :: target_model
+      character(len=*),                    intent(in)    :: target_name
 
-      if (.not. associated(slave_variable%link)) &
-         call self%fatal_error('request_named_coupling_to_model', 'slave variable must be registered before it is coupled.')
-      call request_coupling_to_model_generic(self, slave_variable%link, master_model=master_model, master_name=master_variable)
+      if (.not. associated(id%link)) &
+         call self%fatal_error('request_named_coupling_to_model', 'variable must be registered before it can be coupled.')
+      call request_coupling_to_model_generic(self, id%link, target_model=target_model, target_name=target_name)
    end subroutine request_named_coupling_to_model
 
-   subroutine request_standard_coupling_to_model(self, slave_variable, master_model, master_variable)
+   subroutine request_standard_coupling_to_model(self, id, target_model, target_standard_variable)
       class (type_particle_model), target, intent(inout) :: self
-      class (type_variable_id),            intent(in)    :: slave_variable
-      type (type_model_id),                intent(inout) :: master_model
-      class (type_base_standard_variable), intent(in)    :: master_variable
+      class (type_variable_id),            intent(in)    :: id
+      type (type_model_id),                intent(inout) :: target_model
+      class (type_base_standard_variable), intent(in)    :: target_standard_variable
 
-      if (.not. associated(slave_variable%link)) &
-         call self%fatal_error('request_standard_coupling_to_model', 'slave variable must be registered before it is coupled.')
-      call request_coupling_to_model_generic(self, slave_variable%link, master_model=master_model, master_standard_variable=master_variable)
+      if (.not. associated(id%link)) &
+         call self%fatal_error('request_standard_coupling_to_model', 'variable must be registered before it can be coupled.')
+      call request_coupling_to_model_generic(self, id%link, target_model=target_model, target_standard_variable=target_standard_variable)
    end subroutine request_standard_coupling_to_model
 
-   subroutine request_named_coupling_to_named_model(self, slave_variable, master_model, master_variable)
+   subroutine request_named_coupling_to_named_model(self, id, target_model_name, target_name)
       class (type_particle_model), target, intent(inout) :: self
-      class (type_variable_id),            intent(in)    :: slave_variable
-      character(len=*),                    intent(in)    :: master_model
-      character(len=*),                    intent(in)    :: master_variable
+      class (type_variable_id),            intent(in)    :: id
+      character(len=*),                    intent(in)    :: target_model_name
+      character(len=*),                    intent(in)    :: target_name
 
-      if (.not. associated(slave_variable%link)) &
-         call self%fatal_error('request_named_coupling_to_named_model', 'slave variable must be registered before it is coupled.')
-      call request_coupling_to_model_generic(self, slave_variable%link, master_model_name=master_model, master_name=master_variable)
+      if (.not. associated(id%link)) &
+         call self%fatal_error('request_named_coupling_to_named_model', 'variable must be registered before it can be coupled.')
+      call request_coupling_to_model_generic(self, id%link, target_model_name=target_model_name, target_name=target_name)
    end subroutine request_named_coupling_to_named_model
 
-   subroutine request_standard_coupling_to_named_model(self, slave_variable, master_model, master_variable)
+   subroutine request_standard_coupling_to_named_model(self, id, target_model_name, target_standard_variable)
       class (type_particle_model), target, intent(inout) :: self
-      class (type_variable_id),            intent(in)    :: slave_variable
-      character(len=*),                    intent(in)    :: master_model
-      class (type_base_standard_variable), intent(in)    :: master_variable
+      class (type_variable_id),            intent(in)    :: id
+      character(len=*),                    intent(in)    :: target_model_name
+      class (type_base_standard_variable), intent(in)    :: target_standard_variable
 
-      if (.not. associated(slave_variable%link)) &
-         call self%fatal_error('request_named_coupling_to_named_model', 'slave variable must be registered before it is coupled.')
-      call request_coupling_to_model_generic(self, slave_variable%link, master_model_name=master_model, master_standard_variable=master_variable)
+      if (.not. associated(id%link)) &
+         call self%fatal_error('request_named_coupling_to_named_model', 'variable must be registered before it can be coupled.')
+      call request_coupling_to_model_generic(self, id%link, target_model_name=target_model_name, target_standard_variable=target_standard_variable)
    end subroutine request_standard_coupling_to_named_model
 
    recursive function resolve_model_reference(self, reference, require_internal_variables) result(model)
@@ -303,7 +303,7 @@ contains
       class (type_base_model), pointer :: model
 
       type (type_model_reference), pointer :: reference2
-      character(len=:), allocatable        :: model_master_name
+      character(len=:), allocatable        :: model_target_name
       integer                              :: istart
       class (type_particle_model), pointer :: source_model
       logical                              :: require_internal_variables_
@@ -324,16 +324,16 @@ contains
          reference%resolving = .true.
 
          ! First find a coupling for the referenced model.
-         model_master_name = self%couplings%get_string(trim(reference%name), trim(reference%long_name))
+         model_target_name = self%couplings%get_string(trim(reference%name), trim(reference%long_name))
 
          ! Try to find referenced model among actual models (as opposed to among model dependencies)
-         reference%model => self%find_model(model_master_name, recursive=.true.)
+         reference%model => self%find_model(model_target_name, recursive=.true.)
 
          if (.not. associated(reference%model)) then
             ! Search among named model dependencies instead
 
             ! Find starting position of local name (excluding any preprended path components)
-            istart = index(model_master_name, '/', .true.) + 1
+            istart = index(model_target_name, '/', .true.) + 1
 
             if (istart == 1) then
                ! No slash in path; search model references within current model
@@ -341,7 +341,7 @@ contains
             else
                ! Try model references in specified other model
                source_model => null()
-               model => self%find_model(model_master_name(:istart - 1), recursive=.true.)
+               model => self%find_model(model_target_name(:istart - 1), recursive=.true.)
                if (associated(model)) then
                   select type (model)
                   class is (type_particle_model)
@@ -352,14 +352,14 @@ contains
 
             ! Search references in source model
             if (associated(source_model)) then
-               reference2 => find_model_reference(source_model, model_master_name(istart:))
+               reference2 => find_model_reference(source_model, model_target_name(istart:))
                if (associated(reference2)) reference%model => source_model%resolve_model_reference(reference2)
             end if
          end if
 
          if (.not. associated(reference%model)) then
             call self%fatal_error('resolve_model_reference', &
-               'Referenced model instance "' // model_master_name // '" not found.')
+               'Referenced model instance "' // model_target_name // '" not found.')
             return
          end if
 
@@ -432,12 +432,12 @@ contains
          ! Model not found. A fatal error will already have been reported.
          ! Just return a harmless result so the host gets the opportunity for error handling
          link => null()
-      elseif (associated(self%master_standard_variable)) then
+      elseif (associated(self%target_standard_variable)) then
          ! Coupling to a standard [aggregate] variable
-         link => get_aggregate_variable_access(model, self%master_standard_variable, self%access)
+         link => get_aggregate_variable_access(model, self%target_standard_variable, self%access)
       else
          ! Coupling to a named variable
-         link => model%find_link(trim(self%master_name))
+         link => model%find_link(trim(self%target_name))
       end if
    end function
 
