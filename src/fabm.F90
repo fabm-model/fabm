@@ -655,6 +655,7 @@ contains
       real(rke), optional, intent(in) :: seconds_per_time_unit
 
       class (type_expression), pointer :: expression
+      real(rke) :: missing_value
 
       if (self%status < status_initialize_done) call fatal_error('set_domain', 'initialize has not yet been called on this model object.')
       if (self%status >= status_set_domain_done) call fatal_error('set_domain', 'set_domain has already been called on this model object.')
@@ -686,7 +687,8 @@ contains
                allocate(expression%previous_value _INDEX_LOCATION_, expression%last_exact_mean _INDEX_LOCATION_, expression%mean _INDEX_LOCATION_)
 #endif
                expression%last_exact_mean = 0.0_rke
-               expression%mean = expression%missing_value
+               missing_value = expression%missing_value   ! To avoid a stack overflow for the next line with ifort 2021.3
+               expression%mean = missing_value
                call self%link_interior_data(expression%output_name, expression%mean)
             class is (type_horizontal_temporal_mean)
                ! Moving average of horizontal variable
@@ -699,7 +701,8 @@ contains
                allocate(expression%previous_value _INDEX_HORIZONTAL_LOCATION_, expression%last_exact_mean _INDEX_HORIZONTAL_LOCATION_, expression%mean _INDEX_HORIZONTAL_LOCATION_)
 #endif
                expression%last_exact_mean = 0.0_rke
-               expression%mean = expression%missing_value
+               missing_value = expression%missing_value   ! To avoid a stack overflow for the next line with ifort 2021.3
+               expression%mean = missing_value
                call self%link_horizontal_data(expression%output_name, expression%mean)
             class is (type_horizontal_temporal_maximum)
                ! Moving maximum of horizontal variable
@@ -711,7 +714,8 @@ contains
 #if _HORIZONTAL_DIMENSION_COUNT_>0
                allocate(expression%previous_value _INDEX_HORIZONTAL_LOCATION_, expression%maximum _INDEX_HORIZONTAL_LOCATION_)
 #endif
-               expression%maximum = expression%missing_value
+               missing_value = expression%missing_value   ! To avoid a stack overflow for the next line with ifort 2021.3
+               expression%maximum = missing_value
                call self%link_horizontal_data(expression%output_name, expression%maximum)
             end select
             expression => expression%next
