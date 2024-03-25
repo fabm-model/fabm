@@ -89,6 +89,8 @@ contains
       !call check_coupling_units(self)
 
       call freeze(self)
+
+      call report_ignored_sources(self)
    end subroutine freeze_model_info
 
    recursive subroutine before_coupling(self)
@@ -162,6 +164,20 @@ contains
       do while (associated(node))
          call freeze(node%model)
          node => node%next
+      end do
+   end subroutine
+
+   subroutine report_ignored_sources(model)
+      class (type_base_model), intent(in) :: model
+
+      type (type_link), pointer :: link
+
+      link => model%links%first
+      do while (associated(link))
+         if (associated(link%original%sms) .and. .not. (link%target%source == source_state .or. link%target%fake_state_variable)) then
+            call model%log_message('Warning: sources provided for ' // trim(link%name) // ' will be ignored as it has been coupled to a non-state variable (' // trim(link%target%name) // ').')
+         end if
+         link => link%next
       end do
    end subroutine
 
@@ -753,27 +769,16 @@ contains
       type (type_internal_variable), pointer         :: master, slave
 
       type (type_link_pointer), pointer :: link_pointer, next_link_pointer
-      logical                           :: slave_is_state_variable
-      logical                           :: master_is_state_variable
 
       ! If slave and master are the same, we are done - return.
       if (associated(slave, master)) return
-
-      slave_is_state_variable  = slave%source == source_state .or. slave%fake_state_variable
-      master_is_state_variable = master%source == source_state .or. master%fake_state_variable
 
       if (associated(self%parent)) call self%fatal_error('couple_variables', 'BUG: must be called on root node.')
       if (associated(slave%write_index)) &
          call fatal_error('couple_variables', 'Attempt to couple write-only variable ' &
             // trim(slave%name) // ' to ' // trim(master%name) // '.')
-      if (slave_is_state_variable) then
+      if (slave%source == source_state .or. slave%fake_state_variable) then
          ! Extra checks when coupling state variables
-         if (.not. master_is_state_variable) then
-            if (slave%presence == presence_external_optional) return
-            call log_message('Warning: state variable ' &
-               // trim(slave%name) // ' is coupled to non-state variable ' // trim(master%name) // '.' &
-               // ' Any sources applied to ' // trim(slave%name) // ' will be ignored.')
-         end if
          if ((slave%domain == domain_bottom .and. master%domain == domain_surface) .or. (slave%domain == domain_surface .and. master%domain == domain_bottom)) &
             call fatal_error('couple_variables', &
                'Cannot couple ' // trim(slave%name) // ' (' // trim(domain2string(slave%domain)) // ') to ' // trim(master%name) &
