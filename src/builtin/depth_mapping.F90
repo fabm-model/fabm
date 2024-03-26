@@ -9,17 +9,15 @@ module fabm_builtin_depth_mapping
 
    private
 
-   public type_vertical_distribution, type_vertical_depth_range
-   public set_vertical_distribution, register_depth_explicit_dependency, register_depth_explicit_state_dependency
+   public type_vertical_depth_range
+   public register_depth_explicit_dependency, register_depth_explicit_state_dependency
    public type_depth_integrated_particle
    public type_depth_integrated_particle_override
 
-   type, extends(type_base_model) :: type_vertical_distribution
-      type (type_diagnostic_variable_id) :: id_w
-   end type
-
-   type, extends(type_vertical_distribution) :: type_vertical_depth_range
-      type (type_dependency_id) :: id_z, id_h
+   type, extends(type_base_model) :: type_vertical_depth_range
+      type (type_diagnostic_variable_id) :: id_w   ! weights specifying the vertical distribution
+      type (type_dependency_id)          :: id_z   ! depth of layer center (m)
+      type (type_dependency_id)          :: id_h   ! layer thickness (m)
       real(rk) :: minimum_depth = 0.0_rk
       real(rk) :: maximum_depth = 1e5_rk
    contains
@@ -169,42 +167,6 @@ contains
          h_overlap = max(0.0_rk, min(z_bottom, self%maximum_depth) - max(z_top, self%minimum_depth))
          _SET_DIAGNOSTIC_(self%id_w, h_overlap / h)
       _LOOP_END_
-   end subroutine
-
-   subroutine set_vertical_distribution(self, w_calculator, w_int_link)
-      class (type_base_model),                      intent(inout) :: self
-      class (type_vertical_distribution), optional, intent(inout) :: w_calculator
-      type (type_link), pointer,          optional                :: w_int_link
-
-      class (type_depth_integral), pointer :: w_int_calculator
-      type (type_link), pointer            :: w_int_link_
-
-      ! Register a dependency on the vertical distribution weights
-      ! We use add_interior_variable instead of register_dependency because we do not
-      ! need read access to the weights ourselves (they are only for child models)
-      call self%add_interior_variable('w', '1', 'vertical distribution weights')
-
-      if (present(w_calculator)) then
-         call self%add_child(w_calculator, 'w_calculator')
-         call self%request_coupling('w', 'w_calculator/w')
-      end if
-
-      ! Create a child model that calculates the depth integral of the weights
-      ! This is used to calculate depth averages form depth integrals, among others.
-      allocate(w_int_calculator)
-      call self%add_child(w_int_calculator, 'w_int_calculator')
-      call w_int_calculator%request_coupling('source', '../w')
-
-      ! Make the depth integrated available as a local variable
-      if (present(w_int_link)) then
-         ! A variable has already been registered to hold the depth-integrated weights
-         w_int_link_ => w_int_link
-      else
-         ! Create a local alias for the depth-integrated weights
-         w_int_link_ => null()
-         call self%add_horizontal_variable('w_int', 'm', 'integral of vertical distribution weights', link=w_int_link_)
-      end if
-      call self%request_coupling(w_int_link_, 'w_int_calculator/result')
    end subroutine
 
    subroutine register_depth_explicit_dependency(self, id, name, units, long_name, average, link)
@@ -484,8 +446,22 @@ contains
       class (type_depth_integrated_particle), intent(inout), target :: self
       integer,                                intent(in)            :: configunit
 
+      class (type_depth_integral), pointer :: w_int_calculator
+
+      ! Register a dependency on the vertical distribution weights
+      ! We use add_interior_variable instead of register_dependency because we do not
+      ! need read access to the weights ourselves (they are only for child models)
+      call self%add_interior_variable('w', '1', 'vertical distribution weights', presence=presence_external_required)
+
+      ! Create a child model that calculates the depth integral of the weights
+      ! This is used to calculate depth averages form depth integrals, among others.
+      allocate(w_int_calculator)
+      call self%add_child(w_int_calculator, 'w_int_calculator')
+      call w_int_calculator%request_coupling('source', '../w')
+
+      ! Make the depth integrated available as a local variable
       call self%register_dependency(self%id_w_int, 'w_int', 'm', 'depth-integrated vertical distribution weights')
-      call set_vertical_distribution(self, w_int_link=self%id_w_int%link)
+      call self%request_coupling(self%id_w_int, 'w_int_calculator/result')
    end subroutine
 
    subroutine depth_integrated_particle_request_mapped_coupling1(self, id, standard_variable, average)

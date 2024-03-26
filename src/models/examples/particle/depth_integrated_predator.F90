@@ -76,6 +76,9 @@ contains
       ! For now, specify a prescribed depth distribution
       allocate(depth_distribution)
       call self%add_child(depth_distribution, 'habitat')
+
+      ! Link our own weights that specify the vertical habitat (variable "w", inherited
+      ! from type_depth_integrated_particle) to those computed by the "habitat" child model
       call self%request_coupling('w', 'habitat/w')
 
       ! Predator biomass and its contribution to different elemental pools
