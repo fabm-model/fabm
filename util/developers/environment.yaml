@@ -26,3 +26,5 @@ surface_specific_humidity: 0
 surface_temperature: 15
 surface_air_pressure: 100000
 vertical_tracer_diffusivity: 1e-5
+partial_pressure_of_n2o: 335
+runoff/source: 0    # for MOPS
