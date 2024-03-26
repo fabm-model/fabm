@@ -542,7 +542,7 @@ contains
       type (type_link), pointer :: link
 
       call register_depth_explicit_dependency(self, id, target_model_name // '_' // trim(standard_variable%name), &
-         trim(standard_variable%units), trim(standard_variable%name) // ' in ' // target_model_name, link=link, average=average)
+         trim(standard_variable%units), target_model_name // ' ' // trim(standard_variable%name), link=link, average=average)
       call self%request_coupling_to_model_generic(link, target_model_name=target_model_name, target_standard_variable=standard_variable)
    end subroutine
 
@@ -556,7 +556,7 @@ contains
       type (type_link), pointer :: link
 
       call register_depth_explicit_dependency(self, id, target_model_name // '_' // trim(standard_variable%name), &
-         trim(standard_variable%units), trim(standard_variable%name) // ' in ' // target_model_name, link=link, average=average)
+         trim(standard_variable%units), target_model_name // ' ' // trim(standard_variable%name), link=link, average=average)
       call self%request_coupling_to_model_generic(link, target_model_name=target_model_name, target_standard_variable=standard_variable)
    end subroutine
 
@@ -571,7 +571,7 @@ contains
       class (type_weighted_depth_integral),   pointer :: depth_integral
 
       call register_depth_explicit_state_dependency(self, id%link, target_model_name // '_' // trim(standard_variable%name), &
-         trim(standard_variable%units), trim(standard_variable%name) // ' in ' // target_model_name, link=link, &
+         trim(standard_variable%units), target_model_name // ' ' // trim(standard_variable%name), link=link, &
          proportional_change=proportional_change, depth_integral_out=depth_integral, domain=domain_bottom)
       call self%add_to_aggregate_variable(standard_variable, depth_integral%id_result)
       call self%request_coupling_to_model_generic(link, target_model_name=target_model_name, target_standard_variable=standard_variable)
@@ -588,7 +588,7 @@ contains
       class (type_weighted_depth_integral),   pointer :: depth_integral
 
       call register_depth_explicit_state_dependency(self, id%link, target_model_name // '_' // trim(standard_variable%name), &
-         trim(standard_variable%units), trim(standard_variable%name) // ' in ' // target_model_name, link=link, &
+         trim(standard_variable%units), target_model_name // ' ' // trim(standard_variable%name), link=link, &
          proportional_change=proportional_change, depth_integral_out=depth_integral, domain=domain_surface)
       call self%add_to_aggregate_variable(standard_variable, depth_integral%id_result)
       call self%request_coupling_to_model_generic(link, target_model_name=target_model_name, target_standard_variable=standard_variable)
