@@ -2114,8 +2114,22 @@ contains
          select case (task%operation)
          case (source_do)
             _BEGIN_OUTER_INTERIOR_LOOP_
+#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
+               ! We are looping over depth, but as we have a non-constant bottom index (yet no mask), we need to skip everything below bottom
+#  if _FABM_BOTTOM_INDEX_==-1
+#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+               _START_ = self%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+#    else
+               _STOP_ = self%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+#    endif
+#  endif
+#endif
                call process_interior_slice(task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
             _END_OUTER_INTERIOR_LOOP_
+#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
+            _START_ = self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
+            _STOP_ = self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
+#endif
          case (source_do_surface, source_do_bottom, source_do_horizontal)
             _BEGIN_OUTER_HORIZONTAL_LOOP_
                call process_horizontal_slice(task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_)
