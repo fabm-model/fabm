@@ -6,6 +6,7 @@ on:
   pull_request:
 jobs:
   gfortran:
+    if: github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork
     strategy:
       matrix:
         version: [9, 10, 11, 12, 13]
@@ -47,6 +48,7 @@ jobs:
       - name: Run all test cases with pyfabm
         run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
   ifort:
+    if: github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork
     strategy:
       matrix:
         include:
@@ -86,6 +88,7 @@ jobs:
         env:
           FFLAGS: ${{ env.FFLAGS }} -fp-model precise -fp-model source
   ifx:
+    if: github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork
     strategy:
       matrix:
         include:
@@ -122,6 +125,7 @@ jobs:
           FFLAGS: ${{ env.FFLAGS }} -fp-model=precise
   nvfortran:
     # for available versions, see https://developer.nvidia.com/nvidia-hpc-sdk-releases
+    if: github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork
     strategy:
       matrix:
         include:
@@ -166,6 +170,7 @@ jobs:
         run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
   aocc:
     # for available versions, see https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/aocc/package.py
+    if: github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork
     strategy:
       matrix:
         include:
@@ -205,6 +210,7 @@ jobs:
           source /home/runner/setenv_AOCC.sh
           python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang ${{ matrix.pyfabm_cmake_args }}
   pyfabm:
+    if: github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -231,6 +237,7 @@ jobs:
           for f in testcases/*.yaml; do fabm_describe_model $f; done
           for f in testcases/*.yaml; do fabm_complete_yaml --add_missing $f; done
   fabm0d:
+    if: github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork
     runs-on: ubuntu-latest
     steps:
       - name: Install NetCDF
@@ -254,6 +261,7 @@ jobs:
           cmake --build build --target install
           stat ~/local/fabm/0d/bin/fabm0d
   cmake:
+    if: github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork
     strategy:
       matrix:
         cmake-version: ["3.13"]
