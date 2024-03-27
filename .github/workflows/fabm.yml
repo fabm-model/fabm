@@ -92,14 +92,16 @@ jobs:
     strategy:
       matrix:
         include:
-          #- version: "2023.2.0.49254"
-          #  url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/237236c4-434b-4576-96ac-020ceeb22619"
-          - version: "2024.0.2.28"
-            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/41df6814-ec4b-4698-a14d-421ee2b02aa7"
+          - version: "2023.2.0.49254"
+            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/237236c4-434b-4576-96ac-020ceeb22619"
+          #- version: "2024.0.2.28"
+          #  url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/41df6814-ec4b-4698-a14d-421ee2b02aa7"
       fail-fast: false
     runs-on: ubuntu-latest
     env:
-      FFLAGS: -check all,nouninit  # nouninit because https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-missing-clang-rt-msan-to-link-Fortran-program-in-debug-build/m-p/1536555
+      FFLAGS: -check all,nouninit,nocontiguous
+        # nouninit because https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-missing-clang-rt-msan-to-link-Fortran-program-in-debug-build/m-p/1536555
+        # nocontiguous because spurious errors occur when assigning null() to contiguous pointers
     steps:
       - name: Set up Python
         uses: actions/setup-python@v4
