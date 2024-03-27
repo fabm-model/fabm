@@ -97,7 +97,7 @@ jobs:
       fail-fast: false
     runs-on: ubuntu-latest
     env:
-      FFLAGS: -check all
+      FFLAGS: -check all,nouninit  # nouninit because https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-missing-clang-rt-msan-to-link-Fortran-program-in-debug-build/m-p/1536555
     steps:
       - name: Set up Python
         uses: actions/setup-python@v4
