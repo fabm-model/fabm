@@ -14,16 +14,30 @@ import collections
 import yaml
 import venv
 import logging
+from typing import Optional, Mapping
 
-script_root = os.path.abspath(os.path.dirname(__file__))
-fabm_base = os.path.join(script_root, "../..")
+SCRIPT_ROOT = os.path.abspath(os.path.dirname(__file__))
+FABM_BASE = os.path.join(SCRIPT_ROOT, "../..")
 
-default_fabm_url = "https://github.com/fabm-model/fabm.git"
-default_gotm_url = "https://github.com/gotm-model/code.git"
+DEFAULT_FABM_URL = "https://github.com/fabm-model/fabm.git"
+DEFAULT_GOTM_URL = "https://github.com/gotm-model/code.git"
 
+def hack_pyyaml():
+    # Do not convert on/off to bool
+    # [done by pyyaml according to YAML 1.1, dropped from YAML 1.2]
+    del yaml.SafeLoader.yaml_implicit_resolvers["o"]
+    del yaml.SafeLoader.yaml_implicit_resolvers["O"]
 
-def run(phase, args, verbose=False, **kwargs):
-    print("%s%s... " % ("  " * phase.count("/"), phase.rsplit("/", 1)[-1]), end="")
+    def none_representer(self, _):
+        return self.represent_scalar("tag:yaml.org,2002:null", "")
+    yaml.add_representer(type(None), none_representer, Dumper=yaml.SafeDumper)
+
+hack_pyyaml()
+
+def run(phase: str, args, verbose: bool = False, **kwargs):
+    indent = "  " * phase.count("/")
+    current_phase = phase.rsplit("/", 1)[-1]
+    print(f"{indent}{current_phase}... ", end="")
     sys.stdout.flush()
     proc = subprocess.Popen(
         args,
@@ -34,33 +48,31 @@ def run(phase, args, verbose=False, **kwargs):
     )
     stdoutdata, _ = proc.communicate()
     if proc.returncode != 0:
-        log_path = "%s.log" % phase.replace("/", "_")
+        log_path = f"{phase.replace('/', '_')}.log"
         with open(log_path, "w") as f:
             f.write(stdoutdata)
         logs.append(log_path)
-        print(
-            "FAILED (return code %i, log written to %s)" % (proc.returncode, log_path)
-        )
+        print(f"FAILED (return code {proc.returncode}, log written to {log_path})")
     else:
         print("SUCCESS")
     if verbose:
-        print("Output:\n%s\n%s\n%s" % (80 * "-", stdoutdata, 80 * "-"))
+        line = 80 * "-"
+        print(f"Output:\n{line}\n{stdoutdata}\n{line}")
     return proc.returncode
 
 
-def git_clone(phase, url, workdir, branch=None):
-    run("%s/clone" % phase, ["git", "clone", url, workdir])
-    olddir = os.getcwd()
+def git_clone(phase: str, url: str, workdir: str, branch: Optional[str] = None):
+    run(f"{phase}/clone", ["git", "clone", url, workdir])
     if branch is not None:
-        run("%s/checkout" % phase, ["git", "checkout", branch], cwd=workdir)
+        run(f"{phase}/checkout", ["git", "checkout", branch], cwd=workdir)
     run(
-        "%s/submodule" % phase,
+        f"{phase}/submodule",
         ["git", "submodule", "update", "--init", "--recursive"],
         cwd=workdir,
     )
 
 
-def run_gotm(setup_dir, gotm_exe):
+def run_gotm(setup_dir: str, gotm_exe: str):
     start = timeit.default_timer()
     p = subprocess.Popen(
         [gotm_exe],
@@ -76,12 +88,17 @@ def run_gotm(setup_dir, gotm_exe):
         last_lines = stdoutdata.rsplit("\n", 10)[1:]
         print("\n".join(last_lines))
     else:
-        print("ok (%.3f s)" % duration)
+        print(f"ok ({duration:.3f} s)")
     return p.returncode == 0, duration
 
 
 def cmake(
-    phase, build_dir, source_dir, cmake_path="cmake", target=None, cmake_arguments=[]
+    phase: str,
+    build_dir: str,
+    source_dir: str,
+    cmake_path: str = "cmake",
+    target: Optional[str] = None,
+    cmake_arguments=[],
 ):
     # Create and change to build directory
     if os.path.isdir(build_dir):
@@ -92,17 +109,19 @@ def cmake(
         x64 = sys.maxsize > 2**32
         cmake_arguments = ["-A", "x64" if x64 else "Win32"] + cmake_arguments
 
-    if os.path.isfile(os.path.join(source_dir, "CMakeCache.txt")):
+    previous_cache = os.path.join(source_dir, "CMakeCache.txt")
+    if os.path.isfile(previous_cache):
         print(
-            '\n\nCannot use "%s" as source directory for cmake because it has previously been used as build directory.\nPlease delete "%s" before continuing.'
-            % (source_dir, os.path.abspath(os.path.join(source_dir, "CMakeCache.txt")))
+            f'\n\nCannot use "{source_dir}" as source directory for cmake'
+            f" because it has previously been used as build directory.\n"
+            f'Please delete "{os.path.abspath(previous_cache)}" before continuing.'
         )
         sys.exit(1)
 
     # Build
     try:
         ret = run(
-            "%s/configure" % phase,
+            f"{phase}/configure",
             [cmake_path, source_dir] + cmake_arguments,
             cwd=build_dir,
         )
@@ -110,8 +129,8 @@ def cmake(
         if e.errno != errno.ENOENT:
             raise
         print(
-            '\n\ncmake executable ("%s") not found. Specify its location on the command line with --cmake.'
-            % cmake_path
+            f'\n\ncmake executable ("{cmake_path}") not found.'
+            f" Specify its location on the command line with --cmake."
         )
         sys.exit(2)
 
@@ -119,14 +138,12 @@ def cmake(
         args = ["--config", "Debug"]
         if target is not None:
             args = args + ["--target", target]
-        ret = run(
-            "%s/build" % phase, [cmake_path, "--build", "."] + args, cwd=build_dir
-        )
+        ret = run(f"{phase}/build", [cmake_path, "--build", "."] + args, cwd=build_dir)
 
     return ret == 0
 
 
-def compare_netcdf(path, ref_path):
+def compare_netcdf(path: str, ref_path: str):
     import numpy
     import netCDF4
 
@@ -147,31 +164,29 @@ def compare_netcdf(path, ref_path):
         dat = ncvar[...]
         valid = numpy.isfinite(dat)
         if not valid.all():
-            print(
-                "    %s: %i of %i values are invalid"
-                % (varname, valid.size - valid.sum(), valid.size)
-            )
+            nbad = valid.size - valid.sum()
+            print(f"    {varname}: {nbad} of {valid.size} values are invalid")
             perfect = False
         else:
             delta = dat - ncvar_ref[...]
             maxdelta = numpy.abs(delta).max()
             perfect = perfect and maxdelta == 0.0
-            print("    %s: max abs difference = %s" % (varname, maxdelta))
+            print(f"    {varname}: max abs difference = {maxdelta}")
     nc.close()
     nc_ref.close()
     return perfect
 
 
 def test(
-    gotm_setup_dir,
-    work_root,
-    testcases,
-    cmake_path="cmake",
+    gotm_setup_dir: str,
+    work_root: str,
+    testcases: Mapping[str, str],
+    cmake_path: str = "cmake",
     cmake_arguments=[],
-    fabm_url=default_fabm_url,
-    gotm_url=default_gotm_url,
-    fabm_branch=None,
-    gotm_branch=None,
+    fabm_url: str = DEFAULT_FABM_URL,
+    gotm_url: str = DEFAULT_GOTM_URL,
+    fabm_branch: Optional[str] = None,
+    gotm_branch: Optional[str] = None,
 ):
     gotm_base = os.path.join(work_root, "code/gotm")
     build_dir = os.path.join(work_root, "build")
@@ -184,7 +199,7 @@ def test(
         build_dir,
         gotm_base,
         cmake_path,
-        cmake_arguments=["-DFABM_BASE=%s" % fabm_base] + cmake_arguments,
+        cmake_arguments=[f"-DFABM_BASE={FABM_BASE}"] + cmake_arguments,
     )
     exe = os.path.join(build_dir, "Debug/gotm.exe" if os.name == "nt" else "gotm")
     with open(os.path.join(gotm_setup_dir, "gotm.yaml"), "r") as f:
@@ -198,46 +213,51 @@ def test(
             "variables": [{"source": "fabm/*"}, {"source": "h"}],
         }
     }
-    with open(os.path.join(gotm_setup_dir, "gotm.yaml"), "w") as f:
+    custom_gotm_yaml_file = os.path.join(build_dir, "gotm.yaml")
+    with open(custom_gotm_yaml_file, "w") as f:
         yaml.dump(gotm_yaml, f, default_flow_style=False)
     for name, path in testcases.items():
         shutil.copyfile(path, os.path.join(gotm_setup_dir, "fabm.yaml"))
-        run("test/gotm/%s" % name, [exe], cwd=gotm_setup_dir)
+        run(f"test/gotm/{name}", [exe, custom_gotm_yaml_file], cwd=gotm_setup_dir)
 
 
 def compare(
-    gotm_setup_dir,
-    work_root,
-    testcases,
-    cmake_path="cmake",
+    gotm_setup_dir: str,
+    work_root: str,
+    testcases: Mapping[str, str],
+    cmake_path: str = "cmake",
     cmake_arguments=[],
-    fabm_url=default_fabm_url,
-    gotm_url=default_gotm_url,
-    fabm_branch=None,
-    gotm_branch=None,
-    fabm_ref_branch=None,
-    gotm_ref_branch=None,
+    fabm_url: str = DEFAULT_FABM_URL,
+    gotm_url: str = DEFAULT_GOTM_URL,
+    fabm_branch: Optional[str] = None,
+    gotm_branch: Optional[str] = None,
+    fabm_ref_branch: Optional[str] = None,
+    gotm_ref_branch: Optional[str] = None,
 ):
     assert fabm_branch != fabm_ref_branch or gotm_branch != gotm_ref_branch
-    git_clone(fabm_url, os.path.join(work_root, "code/fabm"), fabm_branch)
-    git_clone(gotm_url, os.path.join(work_root, "code/gotm"), gotm_branch)
+    fabm_base = os.path.join(work_root, "code/fabm")
+    gotm_base = os.path.join(work_root, "code/gotm")
+    git_clone(fabm_url, fabm_base, fabm_branch)
+    git_clone(gotm_url, gotm_base, gotm_branch)
     cmake(
         "test_gotm",
         os.path.join(work_root, "build"),
-        os.path.join(work_root, "code/gotm"),
+        gotm_base,
         cmake_path,
-        "-DFABM_BASE=%s" % os.path.join(work_root, "code/fabm"),
+        f"-DFABM_BASE={fabm_base}",
         cmake_arguments=cmake_arguments,
     )
 
-    git_clone(fabm_url, os.path.join(work_root, "ref/code/fabm"), fabm_ref_branch)
-    git_clone(gotm_url, os.path.join(work_root, "ref/code/gotm"), gotm_ref_branch)
+    ref_fabm_base = os.path.join(work_root, "ref/code/fabm")
+    ref_gotm_base = os.path.join(work_root, "ref/code/gotm")
+    git_clone(fabm_url, ref_fabm_base, fabm_ref_branch)
+    git_clone(gotm_url, ref_gotm_base, gotm_ref_branch)
     cmake(
         "ref_gotm",
         os.path.join(work_root, "ref/build"),
-        os.path.join(work_root, "ref/code/gotm"),
+        ref_gotm_base,
         cmake_path,
-        "-DFABM_BASE=%s" % os.path.join(work_root, "ref/code/fabm"),
+        f"-DFABM_BASE={ref_fabm_base}",
         cmake_arguments=cmake_arguments,
     )
 
@@ -246,7 +266,7 @@ def compare(
     for name in enumerate_testcases(
         testcase_dir, os.path.join(work_root, "code/fabm/testcases/*.yaml")
     ):
-        print("TESTING %s..." % name)
+        print(f"TESTING {name}...")
         print("  reference...", end="")
         valid_ref, duration_ref = run_gotm(
             testcase_dir, os.path.join(work_root, "ref/build/gotm")
@@ -272,16 +292,15 @@ def compare(
         else:
             slower.append(name)
 
-    print("%i perfect matches: %s" % (len(success), ", ".join(success)))
-    print("%i mismatches: %s" % (len(failed), ", ".join(failed)))
-    print("%i failed to run: %s" % (len(crashed), ", ".join(crashed)))
+    print(f"{len(success)} perfect matches: {', '.join(success)}")
+    print(f"{len(failed)} mismatches: {', '.join(failed)}")
+    print(f"{len(crashed)} failed to run: {', '.join(crashed)}")
     print(
-        "Faster than reference? %i out of %i times."
-        % (len(faster), len(faster) + len(slower))
+        f"Faster than reference? {len(faster)} out of {len(faster) + len(slower)} times."
     )
 
 
-def test_gotm(args, testcases):
+def test_gotm(args, testcases: Mapping[str, str]):
     assert (
         args.gotm_setup is not None
     ), "You must specify --gotm_setup when testing GOTM"
@@ -302,13 +321,14 @@ def test_gotm(args, testcases):
             testcases,
             args.cmake,
             cmake_arguments=args.cmake_arguments,
+            gotm_branch=args.gotm_branch
         )
 
 
-def test_pyfabm(args, testcases):
+def test_pyfabm(args, testcases: Mapping[str, str]):
     if not args.inplace:
         env_root = os.path.join(args.work_root, "python")
-        print("Setting up virtual environment in %s..." % env_root)
+        print(f"Setting up virtual environment in {env_root}...")
         builder = venv.EnvBuilder(with_pip=True)
         builder.create(env_root)
         context = builder.ensure_directories(env_root)
@@ -320,22 +340,22 @@ def test_pyfabm(args, testcases):
             + ["--inplace"],
             cwd=args.work_root,
         )
-    with open(os.path.join(fabm_base, "setup.cfg"), "w") as cfg:
+    with open(os.path.join(FABM_BASE, "setup.cfg"), "w") as cfg:
         cfg.write("[build_ext]\n")
         cfg.write("debug=1\n")
         cfg.write("force=1\n")
         if len(args.cmake_arguments) > 0:
-            cfg.write("cmake_opts=%s\n" % " ".join(args.cmake_arguments))
+            cfg.write(f"cmake_opts={' '.join(args.cmake_arguments)}\n")
     if (
         run(
             "test/pyfabm/install",
-            [sys.executable, "-m", "pip", "install", "."],
-            cwd=fabm_base,
+            [sys.executable, "-m", "pip", "install", ".", "-v"],
+            cwd=FABM_BASE,
         )
         != 0
     ):
         return
-    with open(os.path.join(script_root, "environment.yaml")) as f:
+    with open(os.path.join(SCRIPT_ROOT, "environment.yaml")) as f:
         environment = yaml.safe_load(f)
     import pyfabm
 
@@ -343,7 +363,7 @@ def test_pyfabm(args, testcases):
     dependency_names = set()
     print("Running FABM testcases with pyfabm:")
     for case, path in testcases.items():
-        print("  %s... " % case, end="")
+        print(f"  {case}... ", end="")
         sys.stdout.flush()
         m0d = pyfabm.Model(path)
         m1d = pyfabm.Model(path, shape=(5,))
@@ -362,37 +382,28 @@ def test_pyfabm(args, testcases):
             for var, val in zip(m1d.state_variables, ran):
                 if val != 0.0:
                     bad[var.name] = val
-            assert False, "Variability among 1D results: %s (range: %s)" % (r1d, bad)
+            assert False, f"Variability among 1D results: {r1d} (range: {bad})"
         assert (
             r1d[:, 0] == r0d
-        ).all(), "Mismatch between 0D and 1D results: %s vs %s. Difference: %s" % (
-            r0d,
-            r1d[:, 0],
-            r1d[:, 0] - r0d,
-        )
+        ).all(), f"Mismatch between 0D and 1D results: {r0d} vs {r1d[:, 0]}. Difference: {r1d[:, 0] - r0d}"
         print("SUCCESS")
-    print(
-        "pyfabm %s loaded from %s (%s)"
-        % (
-            pyfabm.get_version(),
-            pyfabm.__file__,
-            ", ".join(["%s=%s" % (n, l._name) for n, l in pyfabm.name2lib.items()]),
-        )
-    )
+    pyfabm_libs = ", ".join([f"{n}={l._name}" for n, l in pyfabm.name2lib.items()])
+    print(f"pyfabm {pyfabm.__version__} loaded from {pyfabm.__file__} ({pyfabm_libs})")
     try:
         pyfabm.unload()
     except Exception as e:
-        print("Failed to unload pyfabm: %s" % e)
+        print(f"Failed to unload pyfabm: {e}")
     if args.verbose:
-        print("Combined dependency list:\n%s" % "\n".join(sorted(dependency_names)))
+        dependencies = "\n".join(sorted(dependency_names))
+        print(f"Combined dependency list:\n{dependencies}")
 
 
-def test_0d(args, testcases, gotm_url=default_gotm_url):
+def test_0d(args, testcases: Mapping[str, str], gotm_url=DEFAULT_GOTM_URL):
     build_dir = os.path.join(args.work_root, "build")
     gotm_dir = os.path.join(args.work_root, "code/gotm")
     run_dir = os.path.join(args.work_root, "run")
-    shutil.copytree(os.path.join(fabm_base, "testcases/0d"), run_dir)
-    with open(os.path.join(script_root, "environment.yaml")) as f:
+    shutil.copytree(os.path.join(FABM_BASE, "testcases/0d"), run_dir)
+    with open(os.path.join(SCRIPT_ROOT, "environment.yaml")) as f:
         var2data = yaml.safe_load(f)
     with open(os.path.join(run_dir, "input.yaml"), "w") as f:
         yaml.dump(
@@ -404,32 +415,32 @@ def test_0d(args, testcases, gotm_url=default_gotm_url):
     cmake(
         "test/0d",
         build_dir,
-        os.path.join(fabm_base, "src/drivers/0d"),
+        os.path.join(FABM_BASE, "src/drivers/0d"),
         args.cmake,
-        cmake_arguments=["-DGOTM_BASE=%s" % gotm_dir] + args.cmake_arguments,
+        cmake_arguments=[f"-DGOTM_BASE={gotm_dir}"] + args.cmake_arguments,
     )
     exe = os.path.join(build_dir, "Debug/fabm0d.exe" if os.name == "nt" else "fabm0d")
-    assert os.path.isfile(exe), "%s not found" % exe
+    assert os.path.isfile(exe), f"{exe} not found"
     print("Running FABM testcases with 0d driver:")
     for case, path in testcases.items():
         shutil.copy(path, os.path.join(run_dir, "fabm.yaml"))
-        run("test/0d/%s" % case, [exe], cwd=run_dir)
+        run(f"test/0d/{case}", [exe], cwd=run_dir)
 
 
-def test_harness(args, testcases):
+def test_harness(args, testcases: Mapping[str, str]):
     run_dir = os.path.join(args.work_root, "run")
     os.mkdir(run_dir)
-    shutil.copy(os.path.join(script_root, "environment.yaml"), run_dir)
+    shutil.copy(os.path.join(SCRIPT_ROOT, "environment.yaml"), run_dir)
     print("Running FABM testcases with testing harness:")
-    for host in sorted(os.listdir(os.path.join(fabm_base, "src/drivers"))):
-        print("  host %s" % host)
-        build_dir = os.path.join(args.work_root, "build_%s" % host)
+    for host in sorted(os.listdir(os.path.join(FABM_BASE, "src/drivers"))):
+        print(f"  host {host}")
+        build_dir = os.path.join(args.work_root, f"build_{host}")
         success = cmake(
-            "test_harness/%s" % host,
+            f"test_harness/{host}",
             build_dir,
-            fabm_base,
+            FABM_BASE,
             args.cmake,
-            cmake_arguments=["-DFABM_HOST=%s" % host, "-DCMAKE_BUILD_TYPE=debug"]
+            cmake_arguments=[f"-DFABM_HOST={host}", "-DCMAKE_BUILD_TYPE=debug"]
             + args.cmake_arguments,
             target="test_host",
         )
@@ -441,14 +452,14 @@ def test_harness(args, testcases):
         for case, path in testcases.items():
             shutil.copy(path, os.path.join(run_dir, "fabm.yaml"))
             run(
-                "test_harness/%s/%s" % (host, case),
+                f"test_harness/{host}/{case}",
                 [exe, "--simulate", "-n", "10"],
                 cwd=run_dir,
             )
 
 
-def clean(workdir):
-    print("Clean-up: deleting %s" % workdir)
+def clean(workdir: str):
+    print(f"Clean-up: deleting {workdir}")
     shutil.rmtree(workdir, ignore_errors=True)
 
 
@@ -474,6 +485,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--fabm_ref",
         help="Name of FABM branch/commit to compare results against.",
+        default=None,
+    )
+    parser.add_argument(
+        "--gotm_branch",
+        help="Name of GOTM branch",
         default=None,
     )
     parser.add_argument(
@@ -505,31 +521,38 @@ if __name__ == "__main__":
     )
     args, cmake_arguments = parser.parse_known_args()
     if args.compiler is not None:
-        cmake_arguments.append("-DCMAKE_Fortran_COMPILER=%s" % args.compiler)
+        cmake_arguments.append(f"-DCMAKE_Fortran_COMPILER={args.compiler}")
 
+    # Add built-in test cases
     testcases = collections.OrderedDict()
-    for path in sorted(glob.glob(os.path.join(fabm_base, "testcases/*.yaml"))):
+    for path in sorted(glob.glob(os.path.join(FABM_BASE, "testcases/*.yaml"))):
         testcases[os.path.basename(path)[:-5]] = path
 
-    for path in sorted(glob.glob(os.path.join(fabm_base, "extern/*/testcases/*.yaml"))):
-        relpath = os.path.relpath(path, start=os.path.join(fabm_base, "extern"))
-        source = os.path.dirname(os.path.dirname(relpath))
-        testcases[source + "_" + os.path.basename(path)] = path
+    # Add test cases from submodules (any file named fabm*.yaml)
+    extern_dir = os.path.join(FABM_BASE, "extern")
+    if os.path.isdir(extern_dir):
+        for source in sorted(os.listdir(extern_dir)):
+            extra_cases = glob.glob(os.path.join(extern_dir, source, "**/fabm*.yaml"))
+            if extra_cases:
+                print(f"Found {len(extra_cases)} additional test cases in extern/{source}")
+            for path in sorted(extra_cases):
+                testcases[f"{source}_{os.path.basename(path)[:-5]}"] = path
 
-    for name, basedir in args.ext:
-        cases = sorted(glob.glob(os.path.join(basedir, "testcases/*.yaml")))
-        print(
-            "Adding external sources of %s from %s (%i test cases)"
-            % (name, basedir, len(cases))
-        )
-        for path in cases:
-            testcases["%s/%s" % (name, os.path.basename(path)[:-5])] = path
-        cmake_arguments.append("-DFABM_%s_BASE=%s" % (name.upper(), basedir))
-
+    # Add additional institutes specified on command line (--ext),
+    # along with any contained test cases (any file named fabm*.yaml)
     if len(args.ext) > 0:
         cmake_arguments.append(
-            "-DFABM_EXTRA_INSTITUTES=%s" % ";".join([e[0] for e in args.ext])
+            f"-DFABM_EXTRA_INSTITUTES={';'.join([e[0] for e in args.ext])}"
         )
+    for name, basedir in args.ext:
+        cases = sorted(glob.glob(os.path.join(basedir, "**/fabm*.yaml")))
+        print(
+            f"Adding external sources of {name} from {basedir}"
+            f" ({len(cases)} test cases)"
+        )
+        for path in cases:
+            testcases[f"{name}/{os.path.basename(path)[:-5]}"] = path
+        cmake_arguments.append(f"-DFABM_{name.upper()}_BASE={basedir}")
 
     args.cmake_arguments = cmake_arguments
 
@@ -538,14 +561,15 @@ if __name__ == "__main__":
         args.work_root = tempfile.mkdtemp()
         atexit.register(clean, args.work_root)
     args.work_root = os.path.abspath(args.work_root)
-    print("Root of test directory: %s" % args.work_root)
+    print(f"Root of test directory: {args.work_root}")
     if len(args.cmake_arguments) > 0:
-        print("Additional cmake arguments: %s" % " ".join(args.cmake_arguments))
+        print(f"Additional cmake arguments: {' '.join(args.cmake_arguments)}")
 
     logs = []
     retcode = host2function[args.host](args, testcases)
     if logs:
-        print("%i ERRORS! Check the logs:\n%s" % (len(logs), "\n".join(logs)))
+        log_list = "\n".join(logs)
+        print(f"{len(logs)} ERRORS! Check the logs:\n{log_list}")
         if args.show_logs:
             print()
             for path in logs:
