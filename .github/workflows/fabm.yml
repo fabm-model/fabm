@@ -92,8 +92,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - version: "2023.2.0.49254"
-            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/237236c4-434b-4576-96ac-020ceeb22619"
+          #- version: "2023.2.0.49254"
+          #  url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/237236c4-434b-4576-96ac-020ceeb22619"
+          - version: "2024.0.2.28"
+            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/41df6814-ec4b-4698-a14d-421ee2b02aa7"
       fail-fast: false
     runs-on: ubuntu-latest
     env:
