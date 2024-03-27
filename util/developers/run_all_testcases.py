@@ -530,12 +530,13 @@ if __name__ == "__main__":
 
     # Add test cases from submodules (any file named fabm*.yaml)
     extern_dir = os.path.join(FABM_BASE, "extern")
-    for source in sorted(os.listdir(extern_dir)):
-        extra_cases = glob.glob(os.path.join(extern_dir, source, "**/fabm*.yaml"))
-        if extra_cases:
-            print(f"Found {len(extra_cases)} additional test cases in extern/{source}")
-        for path in sorted(extra_cases):
-            testcases[f"{source}_{os.path.basename(path)[:-5]}"] = path
+    if os.path.isdir(extern_dir):
+        for source in sorted(os.listdir(extern_dir)):
+            extra_cases = glob.glob(os.path.join(extern_dir, source, "**/fabm*.yaml"))
+            if extra_cases:
+                print(f"Found {len(extra_cases)} additional test cases in extern/{source}")
+            for path in sorted(extra_cases):
+                testcases[f"{source}_{os.path.basename(path)[:-5]}"] = path
 
     # Add additional institutes specified on command line (--ext),
     # along with any contained test cases (any file named fabm*.yaml)
