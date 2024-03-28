@@ -805,8 +805,20 @@ contains
 
          _BEGIN_OUTER_INTERIOR_LOOP_
             dy = 0
-            call model%get_interior_sources(_PREARG_INTERIOR_IN_ dy)
+#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
+         ! We are looping over depth, but as we have a non-constant bottom index (yet no mask), we need to skip everything below bottom
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+         _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
+#  else
+         _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
+#  endif
+#endif
+            call model%get_interior_sources(_PREARG_INTERIOR_IN_ dy _INTERIOR_SLICE_RANGE_PLUS_1_)
          _END_OUTER_INTERIOR_LOOP_
+#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
+      _START_ = domain_start(_FABM_VECTORIZED_DIMENSION_INDEX_)
+      _STOP_ = domain_stop(_FABM_VECTORIZED_DIMENSION_INDEX_)
+#  endif
 
          call model%finalize_outputs()
 
