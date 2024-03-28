@@ -44,7 +44,8 @@ module yaml_settings
       character(len=:), allocatable   :: long_name
       character(len=:), allocatable   :: description
       class (type_yaml_node), pointer :: backing_store_node => null()
-      character(len=:), allocatable   :: path
+      character(len=:), allocatable   :: path    ! repurposed 2024-03-28 to hold path to yaml file
+      class (type_settings_node), pointer :: node => null()
       procedure(error_reporter_proc), pointer, nopass :: error_reporter => null()
       class (type_value), pointer     :: parent => null()
       integer                         :: display = display_inherit
@@ -55,6 +56,7 @@ module yaml_settings
       procedure :: is_visible        => value_is_visible
       procedure :: get_yaml_style    => value_get_yaml_style
       procedure :: create_child
+      procedure :: get_path
       procedure :: ignore_node
       generic :: ignore => ignore_node
       procedure :: finalize          => value_finalize
@@ -79,6 +81,7 @@ module yaml_settings
    end type
 
    type, extends(type_settings_node) :: type_list_item
+      integer :: index
       type (type_list_item), pointer :: next => null()
    end type
 
@@ -296,6 +299,34 @@ contains
       value_get_yaml_style = -1
    end function
 
+   function get_path(self) result(path)
+      class (type_value), target, intent(in) :: self
+      character(len=:), allocatable :: path
+
+      class (type_value), pointer :: value
+      character(len=8)            :: strindex
+
+      path = ''
+      value => self
+      do while (associated(value))
+         if (allocated(value%path)) then
+            if (len(value%path) > 0) then
+               path = value%path // ':' // path
+               return
+            end if
+         end if
+         if (.not. associated(value%node)) return
+         select type (node => value%node)
+         class is (type_key_value_pair)
+            path = '/' // node%name // path
+         class is (type_list_item)
+            write (strindex,'(i0)') node%index
+            path = '[' // trim(strindex) // ']' // path
+         end select
+         value => value%parent
+      end do
+   end function
+
    recursive subroutine value_finalize(self)
       class (type_value), intent(inout) :: self
    end subroutine
@@ -336,7 +367,7 @@ contains
       if (present(error_reporter)) self%error_reporter => error_reporter
       root => yaml_parse(path, unit, error)
       if (error /= '') call self%report_error(trim(error))
-      if (.not. allocated(self%path)) self%path = ''
+      self%path = trim(path)
       self%backing_store_node => root
       call settings_set_data(self)
    end subroutine load
@@ -345,7 +376,6 @@ contains
       class (type_settings), intent(inout) :: self
       class (type_settings), intent(inout) :: other
 
-      if (.not. allocated(self%path)) self%path = ''
       self%error_reporter => other%error_reporter
       self%backing_store_node => other%backing_store_node
       other%backing_store_node => null()
@@ -557,7 +587,7 @@ contains
          pair%key = key
          allocate(type_value::pair%value)
          pair%value%parent => self
-         pair%value%path = self%path//'/'//name
+         pair%value%node => pair
          if (associated(self%backing_store)) pair%value%backing_store_node  => self%backing_store%get(key, case_sensitive=.false.)
       end if
 
@@ -654,9 +684,9 @@ contains
       if (present(scale_factor)) setting%scale_factor = scale_factor
       if (present(display)) setting%display = display
       if (present(default)) then
-         if (default < setting%minimum) call setting%report_error('Default value of setting '//setting%path// &
+         if (default < setting%minimum) call setting%report_error('Default value of setting '//setting%get_path()// &
             ' lies below prescribed minimum.')
-         if (default > setting%maximum) call setting%report_error('Default value of setting '//setting%path// &
+         if (default > setting%maximum) call setting%report_error('Default value of setting '//setting%get_path()// &
             ' exceeds prescribed maximum.')
          setting%has_default = .true.
          setting%default = default
@@ -668,7 +698,7 @@ contains
          if (setting%has_default) then
             setting%pvalue = setting%default * setting%scale_factor
          else
-            call setting%report_error('No value specified for setting '//setting%path//'; cannot continue because&
+            call setting%report_error('No value specified for setting '//setting%get_path()//'; cannot continue because&
                & this parameter does not have a default value either.')
          end if
       end if
@@ -683,14 +713,14 @@ contains
       select type (backing_store_node)
       class is (type_yaml_scalar)
          self%pvalue = backing_store_node%to_real(self%pvalue, success)
-         if (.not. success) call self%report_error(self%path//' is set to "'//trim(backing_store_node%string)// &
+         if (.not. success) call self%report_error(self%get_path()//' is set to "'//trim(backing_store_node%string)// &
             '", which cannot be interpreted as a real number.')
       class default
-         call self%report_error('Setting '//self%path//' must be a real number.')
+         call self%report_error('Setting '//self%get_path()//' must be a real number.')
       end select
-      if (self%pvalue < self%minimum) call self%report_error('Value specified for parameter '//self%path// &
+      if (self%pvalue < self%minimum) call self%report_error('Value specified for parameter '//self%get_path()// &
          ' lies below prescribed minimum.')
-      if (self%pvalue > self%maximum) call self%report_error('Value specified for parameter '//self%path// &
+      if (self%pvalue > self%maximum) call self%report_error('Value specified for parameter '//self%get_path()// &
          ' exceeds prescribed maximum.')
        self%pvalue = self%pvalue * self%scale_factor
    end subroutine
@@ -780,7 +810,7 @@ contains
          do ioption = 1, size(options)
             do ioption2 = ioption + 1, size(options)
                if (options(ioption)%value == options(ioption2)%value) call setting%report_error( &
-                  'Setting '//setting%path//' has multiple options with the same integer value.')
+                  'Setting '//setting%get_path()//' has multiple options with the same integer value.')
             end do
          end do
          if (allocated(setting%options)) deallocate(setting%options)
@@ -801,16 +831,16 @@ contains
          end do
       end if
       if (present(default)) then
-         if (default < setting%minimum) call setting%report_error('Default value of setting '//setting%path// &
+         if (default < setting%minimum) call setting%report_error('Default value of setting '//setting%get_path()// &
             ' lies below prescribed minimum.')
-         if (default > setting%maximum) call setting%report_error('Default value of setting '//setting%path// &
+         if (default > setting%maximum) call setting%report_error('Default value of setting '//setting%get_path()// &
             ' exceeds prescribed maximum.')
          if (allocated(setting%options)) then
             found = .false.
             do ioption = 1, size(setting%options)
                if (default == setting%options(ioption)%value) found = .true.
             end do
-            if (.not.found) call setting%report_error('Default value of setting '//setting%path// &
+            if (.not.found) call setting%report_error('Default value of setting '//setting%get_path()// &
                ' does not correspond to any known option.')
          end if
          setting%has_default = .true.
@@ -823,7 +853,7 @@ contains
          if (setting%has_default) then
             setting%pvalue = setting%default
          else
-            call setting%report_error('No value specified for setting '//setting%path//'; cannot continue because&
+            call setting%report_error('No value specified for setting '//setting%get_path()//'; cannot continue because&
                & it does not have a default value either.')
          end if
       end if
@@ -875,26 +905,26 @@ contains
                      stroptions = stroptions // achar(10) // '- ' // trim(strtmp) // ' = ' // self%options(ioption)%long_name
                   end if
                end do
-               call self%report_error(self%path//' is set to "'//trim(backing_store_node%string)// &
+               call self%report_error(self%get_path()//' is set to "'//trim(backing_store_node%string)// &
                   '", which is not one of the valid options:' // stroptions)
             else
-               call self%report_error(self%path//' is set to "'//trim(backing_store_node%string)// &
+               call self%report_error(self%get_path()//' is set to "'//trim(backing_store_node%string)// &
                   '", which cannot be interpreted as an integer number.')
             end if
          end if
       class default
-         call self%report_error('Setting '//self%path//' must be an integer number.')
+         call self%report_error('Setting '//self%get_path()//' must be an integer number.')
       end select
-      if (self%pvalue < self%minimum) call self%report_error('Value specified for setting '//self%path// &
+      if (self%pvalue < self%minimum) call self%report_error('Value specified for setting '//self%get_path()// &
          ' lies below prescribed minimum.')
-      if (self%pvalue > self%maximum) call self%report_error('Value specified for setting '//self%path// &
+      if (self%pvalue > self%maximum) call self%report_error('Value specified for setting '//self%get_path()// &
          ' exceeds prescribed maximum.')
       if (allocated(self%options)) then
          success = .false.
          do ioption = 1, size(self%options)
             if (self%pvalue == self%options(ioption)%value) success = .true.
          end do
-         if (.not. success) call self%report_error('Value specified for setting '//self%path// &
+         if (.not. success) call self%report_error('Value specified for setting '//self%get_path()// &
             ' does not correspond to any known option.')
       end if
    end subroutine integer_set_data
@@ -971,7 +1001,7 @@ contains
          if (setting%has_default) then
             setting%pvalue = setting%default
          else
-            call setting%report_error('No value specified for parameter '//setting%path//'; cannot continue because&
+            call setting%report_error('No value specified for parameter '//setting%get_path()//'; cannot continue because&
                & this parameter does not have a default value either.')
          end if
       end if
@@ -986,10 +1016,10 @@ contains
       select type (backing_store_node)
       class is (type_yaml_scalar)
          self%pvalue = backing_store_node%to_logical(self%pvalue, success)
-         if (.not. success) call self%report_error(self%path//' is set to "'//trim(backing_store_node%string)// &
+         if (.not. success) call self%report_error(self%get_path()//' is set to "'//trim(backing_store_node%string)// &
             '", which cannot be interpreted as logical value (true or false).')
       class default
-         call self%report_error('Setting '//self%path//' must be set to a logical value (true or false).')
+         call self%report_error('Setting '//self%get_path()//' must be set to a logical value (true or false).')
       end select
    end subroutine
 
@@ -1070,13 +1100,13 @@ contains
          class is (type_yaml_scalar)
             setting%value = trim(yaml_node%string)
          class default
-            call setting%report_error(setting%path//' must be be a string or null.')
+            call setting%report_error(setting%get_path()//' must be be a string or null.')
          end select
       elseif (.not. reuse_value) then
          if (setting%has_default) then
             setting%value = setting%default
          else
-            call setting%report_error('No value specified for parameter '//setting%path//'; cannot continue because&
+            call setting%report_error('No value specified for parameter '//setting%get_path()//'; cannot continue because&
                & this parameter does not have a default value either.')
          end if
       end if
@@ -1141,9 +1171,15 @@ contains
       class (type_value), target :: value
 
       value%parent => self%value%parent
-      call move_alloc(self%value%path, value%path)
+      value%node => self%value%node
       value%backing_store_node => self%value%backing_store_node
-      if (self%own_value) deallocate(self%value)
+      if (self%own_value) then
+         deallocate(self%value)
+      else
+         self%value%parent => null()
+         self%value%node => null()
+         self%value%backing_store_node => null()
+      end if
       self%value => value
    end subroutine
 
@@ -1207,7 +1243,7 @@ contains
          end if
       class is (type_yaml_null)
       class default
-         call self%report_error(self%path//' should be a dictionary')
+         call self%report_error(self%get_path()//' should be a dictionary')
       end select 
    end subroutine
 
@@ -1245,7 +1281,6 @@ contains
       type (type_yaml_list_item), pointer :: yaml_item
       type (type_list_item),      pointer :: item, last_item
       integer                             :: i
-      character(len=8)                    :: strindex
 
       select type (backing_store_node)
       class is (type_yaml_list)
@@ -1262,10 +1297,10 @@ contains
          i = 0
          do while (associated(yaml_item))
             i = i + 1
-            write (strindex,'(i0)') i
             allocate(item)
+            item%index = i
             allocate(type_value::item%value)
-            item%value%path = self%path//'['//trim(strindex)//']'
+            item%value%node => item
             item%value%backing_store_node => yaml_item%node
             item%value%parent => self
             if (.not. associated(last_item)) then
@@ -1279,7 +1314,7 @@ contains
          end do
       class is (type_yaml_null)
       class default
-         call self%report_error(self%path//' should be a list')
+         call self%report_error(self%get_path()//' should be a list')
       end select 
    end subroutine
 
@@ -1297,7 +1332,6 @@ contains
          current => next
       end do
       self%first => null()
-      if (allocated(self%path)) deallocate(self%path)
    end subroutine finalize
 
    subroutine finalize_store(self)
