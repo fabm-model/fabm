@@ -13,6 +13,7 @@ module fabm_builtin_depth_mapping
    public register_depth_explicit_dependency, register_depth_explicit_state_dependency
    public type_depth_integrated_particle
    public type_depth_integrated_particle_override
+   public type_vertical_distribution_id
 
    type, extends(type_variable_id) :: type_vertical_distribution_id
       type (type_horizontal_dependency_id) :: integral
