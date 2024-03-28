@@ -69,7 +69,7 @@ contains
       class (type_vertical_depth_range), pointer :: depth_distribution
 
       ! This adds a dependency ("w") on the weights that define the vertical habitat
-      ! Additionally, it adds a dependency on the vertical integral of the weights (id_w_int),
+      ! Additionally, it adds a dependency on the vertical integral of the weights (id_w%integral),
       ! which can be used to convert between depth integrals and depth-averages
       call self%type_depth_integrated_particle%initialize(configunit)
 
@@ -164,7 +164,7 @@ contains
          ! with w_int representing the depth-integral weights of the predator's vertical distibution.
          ! Thus, the specific loss rate is ingestion_c / (prey_c * w_int), which simplifies to
          ! clearance_rate * c / w_int (see expression for ingestion_c above)
-         _GET_SURFACE_(self%id_w_int, w_int)
+         _GET_SURFACE_(self%id_w%integral, w_int)
          prey_loss_rate = self%clearance_rate * c / w_int
 
          ! Source term for predator

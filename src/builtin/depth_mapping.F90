@@ -14,6 +14,10 @@ module fabm_builtin_depth_mapping
    public type_depth_integrated_particle
    public type_depth_integrated_particle_override
 
+   type, extends(type_variable_id) :: type_vertical_distribution_id
+      type (type_horizontal_dependency_id) :: integral
+   end type
+
    type, extends(type_base_model) :: type_vertical_depth_range
       type (type_diagnostic_variable_id) :: id_w   ! weights specifying the vertical distribution
       type (type_dependency_id)          :: id_z   ! depth of layer center (m)
@@ -72,7 +76,7 @@ module fabm_builtin_depth_mapping
    ! the local concentration of the targeted pelagic variable (as well as layer thickness)
    type, extends(type_absolute_rate_distributor) :: type_relative_rate_distributor
    contains
-      procedure :: do         => relative_rate_distributor_do
+      procedure :: do => relative_rate_distributor_do
    end type
 
    ! This model type takes a depth-explicit source term and distributes it over a depth-integrated state variable.
@@ -88,9 +92,10 @@ module fabm_builtin_depth_mapping
    ! This model type inherits from the base particle model and adds several procedures
    ! for coupling to depth-integrate and depth-averaged pelagic variables.
    type, extends(type_particle_model) :: type_depth_integrated_particle
-      type (type_horizontal_dependency_id) :: id_w_int
+      type (type_vertical_distribution_id) :: id_w
    contains
       procedure :: initialize => depth_integrated_particle_initialize
+      procedure :: register_vertical_distribution
       procedure :: register_mapped_model_dependency
       procedure :: request_mapped_coupling1 => depth_integrated_particle_request_mapped_coupling1
       procedure :: request_mapped_coupling2 => depth_integrated_particle_request_mapped_coupling2
@@ -119,6 +124,7 @@ module fabm_builtin_depth_mapping
    ! Integration and redistribution take into account a set of weights that can be used
    ! to specify the vertical distribution/habitat of the model creating the particle integrator.
    type, extends(type_particle_model) :: type_particle_integrator
+      type (type_link), pointer :: link_w => null()
       integer :: domain = domain_bottom
       logical :: proportional_change = .false.
    contains
@@ -132,6 +138,8 @@ module fabm_builtin_depth_mapping
    ! Projection of depth-integrated variables takes into account a set of weights that can be used
    ! to specify the vertical distribution/habitat.
    type, extends(type_particle_model) :: type_projected_particle
+      type (type_link), pointer :: link_w     => null()
+      type (type_link), pointer :: link_w_int => null()
    contains
       procedure :: initialize                  => projected_particle_initialize
       procedure :: complete_internal_variables => projected_particle_complete_internal_variables
@@ -169,21 +177,24 @@ contains
       _LOOP_END_
    end subroutine
 
-   subroutine register_depth_explicit_dependency(self, id, name, units, long_name, average, link)
+   subroutine register_depth_explicit_dependency(self, id, name, units, long_name, id_w, average, link)
       class (type_base_model),               intent(inout) :: self
       class (type_horizontal_dependency_id), intent(inout) :: id
       character(len=*),                      intent(in)    :: name, units, long_name
+      type (type_vertical_distribution_id),  intent(in)    :: id_w
       logical, optional,                     intent(in)    :: average
       type (type_link), optional, pointer :: link
 
+      type (type_link),                     pointer :: link_
       class (type_weighted_depth_integral), pointer :: depth_integral
       character(len=4)                              :: postfix
 
       ! Create a placeholder for the depth-explicit source variable
-      if (present(link)) link => null()
-      call self%add_interior_variable(name, units, long_name, link=link)
+      link_ => null()
+      call self%add_interior_variable(name, units, long_name, link=link_)
+      if (present(link)) link => link_
 
-      ! Determine postfix of the name of the dept-integrated/averaged variable
+      ! Determine postfix of the name of the depth-integrated/averaged variable
       postfix = '_int'
       if (present(average)) postfix = '_ave'
 
@@ -192,31 +203,34 @@ contains
       allocate(depth_integral)
       if (present(average)) depth_integral%average = average
       call self%add_child(depth_integral, trim(name) // postfix // '_calculator')
-      call depth_integral%request_coupling('source', '../' // trim(name))
-      call depth_integral%request_coupling('w', '../w')
-      if (depth_integral%average) call depth_integral%request_coupling('w_int', '../w_int')
+      call depth_integral%request_coupling(depth_integral%id_source, link_)
+      call depth_integral%request_coupling(depth_integral%id_w, id_w%link)
+      if (depth_integral%average) call depth_integral%request_coupling(depth_integral%id_w_int, id_w%integral%link)
 
       ! If the provided identifer has not yet been registered, do so first
       ! Then couple the identifier to the result of the depth integration
       if (.not. associated(id%link)) call self%register_dependency(id, trim(name) // postfix, units, long_name)
-      call self%request_coupling(id%link, trim(name) // postfix // '_calculator/result')
+      call self%request_coupling(id%link, depth_integral%id_result%link)
    end subroutine
 
-   subroutine register_depth_explicit_state_dependency(self, link_int, name, units, long_name, proportional_change, domain, &
-         link, depth_integral_out)
+   subroutine register_depth_explicit_state_dependency(self, link_int, name, units, long_name, id_w, proportional_change, &
+         domain, link, depth_integral_out)
       class (type_base_model),              intent(inout) :: self
       type (type_link), target,             intent(inout) :: link_int
       character(len=*),                     intent(in)    :: name, units, long_name
+      type (type_vertical_distribution_id), intent(in)    :: id_w
       logical, optional,                    intent(in)    :: proportional_change
       integer, optional,                    intent(in)    :: domain
       type (type_link),                     optional, pointer :: link
       class (type_weighted_depth_integral), optional, pointer :: depth_integral_out
 
+      type (type_link),                     pointer :: link_
       class (type_weighted_depth_integral), pointer :: depth_integral
 
       ! Create a placeholder for the depth-explicit source variable
-      if (present(link)) link => null()
-      call self%add_interior_variable(name, units, long_name, act_as_state_variable=.true., link=link)
+      link_ => null()
+      call self%add_interior_variable(name, units, long_name, act_as_state_variable=.true., link=link_)
+      if (present(link)) link => link_
 
       ! Create a child model that will depth-integrate the source variable
       ! Couple this to the vertical distribution weights and our placeholder for the source variable
@@ -225,11 +239,11 @@ contains
       if (present(domain)) depth_integral%domain = domain
       if (present(proportional_change)) depth_integral%proportional_change = proportional_change
       call self%add_child(depth_integral, name // '_int_calculator')
-      call depth_integral%request_coupling('source', '../' // name)
-      call depth_integral%request_coupling('w', '../w')
+      call depth_integral%request_coupling(depth_integral%id_source, link_)
+      call depth_integral%request_coupling(depth_integral%id_w, id_w%link)
 
       ! Couple the provided variable link to the result of the depth integration
-      call self%request_coupling(link_int, name // '_int_calculator/result')
+      call self%request_coupling(link_int, depth_integral%id_result%link)
 
       ! If requested, return the model instance that performs the depth integration
       if (present(depth_integral_out)) depth_integral_out => depth_integral
@@ -416,12 +430,43 @@ contains
       _ADD_BOTTOM_SOURCE_(self%id_target, sms_int)
    end subroutine
 
-   subroutine register_mapped_model_dependency(self, id, name, domain, proportional_change)
-      class (type_depth_integrated_particle), intent(inout) :: self
-      type (type_model_id), target, optional, intent(inout) :: id
-      character(len=*),                       intent(in)    :: name
-      integer, optional,                      intent(in)    :: domain
-      logical, optional,                      intent(in)    :: proportional_change
+   subroutine register_vertical_distribution(self, id, name)
+      class (type_depth_integrated_particle),       intent(inout) :: self
+      type (type_vertical_distribution_id), target, intent(inout) :: id
+      character(len=*), optional,                   intent(in)    :: name
+
+      character(len=attribute_length)      :: postfix
+      class (type_depth_integral), pointer :: w_int_calculator
+
+      if (present(name)) then
+         postfix = '_' // name
+      else
+         postfix = ''
+      end if
+
+      ! Register a dependency on the vertical distribution weights
+      ! We use add_interior_variable instead of register_dependency because we do not
+      ! need read access to the weights ourselves (they are only for child models)
+      call self%add_interior_variable('w' // trim(postfix), '1', 'vertical distribution weights', presence=presence_external_required, link=id%link)
+
+      ! Create a child model that calculates the depth integral of the weights
+      ! This is used to calculate depth averages form depth integrals, among others.
+      allocate(w_int_calculator)
+      call self%add_child(w_int_calculator, 'w' // trim(postfix) // '_int_calculator')
+      call w_int_calculator%request_coupling(w_int_calculator%id_input, id%link)
+
+      ! Make the depth integrated available as a local variable
+      call self%register_dependency(id%integral, 'w' // trim(postfix) // '_int', 'm', 'depth-integrated vertical distribution weights')
+      call self%request_coupling(id%integral, w_int_calculator%id_output%link)
+   end subroutine
+
+   subroutine register_mapped_model_dependency(self, id, name, id_w, domain, proportional_change)
+      class (type_depth_integrated_particle),                 intent(inout) :: self
+      type (type_model_id),                           target, intent(inout) :: id
+      character(len=*),                                       intent(in)    :: name
+      type (type_vertical_distribution_id), optional, target, intent(in)    :: id_w
+      integer,                              optional,         intent(in)    :: domain
+      logical,                              optional,         intent(in)    :: proportional_change
 
       class (type_particle_integrator), pointer :: integrator
 
@@ -436,6 +481,11 @@ contains
       ! to the named depth-explicit instance. Make sure the integrator uses that.
       call self%register_model_dependency(name)
       call integrator%request_coupling('source', '../' // name)
+      if (present(id_w)) then
+         call integrator%request_coupling(integrator%link_w, id_w%link)
+      else
+         call integrator%request_coupling(integrator%link_w, self%id_w%link)
+      end if
 
       ! Link the provided model identifier to the depth-integrated model instance
       call self%register_model_dependency(id, name // '_int')
@@ -446,125 +496,140 @@ contains
       class (type_depth_integrated_particle), intent(inout), target :: self
       integer,                                intent(in)            :: configunit
 
-      class (type_depth_integral), pointer :: w_int_calculator
-
-      ! Register a dependency on the vertical distribution weights
-      ! We use add_interior_variable instead of register_dependency because we do not
-      ! need read access to the weights ourselves (they are only for child models)
-      call self%add_interior_variable('w', '1', 'vertical distribution weights', presence=presence_external_required)
-
-      ! Create a child model that calculates the depth integral of the weights
-      ! This is used to calculate depth averages form depth integrals, among others.
-      allocate(w_int_calculator)
-      call self%add_child(w_int_calculator, 'w_int_calculator')
-      call w_int_calculator%request_coupling('source', '../w')
-
-      ! Make the depth integrated available as a local variable
-      call self%register_dependency(self%id_w_int, 'w_int', 'm', 'depth-integrated vertical distribution weights')
-      call self%request_coupling(self%id_w_int, 'w_int_calculator/result')
+      call self%register_vertical_distribution(self%id_w)
    end subroutine
 
-   subroutine depth_integrated_particle_request_mapped_coupling1(self, id, standard_variable, average)
-      class (type_depth_integrated_particle),   intent(inout) :: self
-      type (type_bottom_dependency_id), target, intent(inout) :: id
-      type (type_interior_standard_variable),   intent(in)    :: standard_variable
-      logical, optional,                        intent(in)    :: average
+   subroutine depth_integrated_particle_request_mapped_coupling1(self, id, standard_variable, id_w, average)
+      class (type_depth_integrated_particle),         target, intent(inout) :: self
+      type (type_bottom_dependency_id),               target, intent(inout) :: id
+      type (type_interior_standard_variable),                 intent(in)    :: standard_variable
+      type (type_vertical_distribution_id), optional, target, intent(in)    :: id_w
+      logical, optional,                                      intent(in)    :: average
 
-      type (type_link), pointer :: link
+      type (type_vertical_distribution_id), pointer :: id_w_
+      type (type_link),                     pointer :: link
 
+      id_w_ => self%id_w
+      if (present(id_w)) id_w_ => id_w
       call register_depth_explicit_dependency(self, id, trim(standard_variable%name), trim(standard_variable%units), &
-         trim(standard_variable%name), link=link, average=average)
+         trim(standard_variable%name), id_w_, link=link, average=average)
       call self%request_coupling(link, standard_variable)
    end subroutine
 
-   subroutine depth_integrated_particle_request_mapped_coupling2(self, id, standard_variable, average)
-      class (type_depth_integrated_particle),    intent(inout) :: self
-      type (type_surface_dependency_id), target, intent(inout) :: id
-      type (type_interior_standard_variable),    intent(in)    :: standard_variable
-      logical, optional,                         intent(in)    :: average
+   subroutine depth_integrated_particle_request_mapped_coupling2(self, id, standard_variable, id_w, average)
+      class (type_depth_integrated_particle),         target, intent(inout) :: self
+      type (type_surface_dependency_id),              target, intent(inout) :: id
+      type (type_interior_standard_variable),                 intent(in)    :: standard_variable
+      type (type_vertical_distribution_id), optional, target, intent(in)    :: id_w
+      logical, optional,                                      intent(in)    :: average
 
-      type (type_link), pointer :: link
+      type (type_vertical_distribution_id), pointer :: id_w_
+      type (type_link),                     pointer :: link
 
+      id_w_ => self%id_w
+      if (present(id_w)) id_w_ => id_w
       call register_depth_explicit_dependency(self, id, trim(standard_variable%name), trim(standard_variable%units), &
-         trim(standard_variable%name), link=link, average=average)
+         trim(standard_variable%name), id_w_, link=link, average=average)
       call self%request_coupling(link, standard_variable)
    end subroutine
 
-   subroutine depth_integrated_particle_request_mapped_coupling3(self, id, standard_variable, average)
-      class (type_depth_integrated_particle),   intent(inout) :: self
-      type (type_bottom_dependency_id), target, intent(inout) :: id
-      type (type_universal_standard_variable),  intent(in)    :: standard_variable
-      logical, optional,                        intent(in)    :: average
+   subroutine depth_integrated_particle_request_mapped_coupling3(self, id, standard_variable, id_w, average)
+      class (type_depth_integrated_particle),         target, intent(inout) :: self
+      type (type_bottom_dependency_id),               target, intent(inout) :: id
+      type (type_universal_standard_variable),                intent(in)    :: standard_variable
+      type (type_vertical_distribution_id), optional, target, intent(in)    :: id_w
+      logical, optional,                                      intent(in)    :: average
 
-      call self%request_mapped_coupling(id, standard_variable%in_interior(), average)
+      call self%request_mapped_coupling(id, standard_variable%in_interior(), id_w, average)
    end subroutine
 
-   subroutine depth_integrated_particle_request_mapped_coupling4(self, id, standard_variable, average)
-      class (type_depth_integrated_particle),    intent(inout) :: self
-      type (type_surface_dependency_id), target, intent(inout) :: id
-      type (type_universal_standard_variable),   intent(in)    :: standard_variable
-      logical, optional,                         intent(in)    :: average
+   subroutine depth_integrated_particle_request_mapped_coupling4(self, id, standard_variable, id_w, average)
+      class (type_depth_integrated_particle),         target, intent(inout) :: self
+      type (type_surface_dependency_id),              target, intent(inout) :: id
+      type (type_universal_standard_variable),                intent(in)    :: standard_variable
+      type (type_vertical_distribution_id), optional, target, intent(in)    :: id_w
+      logical, optional,                                      intent(in)    :: average
 
-      call self%request_mapped_coupling(id, standard_variable%in_interior(), average)
+      call self%request_mapped_coupling(id, standard_variable%in_interior(), id_w, average)
    end subroutine
 
-   subroutine depth_integrated_particle_request_mapped_coupling_to_model1(self, id, target_model_name, standard_variable, average)
-      class (type_depth_integrated_particle),   intent(inout) :: self
-      type (type_bottom_dependency_id), target, intent(inout) :: id
-      character(len=*),                         intent(in)    :: target_model_name
-      type (type_universal_standard_variable),  intent(in)    :: standard_variable
-      logical, optional,                        intent(in)    :: average
+   subroutine depth_integrated_particle_request_mapped_coupling_to_model1(self, id, target_model_name, standard_variable, id_w, average)
+      class (type_depth_integrated_particle),         target, intent(inout) :: self
+      type (type_bottom_dependency_id),               target, intent(inout) :: id
+      character(len=*),                                       intent(in)    :: target_model_name
+      type (type_universal_standard_variable),                intent(in)    :: standard_variable
+      type (type_vertical_distribution_id), optional, target, intent(in)    :: id_w
+      logical, optional,                                      intent(in)    :: average
 
-      type (type_link), pointer :: link
+      type (type_vertical_distribution_id), pointer :: id_w_
+      type (type_link),                     pointer :: link
+
+      id_w_ => self%id_w
+      if (present(id_w)) id_w_ => id_w
 
       call register_depth_explicit_dependency(self, id, target_model_name // '_' // trim(standard_variable%name), &
-         trim(standard_variable%units), target_model_name // ' ' // trim(standard_variable%name), link=link, average=average)
+         trim(standard_variable%units), target_model_name // ' ' // trim(standard_variable%name), id_w_, link=link, average=average)
       call self%request_coupling_to_model_generic(link, target_model_name=target_model_name, target_standard_variable=standard_variable)
    end subroutine
 
-   subroutine depth_integrated_particle_request_mapped_coupling_to_model2(self, id, target_model_name, standard_variable, average)
-      class (type_depth_integrated_particle),    intent(inout) :: self
-      type (type_surface_dependency_id), target, intent(inout) :: id
-      character(len=*),                          intent(in)    :: target_model_name
-      type (type_universal_standard_variable),   intent(in)    :: standard_variable
-      logical, optional,                         intent(in)    :: average
+   subroutine depth_integrated_particle_request_mapped_coupling_to_model2(self, id, target_model_name, standard_variable, id_w, average)
+      class (type_depth_integrated_particle),         target, intent(inout) :: self
+      type (type_surface_dependency_id),              target, intent(inout) :: id
+      character(len=*),                                       intent(in)    :: target_model_name
+      type (type_universal_standard_variable),                intent(in)    :: standard_variable
+      type (type_vertical_distribution_id), optional, target, intent(in)    :: id_w
+      logical, optional,                                      intent(in)    :: average
 
-      type (type_link), pointer :: link
+      type (type_vertical_distribution_id), pointer :: id_w_
+      type (type_link),                     pointer :: link
+
+      id_w_ => self%id_w
+      if (present(id_w)) id_w_ => id_w
 
       call register_depth_explicit_dependency(self, id, target_model_name // '_' // trim(standard_variable%name), &
-         trim(standard_variable%units), target_model_name // ' ' // trim(standard_variable%name), link=link, average=average)
+         trim(standard_variable%units), target_model_name // ' ' // trim(standard_variable%name), id_w_, link=link, average=average)
       call self%request_coupling_to_model_generic(link, target_model_name=target_model_name, target_standard_variable=standard_variable)
    end subroutine
 
-   subroutine depth_integrated_particle_request_mapped_coupling_to_model3(self, id, target_model_name, standard_variable, proportional_change)
-      class (type_depth_integrated_particle),  intent(inout)         :: self
-      type (type_bottom_state_variable_id),    intent(inout), target :: id
-      character(len=*),                        intent(in)            :: target_model_name
-      type (type_universal_standard_variable), intent(in)            :: standard_variable
-      logical, optional,                       intent(in)            :: proportional_change
+   subroutine depth_integrated_particle_request_mapped_coupling_to_model3(self, id, target_model_name, standard_variable, id_w, proportional_change)
+      class (type_depth_integrated_particle),         target, intent(inout) :: self
+      type (type_bottom_state_variable_id),           target, intent(inout) :: id
+      character(len=*),                                       intent(in)    :: target_model_name
+      type (type_universal_standard_variable),                intent(in)    :: standard_variable
+      type (type_vertical_distribution_id), optional, target, intent(in)    :: id_w
+      logical, optional,                                      intent(in)    :: proportional_change
 
-      type (type_link), pointer :: link
-      class (type_weighted_depth_integral),   pointer :: depth_integral
+      type (type_vertical_distribution_id), pointer :: id_w_
+      type (type_link),                     pointer :: link
+      class (type_weighted_depth_integral), pointer :: depth_integral
+
+      id_w_ => self%id_w
+      if (present(id_w)) id_w_ => id_w
 
       call register_depth_explicit_state_dependency(self, id%link, target_model_name // '_' // trim(standard_variable%name), &
-         trim(standard_variable%units), target_model_name // ' ' // trim(standard_variable%name), link=link, &
+         trim(standard_variable%units), target_model_name // ' ' // trim(standard_variable%name), id_w_, link=link, &
          proportional_change=proportional_change, depth_integral_out=depth_integral, domain=domain_bottom)
       call self%add_to_aggregate_variable(standard_variable, depth_integral%id_result)
       call self%request_coupling_to_model_generic(link, target_model_name=target_model_name, target_standard_variable=standard_variable)
    end subroutine
 
-   subroutine depth_integrated_particle_request_mapped_coupling_to_model4(self, id, target_model_name, standard_variable, proportional_change)
-      class (type_depth_integrated_particle),   intent(inout)         :: self
-      type (type_surface_state_variable_id),    intent(inout), target :: id
-      character(len=*),                         intent(in)            :: target_model_name
-      type (type_universal_standard_variable),  intent(in)            :: standard_variable
-      logical, optional,                        intent(in)            :: proportional_change
+   subroutine depth_integrated_particle_request_mapped_coupling_to_model4(self, id, target_model_name, standard_variable, id_w, proportional_change)
+      class (type_depth_integrated_particle),         target, intent(inout) :: self
+      type (type_surface_state_variable_id),          target, intent(inout) :: id
+      character(len=*),                                       intent(in)    :: target_model_name
+      type (type_universal_standard_variable),                intent(in)    :: standard_variable
+      type (type_vertical_distribution_id), optional, target, intent(in)    :: id_w
+      logical, optional,                                      intent(in)    :: proportional_change
 
-      type (type_link), pointer :: link
-      class (type_weighted_depth_integral),   pointer :: depth_integral
+      type (type_vertical_distribution_id), pointer :: id_w_
+      type (type_link),                     pointer :: link
+      class (type_weighted_depth_integral), pointer :: depth_integral
+
+      id_w_ => self%id_w
+      if (present(id_w)) id_w_ => id_w
 
       call register_depth_explicit_state_dependency(self, id%link, target_model_name // '_' // trim(standard_variable%name), &
-         trim(standard_variable%units), target_model_name // ' ' // trim(standard_variable%name), link=link, &
+         trim(standard_variable%units), target_model_name // ' ' // trim(standard_variable%name), id_w_, link=link, &
          proportional_change=proportional_change, depth_integral_out=depth_integral, domain=domain_surface)
       call self%add_to_aggregate_variable(standard_variable, depth_integral%id_result)
       call self%request_coupling_to_model_generic(link, target_model_name=target_model_name, target_standard_variable=standard_variable)
@@ -576,6 +641,10 @@ contains
 
       ! Register a dependency on the depth-explicit model instance for which we will provide depth integrals.
       call self%register_model_dependency('source', 'model instance to depth-integrate')
+
+      ! Register dependencies on vertical distribution weights
+      call self%add_interior_variable('w', '1', 'vertical distribution weights', &
+         presence=presence_external_required, link=self%link_w)
    end subroutine
 
    recursive subroutine particle_integrator_complete_internal_variables(self)
@@ -602,11 +671,11 @@ contains
                depth_integral%act_as_state_variable = .true.
                depth_integral%proportional_change = self%proportional_change
                depth_integral%domain = self%domain
-               call self%add_child(depth_integral, trim(link%name) // '_int_calculator')
+               call self%add_child(depth_integral, trim(link%name) // '_integrator')
 
                ! Couple the weights and source variable of the depth integral
                call depth_integral%request_coupling(depth_integral%id_source, link)
-               call depth_integral%request_coupling(depth_integral%id_w, '../w')
+               call depth_integral%request_coupling(depth_integral%id_w, self%link_w)
 
                ! Set up an alias for the depth-integrated variable (coupled to the result of the depth integrator)
                ! Note: the variable must be flagged as state variable (source=source_state or act_as_state_variable=.true.) in
@@ -614,7 +683,7 @@ contains
                link_int => null()
                call self%add_horizontal_variable(trim(link%name), trim(link%target%units) // ' m', 'depth-integrated ' &
                   // trim(link%target%long_name), source=source_state, link=link_int, domain=self%domain)
-               call self%request_coupling(link_int, trim(link%name) // '_int_calculator/result')
+               call self%request_coupling(link_int, depth_integral%id_result%link)
 
                ! For the depth-integrated fake state variable, make sure it contributes to the same aggregate variable(s)
                ! that its depth-explicit source variable contributes to. This ensures conservation checks will work for
@@ -638,6 +707,12 @@ contains
       ! Register a dependency on the depth-integrated model instance for which we will
       ! create depth-explicit projections of each state variable
       call self%register_model_dependency('source', 'model instance to project over water column')
+
+      ! Register dependencies on vertical distribution weights and their depth integral
+      call self%add_interior_variable('w', '1', 'vertical distribution weights', &
+         presence=presence_external_required, link=self%link_w)
+      call self%add_horizontal_variable('w_int', 'm', 'depth-integrated vertical distribution weights', &
+         presence=presence_external_required, link=self%link_w_int)
    end subroutine
 
    subroutine projected_particle_complete_internal_variables(self)
@@ -663,12 +738,12 @@ contains
                ! Create a child instance that projects the depth-integrated state variable over the pelagic
                allocate(projector)
                projector%act_as_state_variable = .true.
-               call self%add_child(projector, trim(link_int%name) // '_calculator')
+               call self%add_child(projector, trim(link_int%name) // '_projector')
 
                ! Couple the weights and source variable of the depth integral
                call projector%request_coupling(projector%id_source, link_int)
-               call projector%request_coupling(projector%id_w, '../w')
-               call projector%request_coupling(projector%id_w_int, '../w_int')
+               call projector%request_coupling(projector%id_w, self%link_w)
+               call projector%request_coupling(projector%id_w_int, self%link_w_int)
 
                ! Set up a alias for the depth-explicit variable (coupled to the result of the child model that projects over depth)
                ! Note: the variable must be flagged as state variable (source=source_state or act_as_state_variable=.true.) in
@@ -676,7 +751,7 @@ contains
                link => null()
                call self%add_interior_variable(trim(link_int%name), trim(link_int%target%units) // ' m-1', 'depth-explicit ' &
                   // trim(link_int%target%long_name), source=source_state, link=link)
-               call self%request_coupling(link, trim(link_int%name) // '_calculator/result')
+               call self%request_coupling(link, projector%id_result%link)
 
                ! For the depth-explicit fake state variable, make sure it contributes to the same aggregate variable(s)
                ! that its depth-integrated source variable contributes to. This ensures conservation checks will work for
@@ -711,6 +786,8 @@ contains
       allocate(projection)
       call self%add_child(projection, 'projection')
       call projection%request_coupling('source', '..')
+      call projection%request_coupling(projection%link_w, self%id_w%link)
+      call projection%request_coupling(projection%link_w_int, self%id_w%integral%link)
    end subroutine
 
    subroutine depth_integrated_particle_override_complete_internal_variables(self)
