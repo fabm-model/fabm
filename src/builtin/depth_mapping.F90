@@ -125,7 +125,8 @@ module fabm_builtin_depth_mapping
    ! Integration and redistribution take into account a set of weights that can be used
    ! to specify the vertical distribution/habitat of the model creating the particle integrator.
    type, extends(type_particle_model) :: type_particle_integrator
-      type (type_link), pointer :: link_w => null()
+      type (type_link), pointer :: link_w     => null()
+      type (type_link), pointer :: link_w_int => null()
       integer :: domain = domain_bottom
       logical :: proportional_change = .false.
    contains
@@ -242,6 +243,7 @@ contains
       call self%add_child(depth_integral, name // '_int_calculator')
       call depth_integral%request_coupling(depth_integral%id_source, link_)
       call depth_integral%request_coupling(depth_integral%id_w, id_w%link)
+      call depth_integral%request_coupling(depth_integral%id_w_int, id_w%integral%link)
 
       ! Couple the provided variable link to the result of the depth integration
       call self%request_coupling(link_int, depth_integral%id_result%link)
@@ -268,7 +270,12 @@ contains
       call self%register_dependency(self%id_w, 'w', '1', 'weights')
       call self%register_dependency(self%id_h, standard_variables%cell_thickness)
       call self%register_dependency(self%id_source, 'source', '', 'source')
-      if (self%average) call self%register_dependency(self%id_w_int, 'w_int', 'm', 'depth-integrated weights')
+      if (self%average) then
+         call self%register_dependency(self%id_w_int, 'w_int', 'm', 'depth-integrated weights')
+      elseif (self%act_as_state_variable) then
+         call self%add_horizontal_variable('w_int', 'm', 'depth-integrated weights', &
+            link=self%id_w_int%link, presence=presence_external_required)
+      end if
 
       if (self%act_as_state_variable) then
          ! Other model instances can provide source terms for the depth-integrated variable.
@@ -282,11 +289,11 @@ contains
          end if
          self%id_source%link%target%fake_state_variable = .true.
          call self%add_child(rate_distributor, 'sms_distributor')
-         call rate_distributor%request_coupling('int', '../result')
-         call rate_distributor%request_coupling('sms_int', '../result_sms_tot')
-         call rate_distributor%request_coupling('w', '../w')
-         call rate_distributor%request_coupling('w_int', '../w_int')
-         call rate_distributor%request_coupling('target', '../source')
+         call rate_distributor%request_coupling(rate_distributor%id_int, self%id_result%link)
+         call rate_distributor%request_coupling(rate_distributor%id_sms_int, '../result_sms_tot')
+         call rate_distributor%request_coupling(rate_distributor%id_w, self%id_w%link)
+         call rate_distributor%request_coupling(rate_distributor%id_w_int, self%id_w_int%link)
+         call rate_distributor%request_coupling(rate_distributor%id_target, self%id_source%link)
       end if
    end subroutine
 
@@ -484,8 +491,10 @@ contains
       call integrator%request_coupling('source', '../' // name)
       if (present(id_w)) then
          call integrator%request_coupling(integrator%link_w, id_w%link)
+         call integrator%request_coupling(integrator%link_w_int, id_w%integral%link)
       else
          call integrator%request_coupling(integrator%link_w, self%id_w%link)
+         call integrator%request_coupling(integrator%link_w_int, self%id_w%integral%link)
       end if
 
       ! Link the provided model identifier to the depth-integrated model instance
@@ -646,6 +655,8 @@ contains
       ! Register dependencies on vertical distribution weights
       call self%add_interior_variable('w', '1', 'vertical distribution weights', &
          presence=presence_external_required, link=self%link_w)
+      call self%add_horizontal_variable('w_int', 'm', 'depth-integrated vertical distribution weights', &
+         presence=presence_external_required, link=self%link_w_int)
    end subroutine
 
    recursive subroutine particle_integrator_complete_internal_variables(self)
@@ -677,6 +688,7 @@ contains
                ! Couple the weights and source variable of the depth integral
                call depth_integral%request_coupling(depth_integral%id_source, link)
                call depth_integral%request_coupling(depth_integral%id_w, self%link_w)
+               call depth_integral%request_coupling(depth_integral%id_w_int, self%link_w_int)
 
                ! Set up an alias for the depth-integrated variable (coupled to the result of the depth integrator)
                ! Note: the variable must be flagged as state variable (source=source_state or act_as_state_variable=.true.) in
