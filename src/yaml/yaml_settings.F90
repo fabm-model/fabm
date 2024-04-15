@@ -314,8 +314,8 @@ contains
       path = ''
       value => self
       do while (associated(value))
-         if (allocated(value%path)) then
-            if (len(value%path) > 0 .and. include_file_) then
+         if (allocated(value%path) .and. include_file_) then
+            if (len(value%path) > 0) then
                path = value%path // ':' // path
                return
             end if
