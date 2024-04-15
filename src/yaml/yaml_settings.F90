@@ -299,17 +299,22 @@ contains
       value_get_yaml_style = -1
    end function
 
-   function get_path(self) result(path)
+   function get_path(self, include_file) result(path)
       class (type_value), target, intent(in) :: self
+      logical, optional,          intent(in) :: include_file
       character(len=:), allocatable :: path
 
+      logical                     :: include_file_
       class (type_value), pointer :: value
       character(len=8)            :: strindex
+
+      include_file_ = .true.
+      if (present(include_file)) include_file_ = include_file
 
       path = ''
       value => self
       do while (associated(value))
-         if (allocated(value%path)) then
+         if (allocated(value%path) .and. include_file_) then
             if (len(value%path) > 0) then
                path = value%path // ':' // path
                return
