@@ -13,6 +13,7 @@
 
 #define _FABM_MASK_TYPE_ integer
 #define _FABM_MASKED_VALUE_ 1
+#define _FABM_HORIZONTAL_MASK_
 
 #include "fabm.h"
 
