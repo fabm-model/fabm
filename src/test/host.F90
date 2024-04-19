@@ -1266,15 +1266,11 @@ contains
       _BEGIN_OUTER_HORIZONTAL_LOOP_
          call model%check_surface_state(_PREARG_HORIZONTAL_IN_ .true., valid)
 #ifdef _HAS_MASK_
-#  ifdef _FABM_HORIZONTAL_MASK_
-#    if _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_
+# if _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_
          any_unmasked = _IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))
-#    else
+# else
          any_unmasked = any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_)))
-#    endif
-#  else
-         any_unmasked = any(_IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_)))
-#  endif
+# endif
 #endif
          call assert(valid .neqv. any_unmasked, 'check_surface_state', 'invalid result')
       _END_OUTER_HORIZONTAL_LOOP_
@@ -1288,15 +1284,11 @@ contains
       _BEGIN_OUTER_HORIZONTAL_LOOP_
          call model%check_bottom_state(_PREARG_HORIZONTAL_IN_ .true., valid)
 #ifdef _HAS_MASK_
-#  ifdef _FABM_HORIZONTAL_MASK_
-#    if _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_
+# if _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_
          any_unmasked = _IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))
-#    else
+# else
          any_unmasked = any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_)))
-#    endif
-#  else
-         any_unmasked = any(_IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_)))
-#  endif
+# endif
 #endif
          call assert(valid .neqv. any_unmasked, 'check_bottom_state', 'invalid result')
       _END_OUTER_HORIZONTAL_LOOP_
@@ -1350,15 +1342,11 @@ contains
       _BEGIN_OUTER_HORIZONTAL_LOOP_
          call model%check_surface_state(_PREARG_HORIZONTAL_IN_ .true., valid)
 #ifdef _HAS_MASK_
-#  ifdef _FABM_HORIZONTAL_MASK_
-#    if _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_
+# if _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_
          any_unmasked = _IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))
-#    else
+# else
          any_unmasked = any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_)))
-#    endif
-#  else
-         any_unmasked = any(_IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_)))
-#  endif
+# endif
 #endif
          call assert(valid .neqv. any_unmasked, 'check_surface_state', 'invalid result')
       _END_OUTER_HORIZONTAL_LOOP_
@@ -1372,15 +1360,11 @@ contains
       _BEGIN_OUTER_HORIZONTAL_LOOP_
          call model%check_bottom_state(_PREARG_HORIZONTAL_IN_ .true., valid)
 #ifdef _HAS_MASK_
-#  ifdef _FABM_HORIZONTAL_MASK_
-#    if _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_
+# if _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_
          any_unmasked = _IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_))
-#    else
+# else
          any_unmasked = any(_IS_UNMASKED_(mask_hz _INDEX_GLOBAL_HORIZONTAL_(_START_:_STOP_)))
-#    endif
-#  else
-         any_unmasked = any(_IS_UNMASKED_(mask _INDEX_GLOBAL_INTERIOR_(_START_:_STOP_)))
-#  endif
+# endif
 #endif
          call assert(valid .neqv. any_unmasked, 'check_bottom_state', 'invalid result')
       _END_OUTER_HORIZONTAL_LOOP_
