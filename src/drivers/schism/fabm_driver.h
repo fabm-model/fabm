@@ -13,7 +13,12 @@
 
 #define _FABM_MASK_TYPE_ integer
 #define _FABM_MASKED_VALUE_ 1
-#define _FABM_HORIZONTAL_MASK_
 
+! For performance reasons it would be advisable to define _FABM_HORIZONTAL_MASK_
+! which is sufficient to mask dry elements.  It currently does break the 
+! code however, which still employs a 2D mask to mask elements below the bottom index
+! within a water column.  We need a discussion on whether it is more performant to 
+! do the calculations below bottom index nonetheless ... 
+   
 #include "fabm.h"
 
