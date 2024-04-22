@@ -1659,7 +1659,13 @@ contains
       call process_interior_slice(self%check_interior_state_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
 
       valid = self%cache_int%valid
+
+      ! If any of the models' custom state checks failed, and repairing was not allowed,
+      ! no need to also apply our simple range checks - just return
       if (.not. (valid .or. repair)) return
+
+      ! If there are no unmasked points to process, we are done
+      if (self%cache_int%n == 0) return
 
       ! Finally check whether all state variable values lie within their prescribed [constant] bounds.
       ! This is always done, independently of any model-specific checks that may have been called above.
@@ -1775,7 +1781,13 @@ contains
       call process_horizontal_slice(job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
       valid = self%cache_hz%valid
+
+      ! If any of the models' custom state checks failed, and repairing was not allowed,
+      ! no need to also apply our simple range checks - just return
       if (.not. (valid .or. repair)) return
+
+      ! If there are no unmasked points to process, we are done
+      if (self%cache_hz%n == 0) return
 
       ! Quick bounds check for the common case where all values are valid.
       valid_ranges = .true.

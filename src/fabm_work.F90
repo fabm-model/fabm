@@ -283,7 +283,11 @@ subroutine begin_interior_task(domain, catalog, fill_values, task, cache _POSTAR
 #  else
    _N_ = _STOP_ - _START_ + 1
 #  endif
+#else
+   _N_ = 1
 #endif
+
+   if (_N_ == 0) return
 
    _DO_CONCURRENT_(i, 1, size(task%load))
       j = task%load(i)
@@ -343,7 +347,15 @@ subroutine begin_horizontal_task(domain, catalog, fill_values, task, cache _POST
 #  else
    _N_ = _STOP_ - _START_ + 1
 #  endif
+#else
+   if (_IS_UNMASKED_(domain%mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
+      _N_ = 1
+   else
+      _N_ = 0
+   end if
 #endif
+
+   if (_N_ == 0) return
 
    _DO_CONCURRENT_(i, 1, size(task%load_hz))
       j = task%load_hz(i)
@@ -497,7 +509,15 @@ subroutine begin_vertical_task(domain, catalog, fill_values, task, cache _POSTAR
 #  else
    _N_ = _VERTICAL_STOP_ - _VERTICAL_START_ + 1
 #  endif
+#else
+   if (_IS_UNMASKED_(domain%mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
+      _N_ = 1
+   else
+      _N_ = 0
+   end if
 #endif
+
+   if (_N_ == 0) return
 
    _DO_CONCURRENT_(i, 1, size(task%load))
       j = task%load(i)
@@ -653,6 +673,8 @@ end subroutine end_vertical_task
 
       call cache_pack(domain, catalog, cache_fill_values, task, cache _POSTARG_INTERIOR_IN_)
 
+      if (_N_ /= 0) then
+
       ncopy = 0
       do icall = 1, size(task%calls)
          if (task%calls(icall)%active) then
@@ -683,6 +705,8 @@ end subroutine end_vertical_task
          ncopy = ncopy + task%calls(icall)%ncopy_int
       end do
 
+      end if
+
       call cache_unpack(task, cache, store _POSTARG_INTERIOR_IN_)
 
    end subroutine process_interior_slice
@@ -700,6 +724,8 @@ end subroutine end_vertical_task
       _DECLARE_HORIZONTAL_INDICES_
 
       call cache_pack(domain, catalog, cache_fill_values, task, cache _POSTARG_HORIZONTAL_IN_)
+
+      if (_N_ /= 0) then
 
       ncopy = 0
       do icall = 1, size(task%calls)
@@ -734,6 +760,8 @@ end subroutine end_vertical_task
          ncopy = ncopy + task%calls(icall)%ncopy_hz
       end do
 
+      end if
+
       call cache_unpack(task, cache, store _POSTARG_HORIZONTAL_IN_)
 
    end subroutine process_horizontal_slice
@@ -751,6 +779,8 @@ end subroutine end_vertical_task
       _DECLARE_VERTICAL_INDICES_
 
       call cache_pack(domain, catalog, cache_fill_values, task, cache _POSTARG_VERTICAL_IN_)
+
+      if (_N_ /= 0) then
 
       ncopy_int = 0
       ncopy_hz = 0
@@ -788,6 +818,8 @@ end subroutine end_vertical_task
          end do
          ncopy_hz = ncopy_hz + task%calls(icall)%ncopy_hz
       end do
+
+      end if
 
       call cache_unpack(task, cache, store _POSTARG_VERTICAL_IN_)
 
