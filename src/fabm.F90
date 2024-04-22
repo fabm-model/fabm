@@ -2053,7 +2053,7 @@ contains
       call process_interior_slice(self%get_interior_conserved_quantities_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
 
       do i = 1, size(self%conserved_quantities)
-         _UNPACK_TO_PLUS_1_(self%cache_int%write, self%conserved_quantities(i)%index, sums, i, self%cache_int, 0.0_rke)
+         _UNPACK_TO_PLUS_1_(self%cache_int%write, self%conserved_quantities(i)%index, sums, i, self%cache_int, self%conserved_quantities(i)%missing_value)
       end do
    end subroutine get_interior_conserved_quantities
 
@@ -2077,7 +2077,7 @@ contains
       call process_horizontal_slice(self%get_horizontal_conserved_quantities_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
       do i = 1, size(self%conserved_quantities)
-         _HORIZONTAL_UNPACK_TO_PLUS_1_(self%cache_hz%write_hz, self%conserved_quantities(i)%horizontal_index, sums, i, self%cache_hz, 0.0_rke)
+         _HORIZONTAL_UNPACK_TO_PLUS_1_(self%cache_hz%write_hz, self%conserved_quantities(i)%horizontal_index, sums, i, self%cache_hz, self%conserved_quantities(i)%missing_value)
       end do
    end subroutine get_horizontal_conserved_quantities
 
