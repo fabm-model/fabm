@@ -1461,7 +1461,7 @@ contains
       class (type_fabm_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_INTERIOR_IN_
 
-      integer :: ivar, read_index, icall
+      integer :: ivar, read_index, catalog_index, icall
       _DECLARE_INTERIOR_INDICES_
 
 #ifndef NDEBUG
@@ -1485,9 +1485,10 @@ contains
 
       ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
       do ivar = 1, size(self%interior_state_variables)
-         read_index = self%interior_state_variables(ivar)%target%read_indices%value
-         if (self%catalog%interior_sources(read_index) == data_source_fabm) then
-            _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p, self%cache_int, self%interior_state_variables(ivar)%missing_value)
+         catalog_index = self%interior_state_variables(ivar)%target%catalog_index
+         if (self%catalog%interior_sources(catalog_index) == data_source_fabm) then
+            read_index = self%interior_state_variables(ivar)%target%read_indices%value
+            _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%catalog%interior(catalog_index)%p, self%cache_int, self%interior_state_variables(ivar)%missing_value)
          end if
       end do
 
@@ -1498,7 +1499,7 @@ contains
       class (type_fabm_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
-      integer :: icall, ivar, read_index
+      integer :: icall, ivar, read_index, catalog_index
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
@@ -1522,9 +1523,10 @@ contains
 
       ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
       do ivar = 1, size(self%bottom_state_variables)
-         read_index = self%bottom_state_variables(ivar)%target%read_indices%value
-         if (self%catalog%horizontal_sources(read_index) == data_source_fabm) then
-            _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(self%bottom_state_variables(ivar)%target%catalog_index)%p, self%cache_hz, self%bottom_state_variables(ivar)%missing_value)
+         catalog_index = self%bottom_state_variables(ivar)%target%catalog_index
+         if (self%catalog%horizontal_sources(catalog_index) == data_source_fabm) then
+            read_index = self%bottom_state_variables(ivar)%target%read_indices%value
+            _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(catalog_index)%p, self%cache_hz, self%bottom_state_variables(ivar)%missing_value)
          end if
       end do
 
@@ -1535,7 +1537,7 @@ contains
       class (type_fabm_model), intent(inout) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_IN_
 
-      integer :: icall, ivar, read_index
+      integer :: icall, ivar, read_index, catalog_index
       _DECLARE_HORIZONTAL_INDICES_
 
 #ifndef NDEBUG
@@ -1559,9 +1561,10 @@ contains
 
       ! Copy from cache back to global data store [NB variable values have been set in the *read* cache].
       do ivar = 1, size(self%surface_state_variables)
-         read_index = self%surface_state_variables(ivar)%target%read_indices%value
-         if (self%catalog%horizontal_sources(read_index) == data_source_fabm) then
-            _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(self%surface_state_variables(ivar)%target%catalog_index)%p, self%cache_hz, self%surface_state_variables(ivar)%missing_value)
+         catalog_index = self%surface_state_variables(ivar)%target%catalog_index
+         if (self%catalog%horizontal_sources(catalog_index) == data_source_fabm) then
+            read_index = self%surface_state_variables(ivar)%target%read_indices%value
+            _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(catalog_index)%p, self%cache_hz, self%surface_state_variables(ivar)%missing_value)
          end if
       end do
 
@@ -1640,7 +1643,7 @@ contains
       logical,                 intent(out)   :: valid
 
       logical            :: valid_ranges
-      integer            :: ivar, read_index
+      integer            :: ivar, read_index, catalog_index
       real(rki)          :: value, minimum, maximum
       character(len=256) :: err
       _DECLARE_INTERIOR_INDICES_
@@ -1656,7 +1659,13 @@ contains
       call process_interior_slice(self%check_interior_state_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
 
       valid = self%cache_int%valid
+
+      ! If any of the models' custom state checks failed, and repairing was not allowed,
+      ! no need to also apply our simple range checks - just return
       if (.not. (valid .or. repair)) return
+
+      ! If there are no unmasked points to process, we are done
+      if (self%cache_int%n == 0) return
 
       ! Finally check whether all state variable values lie within their prescribed [constant] bounds.
       ! This is always done, independently of any model-specific checks that may have been called above.
@@ -1710,9 +1719,10 @@ contains
 
       if (self%cache_int%set_interior .or. .not. valid_ranges) then
          do ivar = 1, size(self%interior_state_variables)
-            read_index = self%check_interior_state_data(ivar)%index
-            if (self%catalog%interior_sources(read_index) == data_source_fabm) then
-               _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p, self%cache_int, self%interior_state_variables(ivar)%missing_value)
+            catalog_index = self%interior_state_variables(ivar)%target%catalog_index
+            if (self%catalog%interior_sources(catalog_index) == data_source_fabm) then
+               read_index = self%check_interior_state_data(ivar)%index
+               _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%catalog%interior(catalog_index)%p, self%cache_int, self%interior_state_variables(ivar)%missing_value)
             end if
          end do
       end if
@@ -1755,7 +1765,7 @@ contains
       logical,                                    intent(out)   :: valid
 
       logical            :: valid_ranges
-      integer            :: ivar, read_index
+      integer            :: ivar, read_index, catalog_index
       real(rki)          :: value, minimum, maximum
       character(len=256) :: err
       _DECLARE_HORIZONTAL_INDICES_
@@ -1771,7 +1781,13 @@ contains
       call process_horizontal_slice(job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
       valid = self%cache_hz%valid
+
+      ! If any of the models' custom state checks failed, and repairing was not allowed,
+      ! no need to also apply our simple range checks - just return
       if (.not. (valid .or. repair)) return
+
+      ! If there are no unmasked points to process, we are done
+      if (self%cache_hz%n == 0) return
 
       ! Quick bounds check for the common case where all values are valid.
       valid_ranges = .true.
@@ -1825,9 +1841,10 @@ contains
 
       if (self%cache_hz%set_horizontal .or. .not. valid_ranges) then
          do ivar = 1, size(state_variables)
-            read_index = check_state_data(ivar)%index
-            if (self%catalog%horizontal_sources(read_index) == data_source_fabm) then
-               _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(state_variables(ivar)%target%catalog_index)%p, self%cache_hz, state_variables(ivar)%missing_value)
+            catalog_index = state_variables(ivar)%target%catalog_index
+            if (self%catalog%horizontal_sources(catalog_index) == data_source_fabm) then
+               read_index = check_state_data(ivar)%index
+               _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(catalog_index)%p, self%cache_hz, state_variables(ivar)%missing_value)
             end if
          end do
       end if
@@ -1856,24 +1873,25 @@ contains
 #endif
 
          do ivar = 1, size(self%interior_state_variables)
-            read_index = self%interior_state_variables(ivar)%target%read_indices%value
-            if (self%catalog%interior_sources(read_index) == data_source_fabm) then
+            catalog_index = self%interior_state_variables(ivar)%target%catalog_index
+            if (self%catalog%interior_sources(catalog_index) == data_source_fabm) then
+               read_index = self%interior_state_variables(ivar)%target%read_indices%value
 #if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
                if (flag == 1) then
 #endif
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
 #  ifdef _HAS_MASK_
-                  self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(self%cache_hz%ipack(1:self%cache_hz%n)) = self%cache_hz%read(1:self%cache_hz%n, read_index)
+                  self%catalog%interior(catalog_index)%p _INDEX_GLOBAL_INTERIOR_(self%cache_hz%ipack(1:self%cache_hz%n)) = self%cache_hz%read(1:self%cache_hz%n, read_index)
 #  else
                   _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
-                     self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
+                     self%catalog%interior(catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
                   _HORIZONTAL_LOOP_END_
 #  endif
 #elif defined(_INTERIOR_IS_VECTORIZED_)
-                  self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p _INDEX_LOCATION_ = self%cache_hz%read(1,read_index)
+                  self%catalog%interior(catalog_index)%p _INDEX_LOCATION_ = self%cache_hz%read(1,read_index)
 #else
-                  self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p _INDEX_LOCATION_ = self%cache_hz%read(read_index)
+                  self%catalog%interior(catalog_index)%p _INDEX_LOCATION_ = self%cache_hz%read(read_index)
 #endif
 
 #if _FABM_BOTTOM_INDEX_==-1&&defined(_HORIZONTAL_IS_VECTORIZED_)
@@ -1882,10 +1900,10 @@ contains
                   _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(self%cache_hz)
 #  ifdef _HAS_MASK_
                      _VERTICAL_ITERATOR_ = self%domain%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(self%cache_hz%ipack(_J_))
-                     self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(self%cache_hz%ipack(_J_)) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
+                     self%catalog%interior(catalog_index)%p _INDEX_GLOBAL_INTERIOR_(self%cache_hz%ipack(_J_)) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
 #  else
                      _VERTICAL_ITERATOR_ = self%domain%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
-                     self%catalog%interior(self%interior_state_variables(ivar)%target%catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
+                     self%catalog%interior(catalog_index)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1) = self%cache_hz%read _INDEX_SLICE_PLUS_1_(read_index)
 #  endif
                   _HORIZONTAL_LOOP_END_
                end if
@@ -2047,7 +2065,7 @@ contains
       call process_interior_slice(self%get_interior_conserved_quantities_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
 
       do i = 1, size(self%conserved_quantities)
-         _UNPACK_TO_PLUS_1_(self%cache_int%write, self%conserved_quantities(i)%index, sums, i, self%cache_int, 0.0_rke)
+         _UNPACK_TO_PLUS_1_(self%cache_int%write, self%conserved_quantities(i)%index, sums, i, self%cache_int, self%conserved_quantities(i)%missing_value)
       end do
    end subroutine get_interior_conserved_quantities
 
@@ -2071,7 +2089,7 @@ contains
       call process_horizontal_slice(self%get_horizontal_conserved_quantities_job%first_task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_hz _POSTARG_HORIZONTAL_IN_)
 
       do i = 1, size(self%conserved_quantities)
-         _HORIZONTAL_UNPACK_TO_PLUS_1_(self%cache_hz%write_hz, self%conserved_quantities(i)%horizontal_index, sums, i, self%cache_hz, 0.0_rke)
+         _HORIZONTAL_UNPACK_TO_PLUS_1_(self%cache_hz%write_hz, self%conserved_quantities(i)%horizontal_index, sums, i, self%cache_hz, self%conserved_quantities(i)%missing_value)
       end do
    end subroutine get_horizontal_conserved_quantities
 
