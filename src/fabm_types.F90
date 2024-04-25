@@ -60,6 +60,7 @@ module fabm_types
    public type_expression, type_interior_expression, type_horizontal_expression
 
    public get_aggregate_variable_access, type_aggregate_variable_access, type_contribution
+   public set_dependency_flag
 
    public type_coupling_task
 
@@ -127,6 +128,9 @@ module fabm_types
                                  output_time_step_averaged   = 4, &
                                  output_time_step_integrated = 8, &
                                  output_always_available     = 16
+
+   integer, parameter, public :: dependency_flag_none  = 0, &
+                                 dependency_flag_stale = 1
 
    ! --------------------------------------------------------------------------
    ! Data types for pointers to variable values
@@ -338,6 +342,11 @@ module fabm_types
       procedure :: finalize => variable_list_finalize
    end type
 
+   type type_dependency_flag
+      integer ::source = source_unknown
+      integer ::flag   = dependency_flag_none
+   end type
+
    ! --------------------------------------------------------------------------
    ! Data types for information on model variables and model references
    ! --------------------------------------------------------------------------
@@ -362,6 +371,7 @@ module fabm_types
       type (type_contribution_list)   :: contributions
 
       type (type_standard_variable_set) :: standard_variables
+      type (type_dependency_flag), allocatable :: dependency_flags(:)
 
       logical :: fake_state_variable = .false.
 
@@ -2790,6 +2800,31 @@ contains
       link => aggregate_variable_access%link
       if (present(access)) link%target%fake_state_variable = link%target%fake_state_variable .or. iand(access, access_add_source) /= 0
    end function get_aggregate_variable_access
+
+   subroutine set_dependency_flag(self, source, flag)
+      class (type_internal_variable), intent(inout) :: self
+      integer,                        intent(in)    :: source
+      integer,                        intent(in)    :: flag
+
+      integer :: n
+      type (type_dependency_flag), allocatable :: prev(:)
+
+      n = 1
+      if (allocated(self%dependency_flags)) then
+         do n = 1, size(self%dependency_flags)
+            if (self%dependency_flags(n)%source == source) then
+               ! A flag for this source was already set - overwrite it and return immediately
+               self%dependency_flags(n)%flag = flag
+               return
+            end if
+         end do
+         call move_alloc(self%dependency_flags, prev)
+      end if
+      allocate(self%dependency_flags(n))
+      if (n > 1) self%dependency_flags(:n - 1) = prev
+      self%dependency_flags(n)%source = source
+      self%dependency_flags(n)%flag = flag
+   end subroutine
 
    function get_free_unit() result(unit)
       integer :: unit

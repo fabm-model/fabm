@@ -398,7 +398,7 @@ contains
             ! This is the model's own variable (not inherited from child model) and the model itself originally requested read access to it.
             _ASSERT_(.not. associated(link%target%write_owner), 'graph::add_call', 'BUG: required input variable is co-written.')
             input_variable => node%inputs%add(link%target)
-            input_variable%update = resolve(link%target)
+            input_variable%update = get_update_flag(link%target, link%original) == dependency_flag_none
             if (input_variable%update) then
                own_stack_node%requested_variable => link%target
                call target_graph%add_variable(link%target, input_variable%sources, stack_top=own_stack_node, caller=node)
@@ -412,14 +412,30 @@ contains
 
    contains
 
-      logical function resolve(variable)
-         type (type_internal_variable), target, intent(in) :: variable
+      integer function get_update_flag(variable, dependency)
+         type (type_internal_variable), target, intent(in) :: variable, dependency
 
-         resolve = .false.
+         integer :: i
+
+         get_update_flag = dependency_flag_none
+
+         ! If this specific information on how to treat this dependency for the current instance routine [source],
+         ! use that
+         if (allocated(dependency%dependency_flags)) then
+            do i = 1, size(dependency%dependency_flags)
+               if (dependency%dependency_flags(i)%source == source .or. dependency%dependency_flags(i)%source == -1) then
+                  get_update_flag = dependency%dependency_flags(i)%flag
+                  if (dependency%dependency_flags(i)%source == source) return
+               end if
+            end do
+         end if
+
+         ! If we are requesting a variable computed by the exact same instance routine, the input must be stale by definition
          ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
-         if (associated(pownmember, variable%owner%frozen) .and. variable%source == source) return
-         if (source == source_get_light_extinction .or. source == source_get_drag .or. source == source_get_albedo) return
-         resolve = .true.
+         if (associated(pownmember, variable%owner%frozen) .and. variable%source == source) get_update_flag = dependency_flag_stale
+
+         ! For deprecated feedback routines, we always use stale inputs to avoid generating circular dependencies
+         if (source == source_get_light_extinction .or. source == source_get_drag .or. source == source_get_albedo) get_update_flag = dependency_flag_stale
       end function
 
    end function graph_add_call

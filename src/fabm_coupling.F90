@@ -244,6 +244,12 @@ contains
             display = display_inherit
             if (link%original%presence == presence_internal .or. associated(self%coupling_task_list%find(link))) display = display_advanced
             target_name = self%couplings%get_string(trim(link%name), trim(link%original%long_name), units=trim(link%original%units), default='', display=display)
+            if (len(target_name) >= 4) then
+               if (target_name(len(target_name) - 3:len(target_name)) == '@old') then
+                  call set_dependency_flag(link%original, source=-1, flag=dependency_flag_stale)
+                  target_name = target_name(:len(target_name) - 4)
+               end if
+            end if
             if (target_name /= '') then
                allocate(task)
                task%link => link
