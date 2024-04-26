@@ -1015,7 +1015,8 @@ contains
       do while (associated(variable_request))
          final_output_variable => link_cowritten_outputs(variable_request%output_variable_set)
          available_from_last_task = .false.
-         if (associated(final_output_variable)) available_from_last_task = find_responsible_call(last_task, final_output_variable) /= 0
+         if (associated(last_task) .and. associated(final_output_variable)) &
+            available_from_last_task = find_responsible_call(last_task, final_output_variable) /= 0
          if (.not. available_from_last_task) then
             ! The desired variable is not calculated by the last task
             ! Thus, the last contributing variable (if any) has to be stored in the store.
@@ -1454,18 +1455,6 @@ contains
          node => node%next
       end do
 
-#ifndef NDEBUG
-      ! Ensure each call appears exactly once in the superset of all graphs
-      call check_graph_duplicates(self)
-#endif
-
-      ! Create tasks. This must be done for all jobs before job_finalize_prefill_settings is called, as this API operates across all jobs.
-      node => self%first
-      do while (associated(node))
-         call job_create_tasks(node%p, log_unit)
-         node => node%next
-      end do
-
       ! Make sure all stale inputs are still calculated somewhere
       node => self%first
       do while (associated(node))
@@ -1480,6 +1469,18 @@ contains
             end do
             graph_node => graph_node%next
          end do
+         node => node%next
+      end do
+
+#ifndef NDEBUG
+      ! Ensure each call appears exactly once in the superset of all graphs
+      call check_graph_duplicates(self)
+#endif
+
+      ! Create tasks. This must be done for all jobs before job_finalize_prefill_settings is called, as this API operates across all jobs.
+      node => self%first
+      do while (associated(node))
+         call job_create_tasks(node%p, log_unit)
          node => node%next
       end do
 
