@@ -936,7 +936,7 @@ contains
 
       task => job%first_task
       do while (associated(task))
-         if (task_is_responsible(task, output_variable)) return
+         if (find_responsible_call(task, output_variable) /= 0) return
          task => task%next
       end do
 
@@ -947,14 +947,13 @@ contains
       end do
    end function
 
-   logical function task_is_responsible(task, output_variable)
+   function find_responsible_call(task, output_variable) result(icall)
       class (type_task), intent(in)       :: task
       type (type_output_variable), target :: output_variable
+      integer                             :: icall
 
-      integer                                       :: icall
       type (type_output_variable_set_node), pointer :: output_variable_node
 
-      task_is_responsible = .true.
       do icall = 1, size(task%calls)
          ! Loop over all outputs of this call
          output_variable_node => task%calls(icall)%graph_node%outputs%first
@@ -963,7 +962,7 @@ contains
             output_variable_node => output_variable_node%next
          end do
       end do
-      task_is_responsible = .false.
+      icall = 0
    end function
 
    logical function output_is_produced_before(task, reference_output_variable, output_variable)
@@ -993,7 +992,7 @@ contains
       class (type_job),                     pointer :: root_job
       type (type_variable_request),         pointer :: variable_request
       type (type_output_variable),          pointer :: final_output_variable
-      logical                                       :: responsible
+      logical                                       :: available_from_last_task
 
       _ASSERT_(self%state < job_state_finalized_prefill_settings, 'job_finalize_prefill_settings', 'This job has already been initialized.')
       _ASSERT_(self%state >= job_state_tasks_created, 'job_finalize_prefill_settings', 'Tasks for this job have not been created yet.')
@@ -1015,9 +1014,9 @@ contains
       variable_request => self%first_variable_request
       do while (associated(variable_request))
          final_output_variable => link_cowritten_outputs(variable_request%output_variable_set)
-         responsible = .false.
-         if (associated(final_output_variable)) responsible = task_is_responsible(last_task, final_output_variable)
-         if (.not. responsible) then
+         available_from_last_task = .false.
+         if (associated(final_output_variable)) available_from_last_task = find_responsible_call(last_task, final_output_variable) /= 0
+         if (.not. available_from_last_task) then
             ! The desired variable is not calculated by the last task
             ! Thus, the last contributing variable (if any) has to be stored in the store.
             ! From there, the last task can then load it into the write cache if needed
@@ -1131,7 +1130,7 @@ contains
 
             ! If there is no first task, *all* tasks will preload the variable value from store into write cache.
             ! In that case, ensure the very first job properly initializes the store value.
-            if (.not. associated(first_task))  call first_job%store_prefills%add(variable_and_tasks(n)%output_variable%target)
+            if (.not. associated(first_task)) call first_job%store_prefills%add(variable_and_tasks(n)%output_variable%target)
          end do
       end function
 
@@ -1141,7 +1140,8 @@ contains
          integer                                       :: icall
          type (type_input_variable_set_node),  pointer :: input_variable
          type (type_output_variable),          pointer :: final_output_variable
-         logical                                       :: responsible
+         logical                                       :: available_from_earlier_call
+         integer                                       :: isourcecall
 
          do icall = 1, size(task%calls)
             ! For all inputs that this call requires, determine whether they are produced by the same task
@@ -1149,9 +1149,12 @@ contains
             input_variable => task%calls(icall)%graph_node%inputs%first
             do while (associated(input_variable))
                final_output_variable => link_cowritten_outputs(input_variable%p%sources)
-               responsible = .false.
-               if (associated(final_output_variable)) responsible = task_is_responsible(task, final_output_variable)
-               if (responsible .and.  input_variable%p%update) then
+               available_from_earlier_call = .false.
+               if (associated(final_output_variable)) then
+                  isourcecall = find_responsible_call(task, final_output_variable)
+                  available_from_earlier_call = isourcecall /= 0 .and. isourcecall < icall
+               end if
+               if (available_from_earlier_call) then
                   ! The call that is responsible for computing this input is part of the same task.
                   ! Therefore the output needs to be copied to the read cache.
                   final_output_variable%copy_to_cache = .true.
