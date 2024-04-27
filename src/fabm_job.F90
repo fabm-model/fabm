@@ -750,8 +750,6 @@ contains
       end do
       self%first_call_request => null()
 
-      !self%graph%frozen = .true.
-
       self%state = job_state_graph_created
    end subroutine job_create_graph
 
@@ -777,6 +775,10 @@ contains
          _ASSERT_(job_node%p%state >= job_state_tasks_created, 'job_create_tasks', trim(self%name) // ': tasks for previous job (' // trim(job_node%p%name) // ') have not been created yet.')
          job_node => job_node%next
       end do
+
+      ! Freeze the grpah (no more variables or calls can be added),
+      ! because now we will create a call schedule from it (lists of tasks and calls)
+      self%graph%frozen = .true.
 
       if (log_unit /= -1) write (log_unit,'(a)') trim(self%name)
       call find_best_order(self%graph, self%operation, log_unit, steps)
