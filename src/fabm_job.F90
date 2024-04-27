@@ -930,24 +930,30 @@ contains
       end do
    end function get_last_task
 
-   recursive function find_responsible_task(job, output_variable) result(task)
+   recursive subroutine find_responsible_task(job, output_variable, task, icall)
       class (type_job), intent(in)        :: job
       type (type_output_variable), target :: output_variable
-      type (type_task), pointer :: task
+      type (type_task), pointer           :: task
+      integer, intent(out)                :: icall
+
       type (type_job_node), pointer :: job_node
 
       task => job%first_task
       do while (associated(task))
-         if (find_responsible_call(task, output_variable) /= 0) return
+         icall = find_responsible_call(task, output_variable)
+         if (icall /= 0) return
          task => task%next
       end do
 
       job_node => job%next%first
-      do while (associated(job_node) .and. .not. associated(task))
-         task => find_responsible_task(job_node%p, output_variable)
+      do while (associated(job_node))
+         call find_responsible_task(job_node%p, output_variable, task, icall)
+         if (icall /= 0) return
          job_node => job_node%next
       end do
-   end function
+
+      icall = 0
+   end subroutine
 
    function find_responsible_call(task, output_variable) result(icall)
       class (type_task), intent(in)       :: task
@@ -966,26 +972,6 @@ contains
       end do
       icall = 0
    end function
-
-   logical function output_is_produced_before(task, reference_output_variable, output_variable)
-      class (type_task), intent(in)       :: task
-      type (type_output_variable), target :: reference_output_variable, output_variable
-
-      integer                                       :: icall
-      type (type_output_variable_set_node), pointer :: output_variable_node
-
-      output_is_produced_before = .false.
-      do icall = 1, size(task%calls)
-         ! Loop over all outputs of this call
-         output_variable_node => task%calls(icall)%graph_node%outputs%first
-         do while (associated(output_variable_node))
-            if (associated(output_variable_node%p, output_variable)) output_is_produced_before = .true.
-            if (associated(output_variable_node%p, reference_output_variable)) return
-            output_variable_node => output_variable_node%next
-         end do
-      end do
-      _ASSERT_(.false., 'output_is_produced_before', 'reference output not found in task')
-   end function output_is_produced_before
 
    subroutine job_finalize_prefill_settings(self)
       class (type_job), target, intent(inout) :: self
@@ -1040,6 +1026,7 @@ contains
          type type_variable_and_task
             type (type_output_variable), pointer :: output_variable
             type (type_task),            pointer :: task
+            integer                              :: icall
          end type
 
          type (type_output_variable_set_node), pointer :: output_variable
@@ -1049,6 +1036,7 @@ contains
          type (type_job_set)                           :: job_set
          class (type_job),                     pointer :: first_job, last_job
          type (type_task),                     pointer :: first_task, last_task
+         integer                                       :: ilastcall
 
          final_output_variable => null()
 
@@ -1068,12 +1056,11 @@ contains
          n = 0
          output_variable => output_variable_set%first
          do while (associated(output_variable))
-            task => find_responsible_task(root_job, output_variable%p)
-            _ASSERT_(associated(task), 'job_finalize_prefill_settings', 'Task responsible for ' // trim(output_variable%p%target%name) // ' not found.')
             n = n + 1
-            variable_and_tasks(n)%task => task
             variable_and_tasks(n)%output_variable => output_variable%p
-            call job_set%add(task%job)
+            call find_responsible_task(root_job, output_variable%p, variable_and_tasks(n)%task, variable_and_tasks(n)%icall)
+            _ASSERT_(associated(variable_and_tasks(n)%task), 'job_finalize_prefill_settings', 'Task responsible for ' // trim(output_variable%p%target%name) // ' not found.')
+            call job_set%add(variable_and_tasks(n)%task%job)
             output_variable => output_variable%next
          end do
 
@@ -1110,6 +1097,7 @@ contains
             _ASSERT_(associated(last_task), 'link_cowritten_outputs', 'No contributing task found within last job.')
          end if
 
+         ilastcall = 0
          do n = 1, size(variable_and_tasks)
             if (.not. associated(variable_and_tasks(n)%task, last_task)) then
                ! This contributing task is not the last and therefore needs to save its intermediate result
@@ -1118,10 +1106,9 @@ contains
             else
                ! This variable is written by the last contributing task
                ! Determine whether it is also the last-written variable (from the last contributing call)
-               if (.not. associated(final_output_variable)) then
+               if (variable_and_tasks(n)%icall > ilastcall) then
                   final_output_variable => variable_and_tasks(n)%output_variable
-               elseif (output_is_produced_before(variable_and_tasks(n)%task, variable_and_tasks(n)%output_variable, final_output_variable)) then
-                  final_output_variable => variable_and_tasks(n)%output_variable
+                  ilastcall = variable_and_tasks(n)%icall
                end if
             end if
 
