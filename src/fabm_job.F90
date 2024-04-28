@@ -976,11 +976,16 @@ contains
    subroutine job_finalize_prefill_settings(self)
       class (type_job), target, intent(inout) :: self
 
-      type (type_task),                     pointer :: task, last_task
-      class (type_job),                     pointer :: root_job
-      type (type_variable_request),         pointer :: variable_request
-      type (type_output_variable),          pointer :: final_output_variable
-      logical                                       :: available_from_last_task
+      type type_output_info
+         type (type_output_variable), pointer :: variable => null()
+         type (type_task),            pointer :: task     => null()
+         integer                              :: icall    = 0
+      end type
+
+      type (type_task),             pointer :: task, last_task
+      class (type_job),             pointer :: root_job
+      type (type_variable_request), pointer :: variable_request
+      type (type_output_info)               :: final_output
 
       _ASSERT_(self%state < job_state_finalized_prefill_settings, 'job_finalize_prefill_settings', 'This job has already been initialized.')
       _ASSERT_(self%state >= job_state_tasks_created, 'job_finalize_prefill_settings', 'Tasks for this job have not been created yet.')
@@ -1001,15 +1006,12 @@ contains
 
       variable_request => self%first_variable_request
       do while (associated(variable_request))
-         final_output_variable => link_cowritten_outputs(variable_request%output_variable_set)
-         available_from_last_task = .false.
-         if (associated(last_task) .and. associated(final_output_variable)) &
-            available_from_last_task = find_responsible_call(last_task, final_output_variable) /= 0
-         if (.not. available_from_last_task) then
+         final_output = link_cowritten_outputs(variable_request%output_variable_set)
+         if (.not. associated(final_output%task, last_task)) then
             ! The desired variable is not calculated by the last task
             ! Thus, the last contributing variable (if any) has to be stored in the store.
             ! From there, the last task can then load it into the write cache if needed
-            if (associated(final_output_variable)) final_output_variable%copy_to_store = .true.
+            if (associated(final_output%variable)) final_output%variable%copy_to_store = .true.
             if (variable_request%variable%source /= source_constant .and. .not. variable_request%store) call last_task%write_cache_preload%add(variable_request%variable)
          end if
          variable_request => variable_request%next
@@ -1019,26 +1021,18 @@ contains
 
    contains
 
-      function link_cowritten_outputs(output_variable_set) result(final_output_variable)
+      function link_cowritten_outputs(output_variable_set) result(final_output)
          type (type_output_variable_set), intent(in) :: output_variable_set
-         type (type_output_variable), pointer :: final_output_variable
-
-         type type_variable_and_task
-            type (type_output_variable), pointer :: output_variable
-            type (type_task),            pointer :: task
-            integer                              :: icall
-         end type
+         type (type_output_info) :: final_output
 
          type (type_output_variable_set_node), pointer :: output_variable
          type (type_task),                     pointer :: task
          integer                                       :: n
-         type (type_variable_and_task), allocatable    :: variable_and_tasks(:)
+         type (type_output_info), allocatable          :: variable_and_tasks(:)
          type (type_job_set)                           :: job_set
          class (type_job),                     pointer :: first_job, last_job
          type (type_task),                     pointer :: first_task, last_task
          integer                                       :: ilastcall
-
-         final_output_variable => null()
 
          if (.not. associated(output_variable_set%first)) return
 
@@ -1057,7 +1051,7 @@ contains
          output_variable => output_variable_set%first
          do while (associated(output_variable))
             n = n + 1
-            variable_and_tasks(n)%output_variable => output_variable%p
+            variable_and_tasks(n)%variable => output_variable%p
             call find_responsible_task(root_job, output_variable%p, variable_and_tasks(n)%task, variable_and_tasks(n)%icall)
             _ASSERT_(associated(variable_and_tasks(n)%task), 'job_finalize_prefill_settings', 'Task responsible for ' // trim(output_variable%p%target%name) // ' not found.')
             call job_set%add(variable_and_tasks(n)%task%job)
@@ -1097,40 +1091,35 @@ contains
             _ASSERT_(associated(last_task), 'link_cowritten_outputs', 'No contributing task found within last job.')
          end if
 
-         ilastcall = 0
          do n = 1, size(variable_and_tasks)
             if (.not. associated(variable_and_tasks(n)%task, last_task)) then
                ! This contributing task is not the last and therefore needs to save its intermediate result
                ! into the store, so it can be preloaded into the write cache by subsequent tasks
-               variable_and_tasks(n)%output_variable%copy_to_store = .true.
+               variable_and_tasks(n)%variable%copy_to_store = .true.
             else
                ! This variable is written by the last contributing task
                ! Determine whether it is also the last-written variable (from the last contributing call)
-               if (variable_and_tasks(n)%icall > ilastcall) then
-                  final_output_variable => variable_and_tasks(n)%output_variable
-                  ilastcall = variable_and_tasks(n)%icall
-               end if
+               if (variable_and_tasks(n)%icall > final_output%icall) final_output = variable_and_tasks(n)
             end if
 
             if (.not. associated(variable_and_tasks(n)%task, first_task)) then
                ! This contributing task is not the first and therefore needs to load the previous intermediate result
                ! into the write cache
-               call variable_and_tasks(n)%task%write_cache_preload%add(variable_and_tasks(n)%output_variable%target)
+               call variable_and_tasks(n)%task%write_cache_preload%add(variable_and_tasks(n)%variable%target)
             end if
 
             ! If there is no first task, *all* tasks will preload the variable value from store into write cache.
             ! In that case, ensure the very first job properly initializes the store value.
-            if (.not. associated(first_task)) call first_job%store_prefills%add(variable_and_tasks(n)%output_variable%target)
+            if (.not. associated(first_task)) call first_job%store_prefills%add(variable_and_tasks(n)%variable%target)
          end do
       end function
 
       subroutine prepare_task(task)
-         type (type_task), pointer :: task
+         type (type_task), target :: task
 
          integer                                       :: icall
          type (type_input_variable_set_node),  pointer :: input_variable
-         type (type_output_variable),          pointer :: final_output_variable
-         logical                                       :: available_from_earlier_call
+         type (type_output_info)                       :: final_output
          integer                                       :: isourcecall
 
          do icall = 1, size(task%calls)
@@ -1138,18 +1127,13 @@ contains
             ! (solved by copying between write and read cache) or by an earlier task (solved by temporary storing)
             input_variable => task%calls(icall)%graph_node%inputs%first
             do while (associated(input_variable))
-               final_output_variable => link_cowritten_outputs(input_variable%p%sources)
-               available_from_earlier_call = .false.
-               if (associated(final_output_variable)) then
-                  isourcecall = find_responsible_call(task, final_output_variable)
-                  available_from_earlier_call = isourcecall /= 0 .and. isourcecall < icall
-               end if
-               if (available_from_earlier_call) then
+               final_output = link_cowritten_outputs(input_variable%p%sources)
+               if (associated(final_output%task, task) .and. final_output%icall < icall) then
                   ! The call that is responsible for computing this input is part of the same task.
                   ! Therefore the output needs to be copied to the read cache.
-                  final_output_variable%copy_to_cache = .true.
+                  final_output%variable%copy_to_cache = .true.
                else
-                  if (associated(final_output_variable)) final_output_variable%copy_to_store = .true.
+                  if (associated(final_output%variable)) final_output%variable%copy_to_store = .true.
                   if (input_variable%p%target%source /= source_constant .and. input_variable%p%target%source /= source_unknown) &
                      call task%read_cache_preload%add(input_variable%p%target)
                end if
