@@ -86,19 +86,23 @@ endforeach(institute)
 configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_library.F90.in
                ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90)
 
-set(GIT_COMMIT_ID unknown)
-set(GIT_BRANCH_NAME unknown)
-configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_version.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90)
 if(FABM_EMBED_VERSION)
+  # Use git to get description of current FABM tag/commit id and branch
   set(GET_GIT_INFO_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules/GetGitInfo.cmake")
   add_custom_target(fabm_version
      ${CMAKE_COMMAND} -DINFILE=${CMAKE_CURRENT_LIST_DIR}/fabm_version.F90.in -DOUTFILE=${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90 -P ${GET_GIT_INFO_SCRIPT}
+     BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90
      WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
      COMMENT "Retrieving description of last FABM commit..."
      SOURCES ${CMAKE_CURRENT_LIST_DIR}/fabm_version.F90.in ${GET_GIT_INFO_SCRIPT}
      VERBATIM
   )
   set_property(TARGET fabm_version PROPERTY FOLDER fabm)
+else()
+  # Insert dummy current FABM tag/commit id and branch
+  set(GIT_COMMIT_ID unknown)
+  set(GIT_BRANCH_NAME unknown)
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_version.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90)
 endif()
 
 configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_parameters.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_parameters.F90)

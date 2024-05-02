@@ -283,3 +283,19 @@ jobs:
         run: |
           cmake-${{ matrix.cmake-version }}.0-Linux-x86_64/bin/cmake -S . -B build
           cmake-${{ matrix.cmake-version }}.0-Linux-x86_64/bin/cmake --build build --target install
+  ninja:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone FABM
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Ninja
+        run: |
+          sudo apt-get update
+          sudo apt-get install ninja-build
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja
+          cmake --build build --target install
