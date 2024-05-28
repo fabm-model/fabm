@@ -9,7 +9,7 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       matrix:
-        version: [9, 10, 11, 12, 13]
+        version: [9, 10, 11, 12]
         os: [ubuntu-latest]
         include:
           #- version: 4.8
@@ -24,6 +24,10 @@ jobs:
           - version: 8
             os: ubuntu-20.04
             cmake_args: -DFABM_USE_CONTIGUOUS=OFF
+          - version: 13
+            os: ubuntu-24.04
+          - version: 14
+            os: ubuntu-24.04
       fail-fast: false
     runs-on: ${{ matrix.os }}
     env:

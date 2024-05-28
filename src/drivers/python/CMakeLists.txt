@@ -9,7 +9,7 @@ set(BUILD_SHARED_LIBS ON)
 project(python_fabm Fortran)
 
 # Customize compiler flags
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
   if(WIN32)
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} /Od")
   else()

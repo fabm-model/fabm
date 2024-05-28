@@ -16,6 +16,7 @@ set(DEFAULT_INSTITUTES
     msi          # Marine Systems Institute, Tallinn University of Technology, Estonia
     nersc        # Nansen Environmental and Remote Sensing Center
     niva         # Norwegian Institute for Water Research, Norway
+    ogs          # National Institute of Oceanography and Applied Geophysics - OGS, Italy
     pclake       # The PCLake model - reference implementation
     pisces       # Pelagic Interactions Scheme for Carbon and Ecosystem Studies, https://doi.org/10.5194/gmd-8-2465-2015
     pml          # Plymouth Marine Laboratory, United Kingdom
@@ -24,7 +25,7 @@ set(DEFAULT_INSTITUTES
     uhh          # University of Hamburg, Germany
 )
 
-set(OPTIONAL_INSTITUTES ersem mops pclake pisces ihamocc)
+set(OPTIONAL_INSTITUTES ersem mops pclake pisces ihamocc ogs)
 
 if(CMAKE_CURRENT_LIST_DIR STREQUAL CMAKE_SOURCE_DIR)
   message(FATAL_ERROR "Please point cmake to the top-level directory with FABM source code, not to its src subdirectory.")
