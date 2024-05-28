@@ -55,13 +55,13 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 # Customize compiler flags
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
   add_compile_options(-ffree-line-length-none)
-elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
   if(WIN32)
     add_compile_options("$<$<CONFIG:DEBUG>:/Od>")
   endif()
-elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Cray")
+elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Cray")
   add_compile_options(-N 1023)
 endif()
 

@@ -19,9 +19,9 @@ find_path(GOTM_BASE
 option(FABM_USE_NetCDF "Enable NetCDF output" ON)
 
 # Specify additional compiler flags
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
   set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffree-line-length-none")
-elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
   if(WIN32)
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} /Od")
   endif()
