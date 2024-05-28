@@ -24,6 +24,8 @@ jobs:
           - version: 8
             os: ubuntu-20.04
             cmake_args: -DFABM_USE_CONTIGUOUS=OFF
+          - version: 13
+            os: ubuntu-24.04
       fail-fast: false
     runs-on: ${{ matrix.os }}
     env:
