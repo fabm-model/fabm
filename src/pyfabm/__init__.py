@@ -854,7 +854,8 @@ class StandardVariable:
             shape = self.model.interior_domain_shape
         else:
             shape = self.model.horizontal_domain.shape
-        return np.ctypeslib.as_array(pdata, shape).newbyteorder("=")
+        arr = np.ctypeslib.as_array(pdata, shape)
+        return arr.view(dtype=self.model.fabm.numpy_dtype)
 
 
 class NamedObjectList(Sequence):
@@ -1575,22 +1576,18 @@ class Model(object):
             return False
         for i, variable in enumerate(self.interior_diagnostic_variables):
             pdata = self.fabm.get_interior_diagnostic_data(self.pmodel, i + 1)
-            variable.data = (
-                None
-                if not pdata
-                else np.ctypeslib.as_array(
-                    pdata, self.interior_domain_shape
-                ).newbyteorder("=")
-            )
+            if pdata:
+                arr = np.ctypeslib.as_array(pdata, self.interior_domain_shape)
+                variable.data = arr.view(dtype=self.fabm.numpy_dtype)
+            else:
+                variable.data = None
         for i, variable in enumerate(self.horizontal_diagnostic_variables):
             pdata = self.fabm.get_horizontal_diagnostic_data(self.pmodel, i + 1)
-            variable.data = (
-                None
-                if not pdata
-                else np.ctypeslib.as_array(
-                    pdata, self.horizontal_domain_shape
-                ).newbyteorder("=")
-            )
+            if pdata:
+                arr = np.ctypeslib.as_array(pdata, self.horizontal_domain_shape)
+                variable.data = arr.view(dtype=self.fabm.numpy_dtype)
+            else:
+                variable.data = None
         return ready
 
     checkReady = start
