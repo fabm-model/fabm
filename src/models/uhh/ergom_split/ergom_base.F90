@@ -64,28 +64,29 @@
 ! \end{center}
 ! \end{figure}
 !
-! !USES:
+! USES:
    use fabm_types
    use fabm_uhh_ergom_split_utilities
 
    implicit none
 
    private
-!
-! !PUBLIC MEMBER FUNCTIONS:
+
+! PUBLIC MEMBER FUNCTIONS:
    public type_uhh_ergom_split_base
-!
-! !REVISION HISTORY:
+
+! REVISION HISTORY:
 !  Author(s):
-!
-! !PUBLIC_DERIVED_TYPES:
+
+! PUBLIC_DERIVED_TYPES:!
    type,extends(type_base_model) :: type_uhh_ergom_split_base
 ! Variable identifiers
-      type (type_state_variable_id)        :: id_de,id_am,id_ni,id_po,id_o2
+      type (type_state_variable_id)        :: id_de,id_am,id_ni,id_po,id_o2, id_no
+      type (type_state_variable_id)        :: id_dic
       type (type_bottom_state_variable_id) :: id_fl
       type (type_dependency_id)            :: id_temp,id_salt
       type (type_horizontal_dependency_id) :: id_wind,id_taub
-      type (type_diagnostic_variable_id)   :: id_GPP,id_NCP,id_PPR,id_NPR
+      type (type_diagnostic_variable_id)   :: id_GPP,id_NCP,id_PPR,id_NPR, id_rem
 ! Model parameters
       real(rk) :: sfl_po,sfl_am,sfl_ni,kc,w_de, fl_initial
       real(rk) :: tf,lan,anmx,oan,beta_an,lda,tda,beta_da
@@ -111,24 +112,24 @@
 
 !-----------------------------------------------------------------------
 !BOP
-!
-! !IROUTINE: Initialise the ergom model
-!
-! !INTERFACE:
+
+! IROUTINE: Initialise the ergom model
+
+! INTERFACE:
 subroutine initialize(self,configunit)
-!
-! !DESCRIPTION:
+
+! DESCRIPTION:
 !   Here, the ergom namelist is read and the variables exported by the model are registered with FABM
-!
-! !USES
+
+! USES
 !   List any modules used by this routine.
    IMPLICIT NONE
-!
-! !INPUT PARAMETERS:
+
+! INPUT PARAMETERS:
    class (type_uhh_ergom_split_base), intent(inout), target :: self
    integer,                intent(in)            :: configunit
-!
-! !LOCAL VARIABLES:
+
+! LOCAL VARIABLES:
    real(rk)           :: sfl_po=0.0015_rk
    real(rk)           :: sfl_am=0.07_rk
    real(rk)           :: sfl_ni=0.09_rk
@@ -163,22 +164,24 @@ subroutine initialize(self,configunit)
    real(rk)           :: minimum_thsum=0.0_rk
    real(rk),parameter :: secs_pr_day=86400.0_rk
    real(rk), parameter :: one_pr_day = 1.0_rk/86400.0_rk
+   character(len=64)  :: dic_variable
    
    namelist /uhh_ergom_split_base/ &
                         sfl_po,sfl_am,sfl_ni,fluff,    &
                         w_de,kc,depo,   &
-                        lan,oan,beta_an,anmx,  &
+                        lan,oan,beta_an,anmx,dic_variable,  &
                         lda,tda,beta_da,pvel,sr,s1,s2,s3,s4,a0,a1,a2,  &
                         lds,lsd,tau_crit,lsa,bsa,ph1,ph2,minimum_thsum
 !EOP
 !-----------------------------------------------------------------------
 !BOC
    
-   !  Read the namelist
+   dic_variable=''
+!  Read the namelist
    if (configunit>0) read(configunit,nml=uhh_ergom_split_base,err=99,end=100)
 
 !  Store parameter values in our own derived type
-!  NB! All rates must be provided in values per day,
+!  NB All rates must be provided in values per day,
 !  and are converted here to values per second
    call self%get_parameter(self%fl_initial, 'fl_initial', default=fl_initial)
    call self%get_parameter(self%sfl_po, 'sfl_po', default=sfl_po, scale_factor=one_pr_day)
@@ -221,19 +224,29 @@ subroutine initialize(self,configunit)
          minimum=0.0_rk,no_river_dilution=.true.)
    call self%register_state_variable(self%id_ni,'nit','mmol n/m**3','nitrate',      &
          minimum=0.0_rk,no_river_dilution=.true.)
+   call self%register_state_variable(self%id_no,'nitrite','mmol n/m**3','nitrite',      &
+         minimum=0.0_rk,no_river_dilution=.true.)
    call self%register_state_variable(self%id_po,'pho','mmol p/m**3','phosphate',    &
          minimum=0.0_rk,no_river_dilution=.true.)
    call self%register_state_variable(self%id_o2,'oxy','mmol o2/m**3','oxygen') 
    if (self%fluff) call self%register_bottom_state_variable(self%id_fl,'flf','mmol n/m**2','fluff', &
           fl_initial,  minimum=0.0_rk)
+! Register diagnostic variables
+
+   ! Register optional link to external DIC pool
+   call self%register_state_dependency(self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon',required=.false.)
+   if (dic_variable/='') call self%request_coupling(self%id_dic,dic_variable)   
+
+   call self%register_diagnostic_variable(self%id_rem,'rem_llda','', &
+      'rem llda', output=output_instantaneous) 
 
    ! Register environmental dependencies
-! Register environmental dependencies
    call self%register_dependency(self%id_temp,standard_variables%temperature)
    call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
    call self%register_dependency(self%id_wind,standard_variables%wind_speed)
    if (self%fluff) call self%register_dependency(self%id_taub,standard_variables%bottom_stress)
-   call self%register_dependency(self%id_taub,standard_variables%bottom_stress) 
+   
+   !call self%register_dependency(self%id_taub,standard_variables%bottom_stress) 
    return
 
  99 call self%fatal_error('uhh_ergom_split_base_init','Error reading namelist uhh_ergom_split_base.')
@@ -245,21 +258,21 @@ subroutine initialize(self,configunit)
  
 !-----------------------------------------------------------------------
 !BOP
+
+! IROUTINE: Right hand sides of ergom model
 !
-! !IROUTINE: Right hand sides of ergom model
-!
-! !INTERFACE:
+! INTERFACE:
    subroutine do(self,_ARGUMENTS_DO_)
-!!
+
 ! !USES:
    IMPLICIT NONE
-!
-! !INPUT PARAMETERS:
+
+! INPUT PARAMETERS:
    class(type_uhh_ergom_split_base), INTENT(IN) :: self
   _DECLARE_ARGUMENTS_DO_
 
-! !LOCAL VARIABLES:
-    real(rk)        :: am,ni,po,de,o2,o2pos
+! LOCAL VARIABLES:
+    real(rk)        :: am,ni,po,de,o2,o2pos,nitrite
     real(rk)        :: temp,llda,llan
     real(rk)        :: wo=30.0_rk,wn=0.1_rk
     real(rk)        :: thopnp,thomnp,thomnm,thsum
@@ -276,7 +289,6 @@ subroutine initialize(self,configunit)
     _GET_(self%id_ni,ni) !nitrate
     _GET_(self%id_po,po) !phosphate
     _GET_(self%id_o2,o2) !oxygen
-
 !   Retrieve current environmental conditions
     _GET_   (self%id_temp,temp) !local water temperature
 
@@ -288,35 +300,37 @@ subroutine initialize(self,configunit)
     thomnp=thomnp/thsum
     thomnm=thomnm/thsum
 
-    llda=self%lda*(1.0_rk+self%beta_da*yy(self%tda,temp))
+    llda=self%lda*(1.0_rk+self%beta_da*yy(self%tda,temp)) 
+
     o2pos = max(o2,0.0_rk)
     llan=th(o2,0.0_rk,0.0_rk,1.0_rk)*o2pos/(self%oan+o2pos)*self%lan*exp(self%beta_an*temp)
-
-   _ADD_SOURCE_(self%id_de,-llda*de)
-   _ADD_SOURCE_(self%id_am,llda*de-llan*am-self%anmx*am*thomnp)
-   _ADD_SOURCE_(self%id_ni,llan*am-self%s1*llda*de*thomnp)
-   _ADD_SOURCE_(self%id_po,self%sr*llda*de)
-   o2rhs = -self%s4*(llan*am) - self%s2*(thopnp+thomnm)*llda*de
-   
-   _ADD_SOURCE_(self%id_o2,o2rhs)
-
-!   Leave spatial loops (if any)
+     
+   _SET_ODE_(self%id_de,-llda*de)
+   _SET_ODE_(self%id_am,llda*de-llan*am-self%anmx*am*thomnp)
+   _SET_ODE_(self%id_ni,llan*am-self%s1*llda*de*thomnp)
+   _SET_ODE_(self%id_po,self%sr*llda*de)
+   o2rhs = (-self%s4*(llan*am) - self%s2*(thopnp+thomnm)*llda*de)
+ 
+   _SET_ODE_(self%id_o2,o2rhs)
+   _SET_DIAGNOSTIC_(self%id_rem,llda) 
+   ! set DIC source, if available
+   if (_AVAILABLE_(self%id_dic)) &
+    _SET_ODE_(self%id_dic,106.0d0/16.0d0*llda*de)
    _LOOP_END_
   
    END subroutine do
 !EOC
 
    subroutine do_ppdd(self,_ARGUMENTS_DO_PPDD_)
-!!
-! !USES:
+
+! USES:
    IMPLICIT NONE
-!
-! !INPUT PARAMETERS:
+
+! INPUT PARAMETERS:
    class(type_uhh_ergom_split_base), INTENT(IN) :: self
   _DECLARE_ARGUMENTS_DO_PPDD_
-!
-!
-! !LOCAL VARIABLES:
+
+! LOCAL VARIABLES:
     real(rk)        :: am,ni,po,de,o2
     real(rk)        :: temp,llda,llan
     real(rk)        :: wo=30.0_rk,wn=0.1_rk
@@ -358,6 +372,10 @@ subroutine initialize(self,configunit)
    
    _SET_DD_(self%id_o2,self%id_o2,o2rhs)
 
+   ! set DIC source, if available
+   if (_AVAILABLE_(self%id_dic)) &
+     _SET_PP_(self%id_dic,self%id_dic,106.0d0/16.0d0*llda*de)
+
 !   Leave spatial loops (if any)
    _LOOP_END_
 
@@ -366,23 +384,23 @@ subroutine initialize(self,configunit)
 
 !-----------------------------------------------------------------------
 !BOP
-!
-! !IROUTINE: Get the light extinction coefficient due to biogeochemical
-! variables
-!
-! !DESCRIPTION:
 
-! !INTERFACE:
+! IROUTINE: Get the light extinction coefficient due to biogeochemical
+! variables
+
+! DESCRIPTION:
+
+! INTERFACE:
    subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !
-! !INPUT PARAMETERS:
+! INPUT PARAMETERS:
    class (type_uhh_ergom_split_base), intent(in) :: self
    _DECLARE_ARGUMENTS_GET_EXTINCTION_
 !
-! !REVISION HISTORY:
+! REVISION HISTORY:
 !  Original author(s): Jorn Bruggeman
 !
-! !LOCAL VARIABLES:
+! LOCAL VARIABLES:
    real(rk)                     :: de
 !EOP
 !-----------------------------------------------------------------------
@@ -406,24 +424,24 @@ subroutine initialize(self,configunit)
 !-----------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: 
+! IROUTINE: 
 !
-! !INTERFACE:
+! INTERFACE:
    subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
 !
-! !DESCRIPTION:
+! DESCRIPTION:
 ! Calculating the benthic fluxes
 !
    implicit none
 
-! !INPUT PARAMETERS:
+! INPUT PARAMETERS:
    class (type_uhh_ergom_split_base), intent(in) :: self
    _DECLARE_ARGUMENTS_DO_BOTTOM_
 !
-! !REVISION HISTORY:
+! REVISION HISTORY:
 !  Original author(s):
 !
-! !LOCAL VARIABLES:
+! LOCAL VARIABLES:
    real(rk)                   :: fl,amb,nib,pob,deb,oxb,taub,temp
    real(rk)                   :: llds,llsd,llsa,wo=30.0_rk,wn=0.1_rk,dot2=0.2_rk
    real(rk)                   :: thopnp,thomnp,thomnm,thsum
@@ -467,17 +485,17 @@ subroutine initialize(self,configunit)
             llsd=0.0_rk
          end if
 
-      _ADD_BOTTOM_SOURCE_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,0.0_rk,1.0_rk)*llsa*fl)
-      _ADD_BOTTOM_FLUX_(self%id_de,-llds*deb+llsd*fl)
-      _ADD_BOTTOM_FLUX_(self%id_am,llsa*fl)
-      _ADD_BOTTOM_FLUX_(self%id_ni,-self%s1*thomnp*llsa*fl)
-      _ADD_BOTTOM_FLUX_(self%id_po,self%sr*(1.0_rk-self%ph1*th(oxb,wo,0.0_rk,1.0_rk)*yy(self%ph2,oxb))*llsa*fl)
-      _ADD_BOTTOM_FLUX_(self%id_o2,-(self%s4+self%s2*(thopnp+thomnm))*llsa*fl)
+      _SET_BOTTOM_ODE_(self%id_fl,llds*deb-llsd*fl-llsa*fl-th(oxb,wo,0.0_rk,1.0_rk)*llsa*fl)
+      _SET_BOTTOM_EXCHANGE_(self%id_de,-llds*deb+llsd*fl)
+      _SET_BOTTOM_EXCHANGE_(self%id_am,llsa*fl)
+      _SET_BOTTOM_EXCHANGE_(self%id_ni,-self%s1*thomnp*llsa*fl)
+      _SET_BOTTOM_EXCHANGE_(self%id_po,self%sr*(1.0_rk-self%ph1*th(oxb,wo,0.0_rk,1.0_rk)*yy(self%ph2,oxb))*llsa*fl)
+      _SET_BOTTOM_EXCHANGE_(self%id_o2,(self%s4+self%s2*(thopnp+thomnm))*llsa*fl)
    else
 
    ! if running without fluff layer, use burial loss of detritus
       _GET_(self%id_de,deb)
-      _ADD_BOTTOM_FLUX_(self%id_de,-self%depo*deb*deb)
+      _SET_BOTTOM_EXCHANGE_(self%id_de,-self%depo*deb*deb)
    end if
 
    ! Leave spatial loops over the horizontal domain (if any).
@@ -607,15 +625,15 @@ subroutine initialize(self,configunit)
       end if
       p_vel = p_vel/secs_pr_day
       flo2 =p_vel*(osat_weiss(temp,salt)-o2)
-   _ADD_SURFACE_FLUX_(self%id_o2,flo2)
+   _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
    else
       flo2 = self%pvel*(self%a0*(self%a1-self%a2*temp)-o2)
-   _ADD_SURFACE_FLUX_(self%id_o2,flo2)
+   _SET_SURFACE_EXCHANGE_(self%id_o2,flo2)
    end if
 
-   _ADD_SURFACE_FLUX_(self%id_ni,self%sfl_ni)!/secs_pr_day)
-   _ADD_SURFACE_FLUX_(self%id_am,self%sfl_am)!/secs_pr_day)
-   _ADD_SURFACE_FLUX_(self%id_po,self%sfl_po)!/secs_pr_day)
+   _SET_SURFACE_EXCHANGE_(self%id_ni,self%sfl_ni)
+   _SET_SURFACE_EXCHANGE_(self%id_am,self%sfl_am)
+   _SET_SURFACE_EXCHANGE_(self%id_po,self%sfl_po)
 
    _HORIZONTAL_LOOP_END_
    end subroutine do_surface
