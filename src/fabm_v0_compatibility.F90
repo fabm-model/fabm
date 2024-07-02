@@ -96,7 +96,7 @@ contains
       call fabm_initialize_library()
 
       call fabm_load_settings(model%settings, path, unit=unit)
-      call fabm_configure_model(model%root, model%settings, model%schedules, model%log)
+      call fabm_configure_model(model%root, model%settings, model%schedules, model%log, model%require_initialization)
 
       ! Initialize model tree
       initialize = .true.

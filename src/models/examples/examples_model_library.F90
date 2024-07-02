@@ -8,6 +8,7 @@ module examples_model_library
    use examples_npzd_model_library
    use nonlocal
    use examples_light_cycle
+   use examples_particle_model_library
    ! Add new examples modules here
 
    implicit none
@@ -26,7 +27,8 @@ contains
 
    subroutine initialize(self)
       class (type_factory), intent(inout) :: self
-      call self%add(examples_npzd_model_factory,'npzd')
+      call self%add(examples_npzd_model_factory, 'npzd')
+      call self%add(examples_particle_model_factory, 'particle')
       ! Add additional child model factories here
 
       ! Go through default initializaton steps.

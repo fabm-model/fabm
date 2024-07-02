@@ -782,7 +782,7 @@ contains
       logical, parameter :: repair = .false.
       logical :: valid
 
-      ireport = n / 10
+      ireport = max(1, n / 10)
 
       call random_seed(size=nseed)
       allocate(seed(nseed))

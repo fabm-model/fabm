@@ -171,9 +171,9 @@ contains
       select type (standard_variable)
       class is (type_universal_standard_variable)
          call add_child(in_interior,   trim(standard_variable%name),                     standard_variable%units, standard_variable)
-         call add_child(at_surface,    trim(standard_variable%name) // '_at_surface',    trim(standard_variable%units) // '*m', standard_variable)
-         call add_child(at_bottom,     trim(standard_variable%name) // '_at_bottom',     trim(standard_variable%units) // '*m', standard_variable)
-         call add_child(at_interfaces, trim(standard_variable%name) // '_at_interfaces', trim(standard_variable%units) // '*m', standard_variable)
+         call add_child(at_surface,    trim(standard_variable%name) // '_at_surface',    trim(standard_variable%units) // ' m', standard_variable)
+         call add_child(at_bottom,     trim(standard_variable%name) // '_at_bottom',     trim(standard_variable%units) // ' m', standard_variable)
+         call add_child(at_interfaces, trim(standard_variable%name) // '_at_interfaces', trim(standard_variable%units) // ' m', standard_variable)
       end select
 
       allocate(node)
