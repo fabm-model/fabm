@@ -16,6 +16,7 @@ set(DEFAULT_INSTITUTES
     msi          # Marine Systems Institute, Tallinn University of Technology, Estonia
     nersc        # Nansen Environmental and Remote Sensing Center
     niva         # Norwegian Institute for Water Research, Norway
+    ogs          # National Institute of Oceanography and Applied Geophysics - OGS, Italy
     pclake       # The PCLake model - reference implementation
     pisces       # Pelagic Interactions Scheme for Carbon and Ecosystem Studies, https://doi.org/10.5194/gmd-8-2465-2015
     pml          # Plymouth Marine Laboratory, United Kingdom
@@ -24,7 +25,7 @@ set(DEFAULT_INSTITUTES
     uhh          # University of Hamburg, Germany
 )
 
-set(OPTIONAL_INSTITUTES ersem mops pclake pisces ihamocc)
+set(OPTIONAL_INSTITUTES ersem mops pclake pisces ihamocc ogs)
 
 if(CMAKE_CURRENT_LIST_DIR STREQUAL CMAKE_SOURCE_DIR)
   message(FATAL_ERROR "Please point cmake to the top-level directory with FABM source code, not to its src subdirectory.")
@@ -86,19 +87,23 @@ endforeach(institute)
 configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_library.F90.in
                ${CMAKE_CURRENT_BINARY_DIR}/fabm_library.F90)
 
-set(GIT_COMMIT_ID unknown)
-set(GIT_BRANCH_NAME unknown)
-configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_version.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90)
 if(FABM_EMBED_VERSION)
+  # Use git to get description of current FABM tag/commit id and branch
   set(GET_GIT_INFO_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules/GetGitInfo.cmake")
   add_custom_target(fabm_version
      ${CMAKE_COMMAND} -DINFILE=${CMAKE_CURRENT_LIST_DIR}/fabm_version.F90.in -DOUTFILE=${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90 -P ${GET_GIT_INFO_SCRIPT}
+     BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90
      WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
      COMMENT "Retrieving description of last FABM commit..."
      SOURCES ${CMAKE_CURRENT_LIST_DIR}/fabm_version.F90.in ${GET_GIT_INFO_SCRIPT}
      VERBATIM
   )
   set_property(TARGET fabm_version PROPERTY FOLDER fabm)
+else()
+  # Insert dummy current FABM tag/commit id and branch
+  set(GIT_COMMIT_ID unknown)
+  set(GIT_BRANCH_NAME unknown)
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_version.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_version.F90)
 endif()
 
 configure_file(${CMAKE_CURRENT_LIST_DIR}/fabm_parameters.F90.in ${CMAKE_CURRENT_BINARY_DIR}/fabm_parameters.F90)
