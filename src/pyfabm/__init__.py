@@ -247,12 +247,6 @@ def get_lib(name: str) -> ctypes.CDLL:
         ctypes.c_char_p,
     ]
     lib.variable_get_long_path.restype = None
-    lib.variable_get_output_name.argtypes = [
-        ctypes.c_void_p,
-        ctypes.c_int,
-        ctypes.c_char_p,
-    ]
-    lib.variable_get_output_name.restype = None
     lib.variable_get_suitable_masters.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     lib.variable_get_suitable_masters.restype = ctypes.c_void_p
     lib.variable_get_output.argtypes = [ctypes.c_void_p]
@@ -628,13 +622,7 @@ class Variable(object):
 
     @property
     def output_name(self) -> str:
-        if self.variable_pointer is None:
-            return self.name
-        stroutput_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        self.model.fabm.variable_get_output_name(
-            self.variable_pointer, ATTRIBUTE_LENGTH, stroutput_name
-        )
-        return stroutput_name.value.decode("ascii")
+        return re.sub("\W", "_", self.name)
 
     @property
     def missing_value(self):
@@ -736,13 +724,12 @@ class DiagnosticVariable(Variable):
         name: str,
         units: str,
         long_name: str,
-        path: str,
         variable_pointer: ctypes.c_void_p,
         index: int,
         horizontal: bool,
     ):
         Variable.__init__(
-            self, model, name, units, long_name, path, variable_pointer=variable_pointer
+            self, model, name, units, long_name, variable_pointer=variable_pointer
         )
         self.data = None
         self.horizontal = horizontal
@@ -1308,10 +1295,9 @@ class Model(object):
             self.interior_diagnostic_variables._data.append(
                 DiagnosticVariable(
                     self,
-                    strname.value.decode("ascii"),
+                    strpath.value.decode("ascii"),
                     strunits.value.decode("ascii"),
                     strlong_name.value.decode("ascii"),
-                    strpath.value.decode("ascii"),
                     ptr,
                     i + 1,
                     False,
@@ -1334,10 +1320,9 @@ class Model(object):
             self.horizontal_diagnostic_variables._data.append(
                 DiagnosticVariable(
                     self,
-                    strname.value.decode("ascii"),
+                    strpath.value.decode("ascii"),
                     strunits.value.decode("ascii"),
                     strlong_name.value.decode("ascii"),
-                    strpath.value.decode("ascii"),
                     ptr,
                     i + 1,
                     True,
