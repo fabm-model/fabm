@@ -28,20 +28,6 @@ contains
       call copy_to_c_string(variable%long_name, long_name)
    end subroutine variable_get_metadata
 
-   subroutine variable_get_output_name(pvariable, length, name) bind(c)
-      !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_output_name
-      type (c_ptr),           intent(in), value              :: pvariable
-      integer(c_int),         intent(in), value              :: length
-      character(kind=c_char), intent(out), dimension(length) :: name
-
-      type (type_internal_variable), pointer :: variable
-      character(len=attribute_length)        :: name_
-
-      call c_f_pointer(pvariable, variable)
-      name_ = get_safe_name(variable%name)
-      call copy_to_c_string(name_, name)
-   end subroutine variable_get_output_name
-
    subroutine variable_get_long_path(pvariable, length, long_name) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_long_path
       type (c_ptr),           intent(in), value              :: pvariable
