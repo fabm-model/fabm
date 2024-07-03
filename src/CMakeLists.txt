@@ -124,6 +124,7 @@ add_library(fabm_base OBJECT
             ${CMAKE_CURRENT_LIST_DIR}/builtin/time_filter.F90
             ${CMAKE_CURRENT_LIST_DIR}/builtin/depth_integral.F90
             ${CMAKE_CURRENT_LIST_DIR}/builtin/relaxation.F90
+            ${CMAKE_CURRENT_LIST_DIR}/builtin/depth_mapping.F90
             ${CMAKE_CURRENT_LIST_DIR}/builtin/model_library.F90
             ${CMAKE_CURRENT_LIST_DIR}/../include/fabm.h
             ${CMAKE_CURRENT_LIST_DIR}/../include/fabm_private.h

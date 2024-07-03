@@ -54,10 +54,13 @@ module fabm_types
    public get_free_unit
    public get_safe_name
    public source2string
+   public domain2string
+   public standard_variable2domain
 
    public type_expression, type_interior_expression, type_horizontal_expression
 
    public get_aggregate_variable_access, type_aggregate_variable_access, type_contribution
+   public set_dependency_flag
 
    public type_coupling_task
 
@@ -110,8 +113,8 @@ module fabm_types
 
    integer, parameter, public :: access_none       = 0, &
                                  access_read       = 1, &
-                                 access_set_source = 2, &
-                                 access_state      = ior(access_read,access_set_source)
+                                 access_add_source = 2, &
+                                 access_state      = ior(access_read, access_add_source)
 
    integer, parameter, public :: store_index_none = -1
 
@@ -123,7 +126,11 @@ module fabm_types
                                  output_instantaneous        = 1, &
                                  output_time_integrated      = 2, &
                                  output_time_step_averaged   = 4, &
-                                 output_time_step_integrated = 8
+                                 output_time_step_integrated = 8, &
+                                 output_always_available     = 16
+
+   integer, parameter, public :: dependency_flag_none  = 0, &
+                                 dependency_flag_stale = 1
 
    ! --------------------------------------------------------------------------
    ! Data types for pointers to variable values
@@ -139,6 +146,7 @@ module fabm_types
 
    type type_real_pointer_set
       type (type_real_pointer), allocatable :: pointers(:)
+      real(rk)                              :: value = 0.0_rk
    contains
       procedure :: append    => real_pointer_set_append
       procedure :: extend    => real_pointer_set_extend
@@ -161,24 +169,29 @@ module fabm_types
    ! --------------------------------------------------------------------------
 
    type type_coupling_task
-      type (type_link), pointer                    :: slave       => null()
-      character(len=attribute_length)              :: master_name = ''
-      class (type_domain_specific_standard_variable), pointer :: master_standard_variable => null()
-      logical                                      :: user_specified = .false.
+      type (type_link), pointer                    :: link       => null()
+      character(len=attribute_length)              :: target_name = ''
+      class (type_domain_specific_standard_variable), pointer :: target_standard_variable => null()
+      integer                                      :: priority = 0
       class (type_coupling_task), pointer          :: previous    => null()
       class (type_coupling_task), pointer          :: next        => null()
    contains
       procedure :: resolve => coupling_task_resolve
    end type
 
+   type, extends(type_coupling_task) :: type_link_coupling_task
+      type (type_link), pointer :: target_link => null()
+   contains
+      procedure :: resolve => link_coupling_task_resolve
+   end type
+
    type type_coupling_task_list
       class (type_coupling_task), pointer :: first => null()
       logical                             :: includes_custom = .false.
    contains
-      procedure :: remove     => coupling_task_list_remove
-      procedure :: find       => coupling_task_list_find
-      procedure :: add        => coupling_task_list_add
-      procedure :: add_object => coupling_task_list_add_object
+      procedure :: remove => coupling_task_list_remove
+      procedure :: find   => coupling_task_list_find
+      procedure :: add    => coupling_task_list_add
    end type
 
    type,extends(type_settings) :: type_fabm_settings
@@ -282,7 +295,7 @@ module fabm_types
 
    type type_aggregate_variable_access
       class (type_domain_specific_standard_variable), pointer :: standard_variable => null()
-      integer                                                 :: access            = access_none
+      type (type_link),                               pointer :: link              => null()
       type (type_aggregate_variable_access),          pointer :: next              => null()
    end type
 
@@ -329,6 +342,11 @@ module fabm_types
       procedure :: finalize => variable_list_finalize
    end type
 
+   type type_dependency_flag
+      integer ::source = source_unknown
+      integer ::flag   = dependency_flag_none
+   end type
+
    ! --------------------------------------------------------------------------
    ! Data types for information on model variables and model references
    ! --------------------------------------------------------------------------
@@ -353,6 +371,7 @@ module fabm_types
       type (type_contribution_list)   :: contributions
 
       type (type_standard_variable_set) :: standard_variables
+      type (type_dependency_flag), allocatable :: dependency_flags(:)
 
       logical :: fake_state_variable = .false.
 
@@ -457,6 +476,7 @@ module fabm_types
 
       type (type_fabm_settings) :: couplings
       type (type_fabm_settings) :: parameters
+      type (type_fabm_settings) :: initialization
 
       class (type_expression), pointer :: first_expression => null()
 
@@ -490,13 +510,20 @@ module fabm_types
       procedure :: find_model
 
       ! Procedures for requesting coupling between variables
-      procedure :: request_coupling_for_link
-      procedure :: request_coupling_for_name
-      procedure :: request_coupling_for_id
-      procedure :: request_standard_coupling_for_link
-      procedure :: request_standard_coupling_for_id
-      generic   :: request_coupling => request_coupling_for_link, request_coupling_for_name, request_coupling_for_id, &
-                                       request_standard_coupling_for_link, request_standard_coupling_for_id
+      ! The last two letters of each name indicate the type of the coupled variable and its target, respectively
+      ! l=link, n=name, s=standard variable, i=variable identifier, t=task
+      procedure :: request_coupling_ln
+      procedure :: request_coupling_in
+      procedure :: request_coupling_nn
+      procedure :: request_coupling_ls
+      procedure :: request_coupling_is
+      procedure :: request_coupling_ll
+      procedure :: request_coupling_il
+      procedure :: request_coupling_lt
+      generic   :: request_coupling => request_coupling_ln, request_coupling_in, request_coupling_nn, &
+                                       request_coupling_ls, request_coupling_is, &
+                                       request_coupling_ll, request_coupling_il, &
+                                       request_coupling_lt
 
       ! Procedures that may be used to query parameter values during initialization.
       procedure :: get_real_parameter
@@ -1138,16 +1165,9 @@ contains
       class is (type_interior_standard_variable)
          call self%add_interior_variable('_constant_*', standard_variable%units, standard_variable%name, source=source_constant, &
             fill_value=value, output=output_none, link=link)
-         call link%target%contributions%add(standard_variable)
-      class is (type_surface_standard_variable)
-         call self%add_horizontal_variable('_constant_*', standard_variable%units, standard_variable%name, source=source_constant, &
-            fill_value=value, domain=domain_surface, output=output_none, link=link)
-      class is (type_bottom_standard_variable)
-         call self%add_horizontal_variable('_constant_*', standard_variable%units, standard_variable%name, source=source_constant, &
-            fill_value=value, domain=domain_bottom, output=output_none, link=link)
       class is (type_horizontal_standard_variable)
          call self%add_horizontal_variable('_constant_*', standard_variable%units, standard_variable%name, source=source_constant, &
-            fill_value=value, output=output_none, link=link)
+            fill_value=value, output=output_none, link=link, domain=standard_variable2domain(standard_variable))
       end select
       call link%target%contributions%add(standard_variable)
    end subroutine add_constant_to_aggregate_variable
@@ -1386,10 +1406,10 @@ contains
       self%first => null()
    end subroutine link_list_finalize
 
-   subroutine create_coupling_task(self, link, task)
-      class (type_base_model),  intent(inout) :: self
-      type (type_link), target, intent(inout) :: link
-      class (type_coupling_task), pointer     :: task
+   subroutine request_coupling_lt(self, link, task)
+      class (type_base_model),             intent(inout) :: self
+      type (type_link), target,            intent(in)    :: link
+      class (type_coupling_task), pointer, intent(inout) :: task
 
       type (type_link), pointer :: current_link
 
@@ -1399,92 +1419,117 @@ contains
          if (associated(current_link, link)) exit
          current_link => current_link%next
       end do
-      if (.not.associated(current_link)) call self%fatal_error('request_coupling_for_link', &
+      if (.not.associated(current_link)) call self%fatal_error('request_coupling_ln', &
          'Couplings can only be requested for variables that you own yourself.')
 
       ! Make sure that the link also points to a variable that we registered ourselves,
       ! rather than one registered by a child model.
-      if (index(link%name, '/') /= 0) call self%fatal_error('request_coupling_for_link', &
+      if (index(link%name, '/') /= 0) call self%fatal_error('request_coupling_ln', &
          'Couplings can only be requested for variables that you registered yourself, &
          &not inherited ones such as the current ' // trim(link%name) // '.')
 
       ! Create a coupling task (reuse existing one if available, and not user-specified)
-      call self%coupling_task_list%add(link, .false., task)
-   end subroutine create_coupling_task
+      task%link => link
+      call self%coupling_task_list%add(task, priority=0)
+   end subroutine request_coupling_lt
 
-   subroutine request_coupling_for_link(self, link, master)
+   subroutine request_coupling_ln(self, link, target_name)
       class (type_base_model),  intent(inout) :: self
-      type (type_link), target, intent(inout) :: link
-      character(len=*),         intent(in)    :: master
+      type (type_link), target, intent(in)    :: link
+      character(len=*),         intent(in)    :: target_name
 
       class (type_coupling_task), pointer :: task
 
-      ! Create a coupling task (reuse existing one if available, and not user-specified)
-      call create_coupling_task(self, link, task)
-      if (.not. associated(task)) return   ! We already have a user-specified task, which takes priority
+      allocate(task)
+      call request_coupling_lt(self, link, task)
+      if (.not. associated(task)) return
+      task%target_name = target_name
+   end subroutine request_coupling_ln
 
-      ! Configure coupling task
-      task%master_name = master
-   end subroutine request_coupling_for_link
-
-   recursive subroutine request_coupling_for_name(self, slave, master)
+   recursive subroutine request_coupling_nn(self, name, target_name)
       class (type_base_model), intent(inout), target :: self
-      character(len=*),        intent(in)            :: slave, master
+      character(len=*),        intent(in)            :: name, target_name
 
       class (type_base_model), pointer :: parent
       type (type_link),        pointer :: link
       integer                          :: islash
 
       ! If a path with / is given, redirect to tentative parent model.
-      islash = index(slave, '/', .true.)
+      islash = index(name, '/', .true.)
       if (islash /= 0) then
-         parent => self%find_model(slave(:islash - 1))
-         call request_coupling_for_name(parent, slave(islash + 1:), master)
+         parent => self%find_model(name(:islash - 1))
+         call request_coupling_nn(parent, name(islash + 1:), target_name)
          return
       end if
 
-      link => self%links%find(slave)
-      if (.not. associated(link)) call self%fatal_error('request_coupling_for_name', &
-         'Specified slave (' // trim(slave) // ') not found. Make sure the variable is registered before calling request_coupling.')
-      call request_coupling_for_link(self, link, master)
-   end subroutine request_coupling_for_name
+      link => self%links%find(name)
+      if (.not. associated(link)) call self%fatal_error('request_coupling_nn', &
+         'Specified variable (' // trim(name) // ') not found. Make sure the variable is registered before calling request_coupling.')
+      call request_coupling_ln(self, link, target_name)
+   end subroutine request_coupling_nn
 
-   subroutine request_coupling_for_id(self, id, master)
+   subroutine request_coupling_in(self, id, target_name)
       class (type_base_model),  intent(inout) :: self
-      class (type_variable_id), intent(inout) :: id
-      character(len=*),         intent(in)    :: master
+      class (type_variable_id), intent(in)    :: id
+      character(len=*),         intent(in)    :: target_name
 
-      if (.not. associated(id%link)) call self%fatal_error('request_coupling_for_id', &
+      if (.not. associated(id%link)) call self%fatal_error('request_coupling_in', &
          'The provided variable identifier has not been registered yet.')
-      call self%request_coupling(id%link, master)
-   end subroutine request_coupling_for_id
+      call request_coupling_ln(self, id%link, target_name)
+   end subroutine request_coupling_in
 
-   subroutine request_standard_coupling_for_link(self, link, master)
+   subroutine request_coupling_ls(self, link, target_standard_variable)
       use fabm_standard_variables   ! workaround for bug in Cray compiler 8.3.4
       class (type_base_model),                        intent(inout)      :: self
-      type (type_link), target,                       intent(inout)      :: link
-      class (type_domain_specific_standard_variable), intent(in), target :: master
+      type (type_link), target,                       intent(in)         :: link
+      class (type_domain_specific_standard_variable), intent(in), target :: target_standard_variable
 
       class (type_coupling_task), pointer :: task
 
-      call create_coupling_task(self, link, task)
-      if (.not. associated(task)) return   ! We already have a user-specified task, which takes priority
-      task%master_standard_variable => master%typed_resolve()
-   end subroutine request_standard_coupling_for_link
+      allocate(task)
+      call request_coupling_lt(self, link, task)
+      if (.not. associated(task)) return
+      task%target_standard_variable => target_standard_variable%typed_resolve()
+   end subroutine request_coupling_ls
 
-   subroutine request_standard_coupling_for_id(self, id, master)
+   subroutine request_coupling_is(self, id, target_standard_variable)
       class (type_base_model),                        intent(inout)      :: self
-      class (type_variable_id),                       intent(inout)      :: id
-      class (type_domain_specific_standard_variable), intent(in), target :: master
+      class (type_variable_id),                       intent(in)         :: id
+      class (type_domain_specific_standard_variable), intent(in), target :: target_standard_variable
 
-      if (.not. associated(id%link)) call self%fatal_error('request_standard_coupling_for_id', &
+      if (.not. associated(id%link)) call self%fatal_error('request_coupling_is', &
          'The provided variable identifier has not been registered yet.')
-      call self%request_standard_coupling_for_link(id%link, master)
-   end subroutine request_standard_coupling_for_id
+      call request_coupling_ls(self, id%link, target_standard_variable)
+   end subroutine request_coupling_is
+
+   subroutine request_coupling_ll(self, link, target_link)
+      class (type_base_model),  intent(inout) :: self
+      type (type_link), target, intent(in)    :: link
+      type (type_link), target, intent(in)    :: target_link
+
+      class (type_link_coupling_task), pointer :: task
+      class (type_coupling_task),      pointer :: base_class_pointer
+
+      allocate(task)
+      base_class_pointer => task
+      call request_coupling_lt(self, link, base_class_pointer)
+      if (.not. associated(base_class_pointer)) return
+      task%target_link => target_link
+   end subroutine request_coupling_ll
+
+   subroutine request_coupling_il(self, id, target_link)
+      class (type_base_model),  intent(inout) :: self
+      class (type_variable_id), intent(in)    :: id
+      type (type_link), target, intent(in)    :: target_link
+
+      if (.not. associated(id%link)) call self%fatal_error('request_coupling_il', &
+         'The provided variable identifier has not been registered yet.')
+      call request_coupling_ll(self, id%link, target_link)
+   end subroutine request_coupling_il
 
    subroutine integer_pointer_set_append(self, value)
       class (type_integer_pointer_set), intent(inout) :: self
-      integer, target                                 :: value
+      integer, target,                  intent(inout) :: value
 
       type (type_integer_pointer), allocatable :: oldarray(:)
 
@@ -1500,7 +1545,7 @@ contains
 
       ! Add pointer to provided integer to the list.
       self%pointers(size(self%pointers))%p => value
-      self%pointers(size(self%pointers))%p = self%value
+      value = self%value
    end subroutine integer_pointer_set_append
 
    subroutine integer_pointer_set_extend(self, other)
@@ -1545,7 +1590,7 @@ contains
 
    subroutine real_pointer_set_append(self, value)
       class (type_real_pointer_set), intent(inout) :: self
-      real(rk),target                              :: value
+      real(rk), target,              intent(inout) :: value
 
       type (type_real_pointer), allocatable :: oldarray(:)
 
@@ -1561,7 +1606,7 @@ contains
 
       ! Add pointer to provided real to the list.
       self%pointers(size(self%pointers))%p => value
-      self%pointers(size(self%pointers))%p = self%pointers(1)%p
+      value = self%value
    end subroutine real_pointer_set_append
 
    subroutine real_pointer_set_extend(self, other)
@@ -1588,6 +1633,7 @@ contains
             self%pointers(i)%p = value
          end do
       end if
+      self%value = value
    end subroutine real_pointer_set_set_value
 
    subroutine register_interior_state_variable(self, id, name, units, long_name, &
@@ -1799,11 +1845,10 @@ contains
 
       integer                                      :: length, i
       character(len=256)                           :: text
-      type (type_link), pointer                    :: link_
+      type (type_link), pointer                    :: link_, duplicate
       class (type_base_standard_variable), pointer :: pstandard_variable
       character(len=attribute_length)              :: oriname
       integer                                      :: instance
-      logical                                      :: duplicate
 
       ! Check whether the model information may be written to (only during initialization)
       if (self%frozen) call self%fatal_error('add_variable', &
@@ -1881,12 +1926,11 @@ contains
          call variable%state_indices%append(state_index)
       end if
 
-      if (present(background)) then
-         ! Store a pointer to the variable that should hold the background value.
-         ! If the background value itself is also prescribed, use it.
-         call variable%background_values%append(background)
-         if (present(background_value)) call variable%background_values%set_value(background_value)
-      end if
+      ! Set the background value (0 by default)
+      if (present(background_value)) call variable%background_values%set_value(background_value)
+
+      ! Store a pointer to the variable that should hold the background value (if any).
+      if (present(background)) call variable%background_values%append(background)
 
       if (present(read_index)) then
          variable%read_index => read_index
@@ -1903,8 +1947,8 @@ contains
 
       ! Check if a link with this name exists.
       ! If so, append an integer number to make the name unique
-      duplicate = associated(self%links%find(variable%name))
-      if (duplicate) then
+      duplicate => self%links%find(variable%name)
+      if (associated(duplicate)) then
          ! Link with this name exists already.
          ! Append numbers to the variable name until a unique name is found.
          oriname = variable%name
@@ -1924,7 +1968,7 @@ contains
       end if
 
       ! If this name matched that of a previous variable, create a coupling to it.
-      if (duplicate) call self%request_coupling(link_, oriname)
+      if (associated(duplicate)) call self%request_coupling(link_, duplicate)
    end subroutine add_variable
 
    subroutine add_interior_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
@@ -2717,9 +2761,11 @@ contains
       end do
    end function find_model
 
-   function get_aggregate_variable_access(self, standard_variable) result(aggregate_variable_access)
+   function get_aggregate_variable_access(self, standard_variable, access) result(link)
       class (type_base_model),                        intent(inout) :: self
       class (type_domain_specific_standard_variable), target        :: standard_variable
+      integer, optional,                              intent(in)    :: access
+      type (type_link), pointer :: link
 
       type (type_aggregate_variable_access), pointer :: aggregate_variable_access
       logical,                               pointer :: pmember
@@ -2729,16 +2775,56 @@ contains
       pmember => standard_variable%aggregate_variable
       do while (associated(aggregate_variable_access))
          ! Note: for Cray 10.0.4, the comparison below fails for class pointers! Therefore we compare type member references.
-         if (associated(pmember, aggregate_variable_access%standard_variable%aggregate_variable)) return
+         if (associated(pmember, aggregate_variable_access%standard_variable%aggregate_variable)) exit
          aggregate_variable_access => aggregate_variable_access%next
       end do
 
-      ! Not found - create a new requests object.
-      allocate(aggregate_variable_access)
-      aggregate_variable_access%standard_variable => standard_variable
-      aggregate_variable_access%next => self%first_aggregate_variable_access
-      self%first_aggregate_variable_access => aggregate_variable_access
+      if (.not. associated(aggregate_variable_access)) then
+         allocate(aggregate_variable_access)
+         aggregate_variable_access%standard_variable => standard_variable
+         select type (standard_variable => aggregate_variable_access%standard_variable)
+         class is (type_interior_standard_variable)
+            call self%add_interior_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, link=aggregate_variable_access%link, presence=presence_external_required)
+         class is (type_horizontal_standard_variable)
+            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, link=aggregate_variable_access%link, domain=standard_variable2domain(standard_variable), presence=presence_external_required)
+         end select
+
+         ! If we are the root model, then claim the standard variable identity associated with this aggregate variable.
+         ! This is useful to the host, who can then find this variable with standard variable lookup, see associated
+         ! CF standard names, etc.
+         if (.not. associated(self%parent)) call aggregate_variable_access%link%target%standard_variables%add(standard_variable)
+
+         aggregate_variable_access%next => self%first_aggregate_variable_access
+         self%first_aggregate_variable_access => aggregate_variable_access
+      end if
+      link => aggregate_variable_access%link
+      if (present(access)) link%target%fake_state_variable = link%target%fake_state_variable .or. iand(access, access_add_source) /= 0
    end function get_aggregate_variable_access
+
+   subroutine set_dependency_flag(self, source, flag)
+      class (type_internal_variable), intent(inout) :: self
+      integer,                        intent(in)    :: source
+      integer,                        intent(in)    :: flag
+
+      integer :: n
+      type (type_dependency_flag), allocatable :: prev(:)
+
+      n = 1
+      if (allocated(self%dependency_flags)) then
+         do n = 1, size(self%dependency_flags)
+            if (self%dependency_flags(n)%source == source) then
+               ! A flag for this source was already set - overwrite it and return immediately
+               self%dependency_flags(n)%flag = flag
+               return
+            end if
+         end do
+         call move_alloc(self%dependency_flags, prev)
+      end if
+      allocate(self%dependency_flags(n))
+      if (n > 1) self%dependency_flags(:n - 1) = prev
+      self%dependency_flags(n)%source = source
+      self%dependency_flags(n)%flag = flag
+   end subroutine
 
    function get_free_unit() result(unit)
       integer :: unit
@@ -2870,9 +2956,17 @@ contains
       self%first_child => null()
    end subroutine abstract_model_factory_finalize
 
-   subroutine coupling_task_resolve(self)
+   function coupling_task_resolve(self) result(link)
       class (type_coupling_task), intent(inout) :: self
-   end subroutine
+      type (type_link), pointer :: link
+      link => null()
+   end function
+
+   function link_coupling_task_resolve(self) result(link)
+      class (type_link_coupling_task), intent(inout) :: self
+      type (type_link), pointer :: link
+      link => self%target_link
+   end function
 
    subroutine coupling_task_list_remove(self, task)
       class (type_coupling_task_list), intent(inout) :: self
@@ -2893,33 +2987,31 @@ contains
 
       existing_task => self%first
       do while (associated(existing_task))
-         if (associated(existing_task%slave, link)) return
+         if (associated(existing_task%link, link)) return
          existing_task => existing_task%next
       end do
    end function coupling_task_list_find
 
-   function coupling_task_list_add_object(self, task, always_create) result(used)
+   subroutine coupling_task_list_add(self, task, priority)
       class (type_coupling_task_list), intent(inout) :: self
-      class (type_coupling_task), pointer            :: task
-      logical,                         intent(in)    :: always_create
-      logical                                        :: used
+      class (type_coupling_task), pointer            :: task  ! must be pointer to preserve deallocate functionality
+      integer,                         intent(in)    :: priority
 
       class (type_coupling_task), pointer :: existing_task
 
-      ! First try to find an existing coupling task for this link. If one exists, we'll replace it.
-      used = .false.
-
       ! Check if we have found an existing task for the same link.
-      existing_task => self%find(task%slave)
+      existing_task => self%find(task%link)
       if (associated(existing_task)) then
          ! If existing one has higher priority, do not add the new task and return (used=.false.)
-         if (existing_task%user_specified .and. .not. always_create) return
+         if (existing_task%priority > priority) then
+            deallocate(task)
+            return
+         end if
 
          ! We will overwrite the existing task - remove existing task and exit loop
          call self%remove(existing_task)
       end if
 
-      used = .true.
       if (.not. associated(self%first)) then
          ! Task list is empty - add first.
          self%first => task
@@ -2936,21 +3028,7 @@ contains
          existing_task%next => task
          task%previous => existing_task
       end if
-      task%next => null()
-   end function coupling_task_list_add_object
-
-   subroutine coupling_task_list_add(self, link, always_create, task)
-      class (type_coupling_task_list), intent(inout)         :: self
-      type (type_link),                intent(inout), target :: link
-      logical,                         intent(in)            :: always_create
-      class (type_coupling_task), pointer                    :: task
-
-      logical :: used
-
-      allocate(task)
-      task%slave => link
-      used = self%add_object(task, always_create)
-      if (.not. used) deallocate(task)
+      task%priority = priority
    end subroutine coupling_task_list_add
 
    character(len=32) function source2string(source)
@@ -2979,6 +3057,35 @@ contains
          write (source2string,'(i0)') source
       end select
    end function source2string
+
+   character(len=32) function domain2string(domain)
+      integer, intent(in) :: domain
+      select case (domain)
+      case (domain_interior);   domain2string = 'interior'
+      case (domain_surface);    domain2string = 'surface'
+      case (domain_bottom);     domain2string = 'bottom'
+      case (domain_horizontal); domain2string = 'horizontal'
+      case default
+         write (domain2string,'(i0)') domain
+      end select
+   end function domain2string
+
+   integer function standard_variable2domain(standard_variable)
+      class (type_domain_specific_standard_variable), intent(in) :: standard_variable
+
+      select type (standard_variable)
+      class is (type_interior_standard_variable)
+         standard_variable2domain = domain_interior
+      class is (type_surface_standard_variable)
+         standard_variable2domain = domain_surface
+      class is (type_bottom_standard_variable)
+         standard_variable2domain = domain_bottom
+      class is (type_horizontal_standard_variable)
+         standard_variable2domain = domain_horizontal
+      class is (type_global_standard_variable)
+         standard_variable2domain = domain_scalar
+      end select
+   end function standard_variable2domain
 
    subroutine variable_set_add(self, variable)
       class (type_variable_set), intent(inout) :: self
