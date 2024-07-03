@@ -366,7 +366,13 @@ def test_pyfabm(args, testcases: Mapping[str, str]):
         print(f"  {case}... ", end="")
         sys.stdout.flush()
         m0d = pyfabm.Model(path)
+        counts = collections.Counter(v.name for v in m0d.variables).items()
+        dup = [v for v, c in counts if c > 1]
+        assert not dup, f"Duplicate variable names in 0D: {dup}"
         m1d = pyfabm.Model(path, shape=(5,))
+        counts = collections.Counter(v.name for v in m1d.variables).items()
+        dup = [v for v, c in counts if c > 1]
+        assert not dup, f"Duplicate variable names in 1D: {dup}"
         for m in (m0d, m1d):
             m.cell_thickness = environment["cell_thickness"]
             for d in m.dependencies:
