@@ -108,7 +108,7 @@ def cmake(
     cmake_env = dict(os.environ)
     if os.name == "nt":
         x64 = sys.maxsize > 2**32
-        cmake_env["CMAKE_GENERATOR_PLATFORM"] = "x64" if x64 else "Win32"
+        #cmake_env["CMAKE_GENERATOR_PLATFORM"] = "x64" if x64 else "Win32"
 
     previous_cache = os.path.join(source_dir, "CMakeCache.txt")
     if os.path.isfile(previous_cache):
