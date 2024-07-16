@@ -242,7 +242,10 @@ jobs:
       - name: Run all test cases with host emulators
         run: python util/developers/run_all_testcases.py harness --show_logs --compiler flang-new
       - name: Run all test cases with pyfabm
-        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang-new
+        run: |
+          set CMAKE_GENERATOR_PLATFORM=
+          set CMAKE_GENERATOR_TOOLSET=
+          python util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang-new
   pyfabm:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
