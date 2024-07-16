@@ -233,6 +233,8 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v2
       - name: Install Python dependencies
         run: conda install -c conda-forge/label/llvm_dev -c conda-forge pyyaml flang ninja c-compiler
       - name: Clone repository
