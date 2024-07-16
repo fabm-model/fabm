@@ -110,7 +110,8 @@ def cmake(
         x64 = sys.maxsize > 2**32
         cmake_env["CMAKE_GENERATOR_PLATFORM"] = "x64" if x64 else "Win32"
         if cmake_env.get("CMAKE_GENERATOR", "") == "Ninja":
-            del cmake_env["CMAKE_GENERATOR_PLATFORM"]
+            cmake_env.pop("CMAKE_GENERATOR_PLATFORM", None)
+            cmake_env.pop("CMAKE_GENERATOR_TOOLSET", None)
 
     previous_cache = os.path.join(source_dir, "CMakeCache.txt")
     if os.path.isfile(previous_cache):
