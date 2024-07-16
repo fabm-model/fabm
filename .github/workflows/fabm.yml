@@ -240,9 +240,9 @@ jobs:
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
-        run: python3 util/developers/run_all_testcases.py harness --show_logs --compiler flang-new
+        run: python util/developers/run_all_testcases.py harness --show_logs --compiler flang-new
       - name: Run all test cases with pyfabm
-        run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang-new
+        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang-new
   pyfabm:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
