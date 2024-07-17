@@ -248,7 +248,7 @@ jobs:
         run: |
           set CMAKE_GENERATOR_PLATFORM=
           set CMAKE_GENERATOR_TOOLSET=
-          python util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang-new
+          python util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang-new -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=TRUE
   pyfabm:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
