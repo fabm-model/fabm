@@ -217,6 +217,38 @@ jobs:
         run: |
           source /home/runner/setenv_AOCC.sh
           python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang ${{ matrix.pyfabm_cmake_args }}
+  flang-new:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    strategy:
+      matrix:
+        os: [windows-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: cmd /C call {0}
+    env:
+      CMAKE_GENERATOR: Ninja
+    steps:
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+      - name: Install Python dependencies
+        run: conda install -c conda-forge/label/llvm_dev -c conda-forge pyyaml flang ninja c-compiler
+      - name: Clone repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Run all test cases with host emulators
+        run: |
+          set CMAKE_GENERATOR_PLATFORM=
+          set CMAKE_GENERATOR_TOOLSET=
+          python util/developers/run_all_testcases.py harness --show_logs --compiler flang-new
+      - name: Run all test cases with pyfabm
+        run: |
+          set CMAKE_GENERATOR_PLATFORM=
+          set CMAKE_GENERATOR_TOOLSET=
+          python util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang-new -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=TRUE
   pyfabm:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest

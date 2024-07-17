@@ -12,14 +12,11 @@ project(python_fabm Fortran)
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
   if(WIN32)
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} /Od")
+    add_compile_options("/libs:static")
   else()
     # Do not warn about Windows-specific export directives
     set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -diag-disable 7841")
   endif()
-endif()
-
-if(MSVC)
-  add_compile_options("/libs:static")
 endif()
 
 set(PYFABM_NAME "fabm" CACHE STRING "Base name of library")

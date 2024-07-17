@@ -1918,7 +1918,7 @@ contains
          ! Ensure that initial value falls within prescribed valid range.
          if (variable%initial_value < variable%minimum .or. variable%initial_value > variable%maximum) then
             write (text,*) 'Initial value', variable%initial_value, 'for variable "' // trim(name) // '" lies&
-                  &outside allowed range', variable%minimum, 'to', variable%maximum
+                  & outside allowed range', variable%minimum, 'to', variable%maximum
             call self%fatal_error('fill_internal_variable', text)
          end if
 
@@ -2557,6 +2557,32 @@ contains
       if (associated(self%parent)) call register_expression(self%parent, expression)
    end subroutine
 
+   function get_effective_string(value, default) result(value_)
+      character(len=*), intent(in), optional :: value
+      character(len=*), intent(in)           :: default
+      character(len=:), allocatable          :: value_
+
+      if (present(value)) then
+         value_ = value
+      else
+         value_ = default
+      end if      
+   end function
+
+   function get_effective_display(display, user_created) result(display_)
+      integer, intent(in), optional :: display
+      logical, intent(in)           :: user_created
+      integer                       :: display_
+
+      if (present(display)) then
+         display_ = display
+      elseif (user_created) then
+         display_ = display_normal
+      else
+         display_ = display_inherit
+      end if    
+   end function
+
    subroutine get_real_parameter(self, value, name, units, long_name, default, scale_factor, minimum, maximum, display)
       class (type_base_model), intent(inout), target  :: self
       real(rk),                intent(inout), target  :: value
@@ -2565,19 +2591,12 @@ contains
       real(rk),                intent(in),   optional :: default, scale_factor, minimum, maximum
       integer,                 intent(in),   optional :: display
 
-      integer :: display_
-
-      if (present(display)) then
-         display_ = display
-      elseif (self%user_created) then
-         display_ = display_normal
-      else
-         display_ = display_inherit
-      end if
       if (fabm_parameter_pointers) then
-         call self%parameters%get(value, name, long_name, units, default, minimum, maximum, scale_factor, display=display_)
+         call self%parameters%get(value, name, get_effective_string(long_name, name), get_effective_string(units, ''), &
+            default, minimum, maximum, scale_factor, display=get_effective_display(display, self%user_created))
       else
-         value = self%parameters%get_real(name, long_name, units, default, minimum, maximum, scale_factor, display=display_)
+         value = self%parameters%get_real(name, get_effective_string(long_name, name), get_effective_string(units, ''), &
+            default, minimum, maximum, scale_factor, display=get_effective_display(display, self%user_created))
       end if
    end subroutine get_real_parameter
 
@@ -2589,17 +2608,9 @@ contains
       integer,                 intent(in), optional  :: default, minimum, maximum
       type (type_option),      intent(in), optional  :: options(:)
       integer,                 intent(in), optional  :: display
-
-      integer :: display_
-
-      if (present(display)) then
-         display_ = display
-      elseif (self%user_created) then
-         display_ = display_normal
-      else
-         display_ = display_inherit
-      end if
-      value = self%parameters%get_integer(name, long_name, units, default, minimum, maximum, options, display=display_)
+   
+      value = self%parameters%get_integer(name, get_effective_string(long_name, name), units, &
+         default, minimum, maximum, options, display=get_effective_display(display, self%user_created))
    end subroutine get_integer_parameter
 
    subroutine get_logical_parameter(self, value, name, units, long_name, default, display)
@@ -2610,16 +2621,8 @@ contains
       logical,                 intent(in), optional  :: default
       integer,                 intent(in), optional  :: display
 
-      integer :: display_
-
-      if (present(display)) then
-         display_ = display
-      elseif (self%user_created) then
-         display_ = display_normal
-      else
-         display_ = display_inherit
-      end if
-      value = self%parameters%get_logical(name, long_name, default, display=display_)
+      value = self%parameters%get_logical(name, get_effective_string(long_name, name), &
+         default, display=get_effective_display(display, self%user_created))
    end subroutine get_logical_parameter
 
    recursive subroutine get_string_parameter(self, value, name, units, long_name, default, display)
@@ -2630,16 +2633,8 @@ contains
       character(len=*),        intent(in), optional  :: default
       integer,                 intent(in), optional  :: display
 
-      integer :: display_
-
-      if (present(display)) then
-         display_ = display
-      elseif (self%user_created) then
-         display_ = display_normal
-      else
-         display_ = display_inherit
-      end if
-      value = self%parameters%get_string(name, long_name, units, default, display=display_)
+      value = self%parameters%get_string(name, get_effective_string(long_name, name), units, &
+         default, display=get_effective_display(display, self%user_created))
    end subroutine get_string_parameter
 
    function find_object(self, name, recursive, exact) result(object)

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyfabm"
-version = "2.1.1"
+version = "2.1.2"
 authors = [
   {name = "Jorn Bruggeman", email = "jorn@bolding-bruggeman.com"},
   {name = "Karsten Bolding", email = "karsten@bolding-bruggeman.com"}

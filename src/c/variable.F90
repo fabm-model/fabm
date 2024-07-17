@@ -105,7 +105,7 @@ contains
    end function variable_get_no_river_dilution
 
    function variable_get_no_precipitation_dilution(pvariable) bind(c) result(value)
-      !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_no_precipitation_dilution
+   !DIR$ ATTRIBUTES DLLEXPORT :: variable_get_no_precipitation_dilution  ! reduced indentation to work around flang bug
       type (c_ptr), value, intent(in) :: pvariable
       integer(kind=c_int)             :: value
 

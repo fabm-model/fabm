@@ -5,8 +5,6 @@ module fabm_c
 
    use iso_c_binding, only: c_int, c_char, C_NULL_CHAR, c_f_pointer, c_loc, c_ptr, c_null_ptr, c_funptr, c_f_procpointer
 
-   !DIR$ ATTRIBUTES DLLEXPORT :: STATE_VARIABLE,DIAGNOSTIC_VARIABLE,CONSERVED_QUANTITY
-
    use fabm, only: type_fabm_model, type_fabm_variable, fabm_get_version, status_start_done, fabm_create_model
    use fabm_types, only: rke, attribute_length, type_model_list_node, type_base_model, &
                          factory, type_link, type_link_list, type_internal_variable, type_variable_list, type_variable_node, &
