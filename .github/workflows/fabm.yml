@@ -240,7 +240,10 @@ jobs:
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
-        run: python util/developers/run_all_testcases.py harness --show_logs --compiler flang-new
+        run: |
+          set CMAKE_GENERATOR_PLATFORM=
+          set CMAKE_GENERATOR_TOOLSET=
+          python util/developers/run_all_testcases.py harness --show_logs --compiler flang-new
       - name: Run all test cases with pyfabm
         run: |
           set CMAKE_GENERATOR_PLATFORM=

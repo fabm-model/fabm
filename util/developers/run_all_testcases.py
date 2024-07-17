@@ -105,13 +105,9 @@ def cmake(
         shutil.rmtree(build_dir)
     os.mkdir(build_dir)
 
-    cmake_env = dict(os.environ)
-    if os.name == "nt":
+    if os.name == "nt" and os.environ.get("CMAKE_GENERATOR", "") != "Ninja":
         x64 = sys.maxsize > 2**32
-        cmake_env["CMAKE_GENERATOR_PLATFORM"] = "x64" if x64 else "Win32"
-        if cmake_env.get("CMAKE_GENERATOR", "") == "Ninja":
-            cmake_env.pop("CMAKE_GENERATOR_PLATFORM", None)
-            cmake_env.pop("CMAKE_GENERATOR_TOOLSET", None)
+        cmake_arguments = ["-A", "x64" if x64 else "Win32"] + cmake_arguments
 
     previous_cache = os.path.join(source_dir, "CMakeCache.txt")
     if os.path.isfile(previous_cache):
@@ -128,7 +124,6 @@ def cmake(
             f"{phase}/configure",
             [cmake_path, source_dir] + cmake_arguments,
             cwd=build_dir,
-            env=cmake_env,
         )
     except EnvironmentError as e:
         if e.errno != errno.ENOENT:
