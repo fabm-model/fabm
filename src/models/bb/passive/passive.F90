@@ -37,7 +37,7 @@ contains
       character(len=attribute_length) :: standard_name
 
       ! Retrieve parameter values
-      call self%get_parameter(units, 'units', default='mol m-3')
+      call self%get_parameter(units, '', 'units', default='mol m-3')
       call self%get_parameter(vertical_velocity, 'vertical_velocity', 'm d-1', 'vertical velocity (negative for settling, positive for rising)', default=0.0_rk, scale_factor=days_per_second)
       call self%get_parameter(specific_light_attenuation, 'specific_light_attenuation', 'm-1 ('//trim(units)//')-1', 'specific light attenuation', default=0.0_rk)
       call self%get_parameter(self%surface_flux, 'surface_flux', trim(units)//' m d-1', 'surface flux (positive for into the water)', default=0.0_rk, scale_factor=days_per_second)
