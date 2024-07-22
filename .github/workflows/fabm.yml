@@ -102,16 +102,16 @@ jobs:
         include:
           - version: "2023.2.0.49254"
             url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/237236c4-434b-4576-96ac-020ceeb22619"
+            fflags: -check all,nouninit,nocontiguous
+              # nouninit because https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-missing-clang-rt-msan-to-link-Fortran-program-in-debug-build/m-p/1536555
+              # nocontiguous because spurious errors occur when assigning null() to contiguous pointers, see https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-2024-0-2-runtime-error-about-non-contiguous-target/m-p/1583909
           #- version: "2024.0.2.28"
           #  url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/41df6814-ec4b-4698-a14d-421ee2b02aa7"
           - version: "2024.2.0.426"
             url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/801143de-6c01-4181-9911-57e00fe40181"          
+            fflags: -check all
       fail-fast: false
     runs-on: ubuntu-latest
-    env:
-      FFLAGS: -check all,nouninit,nocontiguous
-        # nouninit because https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-missing-clang-rt-msan-to-link-Fortran-program-in-debug-build/m-p/1536555
-        # nocontiguous because spurious errors occur when assigning null() to contiguous pointers, see https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-2024-0-2-runtime-error-about-non-contiguous-target/m-p/1583909
     steps:
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -131,12 +131,14 @@ jobs:
         run: |
           source ${HOME}/intel/setvars.sh
           python3 util/developers/run_all_testcases.py harness --show_logs --compiler ifx
+        env:
+          FFLAGS: ${{ matrix.fflags }}
       - name: Run all test cases with pyfabm
         run: |
           source ${HOME}/intel/setvars.sh
           python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifx
         env:
-          FFLAGS: ${{ env.FFLAGS }} -fp-model=precise
+          FFLAGS: ${{ matrix.fflags }} -fp-model=precise
   nvfortran:
     # for available versions, see https://developer.nvidia.com/nvidia-hpc-sdk-releases
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
@@ -192,14 +194,14 @@ jobs:
     strategy:
       matrix:
         include:
-          - version: "3.2.0" # released 2021-12-02
+          - version: "3.2.0" # released 2021-12-02 (LLVM 13.0)
             pyfabm_cmake_args: -DCMAKE_Fortran_FLAGS_DEBUG= # skip -g as that triggers segfault
             url_dir: https://download.amd.com/developer/eula/aocc-compiler
-          # - version: "4.0.0" # released 2022-11-10
+          # - version: "4.0.0" # released 2022-11-10 (LLVM 14.0.6)
           #   url_dir: https://download.amd.com/developer/eula/aocc-compiler
-          # - version: "4.1.0" # released 2023-08-04
+          # - version: "4.1.0" # released 2023-08-04 (LLVM 16.0.3)
           #   url_dir: https://download.amd.com/developer/eula/aocc/aocc-4-1
-          - version: "4.2.0" # released 2024-02-27
+          - version: "4.2.0" # released 2024-02-27 (LLVM 16.0.3)
             url_dir: https://download.amd.com/developer/eula/aocc/aocc-4-2
       fail-fast: false
     runs-on: ubuntu-latest
