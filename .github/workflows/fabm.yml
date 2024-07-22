@@ -109,7 +109,7 @@ jobs:
           #  url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/41df6814-ec4b-4698-a14d-421ee2b02aa7"
           - version: "2024.2.0.426"
             url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/801143de-6c01-4181-9911-57e00fe40181"          
-            fflags: -check all
+            fflags: -check all -g -traceback
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
