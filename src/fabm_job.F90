@@ -574,36 +574,43 @@ contains
       indent_ = 0
       if (present(indent)) indent_ = indent
 
-      if (size(self%load) > 0 .or. size(self%load_hz) > 0 .or. size(self%load_scalar) > 0) write (unit,'(a,a)') repeat(' ', indent_), 'Read cache prefilling:'
-      do i = 1, size(self%load)
-         if (self%load(i) /= 0) write (unit,'(a,"  - interior[",i0,"]")') repeat(' ', indent_), i
-      end do
-      do i = 1, size(self%load_hz)
-         if (self%load_hz(i) /= 0) write (unit,'(a,"  - horizontal[",i0,"]")') repeat(' ', indent_), i
-      end do
-      do i = 1, size(self%load_scalar)
-         if (self%load_scalar(i) /= 0) write (unit,'(a,"  - scalar[",i0,"]")') repeat(' ', indent_), i
-      end do
+      ! Print out prefill instructions for the read and write caches
+      ! These instructions have only been allocated if all dependencies were fulfilled.
+      ! Since we want to support logging even if that is not the case, we explicitly check the allocation status.
+      if (allocated(self%load)) then
+         if (size(self%load) > 0 .or. size(self%load_hz) > 0 .or. size(self%load_scalar) > 0) &
+            write (unit,'(a,a)') repeat(' ', indent_), 'Read cache prefilling:'
+         do i = 1, size(self%load)
+            if (self%load(i) /= 0) write (unit,'(a,"  - interior[",i0,"]")') repeat(' ', indent_), i
+         end do
+         do i = 1, size(self%load_hz)
+            if (self%load_hz(i) /= 0) write (unit,'(a,"  - horizontal[",i0,"]")') repeat(' ', indent_), i
+         end do
+         do i = 1, size(self%load_scalar)
+            if (self%load_scalar(i) /= 0) write (unit,'(a,"  - scalar[",i0,"]")') repeat(' ', indent_), i
+         end do
 
-      if (size(self%prefill) > 0 .or. size(self%prefill_hz) > 0) write (unit,'(a,a)') repeat(' ', indent_), 'Write cache prefilling:'
-      do i = 1, size(self%prefill)
-         select case (self%prefill(i))
-         case (prefill_none)
-         case (prefill_constant)
-            write (unit,'(a,"  - interior[",i0,"] = constant value")') repeat(' ', indent_), i
-         case default
-            write (unit,'(a,"  - interior[",i0,"] = previous value")') repeat(' ', indent_), i
-         end select
-      end do
-      do i = 1, size(self%prefill_hz)
-         select case (self%prefill_hz(i))
-         case (prefill_none)
-         case (prefill_constant)
-            write (unit,'(a,"  - horizontal[",i0,"] = constant value")') repeat(' ', indent_), i
-         case default
-            write (unit,'(a,"  - horizontal[",i0,"] = previous value")') repeat(' ', indent_), i
-         end select
-      end do
+         if (size(self%prefill) > 0 .or. size(self%prefill_hz) > 0) &
+            write (unit,'(a,a)') repeat(' ', indent_), 'Write cache prefilling:'
+         do i = 1, size(self%prefill)
+            select case (self%prefill(i))
+            case (prefill_none)
+            case (prefill_constant)
+               write (unit,'(a,"  - interior[",i0,"] = constant value")') repeat(' ', indent_), i
+            case default
+               write (unit,'(a,"  - interior[",i0,"] = previous value")') repeat(' ', indent_), i
+            end select
+         end do
+         do i = 1, size(self%prefill_hz)
+            select case (self%prefill_hz(i))
+            case (prefill_none)
+            case (prefill_constant)
+               write (unit,'(a,"  - horizontal[",i0,"] = constant value")') repeat(' ', indent_), i
+            case default
+               write (unit,'(a,"  - horizontal[",i0,"] = previous value")') repeat(' ', indent_), i
+            end select
+         end do
+      end if
 
       do icall = 1, size(self%calls)
          header_written = .false.
