@@ -472,9 +472,9 @@ contains
       case (BOTTOM_STATE_VARIABLE)
          variable => model%p%bottom_state_variables(index)%target
       case (INTERIOR_DIAGNOSTIC_VARIABLE)
-         variable => model%p%interior_diagnostic_variables(index)%target
+         variable => model%p%interior_diagnostic_variables(index)%original
       case (HORIZONTAL_DIAGNOSTIC_VARIABLE)
-         variable => model%p%horizontal_diagnostic_variables(index)%target
+         variable => model%p%horizontal_diagnostic_variables(index)%original
       case (CONSERVED_QUANTITY)
          variable => model%p%conserved_quantities(index)%target
       case (INTERIOR_DEPENDENCY, HORIZONTAL_DEPENDENCY, SCALAR_DEPENDENCY)

@@ -135,6 +135,7 @@ module fabm
       integer :: externalid = 0
 
       type (type_internal_variable), pointer :: target => null()
+      type (type_internal_variable), pointer :: original => null()
    end type
 
    !> Metadata for an interior state variable
@@ -2809,6 +2810,7 @@ contains
          external_variable%missing_value   = internal_variable%missing_value
          external_variable%output          = iand(internal_variable%output, not(output_always_available))
          external_variable%target          => internal_variable
+         external_variable%original        => internal_variable
 
          ! Prepend long names of ancestor models to long name of variable.
          owner => internal_variable%owner
