@@ -56,8 +56,7 @@ contains
       type (type_internal_variable), pointer :: variable
 
       call c_f_pointer(pvariable, variable)
-      value = 0.0_rk
-      if (size(variable%background_values%pointers) > 0) value = variable%background_values%pointers(1)%p
+      value = variable%background_values%value
    end function variable_get_background_value
 
    function variable_get_missing_value(pvariable) bind(c) result(value)
@@ -76,10 +75,12 @@ contains
       type (c_ptr), value, intent(in) :: pvariable
       integer(kind=c_int)             :: value
 
+      integer                                :: output
       type (type_internal_variable), pointer :: variable
 
       call c_f_pointer(pvariable, variable)
-      value = logical2int(variable%output /= output_none)
+      output = iand(variable%output, not(output_always_available))
+      value = logical2int(output /= output_none)
    end function variable_get_output
 
    function variable_is_required(pvariable) bind(c) result(value)

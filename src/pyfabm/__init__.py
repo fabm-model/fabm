@@ -721,16 +721,11 @@ class DiagnosticVariable(Variable):
     def __init__(
         self,
         model: "Model",
-        name: str,
-        units: str,
-        long_name: str,
         variable_pointer: ctypes.c_void_p,
         index: int,
         horizontal: bool,
     ):
-        Variable.__init__(
-            self, model, name, units, long_name, variable_pointer=variable_pointer
-        )
+        Variable.__init__(self, model, variable_pointer=variable_pointer)
         self.data = None
         self.horizontal = horizontal
         self.index = index
@@ -1279,54 +1274,18 @@ class Model(object):
                 StateVariable(self, ptr, self._bottom_state[i, ...])
             )
         for i in range(ndiag_interior.value):
-            self.fabm.get_variable_metadata(
-                self.pmodel,
-                INTERIOR_DIAGNOSTIC_VARIABLE,
-                i + 1,
-                ATTRIBUTE_LENGTH,
-                strname,
-                strunits,
-                strlong_name,
-                strpath,
-            )
             ptr = self.fabm.get_variable(
                 self.pmodel, INTERIOR_DIAGNOSTIC_VARIABLE, i + 1
             )
             self.interior_diagnostic_variables._data.append(
-                DiagnosticVariable(
-                    self,
-                    strpath.value.decode("ascii"),
-                    strunits.value.decode("ascii"),
-                    strlong_name.value.decode("ascii"),
-                    ptr,
-                    i + 1,
-                    False,
-                )
+                DiagnosticVariable(self, ptr, i + 1, False)
             )
         for i in range(ndiag_horizontal.value):
-            self.fabm.get_variable_metadata(
-                self.pmodel,
-                HORIZONTAL_DIAGNOSTIC_VARIABLE,
-                i + 1,
-                ATTRIBUTE_LENGTH,
-                strname,
-                strunits,
-                strlong_name,
-                strpath,
-            )
             ptr = self.fabm.get_variable(
                 self.pmodel, HORIZONTAL_DIAGNOSTIC_VARIABLE, i + 1
             )
             self.horizontal_diagnostic_variables._data.append(
-                DiagnosticVariable(
-                    self,
-                    strpath.value.decode("ascii"),
-                    strunits.value.decode("ascii"),
-                    strlong_name.value.decode("ascii"),
-                    ptr,
-                    i + 1,
-                    True,
-                )
+                DiagnosticVariable(self, ptr, i + 1, True)
             )
         for i in range(ndependencies_interior.value):
             ptr = self.fabm.get_variable(self.pmodel, INTERIOR_DEPENDENCY, i + 1)
