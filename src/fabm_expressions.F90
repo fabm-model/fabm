@@ -179,10 +179,10 @@ contains
    end function
 
    function interior_temporal_mean(input, period, resolution, missing_value) result(expression)
-      type (type_dependency_id), intent(inout), target :: input
-      real(rk),                  intent(in)            :: period, resolution
-      real(rk), optional,        intent(in)            :: missing_value
-      type (type_interior_temporal_mean)               :: expression
+      class (type_dependency_id), intent(inout), target :: input
+      real(rk),                   intent(in)            :: period, resolution
+      real(rk), optional,         intent(in)            :: missing_value
+      type (type_interior_temporal_mean)                :: expression
 
       character(len=attribute_length) :: prefix, postfix
 
