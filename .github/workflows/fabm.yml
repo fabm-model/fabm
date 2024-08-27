@@ -58,9 +58,9 @@ jobs:
       matrix:
         include:
           - version: "2021.1.2.62"
-            url_dir: "https://registrationcenter-download.intel.com/akdlm/irc_nas/17508"
+            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/17508"
           # - version: "2022.2.1.16992"
-          #   url_dir: "https://registrationcenter-download.intel.com/akdlm/irc_nas/18998"
+          #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/18998"
           # - version: "2023.2.0.49254"
           #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/237236c4-434b-4576-96ac-020ceeb22619"
           - version: "2024.2.0.426"
