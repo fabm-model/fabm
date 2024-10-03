@@ -250,7 +250,7 @@ jobs:
         with:
           auto-update-conda: true
       - name: Install Python dependencies
-        run: conda install -c conda-forge/label/llvm_dev -c conda-forge pyyaml flang ninja c-compiler
+        run: conda install -c conda-forge pyyaml flang>=19.0 ninja c-compiler
       - name: Clone repository
         uses: actions/checkout@v4
         with:
