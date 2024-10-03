@@ -1,0 +1,46 @@
+instances:
+   cfc11:
+      model: bb/gas             # model type
+      parameters:
+         A: 3579.2              # coefficient A for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)
+         B: -222.63             # coefficient B for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)
+         C: 7.57490000E+00      # coefficient C for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)
+         D: -1.45950000E-01     # coefficient D for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)
+         E: 1.18740000E-03      # coefficient E for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)
+         a1: -2.29926100E+02    # coefficient a1 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         a2: 3.19655200E+02     # coefficient a2 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         a3: 1.19447100E+02     # coefficient a3 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         a4: -1.39165000E+00    # coefficient a4 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         b1: -1.42382000E-01    # coefficient b1 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         b2: 9.14590000E-02     # coefficient b2 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         b3: -1.57274000E-02    # coefficient b3 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+   cfc12:
+      model: bb/gas             # model type
+      parameters:
+         A: 3828.1              # coefficient A for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)
+         B: -249.86             # coefficient B for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)
+         C: 8.76030000E+00      # coefficient C for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)
+         D: -1.71600000E-01     # coefficient D for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)
+         E: 1.40800000E-03      # coefficient E for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)
+         a1: -2.18097100E+02    # coefficient a1 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         a2: 2.98970200E+02     # coefficient a2 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         a3: 1.13804900E+02     # coefficient a3 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         a4: -1.39165000E+00    # coefficient a4 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         b1: -1.43566000E-01    # coefficient b1 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         b2: 9.10150000E-02     # coefficient b2 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         b3: -1.53924000E-02    # coefficient b3 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+   sf6:
+      model: bb/gas             # model type
+      parameters:
+         A: 3177.5              # coefficient A for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)
+         B: -200.57             # coefficient B for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)
+         C: 6.88650000E+00      # coefficient C for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)
+         D: -1.33350000E-01     # coefficient D for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)
+         E: 1.08770000E-03      # coefficient E for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)
+         a1: -8.00343000E+01    # coefficient a1 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         a2: 117.232            # coefficient a2 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         a3: 2.95817000E+01     # coefficient a3 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         a4: 0.0                # coefficient a4 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         b1: 3.35183000E-02     # coefficient b1 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         b2: -3.73942000E-02    # coefficient b2 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
+         b3: 7.74862000E-03     # coefficient b3 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)
