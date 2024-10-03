@@ -35,13 +35,13 @@ contains
       call self%get_parameter(self%C, 'C', '', 'coefficient C for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)')
       call self%get_parameter(self%D, 'D', '', 'coefficient D for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)')
       call self%get_parameter(self%E, 'E', '', 'coefficient E for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)')
-      call self%get_parameter(self%a1, 'a1', '', 'coefficient a1 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)', scale_factor=1000.0_rk)
-      call self%get_parameter(self%a2, 'a2', '', 'coefficient a2 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)', scale_factor=1000.0_rk)
-      call self%get_parameter(self%a3, 'a3', '', 'coefficient a3 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)', scale_factor=1000.0_rk)
-      call self%get_parameter(self%a4, 'a4', '', 'coefficient a4 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)', scale_factor=1000.0_rk)
-      call self%get_parameter(self%b1, 'b1', '', 'coefficient b1 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)', scale_factor=1000.0_rk)
-      call self%get_parameter(self%b2, 'b2', '', 'coefficient b2 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)', scale_factor=1000.0_rk)
-      call self%get_parameter(self%b3, 'b3', '', 'coefficient b3 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)', scale_factor=1000.0_rk)
+      call self%get_parameter(self%a1, 'a1', '', 'coefficient a1 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)')
+      call self%get_parameter(self%a2, 'a2', '', 'coefficient a2 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)')
+      call self%get_parameter(self%a3, 'a3', '', 'coefficient a3 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)')
+      call self%get_parameter(self%a4, 'a4', '', 'coefficient a4 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)')
+      call self%get_parameter(self%b1, 'b1', '', 'coefficient b1 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)')
+      call self%get_parameter(self%b2, 'b2', '', 'coefficient b2 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)')
+      call self%get_parameter(self%b3, 'b3', '', 'coefficient b3 for solubility function (Table 2 in https://doi.org/10.5194/gmd-10-2169-2017)')
 
       write(*,*) "Schmidt number at 20 degrees Celsius:", Schmidt_number(self, 20.0_rk)
 
@@ -87,7 +87,8 @@ contains
             + S * (self%b1 + cTK * (self%b2 + self%b3 * cTK))
 
          ! Saturation concentration (mol m-3)
-         Csat = P / P0 * exp(log_phi_A0) * x_A
+         ! NB we multiply with 1000 to convert from mol L-1 to mol m-3
+         Csat = P * exp(log_phi_A0) * x_A * (1000.0_rk / P0)
 
          ! Air -> sea flux (mol m-2 s-1)
          F = Kw * (Csat - Csurf)
