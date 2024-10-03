@@ -20,6 +20,7 @@ contains
       use bb_filter_feeder
       use bb_lorenz63
       use bb_passive
+      use bb_gas
       ! Add new BB models here
 
       class (type_factory), intent(in) :: self
@@ -30,7 +31,8 @@ contains
          case ('passive');       allocate(type_bb_passive::model)
          case ('lorenz63');      allocate(type_bb_lorenz63::model)
          case ('filter_feeder'); allocate(type_bb_filter_feeder::model)
-         ! Add new BB models here
+         case ('gas');           allocate(type_bb_gas::model)
+            ! Add new BB models here
       end select
 
    end subroutine
