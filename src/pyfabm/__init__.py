@@ -1154,12 +1154,11 @@ class Model(object):
         self.fabm.save_settings(self.pmodel, path.encode("ascii"), display)
 
     def save_state(self) -> Tuple:
-        environment = dict(
-            [(dependency.name, dependency.value) for dependency in self.dependencies]
-        )
-        state = dict(
-            [(variable.name, variable.value) for variable in self.state_variables]
-        )
+        environment = {}
+        for dependency in self.dependencies:
+            if dependency.value is not None:
+                environment[dependency.name] = dependency.value
+        state = {variable.name: variable.value for variable in self.state_variables}
         return environment, state
 
     def restore_state(self, data) -> Tuple:
