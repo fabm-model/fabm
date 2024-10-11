@@ -287,7 +287,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
       - name: Install dependencies
-        run: conda install pip build
+        run: conda install pip python-build
       - name: Build distribution
         run: python -m build
       - name: Install
