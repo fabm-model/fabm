@@ -10,7 +10,7 @@ authors = [
   {name = "Karsten Bolding", email = "karsten@bolding-bruggeman.com"}
 ]
 description = "Python driver for FABM"
-requires-python = ">=3.8"
+requires-python = ">=3.7"
 dependencies = [
   "numpy"
 ]
