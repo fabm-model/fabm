@@ -1,4 +1,6 @@
 import sys
+from typing import Sequence
+import numpy as np
 import pyfabm
 
 try:
@@ -23,15 +25,15 @@ class Delegate(QtWidgets.QStyledItemDelegate):
         assert index.isValid()
         data = index.internalPointer().object
         if not isinstance(data, str):
-            options = data.getOptions()
+            options = data.options
             if options is not None:
                 widget = QtWidgets.QComboBox(parent)
                 widget.addItems(options)
                 return widget
-            elif isinstance(data.value, float):
+            elif isinstance(data.value, (float, np.ndarray)):
                 widget = ScientificDoubleEditor(parent)
                 if data.units:
-                    widget.setSuffix(" {data.units_unicode}")
+                    widget.setSuffix(f" {data.units_unicode}")
                 return widget
         return QtWidgets.QStyledItemDelegate.createEditor(self, parent, option, index)
 
@@ -39,13 +41,13 @@ class Delegate(QtWidgets.QStyledItemDelegate):
         if isinstance(editor, QtWidgets.QComboBox):
             data = index.internalPointer().object
             if not isinstance(data, str):
-                options = data.getOptions()
+                options = data.options
                 if options is not None:
                     editor.setCurrentIndex(list(options).index(data.value))
                     return
         elif isinstance(editor, ScientificDoubleEditor):
             data = index.internalPointer().object
-            editor.setValue(data.value)
+            editor.setValue(float(data.value))
             return
         return QtWidgets.QStyledItemDelegate.setEditorData(self, editor, index)
 
@@ -53,7 +55,7 @@ class Delegate(QtWidgets.QStyledItemDelegate):
         if isinstance(editor, QtWidgets.QComboBox):
             data = index.internalPointer().object
             if not isinstance(data, str):
-                options = data.getOptions()
+                options = data.options
                 if options is not None:
                     i = editor.currentIndex()
                     model.setData(index, options[i], QtCore.Qt.EditRole)
@@ -65,7 +67,7 @@ class Delegate(QtWidgets.QStyledItemDelegate):
 
 
 class Entry(object):
-    def __init__(self, object=None, name=""):
+    def __init__(self, object=None, name: str=""):
         if name == "" and object is not None:
             name = object
         self.object = object
@@ -93,7 +95,7 @@ class Entry(object):
         self.addChild(child)
         return child
 
-    def addTree(self, arr, category=None):
+    def addTree(self, arr: Sequence[pyfabm.Variable], category=None):
         for variable in arr:
             pathcomps = variable.path.split("/")
             if len(pathcomps) < 2:
@@ -117,7 +119,7 @@ class Submodel:
 
 
 class ItemModel(QtCore.QAbstractItemModel):
-    def __init__(self, model, parent):
+    def __init__(self, model: pyfabm.Model, parent):
         QtCore.QAbstractItemModel.__init__(self, parent)
         self.root = None
         self.model = model
@@ -242,7 +244,7 @@ class ItemModel(QtCore.QAbstractItemModel):
         if role == QtCore.Qt.DisplayRole:
             if index.column() == 0:
                 return entry.name if isinstance(data, str) else data.long_name
-            if not isinstance(data, str + (Submodel,)):
+            if not isinstance(data, (str, Submodel)):
                 if index.column() == 1:
                     value = data.value
                     if not isinstance(value, bool):
@@ -258,9 +260,9 @@ class ItemModel(QtCore.QAbstractItemModel):
             if not isinstance(data, str):
                 return data.long_path
         elif role == QtCore.Qt.EditRole:
-            if not isinstance(data, str + (Submodel,)):
-                # print data.getOptions()
-                return data.getValue()
+            if not isinstance(data, (str, Submodel)):
+                # print data.options
+                return data.value
         elif role == QtCore.Qt.FontRole and index.column() == 1:
             if isinstance(data, pyfabm.Parameter) and data.value != data.default:
                 font = QtGui.QFont()
@@ -280,7 +282,7 @@ class ItemModel(QtCore.QAbstractItemModel):
             value = value == QtCore.Qt.Checked
         if role in (QtCore.Qt.EditRole, QtCore.Qt.CheckStateRole):
             data = index.internalPointer().object
-            data.setValue(value)
+            data.value = value
             if isinstance(data, pyfabm.Parameter):
                 self.rebuild()
             return True
@@ -292,7 +294,7 @@ class ItemModel(QtCore.QAbstractItemModel):
             return flags
         if index.column() == 1:
             entry = index.internalPointer().object
-            if not isinstance(entry, str + (Submodel,)):
+            if not isinstance(entry, (str, Submodel)):
                 if isinstance(entry.value, bool):
                     flags |= QtCore.Qt.ItemIsUserCheckable
                 else:
@@ -371,7 +373,7 @@ class ScientificDoubleValidator(QtGui.QValidator):
         vallength = len(input) - len(self.suffix)
 
         # Check for invalid characters
-        rx = QtCore.QRegExp("[^\d\-+eE,.]")
+        rx = QtCore.QRegExp(r"[^\d\-+eE,.]")
         if rx.indexIn(input[:vallength]) != -1:
             return (QtGui.QValidator.Invalid, input, pos)
 
