@@ -270,19 +270,24 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
       fail-fast: false
+    defaults:
+      run:
+        shell: bash -el {0}
     steps:
       - name: Clone repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Set up Python ${{ matrix.python-version }} with conda
+        uses: conda-incubator/setup-miniconda@v3
         with:
+          auto-update-conda: true
           python-version: ${{ matrix.python-version }}
+          channels: conda-forge
       - name: Install dependencies
-        run: python -m pip install --upgrade pip build
+        run: conda install pip python-build
       - name: Build distribution
         run: python -m build
       - name: Install
@@ -292,6 +297,12 @@ jobs:
           python -c "import pyfabm;print('pyfabm version =', getattr(pyfabm, '__version__', None))"
           for f in testcases/*.yaml; do fabm_describe_model $f; done
           for f in testcases/*.yaml; do fabm_complete_yaml --add_missing $f; done
+      - name: Run notebooks
+        if: matrix.python-version != '3.7'  # due to https://github.com/conda-forge/webcolors-feedstock/issues/26
+        run: |
+          conda install ipython jupyterlab ipympl matplotlib scipy
+          cd testcases/python
+          for f in *.ipynb; do ipython --gui qt -c "%run $f"; done
       - name: Install with customization via command line arguments
         run: |
           rm -rf build
