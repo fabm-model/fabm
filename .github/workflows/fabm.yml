@@ -278,7 +278,7 @@ jobs:
         with:
           submodules: recursive
       - name: Set up Python ${{ matrix.python-version }} with conda
-      - uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
