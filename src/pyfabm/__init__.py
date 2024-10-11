@@ -728,7 +728,7 @@ class DiagnosticVariable(Variable):
         Variable.__init__(self, model, variable_pointer=variable_pointer)
         self.data = None
         self.horizontal = horizontal
-        self.index = index
+        self.index = index + 1
 
     def getValue(self) -> Optional[np.ndarray]:
         return self.data
@@ -793,7 +793,7 @@ class Parameter(Variable):
             return result.value.decode("ascii")
 
     def setValue(self, value):
-        settings = self.model.save_state()
+        settings = self.model._save_state()
 
         if self.type == 1:
             self.model.fabm.set_real_parameter(
@@ -814,7 +814,7 @@ class Parameter(Variable):
 
         # Update the model configuration
         # (arrays with variables and parameters have changed)
-        self.model.updateConfiguration(settings)
+        self.model._update_configuration(settings)
 
     def getDefault(self):
         if not self.has_default:
@@ -822,9 +822,9 @@ class Parameter(Variable):
         return self.getValue(True)
 
     def reset(self):
-        settings = self.model.save_state()
+        settings = self.model._save_state()
         self.model.fabm.reset_parameter(self.model.pmodel, self.index)
-        self.model.updateConfiguration(settings)
+        self.model._update_configuration(settings)
 
     value = property(getValue, setValue)
     default = property(getDefault)
@@ -882,8 +882,8 @@ class NamedObjectList(Sequence):
 
     def find(self, name: str, case_insensitive: bool = False):
         if self._lookup is None:
-            self._lookup_ci = dict([(obj.name.lower(), obj) for obj in self._data])
-            self._lookup = dict([(obj.name, obj) for obj in self._data])
+            self._lookup_ci = {obj.name.lower(): obj for obj in self._data}
+            self._lookup = {obj.name: obj for obj in self._data}
         if case_insensitive:
             return self._lookup_ci[name.lower()]
         return self._lookup[name]
@@ -1026,7 +1026,7 @@ class Model(object):
         self.horizontal_dependencies = NamedObjectList()
         self.scalar_dependencies = NamedObjectList()
 
-        self.updateConfiguration()
+        self._update_configuration()
         self._mask = None
         self._bottom_index = None
 
@@ -1153,7 +1153,7 @@ class Model(object):
     def save_settings(self, path: str, display: int = DISPLAY_NORMAL):
         self.fabm.save_settings(self.pmodel, path.encode("ascii"), display)
 
-    def save_state(self) -> Tuple:
+    def _save_state(self) -> Tuple:
         environment = {}
         for dependency in self.dependencies:
             if dependency.value is not None:
@@ -1161,7 +1161,7 @@ class Model(object):
         state = {variable.name: variable.value for variable in self.state_variables}
         return environment, state
 
-    def restore_state(self, data) -> Tuple:
+    def _restore_state(self, data: Tuple):
         environment, state = data
         for dependency in self.dependencies:
             if dependency.name in environment:
@@ -1170,7 +1170,7 @@ class Model(object):
             if variable.name in state:
                 variable.value = state[variable.name]
 
-    def updateConfiguration(self, settings=None):
+    def _update_configuration(self, settings: Optional[Tuple] = None):
         # Get number of model variables per category
         nstate_interior = ctypes.c_int()
         nstate_surface = ctypes.c_int()
@@ -1201,6 +1201,8 @@ class Model(object):
         # Allocate memory for state variable values, and send ctypes.pointer to
         # this memory to FABM.
         if self.fabm.idepthdim == -1:
+            # No depth dimension, so interior and surface/bottom variables have
+            # the same shape. Store values for all together in one contiguous array
             self._state = np.empty(
                 (nstate_interior.value + nstate_surface.value + nstate_bottom.value,)
                 + self.interior_domain_shape,
@@ -1215,6 +1217,8 @@ class Model(object):
                 nstate_interior.value + nstate_surface.value :, ...
             ]
         else:
+            # Surface/bottom variables have one dimension less than interior variables
+            # Store values for each variable type in a separate array.
             self._interior_state = np.empty(
                 (nstate_interior.value,) + self.interior_domain_shape,
                 dtype=self.fabm.numpy_dtype,
@@ -1226,18 +1230,6 @@ class Model(object):
             self._bottom_state = np.empty(
                 (nstate_bottom.value,) + self.horizontal_domain_shape,
                 dtype=self.fabm.numpy_dtype,
-            )
-        for i in range(nstate_interior.value):
-            self.fabm.link_interior_state_data(
-                self.pmodel, i + 1, self._interior_state[i, ...]
-            )
-        for i in range(nstate_surface.value):
-            self.fabm.link_surface_state_data(
-                self.pmodel, i + 1, self._surface_state[i, ...]
-            )
-        for i in range(nstate_bottom.value):
-            self.fabm.link_bottom_state_data(
-                self.pmodel, i + 1, self._bottom_state[i, ...]
             )
 
         # Retrieve variable metadata
@@ -1258,33 +1250,33 @@ class Model(object):
         self.horizontal_dependencies.clear()
         self.scalar_dependencies.clear()
         for i in range(nstate_interior.value):
+            values = self._interior_state[i, ...]
             ptr = self.fabm.get_variable(self.pmodel, INTERIOR_STATE_VARIABLE, i + 1)
-            self.interior_state_variables._data.append(
-                StateVariable(self, ptr, self._interior_state[i, ...])
-            )
+            self.interior_state_variables._data.append(StateVariable(self, ptr, values))
+            self.fabm.link_interior_state_data(self.pmodel, i + 1, values)
         for i in range(nstate_surface.value):
+            values = self._surface_state[i, ...]
             ptr = self.fabm.get_variable(self.pmodel, SURFACE_STATE_VARIABLE, i + 1)
-            self.surface_state_variables._data.append(
-                StateVariable(self, ptr, self._surface_state[i, ...])
-            )
+            self.surface_state_variables._data.append(StateVariable(self, ptr, values))
+            self.fabm.link_surface_state_data(self.pmodel, i + 1, values)
         for i in range(nstate_bottom.value):
+            values = self._bottom_state[i, ...]
             ptr = self.fabm.get_variable(self.pmodel, BOTTOM_STATE_VARIABLE, i + 1)
-            self.bottom_state_variables._data.append(
-                StateVariable(self, ptr, self._bottom_state[i, ...])
-            )
+            self.bottom_state_variables._data.append(StateVariable(self, ptr, values))
+            self.fabm.link_bottom_state_data(self.pmodel, i + 1, values)
         for i in range(ndiag_interior.value):
             ptr = self.fabm.get_variable(
                 self.pmodel, INTERIOR_DIAGNOSTIC_VARIABLE, i + 1
             )
             self.interior_diagnostic_variables._data.append(
-                DiagnosticVariable(self, ptr, i + 1, False)
+                DiagnosticVariable(self, ptr, i, False)
             )
         for i in range(ndiag_horizontal.value):
             ptr = self.fabm.get_variable(
                 self.pmodel, HORIZONTAL_DIAGNOSTIC_VARIABLE, i + 1
             )
             self.horizontal_diagnostic_variables._data.append(
-                DiagnosticVariable(self, ptr, i + 1, True)
+                DiagnosticVariable(self, ptr, i, True)
             )
         for i in range(ndependencies_interior.value):
             ptr = self.fabm.get_variable(self.pmodel, INTERIOR_DEPENDENCY, i + 1)
@@ -1374,7 +1366,7 @@ class Model(object):
         )
 
         if settings is not None:
-            self.restore_state(settings)
+            self._restore_state(settings)
 
         # For backward compatibility
         self.bulk_state_variables = self.interior_state_variables
