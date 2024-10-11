@@ -538,15 +538,16 @@ def getError() -> Optional[str]:
             return strmessage.value.decode("ascii")
 
 
-NodeType = Mapping[str, Any]
+NodeValue = TypeVar("NodeValue")
+NodeType = Mapping[str, Union["NodeType", NodeValue]]
 
 
-def printTree(root: NodeType, stringmapper: Callable[[Any], str], indent=""):
+def printTree(root: NodeType, stringmapper: Callable[[NodeValue], str], indent: str=""):
     """Print an indented tree of objects, encoded by dictionaries linking the
     names of children to their subtree, or to their object. Objects are finally
     printed as string obtained by calling the provided stringmapper method."""
     for name, item in root.items():
-        if isinstance(item, NodeType):
+        if isinstance(item, Mapping):
             log(f"{indent}{name}")
             printTree(item, stringmapper, indent + "   ")
         else:
@@ -1533,7 +1534,7 @@ class Model(object):
     def require_data(self, standard_variable: StandardVariable):
         return self.fabm.require_data(self.pmodel, standard_variable.pointer)
 
-    def getParameterTree(self):
+    def getParameterTree(self) -> Mapping:
         root = {}
         for parameter in self.parameters:
             pathcomps = parameter.name.split("/")
@@ -1608,7 +1609,7 @@ class Model(object):
             "horizontal diagnostic variables", self.horizontal_diagnostic_variables
         )
         printArray("external variables", self.dependencies)
-        log(" {len(self.parameters)} parameters:")
+        log(f" {len(self.parameters)} parameters:")
         printTree(self.getParameterTree(), lambda x: f"{x.value} {x.units}", "    ")
 
 
