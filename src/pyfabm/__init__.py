@@ -13,6 +13,9 @@ from typing import (
     Any,
     Mapping,
     Sequence,
+    TypeVar,
+    List,
+    Dict
 )
 
 try:
@@ -849,23 +852,26 @@ class StandardVariable:
         return arr.view(dtype=self.model.fabm.numpy_dtype)
 
 
-class NamedObjectList(Sequence):
-    def __init__(self, *data: Iterable):
-        self._data = []
+T = TypeVar("T")
+
+
+class NamedObjectList(Sequence[T]):
+    def __init__(self, *data: Iterable[T]):
+        self._data: List[T] = []
         for d in data:
             self._data.extend(d)
-        self._lookup = None
-        self._lookup_ci = None
+        self._lookup: Optional[Dict[str, T]] = None
+        self._lookup_ci: Optional[Dict[str, T]] = None
 
     def __len__(self) -> int:
         return len(self._data)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Union[str, int]) -> T:
         if isinstance(key, str):
             return self.find(key)
         return self._data[key]
 
-    def __contains__(self, key) -> bool:
+    def __contains__(self, key: Union[str, int]) -> bool:
         if isinstance(key, str):
             try:
                 self.find(key)
@@ -877,16 +883,18 @@ class NamedObjectList(Sequence):
     def __repr__(self) -> str:
         return repr(self._data)
 
-    def __add__(self, other: "NamedObjectList") -> "NamedObjectList":
+    def __add__(self, other: "NamedObjectList[T]") -> "NamedObjectList[T]":
         return NamedObjectList(self._data, other._data)
 
-    def find(self, name: str, case_insensitive: bool = False):
-        if self._lookup is None:
-            self._lookup_ci = {obj.name.lower(): obj for obj in self._data}
-            self._lookup = {obj.name: obj for obj in self._data}
+    def find(self, name: str, case_insensitive: bool = False) -> T:
         if case_insensitive:
+            if self._lookup_ci is None:
+                self._lookup_ci = {obj.name.lower(): obj for obj in self._data}
             return self._lookup_ci[name.lower()]
-        return self._lookup[name]
+        else:
+            if self._lookup is None:
+                self._lookup = {obj.name: obj for obj in self._data}
+            return self._lookup[name]
 
     def clear(self):
         self._data.clear()
@@ -1015,16 +1023,16 @@ class Model(object):
         if delete:
             os.remove(path)
 
-        self.interior_state_variables = NamedObjectList()
-        self.surface_state_variables = NamedObjectList()
-        self.bottom_state_variables = NamedObjectList()
-        self.interior_diagnostic_variables = NamedObjectList()
-        self.horizontal_diagnostic_variables = NamedObjectList()
-        self.conserved_quantities = NamedObjectList()
-        self.parameters = NamedObjectList()
-        self.interior_dependencies = NamedObjectList()
-        self.horizontal_dependencies = NamedObjectList()
-        self.scalar_dependencies = NamedObjectList()
+        self.interior_state_variables: NamedObjectList[StateVariable] = NamedObjectList()
+        self.surface_state_variables: NamedObjectList[StateVariable] = NamedObjectList()
+        self.bottom_state_variables: NamedObjectList[StateVariable] = NamedObjectList()
+        self.interior_diagnostic_variables: NamedObjectList[DiagnosticVariable] = NamedObjectList()
+        self.horizontal_diagnostic_variables: NamedObjectList[DiagnosticVariable] = NamedObjectList()
+        self.conserved_quantities: NamedObjectList[Variable] = NamedObjectList()
+        self.parameters: NamedObjectList[Parameter] = NamedObjectList()
+        self.interior_dependencies: NamedObjectList[Dependency] = NamedObjectList()
+        self.horizontal_dependencies: NamedObjectList[Dependency] = NamedObjectList()
+        self.scalar_dependencies: NamedObjectList[Dependency] = NamedObjectList()
 
         self._update_configuration()
         self._mask = None
