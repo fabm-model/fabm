@@ -270,7 +270,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
       fail-fast: false
     defaults:
       run:
@@ -285,6 +285,7 @@ jobs:
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
+          channels: conda-forge
       - name: Install dependencies
         run: python -m pip install --upgrade pip build
       - name: Build distribution
@@ -298,7 +299,7 @@ jobs:
           for f in testcases/*.yaml; do fabm_complete_yaml --add_missing $f; done
       - name: Run notebooks
         run: |
-          conda install -y -c conda-forge ipython jupyterlab ipympl matplotlib
+          conda install -y -c conda-forge ipython jupyterlab ipympl matplotlib scipy
           cd testcases/python
           for f in *.ipynb; do ipython --gui qt -c "%run $f"; done
       - name: Install with customization via command line arguments
