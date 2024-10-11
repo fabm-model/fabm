@@ -10,9 +10,9 @@ authors = [
   {name = "Karsten Bolding", email = "karsten@bolding-bruggeman.com"}
 ]
 description = "Python driver for FABM"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 dependencies = [
-  "numpy >= 1.23.5"
+  "numpy"
 ]
 classifiers = [
   "Programming Language :: Python :: 3",

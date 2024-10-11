@@ -299,7 +299,7 @@ jobs:
           for f in testcases/*.yaml; do fabm_complete_yaml --add_missing $f; done
       - name: Run notebooks
         run: |
-          conda install -y -c conda-forge ipython jupyterlab ipympl matplotlib scipy
+          conda install ipython jupyterlab ipympl matplotlib scipy
           cd testcases/python
           for f in *.ipynb; do ipython --gui qt -c "%run $f"; done
       - name: Install with customization via command line arguments
