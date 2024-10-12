@@ -54,9 +54,9 @@ contains
       end do
    end subroutine get_couplings
 
-   function get_suitable_masters(model, slave) result(link_list)
+   function get_suitable_masters(model, source) result(link_list)
       type (type_fabm_model), intent(inout)  :: model
-      type (type_internal_variable), pointer :: slave
+      type (type_internal_variable), pointer :: source
       type (type_link_list),         pointer :: link_list
 
       type (type_link), pointer :: link, link2
@@ -66,9 +66,9 @@ contains
       do while (associated(link))
          ! Coupled variables cannot serve as master
          if (associated(link%target,link%original) &   ! Uncoupled
-             .and. .not. associated(link%target, slave) & ! Not self
-             .and. .not. (link%original%state_indices%is_empty() .and. .not. slave%state_indices%is_empty()) & ! state variable if slave is state variable
-             .and. link%target%domain == slave%domain) then ! And on same domain
+             .and. .not. associated(link%target, source) & ! Not self
+             .and. .not. (link%original%state_indices%is_empty() .and. .not. source%state_indices%is_empty()) & ! state variable if source is state variable
+             .and. link%target%domain == source%domain) then ! And on same domain
             link2 => link_list%append(link%target, link%name)
             link2%original => link%original
          end if
