@@ -15,7 +15,7 @@ from typing import (
     Sequence,
     TypeVar,
     List,
-    Dict
+    Dict,
 )
 
 try:
@@ -462,29 +462,29 @@ DISPLAY_NORMAL = 1
 DISPLAY_ADVANCED = 2
 
 unicodesuperscript = {
-    "1": "\u00B9",
-    "2": "\u00B2",
-    "3": "\u00B3",
-    "4": "\u2074",
-    "5": "\u2075",
-    "6": "\u2076",
-    "7": "\u2077",
-    "8": "\u2078",
-    "9": "\u2079",
-    "0": "\u2070",
-    "-": "\u207B",
+    "0": "⁰",
+    "1": "¹",
+    "2": "²",
+    "3": "³",
+    "4": "⁴",
+    "5": "⁵",
+    "6": "⁶",
+    "7": "⁷",
+    "8": "⁸",
+    "9": "⁹",
+    "-": "⁻",
 }
 unicodesubscript = {
-    "1": "\u2081",
-    "2": "\u2082",
-    "3": "\u2083",
-    "4": "\u2084",
-    "5": "\u2085",
-    "6": "\u2086",
-    "7": "\u2087",
-    "8": "\u2088",
-    "9": "\u2089",
-    "0": "\u2080",
+    "0": "₀",
+    "1": "₁",
+    "2": "₂",
+    "3": "₃",
+    "4": "₄",
+    "5": "₅",
+    "6": "₆",
+    "7": "₇",
+    "8": "₈",
+    "9": "₉",
 }
 supnumber = re.compile(r"(?<=\w)(-?\d+)(?=[ \*+\-/]|$)")
 supenumber = re.compile(r"(?<=\d)e(-?\d+)(?=[ \*+\-/]|$)")
@@ -501,10 +501,10 @@ def createPrettyUnit(unit: str) -> str:
         return "".join([unicodesubscript[n] for n in m.group(1)])
 
     def reple(m: re.Match) -> str:
-        return "\u00D710%s" % "".join([unicodesuperscript[n] for n in m.group(1)])
+        return "×10%s" % "".join([unicodesuperscript[n] for n in m.group(1)])
 
     def reploldminus(m: re.Match) -> str:
-        return " %s\u207B%s" % (
+        return " %s⁻%s" % (
             m.group(1),
             "".join([unicodesuperscript[n] for n in m.group(2)]),
         )
@@ -542,7 +542,9 @@ NodeValue = TypeVar("NodeValue")
 NodeType = Mapping[str, Union["NodeType", NodeValue]]
 
 
-def printTree(root: NodeType, stringmapper: Callable[[NodeValue], str], indent: str=""):
+def printTree(
+    root: NodeType, stringmapper: Callable[[NodeValue], str], indent: str = ""
+):
     """Print an indented tree of objects, encoded by dictionaries linking the
     names of children to their subtree, or to their object. Objects are finally
     printed as string obtained by calling the provided stringmapper method."""
@@ -626,15 +628,19 @@ class Variable(object):
 
     @property
     def output_name(self) -> str:
+        """Name suitable for output
+        (alphanumeric characters and underscores only)"""
         return re.sub(r"\W", "_", self.name)
 
     @property
-    def missing_value(self):
+    def missing_value(self) -> Optional[float]:
+        """Value that indicates missing data, for instance, on land.
+        `None` if not set."""
         if self._pvariable is not None:
             return self.model.fabm.variable_get_missing_value(self._pvariable)
 
     @property
-    def options(self) -> Optional[Iterable]:
+    def options(self) -> Optional[Sequence]:
         pass
 
     def getRealProperty(self, name, default=-1.0) -> float:
@@ -654,7 +660,7 @@ class Dependency(Variable):
         shape: Tuple[int],
         link_function: Callable[[ctypes.c_void_p, ctypes.c_void_p, np.ndarray], None],
     ):
-        Variable.__init__(self, model, variable_pointer=variable_pointer)
+        super().__init__(model, variable_pointer=variable_pointer)
         self._is_set = False
         self._link_function = link_function
         self._shape = shape
@@ -687,7 +693,7 @@ class StateVariable(Variable):
     def __init__(
         self, model: "Model", variable_pointer: ctypes.c_void_p, data: np.ndarray
     ):
-        Variable.__init__(self, model, variable_pointer=variable_pointer)
+        super().__init__(model, variable_pointer=variable_pointer)
         self._data = data
 
     @property
@@ -708,17 +714,12 @@ class StateVariable(Variable):
 
     @property
     def no_river_dilution(self) -> bool:
-        return (
-            self.model.fabm.variable_get_no_river_dilution(self._pvariable) != 0
-        )
+        return self.model.fabm.variable_get_no_river_dilution(self._pvariable) != 0
 
     @property
     def no_precipitation_dilution(self) -> bool:
         return (
-            self.model.fabm.variable_get_no_precipitation_dilution(
-                self._pvariable
-            )
-            != 0
+            self.model.fabm.variable_get_no_precipitation_dilution(self._pvariable) != 0
         )
 
 
@@ -730,7 +731,7 @@ class DiagnosticVariable(Variable):
         index: int,
         horizontal: bool,
     ):
-        Variable.__init__(self, model, variable_pointer=variable_pointer)
+        super().__init__(model, variable_pointer=variable_pointer)
         self._data = None
         self._horizontal = horizontal
         self._index = index + 1
@@ -741,6 +742,7 @@ class DiagnosticVariable(Variable):
 
     @property
     def output(self) -> bool:
+        """Whether this diagnostic is meant to be included in output by default"""
         return self.model.fabm.variable_get_output(self._pvariable) != 0
 
     def _set_save(self, value: bool):
@@ -753,6 +755,7 @@ class DiagnosticVariable(Variable):
             self.model.pmodel, vartype, self._index, 1 if value else 0
         )
 
+    #: Whether the value of this diagnostic must be calculated, for instance, for output
     save: bool = property(fset=_set_save)
 
 
@@ -767,7 +770,7 @@ class Parameter(Variable):
         type: Optional[int] = None,
         has_default: bool = False,
     ):
-        Variable.__init__(self, model, name, units, long_name)
+        super().__init__(model, name, units, long_name)
         self._type = type
         self._index = index + 1
         self._has_default = has_default
@@ -797,7 +800,7 @@ class Parameter(Variable):
             return result.value.decode("ascii")
 
     @property
-    def value(self):
+    def value(self) -> Union[float, int, bool, str]:
         return self._get_value()
 
     @value.setter
@@ -826,12 +829,14 @@ class Parameter(Variable):
         self.model._update_configuration(settings)
 
     @property
-    def default(self):
+    def default(self) -> Union[float, int, bool, str, None]:
+        """Default value for this parameter (`None` if no default is set)"""
         if not self._has_default:
             return None
         return self._get_value(default=True)
 
     def reset(self):
+        """Reset this parameter to its default value"""
         settings = self.model._save_state()
         self.model.fabm.reset_parameter(self.model.pmodel, self._index)
         self.model._update_configuration(settings)
@@ -840,13 +845,13 @@ class Parameter(Variable):
 class StandardVariable:
     def __init__(self, model: "Model", pointer: ctypes.c_void_p):
         self.model = model
-        self.pointer = pointer
+        self._pvariable = pointer
 
     @property
-    def value(self):
+    def value(self) -> np.ndarray:
         horizontal = ctypes.c_int()
         pdata = self.model.fabm.get_standard_variable_data(
-            self.model.pmodel, self.pointer, horizontal
+            self.model.pmodel, self._pvariable, horizontal
         )
         if horizontal.value == 0:
             shape = self.model.interior_domain_shape
@@ -908,22 +913,24 @@ class NamedObjectList(Sequence[T]):
 
 class Coupling(Variable):
     def __init__(self, model: "Model", index: int):
-        self.model = model
-        self.master = ctypes.c_void_p()
-        self.slave = ctypes.c_void_p()
-        self.model.fabm.get_coupling(
-            self.model.pmodel,
-            index,
-            ctypes.byref(self.slave),
-            ctypes.byref(self.master),
+        self._ptarget = ctypes.c_void_p()
+        self._psource = ctypes.c_void_p()
+        model.fabm.get_coupling(
+            model.pmodel,
+            index + 1,
+            ctypes.byref(self._psource),
+            ctypes.byref(self._ptarget),
         )
-        Variable.__init__(self, model, variable_pointer=self.slave)
+        super().__init__(model, variable_pointer=self._psource)
+        self._options = None
 
     @property
-    def value(self) -> str:
+    def value(self) -> Optional[str]:
+        if self._psource.value == self._ptarget.value:
+            return
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         self.model.fabm.variable_get_long_path(
-            self.master, ATTRIBUTE_LENGTH, strlong_name
+            self._ptarget, ATTRIBUTE_LENGTH, strlong_name
         )
         return strlong_name.value.decode("ascii")
 
@@ -933,28 +940,21 @@ class Coupling(Variable):
         pass
 
     @property
-    def options(self) -> Iterable:
-        options = []
-        list = self.model.fabm.variable_get_suitable_masters(
-            self.model.pmodel, self.slave
-        )
-        strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        for i in range(self.model.fabm.link_list_count(list)):
-            variable = self.model.fabm.link_list_index(list, i + 1)
-            self.model.fabm.variable_get_long_path(
-                variable, ATTRIBUTE_LENGTH, strlong_name
+    def options(self) -> Sequence[str]:
+        if self._options is None:
+            self._options: List[str] = []
+            plist = self.model.fabm.variable_get_suitable_masters(
+                self.model.pmodel, self._psource
             )
-            options.append(strlong_name.value.decode("ascii"))
-        self.model.fabm.link_list_finalize(list)
-        return options
-
-    @property
-    def long_path(self) -> str:
-        strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-        self.model.fabm.variable_get_long_path(
-            self.slave, ATTRIBUTE_LENGTH, strlong_name
-        )
-        return strlong_name.value.decode("ascii")
+            strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+            for i in range(self.model.fabm.link_list_count(plist)):
+                variable = self.model.fabm.link_list_index(plist, i + 1)
+                self.model.fabm.variable_get_long_path(
+                    variable, ATTRIBUTE_LENGTH, strlong_name
+                )
+                self._options.append(strlong_name.value.decode("ascii"))
+            self.model.fabm.link_list_finalize(plist)
+        return self._options
 
 
 class SubModel(object):
@@ -971,7 +971,7 @@ class SubModel(object):
 class Model(object):
     def __init__(
         self,
-        path: str = "fabm.yaml",
+        path: Union[str, dict] = "fabm.yaml",
         shape: Tuple[int] = (),
         libname: Optional[str] = None,
         start: Optional[Tuple[int]] = None,
@@ -1098,54 +1098,54 @@ class Model(object):
         self._bottom_index = indices
         self.fabm.set_bottom_index(self.pmodel, self._bottom_index)
 
-    def _get_bottom_index(self):
+    @property
+    def bottom_index(self) -> Optional[np.ndarray]:
         return self._bottom_index
 
-    def _set_bottom_index(self, indices: npt.ArrayLike):
+    @bottom_index.setter
+    def bottom_index(self, indices: npt.ArrayLike):
         if self._bottom_index is None:
             self.link_bottom_index(np.ones(self.horizontal_domain_shape, dtype=np.intc))
         if indices is not self._bottom_index:
             self._bottom_index[...] = indices
 
-    bottom_index = property(_get_bottom_index, _set_bottom_index)
-
-    def _get_state(self):
+    @property
+    def state(self) -> Optional[np.ndarray]:
         return self._state
 
-    def _set_state(self, value):
+    @state.setter
+    def state(self, value: npt.ArrayLike):
         if value is not self._state:
             self._state[...] = value
 
-    state = property(_get_state, _set_state)
-
-    def _get_interior_state(self):
+    @property
+    def interior_state(self) -> np.ndarray:
         return self._interior_state
 
-    def _set_interior_state(self, value):
+    @interior_state.setter
+    def interior_state(self, value: npt.ArrayLike):
         if value is not self._interior_state:
             self._interior_state[...] = value
 
-    interior_state = property(_get_interior_state, _set_interior_state)
-
-    def _get_surface_state(self):
+    @property
+    def surface_state(self) -> np.ndarray:
         return self._surface_state
 
-    def _set_surface_state(self, value):
+    @surface_state.setter
+    def surface_state(self, value: npt.ArrayLike):
         if value is not self._surface_state:
             self._surface_state[...] = value
 
-    surface_state = property(_get_surface_state, _set_surface_state)
-
-    def _get_bottom_state(self):
+    @property
+    def bottom_state(self) -> np.ndarray:
         return self._bottom_state
 
-    def _set_bottom_state(self, value):
+    @bottom_state.setter
+    def bottom_state(self, value: npt.ArrayLike):
         if value is not self._bottom_state:
             self._bottom_state[...] = value
 
-    bottom_state = property(_get_bottom_state, _set_bottom_state)
-
-    def link_cell_thickness(self, data):
+    def link_cell_thickness(self, data: np.ndarray):
         assert (
             data.shape == self.interior_domain_shape
             and data.dtype == self.fabm.numpy_dtype
@@ -1153,7 +1153,7 @@ class Model(object):
         )
         self._cell_thickness = data
 
-    def setCellThickness(self, value):
+    def setCellThickness(self, value: npt.ArrayLike):
         if self._cell_thickness is None:
             self.link_cell_thickness(np.empty(self.interior_domain_shape))
         self._cell_thickness[...] = value
@@ -1164,6 +1164,7 @@ class Model(object):
         return SubModel(self, name)
 
     def save_settings(self, path: str, display: int = DISPLAY_NORMAL):
+        """Write model configuration to yaml file"""
         self.fabm.save_settings(self.pmodel, path.encode("ascii"), display)
 
     def _save_state(self) -> Tuple:
@@ -1357,7 +1358,7 @@ class Model(object):
             )
 
         self.couplings = NamedObjectList(
-            [Coupling(self, i + 1) for i in range(ncouplings.value)]
+            [Coupling(self, i) for i in range(ncouplings.value)]
         )
 
         # Arrays that combine variables from pelagic and boundary domains.
@@ -1534,7 +1535,7 @@ class Model(object):
     def require_data(self, standard_variable: StandardVariable):
         return self.fabm.require_data(self.pmodel, standard_variable.pointer)
 
-    def getParameterTree(self) -> Mapping:
+    def _get_parameter_tree(self) -> Mapping:
         root = {}
         for parameter in self.parameters:
             pathcomps = parameter.name.split("/")
@@ -1610,7 +1611,7 @@ class Model(object):
         )
         printArray("external variables", self.dependencies)
         log(f" {len(self.parameters)} parameters:")
-        printTree(self.getParameterTree(), lambda x: f"{x.value} {x.units}", "    ")
+        printTree(self._get_parameter_tree(), lambda x: f"{x.value} {x.units}", "    ")
 
 
 class Simulator(object):
@@ -1620,7 +1621,14 @@ class Simulator(object):
         ), "You must assign model.cell_thickness to use Simulator"
         self.model = model
 
-    def integrate(self, y0, t, dt, surface: bool = True, bottom: bool = True):
+    def integrate(
+        self,
+        y0: np.ndarray,
+        t: np.ndarray,
+        dt: float,
+        surface: bool = True,
+        bottom: bool = True,
+    ):
         y = np.empty((t.size, self.model.state.size))
         self.model.fabm.integrate(
             self.model.pmodel,

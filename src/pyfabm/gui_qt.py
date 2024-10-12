@@ -1,5 +1,5 @@
 import sys
-from typing import Sequence
+from typing import Iterable, Union, List, Optional
 import numpy as np
 import pyfabm
 
@@ -23,14 +23,13 @@ class Delegate(QtWidgets.QStyledItemDelegate):
 
     def createEditor(self, parent, option, index):
         assert index.isValid()
-        data = index.internalPointer().object
+        data: Union[str, pyfabm.Variable] = index.internalPointer().object
         if not isinstance(data, str):
-            options = data.options
-            if options is not None:
+            if data.options is not None:
                 widget = QtWidgets.QComboBox(parent)
-                widget.addItems(options)
+                widget.addItems(data.options)
                 return widget
-            elif isinstance(data.value, (float, np.ndarray)):
+            elif data.value is None or isinstance(data.value, (float, np.ndarray)):
                 widget = ScientificDoubleEditor(parent)
                 if data.units:
                     widget.setSuffix(f" {data.units_unicode}")
@@ -39,15 +38,14 @@ class Delegate(QtWidgets.QStyledItemDelegate):
 
     def setEditorData(self, editor, index):
         if isinstance(editor, QtWidgets.QComboBox):
-            data = index.internalPointer().object
+            data: Union[str, pyfabm.Variable] = index.internalPointer().object
             if not isinstance(data, str):
-                options = data.options
-                if options is not None:
-                    editor.setCurrentIndex(list(options).index(data.value))
+                if data.options is not None and data.value is not None:
+                    editor.setCurrentIndex(data.options.index(data.value))
                     return
         elif isinstance(editor, ScientificDoubleEditor):
             data = index.internalPointer().object
-            editor.setValue(float(data.value))
+            editor.setValue(data.value if data.value is None else float(data.value))
             return
         return QtWidgets.QStyledItemDelegate.setEditorData(self, editor, index)
 
@@ -55,10 +53,9 @@ class Delegate(QtWidgets.QStyledItemDelegate):
         if isinstance(editor, QtWidgets.QComboBox):
             data = index.internalPointer().object
             if not isinstance(data, str):
-                options = data.options
-                if options is not None:
+                if data.options is not None:
                     i = editor.currentIndex()
-                    model.setData(index, options[i], QtCore.Qt.EditRole)
+                    model.setData(index, data.options[i], QtCore.Qt.EditRole)
                     return
         elif isinstance(editor, ScientificDoubleEditor):
             model.setData(index, editor.value(), QtCore.Qt.EditRole)
@@ -66,28 +63,28 @@ class Delegate(QtWidgets.QStyledItemDelegate):
         return QtWidgets.QStyledItemDelegate.setModelData(self, editor, model, index)
 
 
-class Entry(object):
-    def __init__(self, object=None, name: str=""):
+class Entry:
+    def __init__(self, object: Union[None, str, "Entry"] = None, name: str = ""):
         if name == "" and object is not None:
             name = object
         self.object = object
         self.name = name
-        self.parent = None
-        self.children = []
+        self.parent: Optional["Entry"] = None
+        self.children: List["Entry"] = []
         assert isinstance(self.name, str)
 
-    def addChild(self, child):
+    def addChild(self, child: "Entry"):
         child.parent = self
         self.children.append(child)
 
-    def insertChild(self, index, child):
+    def insertChild(self, index: int, child: "Entry"):
         child.parent = self
         self.children.insert(index, child)
 
-    def removeChild(self, index):
+    def removeChild(self, index: int):
         self.children.pop(index).parent = None
 
-    def findChild(self, name):
+    def findChild(self, name: str):
         for child in self.children:
             if isinstance(child.object, str) and child.object == name:
                 return child
@@ -95,7 +92,7 @@ class Entry(object):
         self.addChild(child)
         return child
 
-    def addTree(self, arr: Sequence[pyfabm.Variable], category=None):
+    def addTree(self, arr: Iterable[pyfabm.Variable], category: Optional[str] = None):
         for variable in arr:
             pathcomps = variable.path.split("/")
             if len(pathcomps) < 2:
@@ -247,8 +244,10 @@ class ItemModel(QtCore.QAbstractItemModel):
             if not isinstance(data, (str, Submodel)):
                 if index.column() == 1:
                     value = data.value
+                    if value is None:
+                        return "<not set>"
                     if not isinstance(value, bool):
-                        if data.units:
+                        if data.units and not isinstance(value, str):
                             return f"{value} {data.units_unicode}"
                         else:
                             return f"{value}"
