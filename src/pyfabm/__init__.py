@@ -1028,6 +1028,7 @@ class Model(object):
         if delete:
             os.remove(path)
 
+        # fmt: off
         self.interior_state_variables: NamedObjectList[StateVariable] = NamedObjectList()
         self.surface_state_variables: NamedObjectList[StateVariable] = NamedObjectList()
         self.bottom_state_variables: NamedObjectList[StateVariable] = NamedObjectList()
@@ -1038,6 +1039,7 @@ class Model(object):
         self.interior_dependencies: NamedObjectList[Dependency] = NamedObjectList()
         self.horizontal_dependencies: NamedObjectList[Dependency] = NamedObjectList()
         self.scalar_dependencies: NamedObjectList[Dependency] = NamedObjectList()
+        # fmt: on
 
         self._update_configuration()
         self._mask = None
@@ -1110,11 +1112,23 @@ class Model(object):
             self._bottom_index[...] = indices
 
     @property
-    def state(self) -> Optional[np.ndarray]:
+    def state(self) -> np.ndarray:
+        if self._state is None:
+            raise Exception(
+                "State is not available as one contiguous array because interior and"
+                " surface/bottom state variables have different shapes."
+                " Use interior_state, surface_state, bottom_state attributes instead."
+            )
         return self._state
 
     @state.setter
     def state(self, value: npt.ArrayLike):
+        if self._state is None:
+            raise Exception(
+                "State is not available as one contiguous array because interior and"
+                " surface/bottom state variables have different shapes."
+                " Use interior_state, surface_state, bottom_state attributes instead."
+            )
         if value is not self._state:
             self._state[...] = value
 
@@ -1233,6 +1247,7 @@ class Model(object):
         else:
             # Surface/bottom variables have one dimension less than interior variables
             # Store values for each variable type in a separate array.
+            self._state = None
             self._interior_state = np.empty(
                 (nstate_interior.value,) + self.interior_domain_shape,
                 dtype=self.fabm.numpy_dtype,
