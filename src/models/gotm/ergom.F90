@@ -131,7 +131,7 @@ contains
       call self%get_parameter(self%iv, 'iv', 'm3/mmol N', 'Ivlev constant for grazing', default=0.24444444_rk)
       call self%get_parameter(self%topt, 'topt', 'deg C', 'optimum temperature for grazing', default=20.0_rk)
       call self%get_parameter(self%lan, 'lan', '1/d', 'maximum nitrification rate', default=0.1_rk, scale_factor=1.0_rk/secs_pr_day)
-      call self%get_parameter(self%oan, 'oan', 'mmol o2/m3', 'half-saturation oxygen concentration for nitrification', default=0.01_rk)
+      call self%get_parameter(self%oan, 'oan', 'mmol O2/m3', 'half-saturation oxygen concentration for nitrification', default=0.01_rk)
       call self%get_parameter(self%beta_an, 'beta_an', '1/deg C', 'temperature sensitivity of nitrification', default=0.11_rk)
       call self%get_parameter(self%lda, 'lda', '1/d', 'remineralisation rate', default=0.003_rk, scale_factor=1.0_rk/secs_pr_day)
       call self%get_parameter(self%tda, 'tda', 'deg C', 'half-saturation temperature for remineralisation', default=13.0_rk)
@@ -148,16 +148,16 @@ contains
       if (self%fluff) then
          call self%get_parameter(self%lds, 'lds', 'm/d', 'sedimentation rate of detritus', default=3.5_rk, scale_factor=1.0_rk/secs_pr_day)
          call self%get_parameter(self%lsd, 'lsd', '1/d', 'resuspension rate of fluff', default=25.0_rk, scale_factor=1.0_rk/secs_pr_day)
-         call self%get_parameter(self%tau_crit, 'tau_crit', 'critical bottom stress', 'N/m2', default=0.07_rk)
+         call self%get_parameter(self%tau_crit, 'tau_crit', 'N/m2', 'critical bottom stress', default=0.07_rk)
          call self%get_parameter(self%lsa, 'lsa', '1/d', 'fluff mineralisation rate', default=0.001_rk, scale_factor=1.0_rk/secs_pr_day)
          call self%get_parameter(self%bsa, 'bsa', '1/deg C', 'temperature sensitivity of fluff mineralisation', default=0.15_rk)
          call self%get_parameter(self%ph1, 'ph1', '-', 'inhibition of phosphate release during fluff mineralisation', default=0.15_rk)
          call self%get_parameter(self%ph2, 'ph2', 'mmol O2/m3', 'half-saturation oxygen concentration for inhibition of phosphate release', default=0.1_rk)
       end if
-      call self%get_parameter(w_p1, 'w_p1', 'vertical velocity of diatoms (< for sinking)', 'm/d', default=-1.0_rk, scale_factor=1.0_rk/secs_pr_day)
-      call self%get_parameter(w_p2, 'w_p2', 'vertical velocity of flagellates (< for sinking)', 'm/d', default=-5.0_rk, scale_factor=1.0_rk/secs_pr_day)
-      call self%get_parameter(w_p3, 'w_p3', 'vertical velocity of cyanobacteria (< for sinking)', 'm/d', default=-5.0_rk, scale_factor=1.0_rk/secs_pr_day)
-      call self%get_parameter(w_de, 'w_de', 'vertical velocity of detritus (< for sinking)', 'm/d', default=-3.0_rk, scale_factor=1.0_rk/secs_pr_day)
+      call self%get_parameter(w_p1, 'w_p1', 'm/d', 'vertical velocity of diatoms (< for sinking)', default=-1.0_rk, scale_factor=1.0_rk/secs_pr_day)
+      call self%get_parameter(w_p2, 'w_p2', 'm/d', 'vertical velocity of flagellates (< for sinking)', default=-5.0_rk, scale_factor=1.0_rk/secs_pr_day)
+      call self%get_parameter(w_p3, 'w_p3', 'm/d', 'vertical velocity of cyanobacteria (< for sinking)', default=-5.0_rk, scale_factor=1.0_rk/secs_pr_day)
+      call self%get_parameter(w_de, 'w_de', 'm/d', 'vertical velocity of detritus (< for sinking)', default=-3.0_rk, scale_factor=1.0_rk/secs_pr_day)
 
       ! Register state variables
       call self%register_state_variable(self%id_p1, 'dia', 'mmol N/m3', 'diatoms',      &

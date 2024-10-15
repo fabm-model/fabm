@@ -534,23 +534,23 @@ contains
       has_default = logical2int(scalar_value%has_default)
    end subroutine get_parameter_metadata
 
-   subroutine get_coupling(pmodel, index, slave, master) bind(c)
+   subroutine get_coupling(pmodel, index, source, target) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_coupling
       type (c_ptr),   intent(in), value :: pmodel
       integer(c_int), intent(in), value :: index
-      type (c_ptr),   intent(out)       :: slave, master
+      type (c_ptr),   intent(out)       :: source, target
 
       type (type_model_wrapper), pointer :: model
-      type (type_link),pointer :: link_slave
+      type (type_link),pointer :: link_source
       integer                  :: i
 
       call c_f_pointer(pmodel, model)
-      link_slave => model%coupling_link_list%first
-      do i=2,index
-         link_slave => link_slave%next
+      link_source => model%coupling_link_list%first
+      do i = 2, index
+         link_source => link_source%next
       end do
-      slave = c_loc(link_slave%original)
-      master = c_loc(link_slave%target)
+      source = c_loc(link_source%original)
+      target = c_loc(link_source%target)
    end subroutine get_coupling
 
    function variable_get_suitable_masters(pmodel, pvariable) result(plist) bind(c)
