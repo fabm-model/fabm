@@ -391,3 +391,5 @@ jobs:
           activate-environment: fabm
       - name: Install
         run: .binder/postBuild
+        env:
+          REPO_DIR: .
