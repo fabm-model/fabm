@@ -2,9 +2,9 @@ name: fabm
 channels:
   - conda-forge
 dependencies:
-  - python=3.8
+  - python
   - pip
-  - fortran-compiler
+  - gfortran
   - cmake
   - jupyterlab
   - numpy
