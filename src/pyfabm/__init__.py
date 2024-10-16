@@ -3,6 +3,7 @@ import os
 import ctypes
 import re
 import logging
+import enum
 from typing import (
     MutableMapping,
     Optional,
@@ -10,7 +11,6 @@ from typing import (
     Iterable,
     Union,
     Callable,
-    Any,
     Mapping,
     Sequence,
     TypeVar,
@@ -455,6 +455,15 @@ CONSERVED_QUANTITY = 6
 INTERIOR_DEPENDENCY = 7
 HORIZONTAL_DEPENDENCY = 8
 SCALAR_DEPENDENCY = 9
+
+
+class DataType(enum.IntEnum):
+    REAL = 1
+    INTEGER = 2
+    LOGICAL = 3
+    STRING = 4
+
+
 ATTRIBUTE_LENGTH = 256
 
 DISPLAY_MINIMUM = 0
@@ -561,19 +570,19 @@ class VariableProperties:
         self.model = model
         self._pvariable = variable_pointer
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> Union[float, int, bool]:
         typecode = self.model.fabm.variable_get_property_type(
             self._pvariable, key.encode("ascii")
         )
-        if typecode == 1:
+        if typecode == DataType.REAL:
             return self.model.fabm.variable_get_real_property(
                 self._pvariable, key.encode("ascii"), -1.0
             )
-        elif typecode == 2:
+        elif typecode == DataType.INTEGER:
             return self.model.fabm.variable_get_integer_property(
                 self._pvariable, key.encode("ascii"), 0
             )
-        elif typecode == 3:
+        elif typecode == DataType.LOGICAL:
             return (
                 self.model.fabm.variable_get_logical_property(
                     self._pvariable, key.encode("ascii"), 0
@@ -587,29 +596,12 @@ class Variable(object):
     def __init__(
         self,
         model: "Model",
-        name: Optional[str] = None,
-        units: Optional[str] = None,
-        long_name: Optional[str] = None,
+        name: str,
+        units: str,
+        long_name: str,
         path: Optional[str] = None,
-        variable_pointer: Optional[ctypes.c_void_p] = None,
     ):
         self.model = model
-        self._pvariable = variable_pointer
-        if variable_pointer:
-            strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-            strunits = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-            strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
-            self.model.fabm.variable_get_metadata(
-                variable_pointer, ATTRIBUTE_LENGTH, strname, strunits, strlong_name
-            )
-            if name is None:
-                name = strname.value.decode("ascii")
-            if units is None:
-                units = strunits.value.decode("ascii")
-            if long_name is None:
-                long_name = strlong_name.value.decode("ascii")
-            self.properties = VariableProperties(self.model, self._pvariable)
-
         self.name = name
         self.units = units
         self.units_unicode = None if units is None else createPrettyUnit(units)
@@ -618,8 +610,41 @@ class Variable(object):
 
     @property
     def long_path(self) -> str:
-        if self._pvariable is None:
-            return self.long_name
+        return self.long_name
+
+    @property
+    def output_name(self) -> str:
+        """Name suitable for output (alphanumeric characters and underscores only)"""
+        return re.sub(r"\W", "_", self.name)
+
+    @property
+    def options(self) -> Optional[Sequence]:
+        pass
+
+    def __repr__(self) -> str:
+        postfix = f"={self.value}" if hasattr(self, "value") else ""
+        return f"<{self.name}{postfix}>"
+
+
+class VariableFromPointer(Variable):
+    def __init__(self, model: "Model", variable_pointer: ctypes.c_void_p):
+        strname = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+        strunits = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+        strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
+        model.fabm.variable_get_metadata(
+            variable_pointer, ATTRIBUTE_LENGTH, strname, strunits, strlong_name
+        )
+        name = strname.value.decode("ascii")
+        units = strunits.value.decode("ascii")
+        long_name = strlong_name.value.decode("ascii")
+
+        super().__init__(model, name, units, long_name)
+
+        self._pvariable = variable_pointer
+        self.properties = VariableProperties(self.model, self._pvariable)
+
+    @property
+    def long_path(self) -> str:
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         self.model.fabm.variable_get_long_path(
             self._pvariable, ATTRIBUTE_LENGTH, strlong_name
@@ -627,32 +652,18 @@ class Variable(object):
         return strlong_name.value.decode("ascii")
 
     @property
-    def output_name(self) -> str:
-        """Name suitable for output
-        (alphanumeric characters and underscores only)"""
-        return re.sub(r"\W", "_", self.name)
-
-    @property
     def missing_value(self) -> Optional[float]:
         """Value that indicates missing data, for instance, on land.
         `None` if not set."""
-        if self._pvariable is not None:
-            return self.model.fabm.variable_get_missing_value(self._pvariable)
-
-    @property
-    def options(self) -> Optional[Sequence]:
-        pass
+        return self.model.fabm.variable_get_missing_value(self._pvariable)
 
     def getRealProperty(self, name, default=-1.0) -> float:
         return self.model.fabm.variable_get_real_property(
             self._pvariable, name.encode("ascii"), default
         )
 
-    def __repr__(self) -> str:
-        return f"<{self.name}={self.value}>"
 
-
-class Dependency(Variable):
+class Dependency(VariableFromPointer):
     def __init__(
         self,
         model: "Model",
@@ -660,7 +671,7 @@ class Dependency(Variable):
         shape: Tuple[int],
         link_function: Callable[[ctypes.c_void_p, ctypes.c_void_p, np.ndarray], None],
     ):
-        super().__init__(model, variable_pointer=variable_pointer)
+        super().__init__(model, variable_pointer)
         self._is_set = False
         self._link_function = link_function
         self._shape = shape
@@ -689,11 +700,11 @@ class Dependency(Variable):
         return self.model.fabm.variable_is_required(self._pvariable) != 0
 
 
-class StateVariable(Variable):
+class StateVariable(VariableFromPointer):
     def __init__(
         self, model: "Model", variable_pointer: ctypes.c_void_p, data: np.ndarray
     ):
-        super().__init__(model, variable_pointer=variable_pointer)
+        super().__init__(model, variable_pointer)
         self._data = data
 
     @property
@@ -723,7 +734,7 @@ class StateVariable(Variable):
         )
 
 
-class DiagnosticVariable(Variable):
+class DiagnosticVariable(VariableFromPointer):
     def __init__(
         self,
         model: "Model",
@@ -731,7 +742,7 @@ class DiagnosticVariable(Variable):
         index: int,
         horizontal: bool,
     ):
-        super().__init__(model, variable_pointer=variable_pointer)
+        super().__init__(model, variable_pointer)
         self._data = None
         self._horizontal = horizontal
         self._index = index + 1
@@ -767,7 +778,7 @@ class Parameter(Variable):
         index: int,
         units: Optional[str] = None,
         long_name: Optional[str] = None,
-        type: Optional[int] = None,
+        type: Optional[DataType] = None,
         has_default: bool = False,
     ):
         super().__init__(model, name, units, long_name)
@@ -777,22 +788,22 @@ class Parameter(Variable):
 
     def _get_value(self, *, default: bool = False):
         default = 1 if default else 0
-        if self._type == 1:
+        if self._type == DataType.REAL:
             return self.model.fabm.get_real_parameter(
                 self.model.pmodel, self._index, default
             )
-        elif self._type == 2:
+        elif self._type == DataType.INTEGER:
             return self.model.fabm.get_integer_parameter(
                 self.model.pmodel, self._index, default
             )
-        elif self._type == 3:
+        elif self._type == DataType.LOGICAL:
             return (
                 self.model.fabm.get_logical_parameter(
                     self.model.pmodel, self._index, default
                 )
                 != 0
             )
-        elif self._type == 4:
+        elif self._type == DataType.STRING:
             result = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
             self.model.fabm.get_string_parameter(
                 self.model.pmodel, self._index, default, ATTRIBUTE_LENGTH, result
@@ -804,22 +815,22 @@ class Parameter(Variable):
         return self._get_value()
 
     @value.setter
-    def value(self, value):
+    def value(self, value: Union[float, int, bool, str]):
         settings = self.model._save_state()
 
-        if self._type == 1:
+        if self._type == DataType.REAL:
             self.model.fabm.set_real_parameter(
                 self.model.pmodel, self.name.encode("ascii"), value
             )
-        elif self._type == 2:
+        elif self._type == DataType.INTEGER:
             self.model.fabm.set_integer_parameter(
                 self.model.pmodel, self.name.encode("ascii"), value
             )
-        elif self._type == 3:
+        elif self._type == DataType.LOGICAL:
             self.model.fabm.set_logical_parameter(
                 self.model.pmodel, self.name.encode("ascii"), value
             )
-        elif self._type == 4:
+        elif self._type == DataType.STRING:
             self.model.fabm.set_string_parameter(
                 self.model.pmodel, self.name.encode("ascii"), value.encode("ascii")
             )
@@ -911,7 +922,7 @@ class NamedObjectList(Sequence[T]):
         self._lookup_ci = None
 
 
-class Coupling(Variable):
+class Coupling(VariableFromPointer):
     def __init__(self, model: "Model", index: int):
         self._ptarget = ctypes.c_void_p()
         self._psource = ctypes.c_void_p()
@@ -921,7 +932,7 @@ class Coupling(Variable):
             ctypes.byref(self._psource),
             ctypes.byref(self._ptarget),
         )
-        super().__init__(model, variable_pointer=self._psource)
+        super().__init__(model, self._psource)
         self._options = None
 
     @property
