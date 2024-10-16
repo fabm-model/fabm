@@ -622,7 +622,8 @@ class Variable(object):
         pass
 
     def __repr__(self) -> str:
-        return f"<{self.name}={self.value}>"
+        postfix = f"={self.value}" if hasattr(self, "value") else ""
+        return f"<{self.name}{postfix}>"
 
 
 class VariableFromPointer(Variable):
