@@ -1409,7 +1409,7 @@ class Model(object):
             + self.horizontal_dependencies
             + self.scalar_dependencies
         )
-        self.variables = (
+        self.variables: NamedObjectList[VariableFromPointer] = (
             self.state_variables + self.diagnostic_variables + self.dependencies
         )
 
@@ -1422,7 +1422,7 @@ class Model(object):
 
         self.itime = -1.0
 
-    def getRates(self, t: float = None, surface: bool = True, bottom: bool = True):
+    def getRates(self, t: Optional[float] = None, surface: bool = True, bottom: bool = True):
         """Returns the local rate of change in state variables,
         given the current state and environment.
         """
@@ -1459,7 +1459,7 @@ class Model(object):
 
     def get_sources(
         self,
-        t: float = None,
+        t: Optional[float] = None,
         out: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]] = None,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         if t is None:
