@@ -1087,10 +1087,15 @@ class Model(object):
         self._mask = masks
         self.fabm.set_mask(self.pmodel, *self._mask)
 
-    def _get_mask(self) -> Union[np.ndarray, Sequence[np.ndarray]]:
-        return self._mask[0] if len(self._mask) == 1 else self._mask
+    @property
+    def mask(self) -> Union[np.ndarray, Sequence[np.ndarray], None]:
+        mask = self._mask
+        if mask is not None and len(mask) == 1:
+            mask = mask[0]
+        return mask
 
-    def _set_mask(self, values: Union[npt.ArrayLike, Sequence[npt.ArrayLike]]):
+    @mask.setter
+    def mask(self, values: Union[npt.ArrayLike, Sequence[npt.ArrayLike]]):
         if self.fabm.mask_type == 1:
             values = (values,)
         if len(values) != self.fabm.mask_type:
@@ -1103,8 +1108,6 @@ class Model(object):
         for value, mask in zip(values, self._mask):
             if value is not mask:
                 mask[...] = value
-
-    mask = property(_get_mask, _set_mask)
 
     def link_bottom_index(self, indices: np.ndarray):
         if not self.fabm.variable_bottom_index:
