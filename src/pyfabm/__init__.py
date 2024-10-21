@@ -886,19 +886,27 @@ class NamedObjectList(Sequence[T]):
     def __len__(self) -> int:
         return len(self._data)
 
-    def __getitem__(self, key: Union[str, int]) -> T:
+    def __getitem__(self, key: Union[int, str]) -> T:
         if isinstance(key, str):
             return self.find(key)
         return self._data[key]
 
-    def __contains__(self, key: Union[str, int]) -> bool:
+    def __contains__(self, key: Union[T, str]) -> bool:
         if isinstance(key, str):
             try:
                 self.find(key)
                 return True
             except KeyError:
                 return False
-        return super().__contains__(key)
+        return key in self._data
+
+    def index(self, key: Union[T, str], *args) -> int:
+        if isinstance(key, str):
+            try:
+                key = self.find(key)
+            except KeyError:
+                raise ValueError
+        return self._data.index(key, *args)
 
     def __repr__(self) -> str:
         return repr(self._data)
