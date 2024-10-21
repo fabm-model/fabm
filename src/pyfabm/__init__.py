@@ -886,19 +886,27 @@ class NamedObjectList(Sequence[T]):
     def __len__(self) -> int:
         return len(self._data)
 
-    def __getitem__(self, key: Union[str, int]) -> T:
+    def __getitem__(self, key: Union[int, str]) -> T:
         if isinstance(key, str):
             return self.find(key)
         return self._data[key]
 
-    def __contains__(self, key: Union[str, int]) -> bool:
+    def __contains__(self, key: Union[T, str]) -> bool:
         if isinstance(key, str):
             try:
                 self.find(key)
                 return True
             except KeyError:
                 return False
-        return super().__contains__(key)
+        return key in self._data
+
+    def index(self, key: Union[T, str], *args) -> int:
+        if isinstance(key, str):
+            try:
+                key = self.find(key)
+            except KeyError:
+                raise ValueError from None
+        return self._data.index(key, *args)
 
     def __repr__(self) -> str:
         return repr(self._data)
@@ -1079,10 +1087,15 @@ class Model(object):
         self._mask = masks
         self.fabm.set_mask(self.pmodel, *self._mask)
 
-    def _get_mask(self) -> Union[np.ndarray, Sequence[np.ndarray]]:
-        return self._mask[0] if len(self._mask) == 1 else self._mask
+    @property
+    def mask(self) -> Union[np.ndarray, Sequence[np.ndarray], None]:
+        mask = self._mask
+        if mask is not None and len(mask) == 1:
+            mask = mask[0]
+        return mask
 
-    def _set_mask(self, values: Union[npt.ArrayLike, Sequence[npt.ArrayLike]]):
+    @mask.setter
+    def mask(self, values: Union[npt.ArrayLike, Sequence[npt.ArrayLike]]):
         if self.fabm.mask_type == 1:
             values = (values,)
         if len(values) != self.fabm.mask_type:
@@ -1095,8 +1108,6 @@ class Model(object):
         for value, mask in zip(values, self._mask):
             if value is not mask:
                 mask[...] = value
-
-    mask = property(_get_mask, _set_mask)
 
     def link_bottom_index(self, indices: np.ndarray):
         if not self.fabm.variable_bottom_index:
@@ -1401,7 +1412,7 @@ class Model(object):
             + self.horizontal_dependencies
             + self.scalar_dependencies
         )
-        self.variables = (
+        self.variables: NamedObjectList[VariableFromPointer] = (
             self.state_variables + self.diagnostic_variables + self.dependencies
         )
 
@@ -1414,7 +1425,7 @@ class Model(object):
 
         self.itime = -1.0
 
-    def getRates(self, t: float = None, surface: bool = True, bottom: bool = True):
+    def getRates(self, t: Optional[float] = None, surface: bool = True, bottom: bool = True):
         """Returns the local rate of change in state variables,
         given the current state and environment.
         """
@@ -1451,7 +1462,7 @@ class Model(object):
 
     def get_sources(
         self,
-        t: float = None,
+        t: Optional[float] = None,
         out: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]] = None,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         if t is None:
