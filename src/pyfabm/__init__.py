@@ -905,7 +905,7 @@ class NamedObjectList(Sequence[T]):
             try:
                 key = self.find(key)
             except KeyError:
-                raise ValueError
+                raise ValueError from None
         return self._data.index(key, *args)
 
     def __repr__(self) -> str:
