@@ -619,7 +619,9 @@ class Variable(object):
 
     @property
     def options(self) -> Optional[Sequence]:
-        pass
+        """Collection of values that this variable can take.
+        `None` if the variable is not limited to any particular value."""
+        return None
 
     def __repr__(self) -> str:
         postfix = f"={self.value}" if hasattr(self, "value") else ""
@@ -645,6 +647,7 @@ class VariableFromPointer(Variable):
 
     @property
     def long_path(self) -> str:
+        """Long model instance name, followed by a slash, followed by long variable name."""
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         self.model.fabm.variable_get_long_path(
             self._pvariable, ATTRIBUTE_LENGTH, strlong_name
@@ -652,9 +655,8 @@ class VariableFromPointer(Variable):
         return strlong_name.value.decode("ascii")
 
     @property
-    def missing_value(self) -> Optional[float]:
-        """Value that indicates missing data, for instance, on land.
-        `None` if not set."""
+    def missing_value(self) -> float:
+        """Value that indicates missing data, for instance, on land."""
         return self.model.fabm.variable_get_missing_value(self._pvariable)
 
     def getRealProperty(self, name, default=-1.0) -> float:
@@ -1570,7 +1572,7 @@ class Model(object):
             return StandardVariable(self, pointer)
 
     def require_data(self, standard_variable: StandardVariable):
-        return self.fabm.require_data(self.pmodel, standard_variable.pointer)
+        return self.fabm.require_data(self.pmodel, standard_variable._pvariable)
 
     def _get_parameter_tree(self) -> Mapping:
         root = {}
@@ -1582,7 +1584,7 @@ class Model(object):
             parent[pathcomps[-1]] = parameter
         return root
 
-    def start(self, verbose: bool = True, stop: bool = False):
+    def start(self, verbose: bool = True, stop: bool = False) -> bool:
         ready = True
         if self.fabm.mask_type and self._mask is None:
             log("Mask not yet assigned")
@@ -1631,12 +1633,15 @@ class Model(object):
     def printInformation(self):
         """Show information about the model."""
 
-        def printArray(classname: str, array: Iterable[Variable]):
+        def printArray(classname: str, array: Sequence[Variable]):
             if not array:
                 return
             log(f" {len(array)} {classname}:")
             for variable in array:
                 log(f"    {variable.name} = {variable.value} {variable.units}")
+
+        def parameter2str(p: Parameter) -> str:
+            return f"{p.value} {p.units}"
 
         log("FABM model contains the following:")
         printArray("interior state variables", self.interior_state_variables)
@@ -1648,7 +1653,7 @@ class Model(object):
         )
         printArray("external variables", self.dependencies)
         log(f" {len(self.parameters)} parameters:")
-        printTree(self._get_parameter_tree(), lambda x: f"{x.value} {x.units}", "    ")
+        printTree(self._get_parameter_tree(), parameter2str, "    ")
 
 
 class Simulator(object):
