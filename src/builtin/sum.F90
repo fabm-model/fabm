@@ -89,7 +89,7 @@ contains
 
       if (associated(component%link)) then
          call parent%request_coupling(target_link, component%link)
-      else
+      elseif (component%name /= '') then
          call parent%request_coupling(target_link, component%name)
       end if
    end subroutine request_coupling_to_component
@@ -321,6 +321,17 @@ contains
 
       n = base_initialize(self)
 
+      allocate(self%id_terms(n))
+
+      component => self%first
+      do i = 1, n
+         write (temp,'(i0)') i
+         call self%register_dependency(self%id_terms(i), 'term' // trim(temp), self%units, 'term ' // trim(temp))
+         call request_coupling_to_component(self, self%id_terms(i)%link, component)
+         component%link => self%id_terms(i)%link
+         component => component%next
+      end do
+
       if (n == 0) then
          ! No components at all - the result is a constant
          call self%add_interior_variable('result', self%units, 'result', fill_value=self%offset, missing_value=self%missing_value, &
@@ -354,16 +365,6 @@ contains
       end if
 
       self%active = .true.
-      allocate(self%id_terms(n))
-
-      component => self%first
-      do i = 1, n
-         write (temp,'(i0)') i
-         call self%register_dependency(self%id_terms(i), 'term' // trim(temp), self%units, 'term ' // trim(temp))
-         call request_coupling_to_component(self, self%id_terms(i)%link, component)
-         component%link => self%id_terms(i)%link
-         component => component%next
-      end do
 
       call self%add_interior_variable('result', self%units, 'result', fill_value=0.0_rk, missing_value=self%missing_value, &
          output=self%result_output, write_index=self%id_result%sum_index, link=self%id_result%link, source=source_do, &
@@ -442,6 +443,17 @@ contains
 
       n = base_initialize(self)
 
+      allocate(self%id_terms(n))
+
+      component => self%first
+      do i = 1, n
+         write (temp,'(i0)') i
+         call self%register_dependency(self%id_terms(i), 'term' // trim(temp), self%units, 'term ' // trim(temp))
+         call request_coupling_to_component(self, self%id_terms(i)%link, component)
+         component%link => self%id_terms(i)%link
+         component => component%next
+      end do
+
       if (n == 0) then
          ! No components - link to constant field with offset (typically 0)
          call self%add_horizontal_variable('result', self%units, 'result', fill_value=self%offset, missing_value=self%missing_value, &
@@ -476,16 +488,7 @@ contains
       end if
 
       self%active = .true.
-      allocate(self%id_terms(n))
 
-      component => self%first
-      do i = 1, n
-         write (temp,'(i0)') i
-         call self%register_dependency(self%id_terms(i), 'term' // trim(temp), self%units, 'term ' // trim(temp))
-         call request_coupling_to_component(self, self%id_terms(i)%link, component)
-         component%link => self%id_terms(i)%link
-         component => component%next
-      end do
       call self%add_horizontal_variable('result', self%units, 'result', missing_value=self%missing_value, fill_value=0.0_rk, output=self%result_output, &
          write_index=self%id_result%horizontal_sum_index, link=self%id_result%link, source=source_do_horizontal, domain=self%domain)
       self%result_link => self%id_result%link
