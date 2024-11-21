@@ -67,6 +67,7 @@ contains
          case ('horizontal_constant');      allocate(type_horizontal_constant::model)
          case ('bottom_constant');          allocate(type_bottom_constant::model)
          case ('surface_constant');         allocate(type_surface_constant::model)
+         case ('global_constant');          allocate(type_global_constant::model)
          case ('surface_flux');             allocate(type_constant_surface_flux::model)
          case ('constant_surface_flux');    allocate(type_constant_surface_flux::model)
          case ('external_surface_flux');    allocate(type_external_surface_flux::model)

@@ -209,6 +209,14 @@ self%longitude%units = 'degree_east'
 self%longitude%cf_names = 'longitude'
 call add(self%longitude)
 
+self%maximum_time_step%name = 'maximum_time_step'
+self%maximum_time_step%units = 's'
+call add(self%maximum_time_step)
+
+self%number_of_days_in_year%name = 'number_of_days_in_year'
+self%number_of_days_in_year%units = 'd'
+call add(self%number_of_days_in_year)
+
 self%number_of_days_since_start_of_the_year%name = 'number_of_days_since_start_of_the_year'
 self%number_of_days_since_start_of_the_year%units = 'd'
 call add(self%number_of_days_since_start_of_the_year)
