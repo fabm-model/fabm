@@ -688,6 +688,10 @@ class Dependency(VariableFromPointer):
             self.link(np.empty(self._shape, dtype=self.model.fabm.numpy_dtype))
         self._data[...] = value
 
+    @property
+    def shape(self) -> Tuple[int]:
+        return self._shape
+
     def link(self, data: np.ndarray):
         assert data.shape == self._shape, (
             f"{self.name}: shape of provided array {data.shape}"
