@@ -2037,7 +2037,7 @@ contains
    end subroutine add_horizontal_variable
 
    subroutine add_scalar_variable(self, name, units, long_name, missing_value, minimum, maximum, initial_value, &
-                                  background_value, fill_value, standard_variable, presence, output, &
+                                  background_value, fill_value, standard_variable, presence, output, source, &
                                   read_index, state_index, write_index, sms_index, background, link)
       class (type_base_model),target,      intent(inout)        :: self
       character(len=*),                    intent(in)           :: name
@@ -2045,7 +2045,7 @@ contains
       real(rk),                            intent(in), optional :: minimum, maximum, missing_value
       real(rk),                            intent(in), optional :: initial_value, background_value, fill_value
       class (type_base_standard_variable), intent(in), optional :: standard_variable
-      integer,                             intent(in), optional :: presence, output
+      integer,                             intent(in), optional :: presence, output, source
       integer,  target,                                optional :: read_index, state_index, write_index, sms_index
       real(rk), target,                                optional :: background
       type (type_link), pointer,                       optional :: link
@@ -2057,7 +2057,7 @@ contains
 
       ! Process remainder of fields and creation of link generically (i.e., irrespective of variable domain).
       call add_variable(self, variable, name, units, long_name, missing_value, minimum, maximum, &
-                        initial_value, background_value, fill_value, standard_variable, presence, output, source_unknown, &
+                        initial_value, background_value, fill_value, standard_variable, presence, output, source, &
                         .false., read_index, state_index, write_index, background, link)
    end subroutine add_scalar_variable
 

@@ -31,6 +31,11 @@ module fabm_builtin_constant
       procedure :: initialize => bottom_constant_initialize
    end type
 
+   type, extends(type_base_model), public :: type_global_constant
+   contains
+      procedure :: initialize => global_constant_initialize
+   end type
+
 contains
 
    subroutine interior_constant_initialize(self, configunit)
@@ -116,5 +121,26 @@ contains
             output=output_none, source=source_constant)
       end if
    end subroutine bottom_constant_initialize
+
+   subroutine global_constant_initialize(self, configunit)
+      class (type_global_constant), intent(inout), target :: self
+      integer,                      intent(in)            :: configunit
+
+      real(rk)                             :: value
+      type (type_global_standard_variable) :: standard_variable
+
+      call self%register_implemented_routines()
+      call self%get_parameter(standard_variable%name, 'standard_name', '', 'standard name', default='')
+      call self%get_parameter(value, 'value', '', 'value')
+      if (standard_variable%name /= '') then
+         ! Note: for Cray 8.3.7, standard_variable needs to be declared separately.
+         ! It cannot be constructed on the fly within the function call
+         call self%add_scalar_variable('data', '', 'data', fill_value=value, &
+            output=output_none, source=source_constant, standard_variable=standard_variable)
+      else
+         call self%add_scalar_variable('data', '', 'data', fill_value=value, &
+            output=output_none, source=source_constant)
+      end if
+   end subroutine global_constant_initialize
 
 end module

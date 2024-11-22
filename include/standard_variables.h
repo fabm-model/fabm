@@ -52,6 +52,8 @@ type (type_horizontal_standard_variable) :: latitude
 type (type_horizontal_standard_variable) :: longitude
 
 ! Global variables
+type (type_global_standard_variable) :: maximum_time_step
+type (type_global_standard_variable) :: number_of_days_in_year
 type (type_global_standard_variable) :: number_of_days_since_start_of_the_year
 
 ! Universal variables

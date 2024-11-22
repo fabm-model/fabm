@@ -100,6 +100,10 @@ horizontal:
 global:
   - name: number_of_days_since_start_of_the_year
     units: d
+  - name: number_of_days_in_year
+    units: d
+  - name: maximum_time_step
+    units: s
 universal:
   - name: total_carbon
     units: mmol m-3

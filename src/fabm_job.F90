@@ -1478,7 +1478,7 @@ contains
          node => node%next
       end do
 
-      ! If we have unfulfilled dependneices, stop here and let the host/user deal with them.
+      ! If we have unfulfilled dependencies, stop here and let the host/user deal with them.
       if (associated(variable_register%unfulfilled_dependencies%first)) return
 
       variable_register%read_cache%frozen = .true.
