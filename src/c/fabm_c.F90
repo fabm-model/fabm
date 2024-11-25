@@ -476,7 +476,7 @@ contains
       case (HORIZONTAL_DIAGNOSTIC_VARIABLE)
          variable => model%p%horizontal_diagnostic_variables(index)%original
       case (CONSERVED_QUANTITY)
-         variable => model%p%conserved_quantities(index)%target
+         variable => model%p%conserved_quantities(index)%target_hz
       case (INTERIOR_DEPENDENCY, HORIZONTAL_DEPENDENCY, SCALAR_DEPENDENCY)
          select case (category)
          case (INTERIOR_DEPENDENCY);   domain = domain_interior

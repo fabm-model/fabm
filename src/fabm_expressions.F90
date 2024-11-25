@@ -184,8 +184,6 @@ contains
       real(rk), optional,         intent(in)            :: missing_value
       type (type_interior_temporal_mean)                :: expression
 
-      character(len=attribute_length) :: prefix, postfix
-
       if (.not. associated(input%link)) call fatal_error('fabm_expressions::interior_temporal_mean', &
          'Input variable has not been registered yet.')
 
@@ -202,8 +200,6 @@ contains
       real(rk),                              intent(in)            :: period, resolution
       real(rk), optional,                    intent(in)            :: missing_value
       type (type_horizontal_temporal_mean)                         :: expression
-
-      character(len=attribute_length) :: prefix, postfix
 
       if (.not. associated(input%link)) call fatal_error('fabm_expressions::horizontal_temporal_mean', &
          'Input variable has not been registered yet.')
@@ -238,7 +234,6 @@ contains
       real(rke) _ATTRIBUTES_GLOBAL_,       intent(in)    :: value
       _DECLARE_ARGUMENTS_LOCATION_RANGE_
 
-      integer  :: ibin
       real(rke) :: dt, w, dt_bin, scale
       _DECLARE_LOCATION_
 
@@ -344,7 +339,6 @@ contains
       real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, intent(in)    :: value
       _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_RANGE_
 
-      integer  :: ibin
       real(rke) :: dt, w, dt_bin, scale
       _DECLARE_HORIZONTAL_LOCATION_
 
