@@ -592,7 +592,7 @@ class VariableProperties:
         raise KeyError
 
 
-class Variable(object):
+class Variable:
     def __init__(
         self,
         model: "Model",
@@ -687,6 +687,10 @@ class Dependency(VariableFromPointer):
         if not self._is_set:
             self.link(np.empty(self._shape, dtype=self.model.fabm.numpy_dtype))
         self._data[...] = value
+
+    @property
+    def shape(self) -> Tuple[int]:
+        return self._shape
 
     def link(self, data: np.ndarray):
         assert data.shape == self._shape, (
@@ -853,6 +857,19 @@ class Parameter(Variable):
         settings = self.model._save_state()
         self.model.fabm.reset_parameter(self.model.pmodel, self._index)
         self.model._update_configuration(settings)
+
+
+class ConservedQuantity(Variable):
+    def __init__(
+        self, model: "Model", name: str, units: str, variable_pointer: ctypes.c_void_p
+    ):
+        super().__init__(model, name, units, name.replace("_", " "))
+        self._pvariable = variable_pointer
+
+    @property
+    def missing_value(self) -> float:
+        """Value that indicates missing data, for instance, on land."""
+        return self.model.fabm.variable_get_missing_value(self._pvariable)
 
 
 class StandardVariable:
@@ -1055,7 +1072,7 @@ class Model(object):
         self.bottom_state_variables: NamedObjectList[StateVariable] = NamedObjectList()
         self.interior_diagnostic_variables: NamedObjectList[DiagnosticVariable] = NamedObjectList()
         self.horizontal_diagnostic_variables: NamedObjectList[DiagnosticVariable] = NamedObjectList()
-        self.conserved_quantities: NamedObjectList[Variable] = NamedObjectList()
+        self.conserved_quantities: NamedObjectList[ConservedQuantity] = NamedObjectList()
         self.parameters: NamedObjectList[Parameter] = NamedObjectList()
         self.interior_dependencies: NamedObjectList[Dependency] = NamedObjectList()
         self.horizontal_dependencies: NamedObjectList[Dependency] = NamedObjectList()
@@ -1364,13 +1381,13 @@ class Model(object):
                 strlong_name,
                 strpath,
             )
+            ptr = self.fabm.get_variable(self.pmodel, CONSERVED_QUANTITY, i + 1)
             self.conserved_quantities._data.append(
-                Variable(
+                ConservedQuantity(
                     self,
                     strname.value.decode("ascii"),
                     strunits.value.decode("ascii"),
-                    strlong_name.value.decode("ascii"),
-                    strpath.value.decode("ascii"),
+                    ptr,
                 )
             )
         for i in range(nparameters.value):
@@ -1427,7 +1444,9 @@ class Model(object):
 
         self.itime = -1.0
 
-    def getRates(self, t: Optional[float] = None, surface: bool = True, bottom: bool = True):
+    def getRates(
+        self, t: Optional[float] = None, surface: bool = True, bottom: bool = True
+    ):
         """Returns the local rate of change in state variables,
         given the current state and environment.
         """
@@ -1501,6 +1520,9 @@ class Model(object):
         return out
 
     def get_conserved_quantities(self, out: Optional[np.ndarray] = None) -> np.ndarray:
+        """Return depth-integrated values across the horizontal domain for all
+        conserved quantities
+        """
         assert (
             self._cell_thickness is not None
         ), "You must assign model.cell_thickness to use get_conserved_quantities"

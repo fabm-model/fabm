@@ -389,9 +389,13 @@ def test_pyfabm(args, testcases: Mapping[str, str]):
                 if val != 0.0:
                     bad[var.name] = val
             assert False, f"Variability among 1D results: {r1d} (range: {bad})"
-        assert (
-            r1d[:, 0] == r0d
-        ).all(), f"Mismatch between 0D and 1D results: {r0d} vs {r1d[:, 0]}. Difference: {r1d[:, 0] - r0d}"
+        if (r1d[:, 0] != r0d).any():
+            diff = r1d[:, 0] - r0d
+            bad = {}
+            for var, val in zip(m1d.state_variables, diff):
+                if val != 0.0:
+                    bad[var.name] = val
+            assert False, f"Mismatch between 0D and 1D results: {r0d} vs {r1d[:, 0]}. Difference: {diff}. {bad}"
         print("SUCCESS")
     pyfabm_libs = ", ".join([f"{n}={l._name}" for n, l in pyfabm.name2lib.items()])
     print(f"pyfabm {pyfabm.__version__} loaded from {pyfabm.__file__} ({pyfabm_libs})")
