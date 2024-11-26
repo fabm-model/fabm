@@ -31,3 +31,5 @@ runoff/source: 0    # for MOPS
 cfc11/x_A: 0  # for bb/gas
 cfc12/x_A: 0  # for bb/gas
 sf6/x_A: 0    # for bb/gas
+number_of_days_in_year: 365
+maximum_time_step: 86400
