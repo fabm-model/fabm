@@ -10,6 +10,7 @@ module fabm_builtin_models
    use fabm_builtin_source
    use fabm_builtin_relaxation
    use fabm_builtin_depth_mapping
+   use fabm_builtin_tracer
 
    implicit none
 
@@ -62,6 +63,7 @@ contains
       class (type_base_model),pointer :: model
 
       select case (name)
+         case ('tracer');                   allocate(type_tracer::model)
          case ('bulk_constant');            allocate(type_interior_constant::model)
          case ('interior_constant');        allocate(type_interior_constant::model)
          case ('horizontal_constant');      allocate(type_horizontal_constant::model)
@@ -88,7 +90,7 @@ contains
          case ('bottom_temporal_mean');     allocate(type_bottom_temporal_mean::model)
          case ('surface_temporal_maximum'); allocate(type_surface_temporal_maximum::model)
          case ('depth_integrated_particle_override'); allocate(type_depth_integrated_particle_override::model)
-         case ('vertical_depth_range'); allocate(type_vertical_depth_range::model)
+         case ('vertical_depth_range');     allocate(type_vertical_depth_range::model)
          ! Add new examples models here
       end select
 
