@@ -312,7 +312,7 @@ contains
       integer,                   intent(in)            :: configunit
 
       type (type_component), pointer :: component
-      integer           :: i, n
+      integer           :: i, n, output
       character(len=10) :: temp
       class (type_weighted_sum_sms_distributor), pointer :: sms_distributor
       class (type_scaled_interior_variable), pointer :: scaled_variable
@@ -338,8 +338,10 @@ contains
             output=self%result_output, source=source_constant, link=self%result_link)
          return
       elseif (n == 1) then
+         output = self%result_output
+         if (output /= output_none) output = ior(output, output_always_available)
          call self%add_interior_variable('result', self%units, 'result', link=self%result_link, &
-            act_as_state_variable=self%act_as_state_variable, presence=presence_external_required)
+            output=output, act_as_state_variable=self%act_as_state_variable, presence=presence_external_required)
          if (self%first%weight == 1.0_rk) then
             ! One component with scale factor 1 - directly link to the component's source variable.
             call request_coupling_to_component(self, self%result_link, self%first)
@@ -435,7 +437,7 @@ contains
       integer,                              intent(in)            :: configunit
 
       type (type_component), pointer :: component
-      integer           :: i, n
+      integer           :: i, n, output
       character(len=10) :: temp
       class (type_scaled_horizontal_variable), pointer :: scaled_variable
 
@@ -461,8 +463,10 @@ contains
          return
       elseif (n == 1) then
          ! One component only.
-         call self%add_horizontal_variable('result', self%units, 'result', output=self%result_output, link=self%result_link, domain=self%domain, &
-            act_as_state_variable=self%act_as_state_variable, presence=presence_external_required)
+         output = self%result_output
+         if (output /= output_none) output = ior(output, output_always_available)
+         call self%add_horizontal_variable('result', self%units, 'result', link=self%result_link, domain=self%domain, &
+            output=output, act_as_state_variable=self%act_as_state_variable, presence=presence_external_required)
          if (self%first%weight == 1.0_rk) then
             ! One component with scale factor 1 - directly link to the component's source variable.
             call request_coupling_to_component(self, self%result_link, self%first)

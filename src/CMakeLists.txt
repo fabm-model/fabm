@@ -116,6 +116,7 @@ add_library(fabm_base OBJECT
             ${CMAKE_CURRENT_LIST_DIR}/fabm_types.F90
             ${CMAKE_CURRENT_LIST_DIR}/fabm_particle.F90
             ${CMAKE_CURRENT_LIST_DIR}/fabm_expressions.F90
+            ${CMAKE_CURRENT_LIST_DIR}/builtin/tracer.F90
             ${CMAKE_CURRENT_LIST_DIR}/builtin/constant.F90
             ${CMAKE_CURRENT_LIST_DIR}/builtin/reduction.F90
             ${CMAKE_CURRENT_LIST_DIR}/builtin/sum.F90

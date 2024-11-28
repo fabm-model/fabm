@@ -1677,7 +1677,7 @@ contains
       if (present(source)) source_ = source
       if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(sms_id%link)) call self%add_interior_variable(trim(link%name)//'_sms', &
-         trim(link%target%units)//'/s', trim(link%target%long_name)//' sources-sinks', fill_value=0.0_rk, &
+         trim(link%target%units)//' s-1', trim(link%target%long_name)//' sources-sinks', fill_value=0.0_rk, &
          missing_value=0.0_rk, output=output_none, write_index=sms_id%sum_index, source=source_, link=sms_id%link)
       sms_id%link%target%write_operator = operator_add
       link2 => link%target%sms_list%append(sms_id%link%target, sms_id%link%target%name)
@@ -1697,7 +1697,7 @@ contains
       if (present(source)) source_ = source
       if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(surface_flux_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sfl', &
-         trim(link%target%units) // '*m/s', trim(link%target%long_name) // ' surface flux', fill_value=0.0_rk, &
+         trim(link%target%units) // ' m s-1', trim(link%target%long_name) // ' surface flux', fill_value=0.0_rk, &
          missing_value=0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
          domain=domain_surface, source=source_, link=surface_flux_id%link)
       surface_flux_id%link%target%write_operator = operator_add
@@ -1718,7 +1718,7 @@ contains
       if (present(source)) source_ = source
       if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(bottom_flux_id%link)) call self%add_horizontal_variable(trim(link%name) // '_bfl', &
-         trim(link%target%units) // '*m/s', trim(link%target%long_name) // ' bottom flux', fill_value=0.0_rk, &
+         trim(link%target%units) // ' m s-1', trim(link%target%long_name) // ' bottom flux', fill_value=0.0_rk, &
          missing_value=0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
          domain=domain_bottom, source=source_, link=bottom_flux_id%link)
       bottom_flux_id%link%target%write_operator = operator_add
@@ -1738,7 +1738,7 @@ contains
       vertical_movement_ = 0.0_rk
       if (present(vertical_movement)) vertical_movement_ = vertical_movement
       if (.not. associated(movement_id%link)) call self%add_interior_variable(trim(link%name) // '_w', &
-         'm/s', trim(link%target%long_name) // ' vertical velocity', fill_value=vertical_movement_, missing_value=0.0_rk, &
+         'm s-1', trim(link%target%long_name) // ' vertical velocity', fill_value=vertical_movement_, missing_value=0.0_rk, &
          output=output_none, write_index=movement_id%sum_index, link=movement_id%link, source=source_constant)
       if (self%implements(source_get_vertical_movement)) then
          movement_id%link%target%source = source_get_vertical_movement
@@ -1760,7 +1760,7 @@ contains
       if (present(source)) source_ = source
       if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(sms_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sms', &
-         trim(link%target%units) // '/s', trim(link%target%long_name) // ' sources-sinks', fill_value=0.0_rk, &
+         trim(link%target%units) // ' s-1', trim(link%target%long_name) // ' sources-sinks', fill_value=0.0_rk, &
          missing_value=0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, &
          domain=domain_surface, source=source_)
       sms_id%link%target%write_operator = operator_add
@@ -1781,7 +1781,7 @@ contains
       if (present(source)) source_ = source
       if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(sms_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sms', &
-         trim(link%target%units) // '/s', trim(link%target%long_name) // ' sources-sinks', fill_value=0.0_rk, &
+         trim(link%target%units) // ' s-1', trim(link%target%long_name) // ' sources-sinks', fill_value=0.0_rk, &
          missing_value=0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, &
          domain=domain_bottom, source=source_)
       sms_id%link%target%write_operator = operator_add
