@@ -473,6 +473,7 @@ contains
          end if
          sum%result_output = output_always_available
          sum%missing_value = 0.0_rk
+         sum%units = link%target%units
          component_link => link_list%first
          do while (associated(component_link))
             call sum%add_component(component_link)
@@ -649,6 +650,7 @@ contains
             horizontal_sum%domain = standard_variable2domain(standard_variable)
             sum => horizontal_sum
          end select
+         sum%units = aggregate_variable_access%link%target%units
          sum%act_as_state_variable = aggregate_variable_access%link%target%fake_state_variable
          sum%result_output = output_none
 
