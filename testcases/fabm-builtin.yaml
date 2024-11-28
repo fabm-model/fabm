@@ -1,0 +1,126 @@
+instances:
+  tracer:
+    model: tracer
+  interior_constant:
+    model: interior_constant
+    parameters:
+      value: 1.0
+  horizontal_constant:
+    model: horizontal_constant
+    parameters:
+      value: 1.0
+  surface_constant:
+    model: horizontal_constant
+    parameters:
+      value: 1.0
+  bottom_constant:
+    model: horizontal_constant
+    parameters:
+      value: 1.0
+  global_constant:
+    model: global_constant
+    parameters:
+      value: 1.0
+  interior_sum_empty:
+    model: weighted_sum
+    parameters:
+      n: 0
+  interior_sum_1term:
+    model: weighted_sum
+    parameters:
+      n: 1
+    coupling:
+      term1: interior_constant/data
+  interior_sum_nterms:
+    model: weighted_sum
+    parameters:
+      n: 2
+    coupling:
+      term1: tracer/c
+      term2: interior_constant/data
+  interior_sum_1term_scaled:
+    model: weighted_sum
+    parameters:
+      n: 1
+      weight1: 2.0
+    coupling:
+      term1: interior_constant/data
+  interior_sum_nterm_scaled:
+    model: weighted_sum
+    parameters:
+      n: 2
+      weight1: 1.0
+      weight2: 2.0
+    coupling:
+      term1: tracer/c
+      term2: interior_constant/data      
+  horizontal_sum_empty:
+    model: horizontal_weighted_sum
+    parameters:
+      n: 0
+  horizontal_sum_1term:
+    model: horizontal_weighted_sum
+    parameters:
+      n: 1
+    coupling:
+      term1: horizontal_constant/data
+  horizontal_sum_nterms:
+    model: horizontal_weighted_sum
+    parameters:
+      n: 3
+    coupling:
+      term1: horizontal_constant/data
+      term2: surface_constant/data
+      term3: bottom_constant/data      
+  horizontal_sum_1term_scaled:
+    model: horizontal_weighted_sum
+    parameters:
+      n: 1
+      weight1: 2.0
+    coupling:
+      term1: horizontal_constant/data
+  horizontal_sum_nterms_scaled:
+    model: horizontal_weighted_sum
+    parameters:
+      n: 3
+      weight1: 1.0
+      weight2: 2.0
+      weight3: 3.0            
+    coupling:
+      term1: horizontal_constant/data
+      term2: surface_constant/data
+      term3: bottom_constant/data
+  bottom_layer:
+    model: bottom_layer
+    coupling:
+      source: tracer/c
+  surface_layer:
+    model: surface_layer
+    coupling:
+      source: tracer/c
+  vertical_integral:
+    model: vertical_integral
+    coupling:
+      source: tracer/c
+  vertical_average:
+    model: vertical_integral
+    parameters:
+      average: true
+    coupling:
+      source: tracer/c
+  bounded_vertical_integral:
+    model: bounded_vertical_integral
+    parameters:
+      minimum_depth: 10.0
+      maximum_depth: 20.0
+    coupling:
+      source: tracer/c
+  bounded_vertical_average:
+    model: bounded_vertical_integral
+    parameters:
+      average: true
+      minimum_depth: 10.0
+      maximum_depth: 20.0
+    coupling:
+      source: tracer/c
+      
