@@ -687,8 +687,8 @@ end subroutine initialize
 
    ! Carbonate dynamics
    if (self%couple_co2) then
-     rhs =  redf(16) *( BioC(18)*microzoo*mic_loss &
-            + BioC(17)*mesozoo*mes_loss &
+     rhs =  redf(16) *( self%BioC(18)*microzoo*mic_loss &
+            + self%BioC(17)*mesozoo*mes_loss &
             + frem*det + fremDOM*dom - Prod) 
      _ADD_SOURCE_(self%id_dic, rhs)
 
