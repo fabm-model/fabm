@@ -16,11 +16,16 @@ from typing import (
     TypeVar,
     List,
     Dict,
-    Literal,
     Type,
     overload,
-    cast
+    cast,
 )
+
+# typing.Final not available in Python 3.7
+try:
+    from typing import Final
+except ImportError:
+    from typing import Any as Final
 
 try:
     import importlib.metadata
@@ -125,7 +130,7 @@ def get_lib(name: str) -> FABMDLL:
     lib.mask_type = mask_type.value
     lib.variable_bottom_index = variable_bottom_index.value != 0
 
-    CONTIGUOUS: Literal["CONTIGUOUS"] = "CONTIGUOUS"
+    CONTIGUOUS: Final = "CONTIGUOUS"
     arrtype0D = np.ctypeslib.ndpointer(dtype=lib.dtype, ndim=0, flags=CONTIGUOUS)
     arrtype1D = np.ctypeslib.ndpointer(dtype=lib.dtype, ndim=1, flags=CONTIGUOUS)
     arrtypeInterior = np.ctypeslib.ndpointer(
