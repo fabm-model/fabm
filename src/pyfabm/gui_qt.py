@@ -4,10 +4,10 @@ import numpy as np
 import pyfabm
 
 try:
-    from PyQt5 import QtCore, QtGui, QtWidgets
+    from PyQt5 import QtCore, QtGui, QtWidgets  # type: ignore
 except ImportError as e1:
     try:
-        from PySide import QtCore, QtGui
+        from PySide import QtCore, QtGui  # type: ignore
 
         QtWidgets = QtGui
     except ImportError as e2:

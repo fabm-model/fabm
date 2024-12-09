@@ -14,7 +14,7 @@ import sys
 import os
 
 import numpy
-import netCDF4
+import netCDF4  # type: ignore
 import yaml
 
 try:
