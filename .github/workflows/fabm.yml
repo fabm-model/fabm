@@ -306,7 +306,7 @@ jobs:
       - name: Type checking with mypy
         if: matrix.python-version != '3.7'
         run: |
-          conda install mypy pyyaml
+          conda install mypy pyyaml types-pyyaml
           mypy src/pyfabm
       - name: Install with customization via command line arguments
         run: |
