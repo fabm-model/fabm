@@ -13,11 +13,6 @@ pairs). You can set additional variables on the command line with -v/--values.
 import sys
 import os
 
-try:
-    input = raw_input
-except NameError:
-    pass
-
 import numpy
 import netCDF4
 import yaml

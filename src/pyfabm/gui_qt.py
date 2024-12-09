@@ -1,5 +1,5 @@
 import sys
-from typing import Iterable, Union, List, Optional
+from typing import Iterable, Union, List, Optional, Tuple
 import numpy as np
 import pyfabm
 
@@ -21,10 +21,11 @@ class Delegate(QtWidgets.QStyledItemDelegate):
     def __init__(self, parent=None):
         QtWidgets.QStyledItemDelegate.__init__(self, parent)
 
-    def createEditor(self, parent, option, index):
+    def createEditor(self, parent, option, index: QtCore.QModelIndex):
         assert index.isValid()
-        data: Union[str, pyfabm.Variable] = index.internalPointer().object
-        if not isinstance(data, str):
+        entry: Entry = index.internalPointer()
+        data = entry.object
+        if isinstance(data, pyfabm.Variable):
             if data.options is not None:
                 widget = QtWidgets.QComboBox(parent)
                 widget.addItems(data.options)
@@ -36,20 +37,21 @@ class Delegate(QtWidgets.QStyledItemDelegate):
                 return widget
         return QtWidgets.QStyledItemDelegate.createEditor(self, parent, option, index)
 
-    def setEditorData(self, editor, index):
+    def setEditorData(self, editor, index: QtCore.QModelIndex):
+        entry: Entry = index.internalPointer()
+        data = entry.object
         if isinstance(editor, QtWidgets.QComboBox):
-            data: Union[str, pyfabm.Variable] = index.internalPointer().object
-            if not isinstance(data, str):
-                if data.options is not None and data.value is not None:
-                    editor.setCurrentIndex(data.options.index(data.value))
-                    return
+            assert isinstance(data, pyfabm.Variable) and data.options is not None
+            if data.value is not None:
+                editor.setCurrentIndex(data.options.index(data.value))
+                return
         elif isinstance(editor, ScientificDoubleEditor):
-            data = index.internalPointer().object
+            assert isinstance(data, pyfabm.Variable)
             editor.setValue(data.value if data.value is None else float(data.value))
             return
         return QtWidgets.QStyledItemDelegate.setEditorData(self, editor, index)
 
-    def setModelData(self, editor, model, index):
+    def setModelData(self, editor, model, index: QtCore.QModelIndex):
         if isinstance(editor, QtWidgets.QComboBox):
             data = index.internalPointer().object
             if not isinstance(data, str):
@@ -64,11 +66,21 @@ class Delegate(QtWidgets.QStyledItemDelegate):
 
 
 class Entry:
-    def __init__(self, object: Union[None, str, "Entry"] = None, name: str = ""):
-        if name == "" and object is not None:
-            name = object
-        self.object = object
+    def __init__(
+        self,
+        name: str = "",
+        object: Union[
+            None,
+            "Entry",
+            pyfabm.Parameter,
+            pyfabm.StateVariable,
+            pyfabm.Dependency,
+            pyfabm.Coupling,
+            "Submodel",
+        ] = None,
+    ):
         self.name = name
+        self.object = object
         self.parent: Optional["Entry"] = None
         self.children: List["Entry"] = []
         assert isinstance(self.name, str)
@@ -86,13 +98,24 @@ class Entry:
 
     def findChild(self, name: str):
         for child in self.children:
-            if isinstance(child.object, str) and child.object == name:
+            if child.object is None and child.name == name:
                 return child
         child = Entry(name)
         self.addChild(child)
         return child
 
-    def addTree(self, arr: Iterable[pyfabm.Variable], category: Optional[str] = None):
+    def addTree(
+        self,
+        arr: Iterable[
+            Union[
+                pyfabm.Parameter,
+                pyfabm.StateVariable,
+                pyfabm.Dependency,
+                pyfabm.Coupling,
+            ]
+        ],
+        category: Optional[str] = None,
+    ):
         for variable in arr:
             pathcomps = variable.path.split("/")
             if len(pathcomps) < 2:
@@ -103,7 +126,7 @@ class Entry:
             parent = self
             for component in pathcomps[:-1]:
                 parent = parent.findChild(component)
-            entry = Entry(variable, pathcomps[-1])
+            entry = Entry(pathcomps[-1], variable)
             parent.addChild(entry)
 
 
@@ -118,26 +141,26 @@ class Submodel:
 class ItemModel(QtCore.QAbstractItemModel):
     def __init__(self, model: pyfabm.Model, parent):
         QtCore.QAbstractItemModel.__init__(self, parent)
-        self.root = None
         self.model = model
-        self.rebuild()
+        self.root = self._build_tree()
 
-    def rebuild(self):
+    def _build_tree(self) -> Entry:
         root = Entry()
         env = Entry("environment")
         for d in self.model.dependencies:
-            env.addChild(Entry(d, d.name))
+            env.addChild(Entry(d.name, d))
         root.addTree(self.model.parameters, "parameters")
         root.addTree(self.model.state_variables, "initialization")
         root.addTree(self.model.couplings, "coupling")
         root.addChild(env)
 
         # For all models, create an object that returns appropriate metadata.
-        def processNode(n, path=()):
+        def processNode(n: Entry, path: Tuple[str, ...] = ()):
             for i in range(len(n.children) - 1, -1, -1):
                 child = n.children[i]
                 childpath = path + (child.name,)
-                if isinstance(child.object, str):
+                if child.object is None:
+                    # Child without underlying object: remove redundant subheaders
                     if childpath[-1] in (
                         "parameters",
                         "initialization",
@@ -151,97 +174,100 @@ class ItemModel(QtCore.QAbstractItemModel):
                             child.object = Submodel(submodel.long_name)
                         else:
                             n.removeChild(i)
-                            child = None
-                if child is not None:
-                    processNode(child, childpath)
+                            continue
+                processNode(child, childpath)
 
         processNode(root)
+        return root
 
-        if self.root is not None:
-            # We already have an old tree - compare and amend model.
-            def processChange(newnode, oldnode, parent):
-                oldnode.object = newnode.object
-                if not newnode.children:
-                    return
-                ioldstart = 0
-                for node in newnode.children:
-                    iold = -1
-                    for i in range(ioldstart, len(oldnode.children)):
-                        if node.name == oldnode.children[i].name:
-                            iold = i
-                            break
-                    if iold != -1:
-                        # New node was found among old nodes;
-                        # remove any unused old nodes that precede it.
-                        if iold > ioldstart:
-                            self.beginRemoveRows(parent, ioldstart, iold - 1)
-                            for i in range(iold - 1, ioldstart - 1, -1):
-                                oldnode.removeChild(i)
-                            self.endRemoveRows()
-                        # Process changes to children of node.
-                        processChange(
-                            node,
-                            oldnode.children[ioldstart],
-                            self.createIndex(ioldstart, 0, oldnode.children[ioldstart]),
-                        )
-                    else:
-                        # New node not found; insert it.
-                        self.beginInsertRows(parent, ioldstart, ioldstart)
-                        oldnode.insertChild(ioldstart, node)
-                        self.endInsertRows()
-                    ioldstart = ioldstart + 1
-                if ioldstart < len(oldnode.children):
-                    # Remove any trailing unused old nodes.
-                    self.beginRemoveRows(parent, ioldstart, len(oldnode.children) - 1)
-                    for i in range(len(oldnode.children) - 1, ioldstart - 1, -1):
-                        oldnode.removeChild(i)
-                    self.endRemoveRows()
+    def rebuild(self):
+        # We already have an old tree - compare and amend model.
+        def processChange(newnode: Entry, oldnode: Entry, parent: QtCore.QModelIndex):
+            oldnode.object = newnode.object
+            if not newnode.children:
+                return
+            ioldstart = 0
+            for node in newnode.children:
+                iold = -1
+                for i in range(ioldstart, len(oldnode.children)):
+                    if node.name == oldnode.children[i].name:
+                        iold = i
+                        break
+                if iold != -1:
+                    # New node was found among old nodes;
+                    # remove any unused old nodes that precede it.
+                    if iold > ioldstart:
+                        self.beginRemoveRows(parent, ioldstart, iold - 1)
+                        for i in range(iold - 1, ioldstart - 1, -1):
+                            oldnode.removeChild(i)
+                        self.endRemoveRows()
+                    # Process changes to children of node.
+                    processChange(
+                        node,
+                        oldnode.children[ioldstart],
+                        self.createIndex(ioldstart, 0, oldnode.children[ioldstart]),
+                    )
+                else:
+                    # New node not found; insert it.
+                    self.beginInsertRows(parent, ioldstart, ioldstart)
+                    oldnode.insertChild(ioldstart, node)
+                    self.endInsertRows()
+                ioldstart = ioldstart + 1
+            if ioldstart < len(oldnode.children):
+                # Remove any trailing unused old nodes.
+                self.beginRemoveRows(parent, ioldstart, len(oldnode.children) - 1)
+                for i in range(len(oldnode.children) - 1, ioldstart - 1, -1):
+                    oldnode.removeChild(i)
+                self.endRemoveRows()
 
-            processChange(root, self.root, QtCore.QModelIndex())
-        else:
-            # First time a tree was created - store it and move on.
-            self.root = root
-        # self.reset()
+        processChange(self._build_tree(), self.root, QtCore.QModelIndex())
 
-    def rowCount(self, index):
+    def rowCount(self, index: QtCore.QModelIndex) -> int:
         if not index.isValid():
             return len(self.root.children)
         elif index.column() == 0:
-            return len(index.internalPointer().children)
+            entry: Entry = index.internalPointer()
+            return len(entry.children)
         return 0
 
-    def columnCount(self, index):
+    def columnCount(self, index: QtCore.QModelIndex) -> int:
         return 4
 
-    def index(self, row, column, parent):
+    def index(
+        self, row: int, column: int, parent: QtCore.QModelIndex
+    ) -> QtCore.QModelIndex:
         if not parent.isValid():
             # top-level
             children = self.root.children
         else:
             # not top-level
-            children = parent.internalPointer().children
+            entry: Entry = parent.internalPointer()
+            children = entry.children
         if row < 0 or row >= len(children) or column < 0 or column >= 4:
             return QtCore.QModelIndex()
         return self.createIndex(row, column, children[row])
 
-    def parent(self, index):
+    def parent(self, index: QtCore.QModelIndex):
         if not index.isValid():
             return QtCore.QModelIndex()
-        parent = index.internalPointer().parent
-        if parent is self.root:
+        entry: Entry = index.internalPointer()
+        parent = entry.parent
+        assert parent is not None
+        if parent.parent is None:
             return QtCore.QModelIndex()
         irow = parent.parent.children.index(parent)
         return self.createIndex(irow, 0, parent)
 
-    def data(self, index, role):
+    def data(self, index: QtCore.QModelIndex, role):
         if not index.isValid():
             return
-        entry = index.internalPointer()
+        entry: Entry = index.internalPointer()
         data = entry.object
+        assert not isinstance(data, Entry)
         if role == QtCore.Qt.DisplayRole:
             if index.column() == 0:
-                return entry.name if isinstance(data, str) else data.long_name
-            if not isinstance(data, (str, Submodel)):
+                return entry.name if data is None else data.long_name
+            if isinstance(data, pyfabm.Variable):
                 if index.column() == 1:
                     value = data.value
                     if value is None:
@@ -256,12 +282,11 @@ class ItemModel(QtCore.QAbstractItemModel):
                 elif index.column() == 3:
                     return entry.name
         elif role == QtCore.Qt.ToolTipRole and index.parent().isValid():
-            if not isinstance(data, str):
+            if isinstance(data, pyfabm.Variable):
                 return data.long_path
         elif role == QtCore.Qt.EditRole:
-            if not isinstance(data, (str, Submodel)):
-                # print data.options
-                return data.value
+            assert isinstance(data, pyfabm.Variable)
+            return data.value
         elif role == QtCore.Qt.FontRole and index.column() == 1:
             if isinstance(data, pyfabm.Parameter) and data.value != data.default:
                 font = QtGui.QFont()
@@ -270,37 +295,40 @@ class ItemModel(QtCore.QAbstractItemModel):
         elif (
             role == QtCore.Qt.CheckStateRole
             and index.column() == 1
-            and not isinstance(data, str)
+            and isinstance(data, pyfabm.Variable)
             and isinstance(data.value, bool)
         ):
             return QtCore.Qt.Checked if data.value else QtCore.Qt.Unchecked
         return None
 
-    def setData(self, index, value, role):
+    def setData(self, index: QtCore.QModelIndex, value, role) -> bool:
         if role == QtCore.Qt.CheckStateRole:
             value = value == QtCore.Qt.Checked
         if role in (QtCore.Qt.EditRole, QtCore.Qt.CheckStateRole):
-            data = index.internalPointer().object
+            entry: Entry = index.internalPointer()
+            data = entry.object
+            assert isinstance(data, pyfabm.Variable)
             data.value = value
             if isinstance(data, pyfabm.Parameter):
                 self.rebuild()
             return True
         return False
 
-    def flags(self, index):
+    def flags(self, index: QtCore.QModelIndex):
         flags = QtCore.Qt.NoItemFlags
         if not index.isValid():
             return flags
         if index.column() == 1:
-            entry = index.internalPointer().object
-            if not isinstance(entry, (str, Submodel)):
-                if isinstance(entry.value, bool):
+            entry: Entry = index.internalPointer()
+            data = entry.object
+            if isinstance(data, pyfabm.Variable):
+                if isinstance(data.value, bool):
                     flags |= QtCore.Qt.ItemIsUserCheckable
                 else:
                     flags |= QtCore.Qt.ItemIsEditable
         return flags | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
 
-    def headerData(self, section, orientation, role):
+    def headerData(self, section: int, orientation, role):
         if (
             orientation == QtCore.Qt.Horizontal
             and role == QtCore.Qt.DisplayRole
