@@ -297,6 +297,10 @@ jobs:
           python -c "import pyfabm;print('pyfabm version =', getattr(pyfabm, '__version__', None))"
           for f in testcases/*.yaml; do fabm_describe_model $f; done
           for f in testcases/*.yaml; do fabm_complete_yaml --add_missing $f; done
+      - name: Type checking with mypy
+        run: |
+          conda install mypy
+          mypy src/pyfabm
       - name: Run notebooks
         if: matrix.python-version != '3.7'  # due to https://github.com/conda-forge/webcolors-feedstock/issues/26
         run: |
