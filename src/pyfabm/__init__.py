@@ -16,7 +16,7 @@ from typing import (
     TypeVar,
     List,
     Dict,
-    Final,
+    Literal,
     Type,
     overload,
     cast
@@ -125,7 +125,7 @@ def get_lib(name: str) -> FABMDLL:
     lib.mask_type = mask_type.value
     lib.variable_bottom_index = variable_bottom_index.value != 0
 
-    CONTIGUOUS: Final = "CONTIGUOUS"
+    CONTIGUOUS: Literal["CONTIGUOUS"] = "CONTIGUOUS"
     arrtype0D = np.ctypeslib.ndpointer(dtype=lib.dtype, ndim=0, flags=CONTIGUOUS)
     arrtype1D = np.ctypeslib.ndpointer(dtype=lib.dtype, ndim=1, flags=CONTIGUOUS)
     arrtypeInterior = np.ctypeslib.ndpointer(
