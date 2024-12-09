@@ -339,7 +339,8 @@ contains
                      standard_variable=standard_variable, presence=presence_external_optional, link=link)
                class is (type_horizontal_standard_variable)
                   call root%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
-                     standard_variable=standard_variable, presence=presence_external_optional, link=link)
+                     standard_variable=standard_variable, presence=presence_external_optional, link=link, &
+                     domain=standard_variable2domain(standard_variable))
                class is (type_global_standard_variable)
                   call root%add_scalar_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
                      standard_variable=standard_variable, presence=presence_external_optional, link=link)
