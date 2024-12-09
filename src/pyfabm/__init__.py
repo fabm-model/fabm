@@ -19,6 +19,7 @@ from typing import (
     Final,
     Type,
     overload,
+    cast
 )
 
 try:
@@ -1145,7 +1146,7 @@ class Model(object):
     @mask.setter
     def mask(self, values: Union[npt.ArrayLike, Sequence[npt.ArrayLike]]):
         if self.fabm.mask_type == 1:
-            values = (values,)  # type: ignore
+            values = cast(Sequence[npt.ArrayLike], (values,))
         assert isinstance(values, Sequence)
         if len(values) != self.fabm.mask_type:
             raise FABMException(f"mask must be set to {self.fabm.mask_type} values")
