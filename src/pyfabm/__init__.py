@@ -23,9 +23,11 @@ from typing import (
 
 # typing.Final not available in Python 3.7
 try:
-    from typing import Final
+    from typing import Final, SupportsIndex
 except ImportError:
-    from typing import Any as Final
+    from typing import Any
+
+    Final = SupportsIndex = Any  # type: ignore
 
 try:
     import importlib.metadata
@@ -594,24 +596,24 @@ class VariableProperties:
         self._pvariable = variable_pointer
 
     def __getitem__(self, key: str) -> Union[float, int, bool]:
-        typecode = self.model.fabm.variable_get_property_type(
+        typecode: int = self.model.fabm.variable_get_property_type(
             self._pvariable, key.encode("ascii")
         )
         if typecode == DataType.REAL:
-            return self.model.fabm.variable_get_real_property(
+            value = self.model.fabm.variable_get_real_property(
                 self._pvariable, key.encode("ascii"), -1.0
             )
+            return cast(float, value)
         elif typecode == DataType.INTEGER:
-            return self.model.fabm.variable_get_integer_property(
+            value = self.model.fabm.variable_get_integer_property(
                 self._pvariable, key.encode("ascii"), 0
             )
+            return cast(int, value)
         elif typecode == DataType.LOGICAL:
-            return (
-                self.model.fabm.variable_get_logical_property(
-                    self._pvariable, key.encode("ascii"), 0
-                )
-                != 0
+            value = self.model.fabm.variable_get_logical_property(
+                self._pvariable, key.encode("ascii"), 0
             )
+            return cast(int, value) != 0
         raise KeyError
 
 
@@ -681,12 +683,14 @@ class VariableFromPointer(Variable):
     @property
     def missing_value(self) -> float:
         """Value that indicates missing data, for instance, on land."""
-        return self.model.fabm.variable_get_missing_value(self._pvariable)
+        value: float = self.model.fabm.variable_get_missing_value(self._pvariable)
+        return value
 
-    def getRealProperty(self, name, default=-1.0) -> float:
-        return self.model.fabm.variable_get_real_property(
+    def getRealProperty(self, name: str, default: float = -1.0) -> float:
+        value: float = self.model.fabm.variable_get_real_property(
             self._pvariable, name.encode("ascii"), default
         )
+        return value
 
 
 class Dependency(VariableFromPointer):
@@ -727,7 +731,8 @@ class Dependency(VariableFromPointer):
 
     @property
     def required(self) -> bool:
-        return self.model.fabm.variable_is_required(self._pvariable) != 0
+        value: int = self.model.fabm.variable_is_required(self._pvariable)
+        return value != 0
 
 
 class StateVariable(VariableFromPointer):
@@ -747,21 +752,25 @@ class StateVariable(VariableFromPointer):
 
     @property
     def background_value(self) -> float:
-        return self.model.fabm.variable_get_background_value(self._pvariable)
+        value: float = self.model.fabm.variable_get_background_value(self._pvariable)
+        return value
 
     @property
     def output(self) -> bool:
-        return self.model.fabm.variable_get_output(self._pvariable) != 0
+        value: int = self.model.fabm.variable_get_output(self._pvariable)
+        return value != 0
 
     @property
     def no_river_dilution(self) -> bool:
-        return self.model.fabm.variable_get_no_river_dilution(self._pvariable) != 0
+        value: int = self.model.fabm.variable_get_no_river_dilution(self._pvariable)
+        return value != 0
 
     @property
     def no_precipitation_dilution(self) -> bool:
-        return (
-            self.model.fabm.variable_get_no_precipitation_dilution(self._pvariable) != 0
+        value: int = self.model.fabm.variable_get_no_precipitation_dilution(
+            self._pvariable
         )
+        return value != 0
 
 
 class DiagnosticVariable(VariableFromPointer):
@@ -784,7 +793,8 @@ class DiagnosticVariable(VariableFromPointer):
     @property
     def output(self) -> bool:
         """Whether this diagnostic is meant to be included in output by default"""
-        return self.model.fabm.variable_get_output(self._pvariable) != 0
+        value: int = self.model.fabm.variable_get_output(self._pvariable)
+        return value != 0
 
     @property
     def save(self) -> bool:
@@ -820,23 +830,23 @@ class Parameter(Variable):
         self._index = index + 1
         self._has_default = has_default
 
-    def _get_value(self, *, default: bool = False):
+    def _get_value(self, *, default: bool = False) -> Union[float, int, bool, str]:
         idefault = 1 if default else 0
         if self._type == DataType.REAL:
-            return self.model.fabm.get_real_parameter(
+            value = self.model.fabm.get_real_parameter(
                 self.model.pmodel, self._index, idefault
             )
+            return cast(float, value)
         elif self._type == DataType.INTEGER:
-            return self.model.fabm.get_integer_parameter(
+            value = self.model.fabm.get_integer_parameter(
                 self.model.pmodel, self._index, idefault
             )
+            return cast(int, value)
         elif self._type == DataType.LOGICAL:
-            return (
-                self.model.fabm.get_logical_parameter(
-                    self.model.pmodel, self._index, idefault
-                )
-                != 0
+            value = self.model.fabm.get_logical_parameter(
+                self.model.pmodel, self._index, idefault
             )
+            return cast(int, value) != 0
         elif self._type == DataType.STRING:
             result = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
             self.model.fabm.get_string_parameter(
@@ -880,7 +890,7 @@ class Parameter(Variable):
             return None
         return self._get_value(default=True)
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset this parameter to its default value"""
         settings = self.model._save_state()
         self.model.fabm.reset_parameter(self.model.pmodel, self._index)
@@ -897,7 +907,8 @@ class ConservedQuantity(Variable):
     @property
     def missing_value(self) -> float:
         """Value that indicates missing data, for instance, on land."""
-        return self.model.fabm.variable_get_missing_value(self._pvariable)
+        value: float = self.model.fabm.variable_get_missing_value(self._pvariable)
+        return value
 
 
 class StandardVariable:
@@ -953,7 +964,7 @@ class NamedObjectList(Sequence[T]):
                 return False
         return key in self._data
 
-    def index(self, key: Union[T, str], *args) -> int:
+    def index(self, key: Union[T, str], *args: SupportsIndex) -> int:
         if isinstance(key, str):
             try:
                 key = self.find(key)
@@ -977,7 +988,7 @@ class NamedObjectList(Sequence[T]):
                 self._lookup = {obj.name: obj for obj in self._data}
             return self._lookup[name]
 
-    def clear(self):
+    def clear(self) -> None:
         self._data.clear()
         self._lookup = None
         self._lookup_ci = None
@@ -1036,7 +1047,7 @@ class SubModel(object):
         model.fabm.get_model_metadata(
             model.pmodel, name.encode("ascii"), ATTRIBUTE_LENGTH, strlong_name, iuser
         )
-        self.long_name = strlong_name.value.decode("ascii")
+        self.long_name: str = strlong_name.value.decode("ascii")
         self.user_created = iuser.value != 0
 
 
@@ -1262,7 +1273,7 @@ class Model(object):
         """Write model configuration to yaml file"""
         self.fabm.save_settings(self.pmodel, path.encode("ascii"), display)
 
-    def _save_state(self) -> Tuple:
+    def _save_state(self) -> Tuple[Mapping[str, np.ndarray], Mapping[str, np.ndarray]]:
         environment = {}
         for dependency in self.dependencies:
             if dependency.value is not None:
@@ -1270,7 +1281,9 @@ class Model(object):
         state = {variable.name: variable.value for variable in self.state_variables}
         return environment, state
 
-    def _restore_state(self, data: Tuple):
+    def _restore_state(
+        self, data: Tuple[Mapping[str, np.ndarray], Mapping[str, np.ndarray]]
+    ):
         environment, state = data
         for dependency in self.dependencies:
             if dependency.name in environment:
@@ -1279,7 +1292,12 @@ class Model(object):
             if variable.name in state:
                 variable.value = state[variable.name]
 
-    def _update_configuration(self, settings: Optional[Tuple] = None):
+    def _update_configuration(
+        self,
+        settings: Optional[
+            Tuple[Mapping[str, np.ndarray], Mapping[str, np.ndarray]]
+        ] = None,
+    ):
         # Get number of model variables per category
         nstate_interior = ctypes.c_int()
         nstate_surface = ctypes.c_int()
@@ -1578,10 +1596,10 @@ class Model(object):
         return out
 
     def check_state(self, repair: bool = False) -> bool:
-        valid = self.fabm.check_state(self.pmodel, repair) != 0
+        valid: int = self.fabm.check_state(self.pmodel, repair)
         if hasError():
             raise FABMException(getError())
-        return valid
+        return valid != 0
 
     checkState = check_state
 
@@ -1756,7 +1774,7 @@ class Simulator(object):
         return y
 
 
-def unload():
+def unload() -> None:
     global ctypes
 
     for lib in name2lib.values():

@@ -15,7 +15,7 @@ except ImportError:
     sys.exit(1)
 
 
-def main():
+def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__)

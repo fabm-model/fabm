@@ -4,12 +4,12 @@ import numpy as np
 import pyfabm
 
 try:
-    from PyQt5 import QtCore, QtGui, QtWidgets  # type: ignore
+    from PyQt5 import QtCore, QtGui, QtWidgets
 except ImportError as e1:
     try:
         from PySide import QtCore, QtGui  # type: ignore
 
-        QtWidgets = QtGui
+        QtWidgets = QtGui  # type: ignore
     except ImportError as e2:
         print(e1)
         print(e2)
@@ -18,26 +18,31 @@ except ImportError as e1:
 
 
 class Delegate(QtWidgets.QStyledItemDelegate):
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QtCore.QObject] = None):
         QtWidgets.QStyledItemDelegate.__init__(self, parent)
 
-    def createEditor(self, parent, option, index: QtCore.QModelIndex):
+    def createEditor(
+        self,
+        parent: QtWidgets.QWidget,
+        option: QtWidgets.QStyleOptionViewItem,
+        index: QtCore.QModelIndex,
+    ):
         assert index.isValid()
         entry: Entry = index.internalPointer()
         data = entry.object
         if isinstance(data, pyfabm.Variable):
             if data.options is not None:
-                widget = QtWidgets.QComboBox(parent)
-                widget.addItems(data.options)
-                return widget
+                combobox = QtWidgets.QComboBox(parent)
+                combobox.addItems(data.options)
+                return combobox
             elif data.value is None or isinstance(data.value, (float, np.ndarray)):
-                widget = ScientificDoubleEditor(parent)
+                editor = ScientificDoubleEditor(parent)
                 if data.units:
-                    widget.setSuffix(f" {data.units_unicode}")
-                return widget
+                    editor.setSuffix(f" {data.units_unicode}")
+                return editor
         return QtWidgets.QStyledItemDelegate.createEditor(self, parent, option, index)
 
-    def setEditorData(self, editor, index: QtCore.QModelIndex):
+    def setEditorData(self, editor: QtWidgets.QWidget, index: QtCore.QModelIndex):
         entry: Entry = index.internalPointer()
         data = entry.object
         if isinstance(editor, QtWidgets.QComboBox):
@@ -51,14 +56,19 @@ class Delegate(QtWidgets.QStyledItemDelegate):
             return
         return QtWidgets.QStyledItemDelegate.setEditorData(self, editor, index)
 
-    def setModelData(self, editor, model, index: QtCore.QModelIndex):
+    def setModelData(
+        self,
+        editor: QtWidgets.QWidget,
+        model: QtCore.QAbstractItemModel,
+        index: QtCore.QModelIndex,
+    ):
         if isinstance(editor, QtWidgets.QComboBox):
-            data = index.internalPointer().object
-            if not isinstance(data, str):
-                if data.options is not None:
-                    i = editor.currentIndex()
-                    model.setData(index, data.options[i], QtCore.Qt.EditRole)
-                    return
+            entry: Entry = index.internalPointer()
+            data = entry.object
+            assert isinstance(data, pyfabm.Variable) and data.options is not None
+            i = editor.currentIndex()
+            model.setData(index, data.options[i], QtCore.Qt.EditRole)
+            return
         elif isinstance(editor, ScientificDoubleEditor):
             model.setData(index, editor.value(), QtCore.Qt.EditRole)
             return
@@ -131,7 +141,7 @@ class Entry:
 
 
 class Submodel:
-    def __init__(self, long_name):
+    def __init__(self, long_name: str):
         self.units = None
         self.units_unicode = None
         self.value = None
@@ -139,7 +149,7 @@ class Submodel:
 
 
 class ItemModel(QtCore.QAbstractItemModel):
-    def __init__(self, model: pyfabm.Model, parent):
+    def __init__(self, model: pyfabm.Model, parent: Optional[QtCore.QObject]):
         QtCore.QAbstractItemModel.__init__(self, parent)
         self.model = model
         self.root = self._build_tree()
@@ -180,7 +190,7 @@ class ItemModel(QtCore.QAbstractItemModel):
         processNode(root)
         return root
 
-    def rebuild(self):
+    def rebuild(self) -> None:
         # We already have an old tree - compare and amend model.
         def processChange(newnode: Entry, oldnode: Entry, parent: QtCore.QModelIndex):
             oldnode.object = newnode.object
@@ -222,7 +232,7 @@ class ItemModel(QtCore.QAbstractItemModel):
 
         processChange(self._build_tree(), self.root, QtCore.QModelIndex())
 
-    def rowCount(self, index: QtCore.QModelIndex) -> int:
+    def rowCount(self, index: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
         if not index.isValid():
             return len(self.root.children)
         elif index.column() == 0:
@@ -230,11 +240,11 @@ class ItemModel(QtCore.QAbstractItemModel):
             return len(entry.children)
         return 0
 
-    def columnCount(self, index: QtCore.QModelIndex) -> int:
+    def columnCount(self, index: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
         return 4
 
     def index(
-        self, row: int, column: int, parent: QtCore.QModelIndex
+        self, row: int, column: int, parent: QtCore.QModelIndex = QtCore.QModelIndex()
     ) -> QtCore.QModelIndex:
         if not parent.isValid():
             # top-level
@@ -247,7 +257,7 @@ class ItemModel(QtCore.QAbstractItemModel):
             return QtCore.QModelIndex()
         return self.createIndex(row, column, children[row])
 
-    def parent(self, index: QtCore.QModelIndex):
+    def parent(self, index: QtCore.QModelIndex = QtCore.QModelIndex()):
         if not index.isValid():
             return QtCore.QModelIndex()
         entry: Entry = index.internalPointer()
@@ -258,7 +268,7 @@ class ItemModel(QtCore.QAbstractItemModel):
         irow = parent.parent.children.index(parent)
         return self.createIndex(irow, 0, parent)
 
-    def data(self, index: QtCore.QModelIndex, role):
+    def data(self, index: QtCore.QModelIndex, role: int = QtCore.Qt.DisplayRole):
         if not index.isValid():
             return
         entry: Entry = index.internalPointer()
@@ -301,10 +311,16 @@ class ItemModel(QtCore.QAbstractItemModel):
             return QtCore.Qt.Checked if data.value else QtCore.Qt.Unchecked
         return None
 
-    def setData(self, index: QtCore.QModelIndex, value, role) -> bool:
+    def setData(
+        self,
+        index: QtCore.QModelIndex,
+        value: object,
+        role: int = QtCore.Qt.EditRole,
+    ) -> bool:
         if role == QtCore.Qt.CheckStateRole:
             value = value == QtCore.Qt.Checked
         if role in (QtCore.Qt.EditRole, QtCore.Qt.CheckStateRole):
+            assert isinstance(value, (float, int, bool, str))
             entry: Entry = index.internalPointer()
             data = entry.object
             assert isinstance(data, pyfabm.Variable)
@@ -315,7 +331,7 @@ class ItemModel(QtCore.QAbstractItemModel):
         return False
 
     def flags(self, index: QtCore.QModelIndex):
-        flags = QtCore.Qt.NoItemFlags
+        flags: QtCore.Qt.ItemFlags = 0 | QtCore.Qt.NoItemFlags
         if not index.isValid():
             return flags
         if index.column() == 1:
@@ -328,7 +344,12 @@ class ItemModel(QtCore.QAbstractItemModel):
                     flags |= QtCore.Qt.ItemIsEditable
         return flags | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
 
-    def headerData(self, section: int, orientation, role):
+    def headerData(
+        self,
+        section: int,
+        orientation: QtCore.Qt.Orientation,
+        role: int = QtCore.Qt.EditRole,
+    ):
         if (
             orientation == QtCore.Qt.Horizontal
             and role == QtCore.Qt.DisplayRole
@@ -339,7 +360,7 @@ class ItemModel(QtCore.QAbstractItemModel):
 
 
 class TreeView(QtWidgets.QTreeView):
-    def __init__(self, model, parent):
+    def __init__(self, model: pyfabm.Model, parent: Optional[QtWidgets.QWidget]):
         QtWidgets.QTreeView.__init__(self, parent)
         itemmodel = pyfabm.gui_qt.ItemModel(model, parent)
         self.setItemDelegate(Delegate(parent))
@@ -347,17 +368,18 @@ class TreeView(QtWidgets.QTreeView):
         self.setUniformRowHeights(True)
         self.expandAll()
 
-        def onTreeViewContextMenu(pos):
+        def onTreeViewContextMenu(pos: QtCore.QPoint):
             index = self.indexAt(pos)
             if index.isValid() and index.column() == 1:
-                data = index.internalPointer().object
+                entry: Entry = index.internalPointer()
+                data = entry.object
                 if (
                     isinstance(data, pyfabm.Parameter)
                     and data.value != data.default
                     and data.default is not None
                 ):
 
-                    def reset():
+                    def reset() -> None:
                         data.reset()
                         itemmodel.rebuild()
 
@@ -385,13 +407,13 @@ class ScientificDoubleValidator(QtGui.QValidator):
     fix-up.
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QtCore.QObject] = None):
         QtGui.QValidator.__init__(self, parent)
-        self.minimum = None
-        self.maximum = None
+        self.minimum: Optional[float] = None
+        self.maximum: Optional[float] = None
         self.suffix = ""
 
-    def validate(self, input, pos):
+    def validate(self, input: str, pos: int) -> Tuple[QtGui.QValidator.State, str, int]:
         assert isinstance(input, str), "input argument is not a string (old PyQt4 API?)"
 
         # Check for suffix (if ok, cut it off for further value checking)
@@ -418,7 +440,7 @@ class ScientificDoubleValidator(QtGui.QValidator):
 
         return (QtGui.QValidator.Acceptable, input, pos)
 
-    def fixup(self, input):
+    def fixup(self, input: str):
         assert isinstance(input, str), "input argument is not a string (old PyQt4 API?)"
         if not input.endswith(self.suffix):
             return input
@@ -435,14 +457,14 @@ class ScientificDoubleValidator(QtGui.QValidator):
         print(repr(input))
         return input
 
-    def setSuffix(self, suffix):
+    def setSuffix(self, suffix: str):
         self.suffix = suffix
 
 
 class ScientificDoubleEditor(QtWidgets.QLineEdit):
     """Editor for a floating point value."""
 
-    def __init__(self, parent):
+    def __init__(self, parent: Optional[QtWidgets.QWidget]):
         QtWidgets.QLineEdit.__init__(self, parent)
 
         self.curvalidator = ScientificDoubleValidator(self)
@@ -450,20 +472,20 @@ class ScientificDoubleEditor(QtWidgets.QLineEdit):
         self.suffix = ""
         # self.editingFinished.connect(self.onPropertyEditingFinished)
 
-    def setSuffix(self, suffix):
+    def setSuffix(self, suffix: str):
         value = self.value()
         self.suffix = suffix
         self.curvalidator.setSuffix(suffix)
         self.setValue(value)
 
-    def value(self):
+    def value(self) -> float:
         text = self.text()
         text = text[: len(text) - len(self.suffix)]
         if text == "":
             return 0
         return float(text)
 
-    def setValue(self, value, format=None):
+    def setValue(self, value: Optional[float], format: Optional[str] = None):
         if value is None:
             strvalue = ""
         else:
@@ -473,20 +495,20 @@ class ScientificDoubleEditor(QtWidgets.QLineEdit):
                 strvalue = format % value
         self.setText(f"{strvalue}{self.suffix}")
 
-    def focusInEvent(self, e):
+    def focusInEvent(self, e: QtGui.QFocusEvent):
         QtWidgets.QLineEdit.focusInEvent(self, e)
         self.selectAll()
 
-    def selectAll(self):
+    def selectAll(self) -> None:
         QtWidgets.QLineEdit.setSelection(self, 0, len(self.text()) - len(self.suffix))
 
-    def setMinimum(self, minimum):
+    def setMinimum(self, minimum: Optional[float]):
         self.curvalidator.minimum = minimum
 
-    def setMaximum(self, maximum):
+    def setMaximum(self, maximum: Optional[float]):
         self.curvalidator.maximum = maximum
 
-    def interpretText(self):
+    def interpretText(self) -> None:
         if not self.hasAcceptableInput():
             text = self.text()
             textnew = self.curvalidator.fixup(text)

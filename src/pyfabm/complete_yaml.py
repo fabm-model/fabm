@@ -1,7 +1,12 @@
 import pyfabm
 
 
-def processFile(infile, outfile, subtract_background=False, add_missing=False):
+def processFile(
+    infile: str,
+    outfile: str,
+    subtract_background: bool = False,
+    add_missing: bool = False,
+):
     # Create model object from YAML file.
     model = pyfabm.Model(infile)
     model.save_settings(

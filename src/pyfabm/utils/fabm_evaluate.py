@@ -58,7 +58,11 @@ def evaluate(
             Union[pyfabm.StateVariable, pyfabm.Dependency], str
         ] = {}
 
-        def set_variable(variable, value, source):
+        def set_variable(
+            variable: Union[pyfabm.StateVariable, pyfabm.Dependency],
+            value: float,
+            source: str,
+        ):
             missing.discard(variable)
             if variable in variable2source:
                 print(
@@ -67,7 +71,7 @@ def evaluate(
                     f" set by {source}"
                 )
             variable2source[variable] = source
-            variable.value = value
+            variable.value = cast(np.ndarray, value)
 
         for path in sources:
             if path.endswith("yaml"):
@@ -195,7 +199,7 @@ def evaluate(
     )
 
 
-def main():
+def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(

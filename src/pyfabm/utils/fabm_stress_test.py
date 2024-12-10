@@ -7,10 +7,23 @@ Different tests can be run, using either random values or extremes for inputs,
 and running randomized or exhaustive tests.
 """
 
+from typing import (
+    MutableSequence,
+    MutableSet,
+    Tuple,
+    Callable,
+    Mapping,
+    Sequence,
+    Iterable,
+    Union,
+    Dict,
+    cast,
+    Optional,
+)
 import sys
 import yaml
 
-import numpy
+import numpy as np
 
 try:
     import pyfabm
@@ -19,14 +32,24 @@ except ImportError:
     sys.exit(1)
 
 
-def testRangePresence(ranges, variables, vary, found_variables):
+VAR_TYPE = Union[pyfabm.StateVariable, pyfabm.Dependency]
+VARY_TYPE = Sequence[Tuple[VAR_TYPE, Sequence[float]]]
+MUTABLE_VARY_TYPE = MutableSequence[Tuple[VAR_TYPE, MutableSequence[float]]]
+
+
+def testRangePresence(
+    ranges: Mapping[str, Union[float, int, MutableSequence[Union[int, float]]]],
+    variables: Iterable[VAR_TYPE],
+    vary: MUTABLE_VARY_TYPE,
+    found_variables: MutableSet[str],
+):
     for variable in variables:
         if variable.name not in ranges:
             print(f"No range specified for variable {variable.name}.")
             sys.exit(1)
         variable_range = ranges[variable.name]
         if isinstance(variable_range, (int, float)):
-            variable.value = float(variable_range)
+            variable.value = cast(np.ndarray, float(variable_range))
         else:
             if len(variable_range) != 2:
                 print(
@@ -58,22 +81,23 @@ def testRangePresence(ranges, variables, vary, found_variables):
                         f"Raising default value of {variable.name} to prescribed"
                         f" minimum {variable_range[0]} (previous default was {value})."
                     )
-                    variable.value = variable_range[0]
+                    variable.value = cast(np.ndarray, variable_range[0])
                 elif value > variable_range[1]:
                     print(
                         f"Lowering default value of {variable.name} to prescribed"
                         f" maximum {variable_range[1]} (previous default was {value})."
                     )
-                    variable.value = variable_range[1]
+                    variable.value = cast(np.ndarray, variable_range[1])
             else:
-                variable.value = 0.5 * (variable_range[0] + variable_range[1])
+                center = 0.5 * (variable_range[0] + variable_range[1])
+                variable.value = cast(np.ndarray, center)
                 print(
-                    f"Setting default value of {variable.name} to mean {variable.value}"
+                    f"Setting default value of {variable.name} to center {center}"
                     f" of prescribed range {variable_range[0]} - {variable_range[1]}"
                     f" (no previous default was set)."
                 )
             if variable_range[0] == variable_range[1]:
-                variable.value = variable_range[0]
+                variable.value = cast(np.ndarray, variable_range[0])
             else:
                 vary.append((variable, variable_range))
         found_variables.add(variable.name)
@@ -82,26 +106,27 @@ def testRangePresence(ranges, variables, vary, found_variables):
 ndone = 0
 
 
-def check(model):
+def check(model: pyfabm.Model):
     rates = model.getRates()
     assert len(rates) == len(model.state_variables)
-    valid = numpy.isfinite(rates)
+    valid = np.isfinite(rates)
     global ndone
     ndone += 1
     if not valid.all():
         print(f"Test {ndone} FAILED!")
+        variable: VAR_TYPE
         for variable, value in zip(model.state_variables, rates):
-            if not numpy.isfinite(value):
+            if not np.isfinite(value):
                 print(f"Change in {variable.name} has invalid value {value}")
-        values = {}
+        values: Dict[str, np.ndarray] = {}
         print("MODEL STATE:")
         for variable in model.state_variables:
             print(f"- {variable.name} = {variable.value}")
-            values[variable.name] = float(variable.value)
+            values[variable.name] = np.array(variable.value)
         print("ENVIRONMENT:")
         for variable in model.dependencies:
             print(f"- {variable.name} = {variable.value}")
-            values[variable.name] = float(variable.value)
+            values[variable.name] = np.array(variable.value)
         with open("last_error.yaml", "w") as f:
             yaml.safe_dump(values, f, default_flow_style=False)
         print("This model state and environment has been saved in last_error.yaml.")
@@ -112,46 +137,52 @@ def check(model):
         sys.exit(1)
 
 
-def testRandomized(model, vary):
+def testRandomized(model: pyfabm.Model, vary: VARY_TYPE):
     # Perpetual random test:
     # for each model input, pick a value from its valid range [minimum,maximum]
     while 1:
-        random_values = numpy.random.rand(len(vary))
+        random_values = np.random.rand(len(vary))
         for (variable, (minimum, maximum)), random_value in zip(vary, random_values):
-            variable.value = minimum + (maximum - minimum) * random_value
+            value = minimum + (maximum - minimum) * random_value
+            variable.value = cast(np.ndarray, value)
         check(model)
         if ndone % 1000 == 0:
             print(f"Test {ndone} completed.")
 
 
-def testRandomizedExtremes(model, vary):
+def testRandomizedExtremes(model: pyfabm.Model, vary: VARY_TYPE):
     # Perpetual random test:
     # for each model input, pick either its minimum or its maximum value.
     while 1:
-        pick_maxs = numpy.random.rand(len(vary)) > 0.5
+        pick_maxs = np.random.rand(len(vary)) > 0.5
         for (variable, (minimum, maximum)), pick_max in zip(vary, pick_maxs):
-            variable.value = maximum if pick_max else minimum
+            value = maximum if pick_max else minimum
+            variable.value = cast(np.ndarray, value)
         check(model)
         if ndone % 1000 == 0:
             print(f"Test {ndone} completed.")
 
 
-def testExtremes(model, vary):
+def testExtremes(model: pyfabm.Model, vary: VARY_TYPE):
     # Finite deterministic test:
     # for each model input, test minimum and maximum, leaving all other inputs
     # at their default value.
     for variable, (minimum, maximum) in vary:
         print(f"Testing {variable.name} = {minimum}...")
-        oldvalue = float(variable.value)
-        variable.value = minimum
+        oldvalue = np.array(variable.value)
+        variable.value = cast(np.ndarray, minimum)
         check(model)
         print(f"Testing {variable.name} = {maximum}...")
-        variable.value = maximum
+        variable.value = cast(np.ndarray, maximum)
         check(model)
         variable.value = oldvalue
 
 
-def testExtremesRecursive(model, vary, ntot=None):
+def testExtremesRecursive(
+    model: pyfabm.Model,
+    vary: VARY_TYPE,
+    ntot: Optional[int] = None,
+):
     # Finite deterministic test:
     # test all possible combinations of minimum and maximm for each model input.
     if ntot is None:
@@ -162,18 +193,18 @@ def testExtremesRecursive(model, vary, ntot=None):
             print(f"Completed {ndone} of {ntot} tests")
         return
     variable, (minimum, maximum) = vary[0]
-    oldvalue = float(variable.value)
-    variable.value = minimum
+    oldvalue = np.array(variable.value)
+    variable.value = cast(np.ndarray, minimum)
     testExtremesRecursive(model, vary[1:], ntot)
-    variable.value = maximum
+    variable.value = cast(np.ndarray, maximum)
     testExtremesRecursive(model, vary[1:], ntot)
     variable.value = oldvalue
 
 
-def main():
+def main() -> None:
     import argparse
 
-    tests = {
+    tests: Mapping[str, Callable[[pyfabm.Model, VARY_TYPE], None]] = {
         "randomized": testRandomized,
         "extremes_per_variable": testExtremes,
         "extremes_randomized": testRandomizedExtremes,
@@ -222,7 +253,7 @@ def main():
     if args.write_ranges:
         with open(args.ranges_path, "w") as f:
 
-            def writeRanges(variables):
+            def writeRanges(variables: Iterable[VAR_TYPE]):
                 for variable in variables:
                     strmax = "?" if variable.value is None else 10 * variable.value
                     f.write(f"{variable.name}: [0,{strmax}]\n")
@@ -241,8 +272,8 @@ def main():
         )
         sys.exit(1)
 
-    vary = []
-    found_variables = set()
+    vary: MUTABLE_VARY_TYPE = []
+    found_variables: MutableSet[str] = set()
     testRangePresence(ranges, model.state_variables, vary, found_variables)
     testRangePresence(ranges, model.dependencies, vary, found_variables)
 

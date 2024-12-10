@@ -17,7 +17,7 @@ QtCore = pyfabm.gui_qt.QtCore
 QtWidgets = pyfabm.gui_qt.QtWidgets
 
 
-def main():
+def main() -> None:
     import argparse
 
     # Parse command line arguments.
