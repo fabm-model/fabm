@@ -1779,7 +1779,7 @@ def unload() -> None:
 
     for lib in name2lib.values():
         handle = lib._handle
-        if os.name == "nt":
+        if sys.platform == "win32":
             import ctypes.wintypes
 
             ctypes.windll.kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
