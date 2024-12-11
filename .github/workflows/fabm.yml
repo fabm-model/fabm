@@ -303,6 +303,11 @@ jobs:
           conda install ipython jupyterlab ipympl matplotlib scipy
           cd testcases/python
           for f in *.ipynb; do ipython --gui qt -c "%run $f"; done
+      - name: Type checking with mypy
+        if: matrix.python-version != '3.7' && matrix.python-version != '3.8'
+        run: |
+          conda install mypy pyyaml types-pyyaml netcdf4 pyqt-stubs
+          mypy src/pyfabm
       - name: Install with customization via command line arguments
         run: |
           rm -rf build

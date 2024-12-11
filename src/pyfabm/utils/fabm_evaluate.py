@@ -12,13 +12,9 @@ pairs). You can set additional variables on the command line with -v/--values.
 
 import sys
 import os
+from typing import Union, MutableMapping, Mapping, Iterable, cast
 
-try:
-    input = raw_input
-except NameError:
-    pass
-
-import numpy
+import numpy as np
 import netCDF4
 import yaml
 
@@ -30,20 +26,24 @@ except ImportError:
 
 
 def evaluate(
-    yaml_path,
-    sources=(),
-    location={},
-    assignments={},
-    verbose=True,
-    ignore_missing=False,
-    surface=True,
-    bottom=True,
+    yaml_path: str,
+    sources: Iterable[str] = (),
+    location: Mapping[str, int] = {},
+    assignments: Mapping[str, float] = {},
+    verbose: bool = True,
+    ignore_missing: bool = False,
+    surface: bool = True,
+    bottom: bool = True,
 ):
     # Create model object from YAML file.
     model = pyfabm.Model(yaml_path)
 
-    allvariables = list(model.state_variables) + list(model.dependencies)
-    name2variable = {}
+    allvariables: pyfabm.NamedObjectList[
+        Union[pyfabm.StateVariable, pyfabm.Dependency]
+    ] = pyfabm.NamedObjectList(model.state_variables, model.dependencies)
+    name2variable: MutableMapping[
+        str, Union[pyfabm.StateVariable, pyfabm.Dependency]
+    ] = {}
     for variable in allvariables:
         name2variable[variable.name] = variable
         if hasattr(variable, "output_name"):
@@ -52,11 +52,17 @@ def evaluate(
         [(name.lower(), variable) for (name, variable) in name2variable.items()]
     )
 
-    def set_state(**dim2index):
+    def set_state(**dim2index: int):
         missing = set(allvariables)
-        variable2source = {}
+        variable2source: MutableMapping[
+            Union[pyfabm.StateVariable, pyfabm.Dependency], str
+        ] = {}
 
-        def set_variable(variable, value, source):
+        def set_variable(
+            variable: Union[pyfabm.StateVariable, pyfabm.Dependency],
+            value: float,
+            source: str,
+        ):
             missing.discard(variable)
             if variable in variable2source:
                 print(
@@ -65,12 +71,12 @@ def evaluate(
                     f" set by {source}"
                 )
             variable2source[variable] = source
-            variable.value = value
+            variable.value = cast(np.ndarray, value)
 
         for path in sources:
             if path.endswith("yaml"):
                 with open(path) as f:
-                    data = yaml.load(f)
+                    data = yaml.safe_load(f)
                 for name, value in data.items():
                     variable = name2variable.get(name)
                     if variable is None:
@@ -110,22 +116,16 @@ def evaluate(
             variable = name2variable[name]
             missing.discard(variable)
             variable2source[variable] = "command line"
-            variable.value = float(value)
+            variable.value = cast(np.ndarray, float(value))
 
         if verbose:
             print()
             print("State:")
-            for variable in sorted(model.state_variables, key=lambda x: x.name.lower()):
-                print(
-                    f"  {variable.name}: {variable.value}"
-                    f" [{variable2source.get(variable)}]"
-                )
+            for sv in sorted(model.state_variables, key=lambda x: x.name.lower()):
+                print(f"  {sv.name}: {sv.value}" f" [{variable2source.get(sv)}]")
             print("Environment:")
-            for variable in sorted(model.dependencies, key=lambda x: x.name.lower()):
-                print(
-                    f"  {variable.name}: {variable.value}"
-                    f" [{variable2source.get(variable)}]"
-                )
+            for d in sorted(model.dependencies, key=lambda x: x.name.lower()):
+                print(f"  {d.name}: {d.value} [{variable2source.get(d)}]")
 
         if missing:
             print("The following variables are still missing:")
@@ -142,10 +142,10 @@ def evaluate(
         sys.exit(1)
 
     print("State variables with largest value:")
-    for variable in sorted(
-        model.state_variables, key=lambda x: abs(x.value), reverse=True
+    for sv in sorted(
+        model.state_variables, key=lambda x: abs(float(x.value)), reverse=True
     )[:3]:
-        print(f"  {variable.name}: {variable.value} {variable.units}")
+        print(f"  {sv.name}: {sv.value} {sv.units}")
 
     # Get model rates
     rates = model.getRates(surface=surface, bottom=bottom)
@@ -155,22 +155,20 @@ def evaluate(
 
     if verbose:
         print("Diagnostics:")
-        for variable in sorted(
-            model.diagnostic_variables, key=lambda x: x.name.lower()
-        ):
-            if variable.output:
-                print(f"  {variable.name}: {variable.value} {variable.units}")
+        for dv in sorted(model.diagnostic_variables, key=lambda x: x.name.lower()):
+            if dv.output:
+                print(f"  {dv.name}: {dv.value} {dv.units}")
 
     # Check whether rates of change are valid numbers
-    valids = numpy.isfinite(rates)
+    valids = np.isfinite(rates)
     if not valids.all():
         print("The following state variables have an invalid rate of change:")
-        for variable, rate, valid in zip(model.state_variables, rates, valids):
+        for sv, rate, valid in zip(model.state_variables, rates, valids):
             if not valid:
-                print(f"  {variable.name}: {rate}")
+                print(f"  {sv.name}: {rate}")
 
     eps = 1e-30
-    relative_rates = numpy.array(
+    relative_rates = np.array(
         [
             rate / (variable.value + eps)
             for variable, rate in zip(model.state_variables, rates)
@@ -194,14 +192,14 @@ def evaluate(
     )[:3]:
         print(f"  {variable.name}: {86400 * relative_rate} d-1")
 
-    i = relative_rates.argmin()
+    i = int(relative_rates.argmin())
     print(
         f"Minimum time step = {-1.0 / relative_rates[i]:%.3f} s due to decrease"
         f" in {model.state_variables[i].name}"
     )
 
 
-def main():
+def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(

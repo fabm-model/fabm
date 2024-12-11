@@ -16,7 +16,18 @@ from typing import (
     TypeVar,
     List,
     Dict,
+    Type,
+    overload,
+    cast,
 )
+
+# typing.Final not available in Python 3.7
+try:
+    from typing import Final, SupportsIndex
+except ImportError:
+    from typing import Any
+
+    Final = SupportsIndex = Any  # type: ignore
 
 try:
     import importlib.metadata
@@ -35,12 +46,24 @@ import numpy.typing as npt
 
 LOG_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_char_p)
 
-name2lib: MutableMapping[str, ctypes.CDLL] = {}
+
+class FABMDLL(ctypes.CDLL):
+    dtype: Union[Type[ctypes.c_float], Type[ctypes.c_double]]
+    numpy_dtype: np.dtype
+    ndim_int: int
+    ndim_hz: int
+    idepthdim: int
+    mask_type: int
+    variable_bottom_index: bool
+
+
+name2lib: MutableMapping[str, FABMDLL] = {}
 
 
 def _find_library(name: str) -> str:
     # Determine potential names of dynamic library.
     libdir, name = os.path.split(name)
+    names: Tuple[str, ...]
     if os.name == "nt":
         names = (f"{name}.dll", f"lib{name}.dll")
     elif os.name == "posix" and sys.platform == "darwin":
@@ -68,7 +91,7 @@ def _find_library(name: str) -> str:
     )
 
 
-def get_lib(name: str) -> ctypes.CDLL:
+def get_lib(name: str) -> FABMDLL:
     if name in name2lib:
         return name2lib[name]
 
@@ -78,7 +101,7 @@ def get_lib(name: str) -> ctypes.CDLL:
         path = _find_library(name)
 
     # Load FABM library.
-    lib = ctypes.CDLL(path)
+    lib = FABMDLL(path)
     lib.dtype = ctypes.c_double
     lib.numpy_dtype = np.dtype(lib.dtype).newbyteorder("=")
 
@@ -109,7 +132,7 @@ def get_lib(name: str) -> ctypes.CDLL:
     lib.mask_type = mask_type.value
     lib.variable_bottom_index = variable_bottom_index.value != 0
 
-    CONTIGUOUS = "CONTIGUOUS"
+    CONTIGUOUS: Final = "CONTIGUOUS"
     arrtype0D = np.ctypeslib.ndpointer(dtype=lib.dtype, ndim=0, flags=CONTIGUOUS)
     arrtype1D = np.ctypeslib.ndpointer(dtype=lib.dtype, ndim=1, flags=CONTIGUOUS)
     arrtypeInterior = np.ctypeslib.ndpointer(
@@ -545,10 +568,12 @@ def getError() -> Optional[str]:
             strmessage = ctypes.create_string_buffer(1024)
             lib.get_error(1024, strmessage)
             return strmessage.value.decode("ascii")
+    return None
 
 
 NodeValue = TypeVar("NodeValue")
 NodeType = Mapping[str, Union["NodeType", NodeValue]]
+EditableNodeType = Dict[str, Union["EditableNodeType", NodeValue]]
 
 
 def printTree(
@@ -571,24 +596,24 @@ class VariableProperties:
         self._pvariable = variable_pointer
 
     def __getitem__(self, key: str) -> Union[float, int, bool]:
-        typecode = self.model.fabm.variable_get_property_type(
+        typecode: int = self.model.fabm.variable_get_property_type(
             self._pvariable, key.encode("ascii")
         )
         if typecode == DataType.REAL:
-            return self.model.fabm.variable_get_real_property(
+            value = self.model.fabm.variable_get_real_property(
                 self._pvariable, key.encode("ascii"), -1.0
             )
+            return cast(float, value)
         elif typecode == DataType.INTEGER:
-            return self.model.fabm.variable_get_integer_property(
+            value = self.model.fabm.variable_get_integer_property(
                 self._pvariable, key.encode("ascii"), 0
             )
+            return cast(int, value)
         elif typecode == DataType.LOGICAL:
-            return (
-                self.model.fabm.variable_get_logical_property(
-                    self._pvariable, key.encode("ascii"), 0
-                )
-                != 0
+            value = self.model.fabm.variable_get_logical_property(
+                self._pvariable, key.encode("ascii"), 0
             )
+            return cast(int, value) != 0
         raise KeyError
 
 
@@ -647,7 +672,8 @@ class VariableFromPointer(Variable):
 
     @property
     def long_path(self) -> str:
-        """Long model instance name, followed by a slash, followed by long variable name."""
+        """Long model instance name, followed by a slash, followed by long
+        variable name."""
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         self.model.fabm.variable_get_long_path(
             self._pvariable, ATTRIBUTE_LENGTH, strlong_name
@@ -657,12 +683,14 @@ class VariableFromPointer(Variable):
     @property
     def missing_value(self) -> float:
         """Value that indicates missing data, for instance, on land."""
-        return self.model.fabm.variable_get_missing_value(self._pvariable)
+        value: float = self.model.fabm.variable_get_missing_value(self._pvariable)
+        return value
 
-    def getRealProperty(self, name, default=-1.0) -> float:
-        return self.model.fabm.variable_get_real_property(
+    def getRealProperty(self, name: str, default: float = -1.0) -> float:
+        value: float = self.model.fabm.variable_get_real_property(
             self._pvariable, name.encode("ascii"), default
         )
+        return value
 
 
 class Dependency(VariableFromPointer):
@@ -670,26 +698,27 @@ class Dependency(VariableFromPointer):
         self,
         model: "Model",
         variable_pointer: ctypes.c_void_p,
-        shape: Tuple[int],
+        shape: Tuple[int, ...],
         link_function: Callable[[ctypes.c_void_p, ctypes.c_void_p, np.ndarray], None],
     ):
         super().__init__(model, variable_pointer)
-        self._is_set = False
         self._link_function = link_function
         self._shape = shape
+        self._data: Optional[np.ndarray] = None
 
     @property
     def value(self) -> Optional[np.ndarray]:
-        return None if not self._is_set else self._data
+        return self._data
 
     @value.setter
     def value(self, value: npt.ArrayLike):
-        if not self._is_set:
+        if self._data is None:
             self.link(np.empty(self._shape, dtype=self.model.fabm.numpy_dtype))
+            assert self._data is not None
         self._data[...] = value
 
     @property
-    def shape(self) -> Tuple[int]:
+    def shape(self) -> Tuple[int, ...]:
         return self._shape
 
     def link(self, data: np.ndarray):
@@ -699,11 +728,11 @@ class Dependency(VariableFromPointer):
         )
         self._data = data
         self._link_function(self.model.pmodel, self._pvariable, self._data)
-        self._is_set = True
 
     @property
     def required(self) -> bool:
-        return self.model.fabm.variable_is_required(self._pvariable) != 0
+        value: int = self.model.fabm.variable_is_required(self._pvariable)
+        return value != 0
 
 
 class StateVariable(VariableFromPointer):
@@ -723,21 +752,25 @@ class StateVariable(VariableFromPointer):
 
     @property
     def background_value(self) -> float:
-        return self.model.fabm.variable_get_background_value(self._pvariable)
+        value: float = self.model.fabm.variable_get_background_value(self._pvariable)
+        return value
 
     @property
     def output(self) -> bool:
-        return self.model.fabm.variable_get_output(self._pvariable) != 0
+        value: int = self.model.fabm.variable_get_output(self._pvariable)
+        return value != 0
 
     @property
     def no_river_dilution(self) -> bool:
-        return self.model.fabm.variable_get_no_river_dilution(self._pvariable) != 0
+        value: int = self.model.fabm.variable_get_no_river_dilution(self._pvariable)
+        return value != 0
 
     @property
     def no_precipitation_dilution(self) -> bool:
-        return (
-            self.model.fabm.variable_get_no_precipitation_dilution(self._pvariable) != 0
+        value: int = self.model.fabm.variable_get_no_precipitation_dilution(
+            self._pvariable
         )
+        return value != 0
 
 
 class DiagnosticVariable(VariableFromPointer):
@@ -749,7 +782,7 @@ class DiagnosticVariable(VariableFromPointer):
         horizontal: bool,
     ):
         super().__init__(model, variable_pointer)
-        self._data = None
+        self._data: Optional[np.ndarray] = None
         self._horizontal = horizontal
         self._index = index + 1
 
@@ -760,9 +793,17 @@ class DiagnosticVariable(VariableFromPointer):
     @property
     def output(self) -> bool:
         """Whether this diagnostic is meant to be included in output by default"""
-        return self.model.fabm.variable_get_output(self._pvariable) != 0
+        value: int = self.model.fabm.variable_get_output(self._pvariable)
+        return value != 0
 
-    def _set_save(self, value: bool):
+    @property
+    def save(self) -> bool:
+        """Whether the value of this diagnostic must be calculated,
+        for instance, because it will be included in model output"""
+        raise AttributeError("save attribute is write-only")
+
+    @save.setter
+    def save(self, value: bool):
         vartype = (
             HORIZONTAL_DIAGNOSTIC_VARIABLE
             if self._horizontal
@@ -772,9 +813,6 @@ class DiagnosticVariable(VariableFromPointer):
             self.model.pmodel, vartype, self._index, 1 if value else 0
         )
 
-    #: Whether the value of this diagnostic must be calculated, for instance, for output
-    save: bool = property(fset=_set_save)
-
 
 class Parameter(Variable):
     def __init__(
@@ -782,37 +820,37 @@ class Parameter(Variable):
         model: "Model",
         name: str,
         index: int,
-        units: Optional[str] = None,
-        long_name: Optional[str] = None,
-        type: Optional[DataType] = None,
-        has_default: bool = False,
+        units: str,
+        long_name: str,
+        type: DataType,
+        has_default: bool,
     ):
         super().__init__(model, name, units, long_name)
         self._type = type
         self._index = index + 1
         self._has_default = has_default
 
-    def _get_value(self, *, default: bool = False):
-        default = 1 if default else 0
+    def _get_value(self, *, default: bool = False) -> Union[float, int, bool, str]:
+        idefault = 1 if default else 0
         if self._type == DataType.REAL:
-            return self.model.fabm.get_real_parameter(
-                self.model.pmodel, self._index, default
+            value = self.model.fabm.get_real_parameter(
+                self.model.pmodel, self._index, idefault
             )
+            return cast(float, value)
         elif self._type == DataType.INTEGER:
-            return self.model.fabm.get_integer_parameter(
-                self.model.pmodel, self._index, default
+            value = self.model.fabm.get_integer_parameter(
+                self.model.pmodel, self._index, idefault
             )
+            return cast(int, value)
         elif self._type == DataType.LOGICAL:
-            return (
-                self.model.fabm.get_logical_parameter(
-                    self.model.pmodel, self._index, default
-                )
-                != 0
+            value = self.model.fabm.get_logical_parameter(
+                self.model.pmodel, self._index, idefault
             )
+            return cast(int, value) != 0
         elif self._type == DataType.STRING:
             result = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
             self.model.fabm.get_string_parameter(
-                self.model.pmodel, self._index, default, ATTRIBUTE_LENGTH, result
+                self.model.pmodel, self._index, idefault, ATTRIBUTE_LENGTH, result
             )
             return result.value.decode("ascii")
 
@@ -838,7 +876,7 @@ class Parameter(Variable):
             )
         elif self._type == DataType.STRING:
             self.model.fabm.set_string_parameter(
-                self.model.pmodel, self.name.encode("ascii"), value.encode("ascii")
+                self.model.pmodel, self.name.encode("ascii"), str(value).encode("ascii")
             )
 
         # Update the model configuration
@@ -852,7 +890,7 @@ class Parameter(Variable):
             return None
         return self._get_value(default=True)
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset this parameter to its default value"""
         settings = self.model._save_state()
         self.model.fabm.reset_parameter(self.model.pmodel, self._index)
@@ -869,7 +907,8 @@ class ConservedQuantity(Variable):
     @property
     def missing_value(self) -> float:
         """Value that indicates missing data, for instance, on land."""
-        return self.model.fabm.variable_get_missing_value(self._pvariable)
+        value: float = self.model.fabm.variable_get_missing_value(self._pvariable)
+        return value
 
 
 class StandardVariable:
@@ -886,12 +925,12 @@ class StandardVariable:
         if horizontal.value == 0:
             shape = self.model.interior_domain_shape
         else:
-            shape = self.model.horizontal_domain.shape
+            shape = self.model.horizontal_domain_shape
         arr = np.ctypeslib.as_array(pdata, shape)
         return arr.view(dtype=self.model.fabm.numpy_dtype)
 
 
-T = TypeVar("T")
+T = TypeVar("T", bound=Variable)
 
 
 class NamedObjectList(Sequence[T]):
@@ -905,12 +944,18 @@ class NamedObjectList(Sequence[T]):
     def __len__(self) -> int:
         return len(self._data)
 
-    def __getitem__(self, key: Union[int, str]) -> T:
+    @overload
+    def __getitem__(self, key: Union[int, str]) -> T: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> Sequence[T]: ...
+
+    def __getitem__(self, key: Union[int, slice, str]) -> Union[T, Sequence[T]]:
         if isinstance(key, str):
             return self.find(key)
         return self._data[key]
 
-    def __contains__(self, key: Union[T, str]) -> bool:
+    def __contains__(self, key: object) -> bool:
         if isinstance(key, str):
             try:
                 self.find(key)
@@ -919,7 +964,7 @@ class NamedObjectList(Sequence[T]):
                 return False
         return key in self._data
 
-    def index(self, key: Union[T, str], *args) -> int:
+    def index(self, key: Union[T, str], *args: SupportsIndex) -> int:
         if isinstance(key, str):
             try:
                 key = self.find(key)
@@ -943,7 +988,7 @@ class NamedObjectList(Sequence[T]):
                 self._lookup = {obj.name: obj for obj in self._data}
             return self._lookup[name]
 
-    def clear(self):
+    def clear(self) -> None:
         self._data.clear()
         self._lookup = None
         self._lookup_ci = None
@@ -960,12 +1005,12 @@ class Coupling(VariableFromPointer):
             ctypes.byref(self._ptarget),
         )
         super().__init__(model, self._psource)
-        self._options = None
+        self._options: Optional[List[str]] = None
 
     @property
     def value(self) -> Optional[str]:
         if self._psource.value == self._ptarget.value:
-            return
+            return None
         strlong_name = ctypes.create_string_buffer(ATTRIBUTE_LENGTH)
         self.model.fabm.variable_get_long_path(
             self._ptarget, ATTRIBUTE_LENGTH, strlong_name
@@ -980,7 +1025,7 @@ class Coupling(VariableFromPointer):
     @property
     def options(self) -> Sequence[str]:
         if self._options is None:
-            self._options: List[str] = []
+            self._options = []
             plist = self.model.fabm.variable_get_suitable_masters(
                 self.model.pmodel, self._psource
             )
@@ -1002,7 +1047,7 @@ class SubModel(object):
         model.fabm.get_model_metadata(
             model.pmodel, name.encode("ascii"), ATTRIBUTE_LENGTH, strlong_name, iuser
         )
-        self.long_name = strlong_name.value.decode("ascii")
+        self.long_name: str = strlong_name.value.decode("ascii")
         self.user_created = iuser.value != 0
 
 
@@ -1010,10 +1055,10 @@ class Model(object):
     def __init__(
         self,
         path: Union[str, dict] = "fabm.yaml",
-        shape: Tuple[int] = (),
+        shape: Tuple[int, ...] = (),
         libname: Optional[str] = None,
-        start: Optional[Tuple[int]] = None,
-        stop: Optional[Tuple[int]] = None,
+        start: Optional[Tuple[int, ...]] = None,
+        stop: Optional[Tuple[int, ...]] = None,
     ):
         delete = False
         if isinstance(path, dict):
@@ -1049,7 +1094,7 @@ class Model(object):
             )
 
         self.fabm.reset_error_state()
-        self._cell_thickness = None
+        self._cell_thickness: Optional[np.ndarray] = None
         self.pmodel = self.fabm.create_model(path.encode("ascii"), *shape[::-1])
         if hasError():
             raise FABMException(
@@ -1080,10 +1125,10 @@ class Model(object):
         # fmt: on
 
         self._update_configuration()
-        self._mask = None
-        self._bottom_index = None
+        self._mask: Optional[Tuple[npt.NDArray[np.intc], ...]] = None
+        self._bottom_index: Optional[npt.NDArray[np.intc]] = None
 
-    def link_mask(self, *masks: np.ndarray):
+    def link_mask(self, *masks: npt.NDArray[np.intc]):
         if self.fabm.mask_type == 0:
             raise FABMException(
                 "the underlying FABM library has been compiled without support for masks"
@@ -1107,28 +1152,32 @@ class Model(object):
         self.fabm.set_mask(self.pmodel, *self._mask)
 
     @property
-    def mask(self) -> Union[np.ndarray, Sequence[np.ndarray], None]:
-        mask = self._mask
-        if mask is not None and len(mask) == 1:
-            mask = mask[0]
-        return mask
+    def mask(
+        self,
+    ) -> Union[npt.NDArray[np.intc], Tuple[npt.NDArray[np.intc], ...], None]:
+        if self._mask is not None and len(self._mask) == 1:
+            return self._mask[0]
+        return self._mask
 
     @mask.setter
     def mask(self, values: Union[npt.ArrayLike, Sequence[npt.ArrayLike]]):
         if self.fabm.mask_type == 1:
-            values = (values,)
+            values = cast(Sequence[npt.ArrayLike], (values,))
+        assert isinstance(values, Sequence)
         if len(values) != self.fabm.mask_type:
             raise FABMException(f"mask must be set to {self.fabm.mask_type} values")
         if self._mask is None:
+            masks: Tuple[npt.NDArray[np.intc], ...]
             masks = (np.ones(self.horizontal_domain_shape, dtype=np.intc),)
             if self.fabm.mask_type > 1:
                 masks = (np.ones(self.interior_domain_shape, dtype=np.intc),) + masks
             self.link_mask(*masks)
+            assert self._mask is not None
         for value, mask in zip(values, self._mask):
             if value is not mask:
                 mask[...] = value
 
-    def link_bottom_index(self, indices: np.ndarray):
+    def link_bottom_index(self, indices: npt.NDArray[np.intc]):
         if not self.fabm.variable_bottom_index:
             raise FABMException(
                 "the underlying FABM library has been compiled without support for variable bottom indices"
@@ -1142,13 +1191,14 @@ class Model(object):
         self.fabm.set_bottom_index(self.pmodel, self._bottom_index)
 
     @property
-    def bottom_index(self) -> Optional[np.ndarray]:
+    def bottom_index(self) -> Optional[npt.NDArray[np.intc]]:
         return self._bottom_index
 
     @bottom_index.setter
     def bottom_index(self, indices: npt.ArrayLike):
         if self._bottom_index is None:
             self.link_bottom_index(np.ones(self.horizontal_domain_shape, dtype=np.intc))
+            assert self._bottom_index is not None
         if indices is not self._bottom_index:
             self._bottom_index[...] = indices
 
@@ -1211,6 +1261,7 @@ class Model(object):
     def setCellThickness(self, value: npt.ArrayLike):
         if self._cell_thickness is None:
             self.link_cell_thickness(np.empty(self.interior_domain_shape))
+            assert self._cell_thickness is not None
         self._cell_thickness[...] = value
 
     cell_thickness = property(fset=setCellThickness)
@@ -1222,7 +1273,7 @@ class Model(object):
         """Write model configuration to yaml file"""
         self.fabm.save_settings(self.pmodel, path.encode("ascii"), display)
 
-    def _save_state(self) -> Tuple:
+    def _save_state(self) -> Tuple[Mapping[str, np.ndarray], Mapping[str, np.ndarray]]:
         environment = {}
         for dependency in self.dependencies:
             if dependency.value is not None:
@@ -1230,7 +1281,9 @@ class Model(object):
         state = {variable.name: variable.value for variable in self.state_variables}
         return environment, state
 
-    def _restore_state(self, data: Tuple):
+    def _restore_state(
+        self, data: Tuple[Mapping[str, np.ndarray], Mapping[str, np.ndarray]]
+    ):
         environment, state = data
         for dependency in self.dependencies:
             if dependency.name in environment:
@@ -1239,7 +1292,12 @@ class Model(object):
             if variable.name in state:
                 variable.value = state[variable.name]
 
-    def _update_configuration(self, settings: Optional[Tuple] = None):
+    def _update_configuration(
+        self,
+        settings: Optional[
+            Tuple[Mapping[str, np.ndarray], Mapping[str, np.ndarray]]
+        ] = None,
+    ):
         # Get number of model variables per category
         nstate_interior = ctypes.c_int()
         nstate_surface = ctypes.c_int()
@@ -1269,6 +1327,7 @@ class Model(object):
 
         # Allocate memory for state variable values, and send ctypes.pointer to
         # this memory to FABM.
+        self._state: Optional[np.ndarray]
         if self.fabm.idepthdim == -1:
             # No depth dimension, so interior and surface/bottom variables have
             # the same shape. Store values for all together in one contiguous array
@@ -1406,7 +1465,7 @@ class Model(object):
                     self,
                     strname.value.decode("ascii"),
                     i,
-                    type=typecode.value,
+                    type=DataType(typecode.value),
                     units=strunits.value.decode("ascii"),
                     long_name=strlong_name.value.decode("ascii"),
                     has_default=has_default.value != 0,
@@ -1431,8 +1490,8 @@ class Model(object):
             + self.horizontal_dependencies
             + self.scalar_dependencies
         )
-        self.variables: NamedObjectList[VariableFromPointer] = (
-            self.state_variables + self.diagnostic_variables + self.dependencies
+        self.variables = NamedObjectList(
+            self.state_variables, self.diagnostic_variables, self.dependencies
         )
 
         if settings is not None:
@@ -1537,10 +1596,10 @@ class Model(object):
         return out
 
     def check_state(self, repair: bool = False) -> bool:
-        valid = self.fabm.check_state(self.pmodel, repair) != 0
+        valid: int = self.fabm.check_state(self.pmodel, repair)
         if hasError():
             raise FABMException(getError())
-        return valid
+        return valid != 0
 
     checkState = check_state
 
@@ -1590,14 +1649,15 @@ class Model(object):
 
     def find_standard_variable(self, name: str) -> Optional[StandardVariable]:
         pointer = self.fabm.find_standard_variable(name.encode("ascii"))
-        if pointer:
-            return StandardVariable(self, pointer)
+        if not pointer:
+            return None
+        return StandardVariable(self, pointer)
 
     def require_data(self, standard_variable: StandardVariable):
         return self.fabm.require_data(self.pmodel, standard_variable._pvariable)
 
-    def _get_parameter_tree(self) -> Mapping:
-        root = {}
+    def _get_parameter_tree(self) -> NodeType:
+        root: EditableNodeType = {}
         for parameter in self.parameters:
             pathcomps = parameter.name.split("/")
             parent = root
@@ -1655,7 +1715,10 @@ class Model(object):
     def printInformation(self):
         """Show information about the model."""
 
-        def printArray(classname: str, array: Sequence[Variable]):
+        def print_array(
+            classname: str,
+            array: Sequence[Union[StateVariable, DiagnosticVariable, Dependency]],
+        ):
             if not array:
                 return
             log(f" {len(array)} {classname}:")
@@ -1666,14 +1729,14 @@ class Model(object):
             return f"{p.value} {p.units}"
 
         log("FABM model contains the following:")
-        printArray("interior state variables", self.interior_state_variables)
-        printArray("bottom state variables", self.bottom_state_variables)
-        printArray("surface state variables", self.surface_state_variables)
-        printArray("interior diagnostic variables", self.interior_diagnostic_variables)
-        printArray(
+        print_array("interior state variables", self.interior_state_variables)
+        print_array("bottom state variables", self.bottom_state_variables)
+        print_array("surface state variables", self.surface_state_variables)
+        print_array("interior diagnostic variables", self.interior_diagnostic_variables)
+        print_array(
             "horizontal diagnostic variables", self.horizontal_diagnostic_variables
         )
-        printArray("external variables", self.dependencies)
+        print_array("external variables", self.dependencies)
         log(f" {len(self.parameters)} parameters:")
         printTree(self._get_parameter_tree(), parameter2str, "    ")
 
@@ -1704,19 +1767,19 @@ class Simulator(object):
             dt,
             surface,
             bottom,
-            ctypes.byref(self.model._cell_thickness),
+            self.model._cell_thickness,
         )
         if hasError():
             raise FABMException(getError())
         return y
 
 
-def unload():
+def unload() -> None:
     global ctypes
 
     for lib in name2lib.values():
         handle = lib._handle
-        if os.name == "nt":
+        if sys.platform == "win32":
             import ctypes.wintypes
 
             ctypes.windll.kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
@@ -1735,3 +1798,4 @@ def get_version() -> Optional[str]:
         strversion = ctypes.create_string_buffer(version_length)
         lib.get_version(version_length, strversion)
         return strversion.value.decode("ascii")
+    return None

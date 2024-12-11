@@ -14,7 +14,7 @@ except ImportError:
     sys.exit(1)
 
 
-def main():
+def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__)
@@ -34,6 +34,8 @@ def main():
 
     # Create model object from YAML file.
     model = pyfabm.Model(args.path)
+
+    variable: pyfabm.Variable
 
     print("Interior state variables:")
     for variable in model.interior_state_variables:
