@@ -227,8 +227,11 @@ jobs:
           submodules: recursive
       - name: Run all test cases with host emulators
         run: |
+          which python
+          python3 -c "import yaml"
           source /home/runner/setenv_AOCC.sh
           which python
+          python3 -c "import yaml"
           python util/developers/run_all_testcases.py harness --show_logs --compiler flang
       - name: Run all test cases with pyfabm
         run: |
