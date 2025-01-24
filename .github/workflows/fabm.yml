@@ -228,11 +228,11 @@ jobs:
       - name: Run all test cases with host emulators
         run: |
           source /home/runner/setenv_AOCC.sh
-          python3 util/developers/run_all_testcases.py harness --show_logs --compiler flang
+          python util/developers/run_all_testcases.py harness --show_logs --compiler flang
       - name: Run all test cases with pyfabm
         run: |
           source /home/runner/setenv_AOCC.sh
-          python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang ${{ matrix.pyfabm_cmake_args }}
+          python util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang ${{ matrix.pyfabm_cmake_args }}
   flang-new:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
