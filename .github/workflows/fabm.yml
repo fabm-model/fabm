@@ -48,9 +48,9 @@ jobs:
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
-        run: python3 util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
+        run: python util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
       - name: Run all test cases with pyfabm
-        run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
+        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
   ifort:
     # for available versions, see https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/intel-oneapi-compilers/package.py
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
@@ -87,11 +87,11 @@ jobs:
       - name: Run all test cases with host emulators
         run: |
           source ${HOME}/intel/setvars.sh
-          python3 util/developers/run_all_testcases.py harness --show_logs --compiler ifort
+          python util/developers/run_all_testcases.py harness --show_logs --compiler ifort
       - name: Run all test cases with pyfabm
         run: |
           source ${HOME}/intel/setvars.sh
-          python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifort
+          python util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifort
         env:
           FFLAGS: ${{ env.FFLAGS }} -fp-model precise -fp-model source
   ifx:
@@ -132,13 +132,13 @@ jobs:
       - name: Run all test cases with host emulators
         run: |
           source ${HOME}/intel/setvars.sh
-          python3 util/developers/run_all_testcases.py harness --show_logs --compiler ifx
+          python util/developers/run_all_testcases.py harness --show_logs --compiler ifx
         env:
           FFLAGS: ${{ matrix.fflags }}
       - name: Run all test cases with pyfabm
         run: |
           source ${HOME}/intel/setvars.sh
-          python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifx
+          python util/developers/run_all_testcases.py pyfabm --show_logs --compiler ifx
         env:
           FFLAGS: ${{ matrix.fflags }} -fp-model=precise
   nvfortran:
@@ -187,9 +187,9 @@ jobs:
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
-        run: python3 util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
+        run: python util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
       - name: Run all test cases with pyfabm
-        run: python3 util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
+        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
   aocc:
     # for available versions, see https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/aocc/package.py
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
@@ -210,6 +210,10 @@ jobs:
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ">=3.7"
       - name: Install compiler
         run: |
           cd /home/runner
@@ -217,10 +221,6 @@ jobs:
           tar xpf aocc-compiler-${{ matrix.version }}.tar
           rm aocc-compiler-${{ matrix.version }}.tar
           ./aocc-compiler-${{ matrix.version }}/install.sh
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ">=3.7"
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip pyyaml
@@ -230,24 +230,15 @@ jobs:
           submodules: recursive
       - name: Run all test cases with host emulators
         run: |
-          which python
-          python3 -c "import yaml"
-          python -c "import yaml"
-          python -m site
-          python -c "import sys;print(sys.prefix,sys.exec_prefix)"
-          OLDPATH=$LD_LIBRARY_PATH
+          OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
           source /home/runner/setenv_AOCC.sh
-          export LD_LIBRARY_PATH=$OLDPATH:$LD_LIBRARY_PATH
-          cat /home/runner/setenv_AOCC.sh
-          which python
-          python -m site
-          python -c "import sys;print(sys.prefix,sys.exec_prefix)"
-          python3 -c "import yaml"
-          python -c "import yaml"
+          export LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH:$LD_LIBRARY_PATH
           python util/developers/run_all_testcases.py harness --show_logs --compiler flang
       - name: Run all test cases with pyfabm
         run: |
+          OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
           source /home/runner/setenv_AOCC.sh
+          export LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH:$LD_LIBRARY_PATH
           python util/developers/run_all_testcases.py pyfabm --show_logs --compiler flang ${{ matrix.pyfabm_cmake_args }}
   flang-new:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
