@@ -235,6 +235,7 @@ jobs:
           python -c "import yaml"
           python -m site
           source /home/runner/setenv_AOCC.sh
+          cat /home/runner/setenv_AOCC.sh
           which python
           python -m site
           python3 -c "import yaml"
