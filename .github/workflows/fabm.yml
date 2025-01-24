@@ -234,10 +234,12 @@ jobs:
           python3 -c "import yaml"
           python -c "import yaml"
           python -m site
+          python -c "import sys;print(sys.prefix,sys.exec_prefix)"
           source /home/runner/setenv_AOCC.sh
           cat /home/runner/setenv_AOCC.sh
           which python
           python -m site
+          python -c "import sys;print(sys.prefix,sys.exec_prefix)"
           python3 -c "import yaml"
           python -c "import yaml"
           python util/developers/run_all_testcases.py harness --show_logs --compiler flang
