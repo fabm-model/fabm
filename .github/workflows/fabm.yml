@@ -235,9 +235,9 @@ jobs:
           python -c "import yaml"
           python -m site
           python -c "import sys;print(sys.prefix,sys.exec_prefix)"
-          OLDPATH=$PATH
+          OLDPATH=$LD_LIBRARY_PATH
           source /home/runner/setenv_AOCC.sh
-          export PATH=$OLDPATH:$PATH
+          export LD_LIBRARY_PATH=$OLDPATH:$LD_LIBRARY_PATH
           cat /home/runner/setenv_AOCC.sh
           which python
           python -m site
