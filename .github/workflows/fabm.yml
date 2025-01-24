@@ -228,6 +228,7 @@ jobs:
       - name: Run all test cases with host emulators
         run: |
           source /home/runner/setenv_AOCC.sh
+          which python
           python util/developers/run_all_testcases.py harness --show_logs --compiler flang
       - name: Run all test cases with pyfabm
         run: |
