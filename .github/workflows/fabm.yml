@@ -220,15 +220,17 @@ jobs:
         with:
           python-version: ">=3.7"
       - name: Install Python dependencies
-        run: python -m pip install --upgrade pip pyyaml
+        run: |
+          source /home/runner/setenv_AOCC.sh
+          python -m pip install --upgrade pip pyyaml
       - name: Clone repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
         run: |
-          which python
-          python3 -c "import yaml"
+          #which python
+          #python3 -c "import yaml"
           source /home/runner/setenv_AOCC.sh
           which python
           python3 -c "import yaml"
