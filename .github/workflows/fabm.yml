@@ -233,8 +233,10 @@ jobs:
           which python
           python3 -c "import yaml"
           python -c "import yaml"
+          python -m site
           source /home/runner/setenv_AOCC.sh
           which python
+          python -m site
           python3 -c "import yaml"
           python -c "import yaml"
           python util/developers/run_all_testcases.py harness --show_logs --compiler flang
