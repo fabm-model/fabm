@@ -223,7 +223,6 @@ jobs:
           python-version: ">=3.7"
       - name: Install Python dependencies
         run: |
-          source /home/runner/setenv_AOCC.sh
           python -m pip install --upgrade pip pyyaml
       - name: Clone repository
         uses: actions/checkout@v4
