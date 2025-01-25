@@ -167,7 +167,7 @@ contains
       class (type_vertical_depth_range), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
 
-      real :: z_center, h, z_top, z_bottom, h_overlap
+      real(rk) :: z_center, h, z_top, z_bottom, h_overlap
 
       _LOOP_BEGIN_
          _GET_(self%id_z, z_center)
