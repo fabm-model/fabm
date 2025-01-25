@@ -21,11 +21,12 @@ set(DEFAULT_INSTITUTES
     pisces       # Pelagic Interactions Scheme for Carbon and Ecosystem Studies, https://doi.org/10.5194/gmd-8-2465-2015
     pml          # Plymouth Marine Laboratory, United Kingdom
     selma        # Simple EcoLogical Model for the Aquatic - PROGNOS
+    selmaprotbas # Adaptation of SELMA as described in https://doi.org/10.1002/lno.12040
     su           # Swansea University, United Kingdom
     uhh          # University of Hamburg, Germany
 )
 
-set(OPTIONAL_INSTITUTES ersem mops pclake pisces ihamocc ogs)
+set(OPTIONAL_INSTITUTES ersem mops pclake pisces ihamocc ogs selmaprotbas)
 
 if(CMAKE_CURRENT_LIST_DIR STREQUAL CMAKE_SOURCE_DIR)
   message(FATAL_ERROR "Please point cmake to the top-level directory with FABM source code, not to its src subdirectory.")
