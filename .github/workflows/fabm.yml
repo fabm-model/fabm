@@ -214,6 +214,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ">=3.7"
+      - name: Install Python dependencies
+        run: python -m pip install --upgrade pip pyyaml
       - name: Install compiler
         run: |
           cd /home/runner
@@ -221,9 +223,6 @@ jobs:
           tar xpf aocc-compiler-${{ matrix.version }}.tar
           rm aocc-compiler-${{ matrix.version }}.tar
           ./aocc-compiler-${{ matrix.version }}/install.sh
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip pyyaml
       - name: Clone repository
         uses: actions/checkout@v4
         with:
