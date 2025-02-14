@@ -1,5 +1,5 @@
 import sys
-from typing import Iterable, Union, List, Optional, Tuple
+from typing import Iterable, Union, List, Optional, Tuple, cast
 import re
 
 import numpy as np
@@ -28,7 +28,7 @@ class Delegate(QtWidgets.QStyledItemDelegate):
         index: QtCore.QModelIndex,
     ):
         assert index.isValid()
-        entry: Entry = index.internalPointer()
+        entry = cast(Entry, index.internalPointer())
         data = entry.object
         if isinstance(data, pyfabm.Variable):
             if data.options is not None:
@@ -43,7 +43,7 @@ class Delegate(QtWidgets.QStyledItemDelegate):
         return QtWidgets.QStyledItemDelegate.createEditor(self, parent, option, index)
 
     def setEditorData(self, editor: QtWidgets.QWidget, index: QtCore.QModelIndex):
-        entry: Entry = index.internalPointer()
+        entry = cast(Entry, index.internalPointer())
         data = entry.object
         if isinstance(editor, QtWidgets.QComboBox):
             assert isinstance(data, pyfabm.Variable) and data.options is not None
@@ -63,7 +63,7 @@ class Delegate(QtWidgets.QStyledItemDelegate):
         index: QtCore.QModelIndex,
     ):
         if isinstance(editor, QtWidgets.QComboBox):
-            entry: Entry = index.internalPointer()
+            entry = cast(Entry, index.internalPointer())
             data = entry.object
             assert isinstance(data, pyfabm.Variable) and data.options is not None
             i = editor.currentIndex()
@@ -236,7 +236,7 @@ class ItemModel(QtCore.QAbstractItemModel):
         if not index.isValid():
             return len(self.root.children)
         elif index.column() == 0:
-            entry: Entry = index.internalPointer()
+            entry = cast(Entry, index.internalPointer())
             return len(entry.children)
         return 0
 
@@ -251,7 +251,7 @@ class ItemModel(QtCore.QAbstractItemModel):
             children = self.root.children
         else:
             # not top-level
-            entry: Entry = parent.internalPointer()
+            entry = cast(Entry, parent.internalPointer())
             children = entry.children
         if row < 0 or row >= len(children) or column < 0 or column >= 4:
             return QtCore.QModelIndex()
@@ -260,7 +260,7 @@ class ItemModel(QtCore.QAbstractItemModel):
     def parent(self, index: QtCore.QModelIndex = QtCore.QModelIndex()):
         if not index.isValid():
             return QtCore.QModelIndex()
-        entry: Entry = index.internalPointer()
+        entry = cast(Entry, index.internalPointer())
         parent = entry.parent
         assert parent is not None
         if parent.parent is None:
@@ -269,13 +269,11 @@ class ItemModel(QtCore.QAbstractItemModel):
         return self.createIndex(irow, 0, parent)
 
     def data(
-        self,
-        index: QtCore.QModelIndex,
-        role: int = QtCore.Qt.ItemDataRole.DisplayRole,
+        self, index: QtCore.QModelIndex, role: int = QtCore.Qt.ItemDataRole.DisplayRole
     ):
         if not index.isValid():
             return
-        entry: Entry = index.internalPointer()
+        entry = cast(Entry, index.internalPointer())
         data = entry.object
         assert not isinstance(data, Entry)
         if role == QtCore.Qt.ItemDataRole.DisplayRole:
@@ -333,7 +331,7 @@ class ItemModel(QtCore.QAbstractItemModel):
             QtCore.Qt.ItemDataRole.CheckStateRole,
         ):
             assert isinstance(value, (float, int, bool, str))
-            entry: Entry = index.internalPointer()
+            entry = cast(Entry, index.internalPointer())
             data = entry.object
             assert isinstance(data, pyfabm.Variable)
             data.value = value
@@ -347,7 +345,7 @@ class ItemModel(QtCore.QAbstractItemModel):
         if not index.isValid():
             return flags
         if index.column() == 1:
-            entry: Entry = index.internalPointer()
+            entry = cast(Entry, index.internalPointer())
             data = entry.object
             if isinstance(data, pyfabm.Variable):
                 if isinstance(data.value, bool):
@@ -387,7 +385,7 @@ class TreeView(QtWidgets.QTreeView):
         def onTreeViewContextMenu(pos: QtCore.QPoint):
             index = self.indexAt(pos)
             if index.isValid() and index.column() == 1:
-                entry: Entry = index.internalPointer()
+                entry = cast(Entry, index.internalPointer())
                 data = entry.object
                 if (
                     isinstance(data, pyfabm.Parameter)
