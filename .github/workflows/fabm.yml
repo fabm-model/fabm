@@ -312,7 +312,8 @@ jobs:
       - name: Type checking with mypy
         if: matrix.python-version != '3.7' && matrix.python-version != '3.8'
         run: |
-          conda install mypy pyyaml types-pyyaml netcdf4 pyqt-stubs
+          conda install mypy pyyaml types-pyyaml netcdf4 pyside6 pyqt-stubs
+          pip install pyside6-stubs
           mypy src/pyfabm
       - name: Install with customization via command line arguments
         run: |

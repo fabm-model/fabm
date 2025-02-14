@@ -1,19 +1,19 @@
 import sys
-from typing import Iterable, Union, List, Optional, Tuple
+from typing import Iterable, Union, List, Optional, Tuple, cast
+import re
+
 import numpy as np
 import pyfabm
 
 try:
-    from PyQt5 import QtCore, QtGui, QtWidgets
+    from PySide6 import QtCore, QtGui, QtWidgets
 except ImportError as e1:
     try:
-        from PySide import QtCore, QtGui  # type: ignore
-
-        QtWidgets = QtGui  # type: ignore
+        from PyQt5 import QtCore, QtGui, QtWidgets  # type: ignore[no-redef]
     except ImportError as e2:
         print(e1)
         print(e2)
-        print("Unable to load PyQt5 or PySide. Is either installed?")
+        print("Unable to load PyQt5 or PySide6. Is either installed?")
         sys.exit(1)
 
 
@@ -25,10 +25,10 @@ class Delegate(QtWidgets.QStyledItemDelegate):
         self,
         parent: QtWidgets.QWidget,
         option: QtWidgets.QStyleOptionViewItem,
-        index: QtCore.QModelIndex,
+        index: QtCore.QModelIndex,  # type: ignore[override]
     ):
         assert index.isValid()
-        entry: Entry = index.internalPointer()
+        entry = cast(Entry, index.internalPointer())
         data = entry.object
         if isinstance(data, pyfabm.Variable):
             if data.options is not None:
@@ -42,8 +42,12 @@ class Delegate(QtWidgets.QStyledItemDelegate):
                 return editor
         return QtWidgets.QStyledItemDelegate.createEditor(self, parent, option, index)
 
-    def setEditorData(self, editor: QtWidgets.QWidget, index: QtCore.QModelIndex):
-        entry: Entry = index.internalPointer()
+    def setEditorData(
+        self,
+        editor: QtWidgets.QWidget,
+        index: QtCore.QModelIndex,  # type: ignore[override]
+    ):
+        entry = cast(Entry, index.internalPointer())
         data = entry.object
         if isinstance(editor, QtWidgets.QComboBox):
             assert isinstance(data, pyfabm.Variable) and data.options is not None
@@ -60,17 +64,17 @@ class Delegate(QtWidgets.QStyledItemDelegate):
         self,
         editor: QtWidgets.QWidget,
         model: QtCore.QAbstractItemModel,
-        index: QtCore.QModelIndex,
+        index: QtCore.QModelIndex,  # type: ignore[override]
     ):
         if isinstance(editor, QtWidgets.QComboBox):
-            entry: Entry = index.internalPointer()
+            entry = cast(Entry, index.internalPointer())
             data = entry.object
             assert isinstance(data, pyfabm.Variable) and data.options is not None
             i = editor.currentIndex()
-            model.setData(index, data.options[i], QtCore.Qt.EditRole)
+            model.setData(index, data.options[i], QtCore.Qt.ItemDataRole.EditRole)
             return
         elif isinstance(editor, ScientificDoubleEditor):
-            model.setData(index, editor.value(), QtCore.Qt.EditRole)
+            model.setData(index, editor.value(), QtCore.Qt.ItemDataRole.EditRole)
             return
         return QtWidgets.QStyledItemDelegate.setModelData(self, editor, model, index)
 
@@ -232,35 +236,42 @@ class ItemModel(QtCore.QAbstractItemModel):
 
         processChange(self._build_tree(), self.root, QtCore.QModelIndex())
 
-    def rowCount(self, index: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
+    def rowCount(
+        self, index: QtCore.QModelIndex = QtCore.QModelIndex()  # type: ignore[override]
+    ) -> int:
         if not index.isValid():
             return len(self.root.children)
         elif index.column() == 0:
-            entry: Entry = index.internalPointer()
+            entry = cast(Entry, index.internalPointer())
             return len(entry.children)
         return 0
 
-    def columnCount(self, index: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
+    def columnCount(
+        self, index: QtCore.QModelIndex = QtCore.QModelIndex()  # type: ignore[override]
+    ) -> int:
         return 4
 
     def index(
-        self, row: int, column: int, parent: QtCore.QModelIndex = QtCore.QModelIndex()
+        self,
+        row: int,
+        column: int,
+        parent: QtCore.QModelIndex = QtCore.QModelIndex(),  # type: ignore[override]
     ) -> QtCore.QModelIndex:
         if not parent.isValid():
             # top-level
             children = self.root.children
         else:
             # not top-level
-            entry: Entry = parent.internalPointer()
+            entry = cast(Entry, parent.internalPointer())
             children = entry.children
         if row < 0 or row >= len(children) or column < 0 or column >= 4:
             return QtCore.QModelIndex()
         return self.createIndex(row, column, children[row])
 
-    def parent(self, index: QtCore.QModelIndex = QtCore.QModelIndex()):
+    def parent(self, index: QtCore.QModelIndex = QtCore.QModelIndex()) -> QtCore.QModelIndex:  # type: ignore[override]
         if not index.isValid():
             return QtCore.QModelIndex()
-        entry: Entry = index.internalPointer()
+        entry = cast(Entry, index.internalPointer())
         parent = entry.parent
         assert parent is not None
         if parent.parent is None:
@@ -268,13 +279,17 @@ class ItemModel(QtCore.QAbstractItemModel):
         irow = parent.parent.children.index(parent)
         return self.createIndex(irow, 0, parent)
 
-    def data(self, index: QtCore.QModelIndex, role: int = QtCore.Qt.DisplayRole):
+    def data(
+        self,
+        index: QtCore.QModelIndex,  # type: ignore[override]
+        role: int = QtCore.Qt.ItemDataRole.DisplayRole,
+    ):
         if not index.isValid():
             return
-        entry: Entry = index.internalPointer()
+        entry = cast(Entry, index.internalPointer())
         data = entry.object
         assert not isinstance(data, Entry)
-        if role == QtCore.Qt.DisplayRole:
+        if role == QtCore.Qt.ItemDataRole.DisplayRole:
             if index.column() == 0:
                 return entry.name if data is None else data.long_name
             if isinstance(data, pyfabm.Variable):
@@ -291,37 +306,45 @@ class ItemModel(QtCore.QAbstractItemModel):
                     return data.units_unicode
                 elif index.column() == 3:
                     return entry.name
-        elif role == QtCore.Qt.ToolTipRole and index.parent().isValid():
+        elif role == QtCore.Qt.ItemDataRole.ToolTipRole and index.parent().isValid():
             if isinstance(data, pyfabm.Variable):
                 return data.long_path
-        elif role == QtCore.Qt.EditRole:
+        elif role == QtCore.Qt.ItemDataRole.EditRole:
             assert isinstance(data, pyfabm.Variable)
             return data.value
-        elif role == QtCore.Qt.FontRole and index.column() == 1:
+        elif role == QtCore.Qt.ItemDataRole.FontRole and index.column() == 1:
             if isinstance(data, pyfabm.Parameter) and data.value != data.default:
                 font = QtGui.QFont()
                 font.setBold(True)
                 return font
         elif (
-            role == QtCore.Qt.CheckStateRole
+            role == QtCore.Qt.ItemDataRole.CheckStateRole
             and index.column() == 1
             and isinstance(data, pyfabm.Variable)
             and isinstance(data.value, bool)
         ):
-            return QtCore.Qt.Checked if data.value else QtCore.Qt.Unchecked
+            return (
+                QtCore.Qt.CheckState.Checked
+                if data.value
+                else QtCore.Qt.CheckState.Unchecked
+            )
         return None
 
     def setData(
         self,
-        index: QtCore.QModelIndex,
+        index: QtCore.QModelIndex,  # type: ignore[override]
         value: object,
-        role: int = QtCore.Qt.EditRole,
+        role: int = QtCore.Qt.ItemDataRole.EditRole,
     ) -> bool:
-        if role == QtCore.Qt.CheckStateRole:
-            value = value == QtCore.Qt.Checked
-        if role in (QtCore.Qt.EditRole, QtCore.Qt.CheckStateRole):
+        if role == QtCore.Qt.ItemDataRole.CheckStateRole:
+            assert isinstance(value, int)
+            value = QtCore.Qt.CheckState(value) == QtCore.Qt.CheckState.Checked
+        if role in (
+            QtCore.Qt.ItemDataRole.EditRole,
+            QtCore.Qt.ItemDataRole.CheckStateRole,
+        ):
             assert isinstance(value, (float, int, bool, str))
-            entry: Entry = index.internalPointer()
+            entry = cast(Entry, index.internalPointer())
             data = entry.object
             assert isinstance(data, pyfabm.Variable)
             data.value = value
@@ -330,29 +353,33 @@ class ItemModel(QtCore.QAbstractItemModel):
             return True
         return False
 
-    def flags(self, index: QtCore.QModelIndex):
-        flags: QtCore.Qt.ItemFlags = 0 | QtCore.Qt.NoItemFlags
+    def flags(self, index: QtCore.QModelIndex):  # type: ignore[override]
+        flags = QtCore.Qt.ItemFlags()  # type: ignore[attr-defined]
         if not index.isValid():
             return flags
         if index.column() == 1:
-            entry: Entry = index.internalPointer()
+            entry = cast(Entry, index.internalPointer())
             data = entry.object
             if isinstance(data, pyfabm.Variable):
                 if isinstance(data.value, bool):
-                    flags |= QtCore.Qt.ItemIsUserCheckable
+                    flags |= QtCore.Qt.ItemFlag.ItemIsUserCheckable
                 else:
-                    flags |= QtCore.Qt.ItemIsEditable
-        return flags | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+                    flags |= QtCore.Qt.ItemFlag.ItemIsEditable
+        return (
+            flags
+            | QtCore.Qt.ItemFlag.ItemIsEnabled
+            | QtCore.Qt.ItemFlag.ItemIsSelectable
+        )
 
     def headerData(
         self,
         section: int,
         orientation: QtCore.Qt.Orientation,
-        role: int = QtCore.Qt.EditRole,
+        role: int = QtCore.Qt.ItemDataRole.EditRole,
     ):
         if (
-            orientation == QtCore.Qt.Horizontal
-            and role == QtCore.Qt.DisplayRole
+            orientation == QtCore.Qt.Orientation.Horizontal
+            and role == QtCore.Qt.ItemDataRole.DisplayRole
             and section >= 0
             and section < 4
         ):
@@ -371,7 +398,7 @@ class TreeView(QtWidgets.QTreeView):
         def onTreeViewContextMenu(pos: QtCore.QPoint):
             index = self.indexAt(pos)
             if index.isValid() and index.column() == 1:
-                entry: Entry = index.internalPointer()
+                entry = cast(Entry, index.internalPointer())
                 data = entry.object
                 if (
                     isinstance(data, pyfabm.Parameter)
@@ -388,9 +415,9 @@ class TreeView(QtWidgets.QTreeView):
                     if data.units:
                         default = f"{data.default} {data.units_unicode}"
                     contextMenu.addAction(f"Reset to default: {default}", reset)
-                    contextMenu.exec_(self.mapToGlobal(pos))
+                    contextMenu.exec(self.mapToGlobal(pos))
 
-        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(onTreeViewContextMenu)
         for i in range(3):
             self.resizeColumnToContents(i)
@@ -418,27 +445,26 @@ class ScientificDoubleValidator(QtGui.QValidator):
 
         # Check for suffix (if ok, cut it off for further value checking)
         if not input.endswith(self.suffix):
-            return (QtGui.QValidator.Invalid, input, pos)
+            return (QtGui.QValidator.State.Invalid, input, pos)
         vallength = len(input) - len(self.suffix)
 
         # Check for invalid characters
-        rx = QtCore.QRegExp(r"[^\d\-+eE,.]")
-        if rx.indexIn(input[:vallength]) != -1:
-            return (QtGui.QValidator.Invalid, input, pos)
+        if re.match(r"[^\d\-+eE,.]", input[:vallength]):
+            return (QtGui.QValidator.State.Invalid, input, pos)
 
         # Check if we can convert it into a floating point value
         try:
             v = float(input[:vallength])
         except ValueError:
-            return (QtGui.QValidator.Intermediate, input, pos)
+            return (QtGui.QValidator.State.Intermediate, input, pos)
 
         # Check for minimum and maximum.
         if self.minimum is not None and v < self.minimum:
-            return (QtGui.QValidator.Intermediate, input, pos)
+            return (QtGui.QValidator.State.Intermediate, input, pos)
         if self.maximum is not None and v > self.maximum:
-            return (QtGui.QValidator.Intermediate, input, pos)
+            return (QtGui.QValidator.State.Intermediate, input, pos)
 
-        return (QtGui.QValidator.Acceptable, input, pos)
+        return (QtGui.QValidator.State.Acceptable, input, pos)
 
     def fixup(self, input: str):
         assert isinstance(input, str), "input argument is not a string (old PyQt4 API?)"

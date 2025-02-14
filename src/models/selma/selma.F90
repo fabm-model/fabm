@@ -102,7 +102,7 @@
    real(rk),parameter :: secs_per_day = 86400._rk
    real(rk) :: wdz,wpo4,kc
    
-   call self%get_parameter(self%env_type, 'env_type', 'Define environment type, either fresh or marine', default='marine') 
+   call self%get_parameter(self%env_type, 'env_type', '', 'environment type, either fresh or marine', default='marine') 
    call self%get_parameter(wdz,     'wdz',   'm/d',  'vertical velocity of detritus (positive: upwards/floating, negative: downwards/sinking)', default=-4.5_rk)
    call self%get_parameter(wpo4,    'wpo4',  'm/d',  'vertical velocity of suspended P-Fe (positive: upwards/floating, negative: downwards/sinking)', default=-1.0_rk)
    call self%get_parameter(self%dn,      'dn',      '1/d', 'detritus mineralization rate', default=0.003_rk, scale_factor=1.0_rk/secs_per_day)
