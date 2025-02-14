@@ -9,7 +9,7 @@ try:
     from PySide6 import QtCore, QtGui, QtWidgets
 except ImportError as e1:
     try:
-        from PyQt5 import QtCore, QtGui, QtWidgets  # type: ignore
+        from PyQt5 import QtCore, QtGui, QtWidgets  # type: ignore[no-redef]
     except ImportError as e2:
         print(e1)
         print(e2)
@@ -25,7 +25,7 @@ class Delegate(QtWidgets.QStyledItemDelegate):
         self,
         parent: QtWidgets.QWidget,
         option: QtWidgets.QStyleOptionViewItem,
-        index: QtCore.QModelIndex,
+        index: QtCore.QModelIndex,  # type: ignore[override]
     ):
         assert index.isValid()
         entry = cast(Entry, index.internalPointer())
@@ -42,7 +42,11 @@ class Delegate(QtWidgets.QStyledItemDelegate):
                 return editor
         return QtWidgets.QStyledItemDelegate.createEditor(self, parent, option, index)
 
-    def setEditorData(self, editor: QtWidgets.QWidget, index: QtCore.QModelIndex):
+    def setEditorData(
+        self,
+        editor: QtWidgets.QWidget,
+        index: QtCore.QModelIndex,  # type: ignore[override]
+    ):
         entry = cast(Entry, index.internalPointer())
         data = entry.object
         if isinstance(editor, QtWidgets.QComboBox):
@@ -60,7 +64,7 @@ class Delegate(QtWidgets.QStyledItemDelegate):
         self,
         editor: QtWidgets.QWidget,
         model: QtCore.QAbstractItemModel,
-        index: QtCore.QModelIndex,
+        index: QtCore.QModelIndex,  # type: ignore[override]
     ):
         if isinstance(editor, QtWidgets.QComboBox):
             entry = cast(Entry, index.internalPointer())
@@ -232,7 +236,9 @@ class ItemModel(QtCore.QAbstractItemModel):
 
         processChange(self._build_tree(), self.root, QtCore.QModelIndex())
 
-    def rowCount(self, index: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
+    def rowCount(
+        self, index: QtCore.QModelIndex = QtCore.QModelIndex()  # type: ignore[override]
+    ) -> int:
         if not index.isValid():
             return len(self.root.children)
         elif index.column() == 0:
@@ -240,11 +246,16 @@ class ItemModel(QtCore.QAbstractItemModel):
             return len(entry.children)
         return 0
 
-    def columnCount(self, index: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
+    def columnCount(
+        self, index: QtCore.QModelIndex = QtCore.QModelIndex()  # type: ignore[override]
+    ) -> int:
         return 4
 
     def index(
-        self, row: int, column: int, parent: QtCore.QModelIndex = QtCore.QModelIndex()
+        self,
+        row: int,
+        column: int,
+        parent: QtCore.QModelIndex = QtCore.QModelIndex(),  # type: ignore[override]
     ) -> QtCore.QModelIndex:
         if not parent.isValid():
             # top-level
@@ -257,7 +268,7 @@ class ItemModel(QtCore.QAbstractItemModel):
             return QtCore.QModelIndex()
         return self.createIndex(row, column, children[row])
 
-    def parent(self, index: QtCore.QModelIndex = QtCore.QModelIndex()):
+    def parent(self, index: QtCore.QModelIndex = QtCore.QModelIndex()) -> QtCore.QModelIndex:  # type: ignore[override]
         if not index.isValid():
             return QtCore.QModelIndex()
         entry = cast(Entry, index.internalPointer())
@@ -269,7 +280,9 @@ class ItemModel(QtCore.QAbstractItemModel):
         return self.createIndex(irow, 0, parent)
 
     def data(
-        self, index: QtCore.QModelIndex, role: int = QtCore.Qt.ItemDataRole.DisplayRole
+        self,
+        index: QtCore.QModelIndex,  # type: ignore[override]
+        role: int = QtCore.Qt.ItemDataRole.DisplayRole,
     ):
         if not index.isValid():
             return
@@ -319,7 +332,7 @@ class ItemModel(QtCore.QAbstractItemModel):
 
     def setData(
         self,
-        index: QtCore.QModelIndex,
+        index: QtCore.QModelIndex,  # type: ignore[override]
         value: object,
         role: int = QtCore.Qt.ItemDataRole.EditRole,
     ) -> bool:
@@ -340,8 +353,8 @@ class ItemModel(QtCore.QAbstractItemModel):
             return True
         return False
 
-    def flags(self, index: QtCore.QModelIndex):
-        flags = QtCore.Qt.ItemFlags()
+    def flags(self, index: QtCore.QModelIndex):  # type: ignore[override]
+        flags = QtCore.Qt.ItemFlags()  # type: ignore[attr-defined]
         if not index.isValid():
             return flags
         if index.column() == 1:
