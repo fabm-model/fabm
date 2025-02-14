@@ -9,7 +9,7 @@ try:
     from PySide6 import QtCore, QtGui, QtWidgets
 except ImportError as e1:
     try:
-        from PyQt5 import QtCore, QtGui, QtWidgets
+        from PyQt5 import QtCore, QtGui, QtWidgets  # type: ignore
     except ImportError as e2:
         print(e1)
         print(e2)
