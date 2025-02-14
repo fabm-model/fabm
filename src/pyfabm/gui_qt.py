@@ -1,19 +1,19 @@
 import sys
 from typing import Iterable, Union, List, Optional, Tuple
+import re
+
 import numpy as np
 import pyfabm
 
 try:
-    from PyQt5 import QtCore, QtGui, QtWidgets
+    from PySide6 import QtCore, QtGui, QtWidgets
 except ImportError as e1:
     try:
-        from PySide import QtCore, QtGui  # type: ignore
-
-        QtWidgets = QtGui  # type: ignore
+        from PyQt5 import QtCore, QtGui, QtWidgets
     except ImportError as e2:
         print(e1)
         print(e2)
-        print("Unable to load PyQt5 or PySide. Is either installed?")
+        print("Unable to load PyQt5 or PySide6. Is either installed?")
         sys.exit(1)
 
 
@@ -318,7 +318,7 @@ class ItemModel(QtCore.QAbstractItemModel):
         role: int = QtCore.Qt.EditRole,
     ) -> bool:
         if role == QtCore.Qt.CheckStateRole:
-            value = value == QtCore.Qt.Checked
+            value = QtCore.Qt.CheckState(value) == QtCore.Qt.Checked
         if role in (QtCore.Qt.EditRole, QtCore.Qt.CheckStateRole):
             assert isinstance(value, (float, int, bool, str))
             entry: Entry = index.internalPointer()
@@ -331,7 +331,7 @@ class ItemModel(QtCore.QAbstractItemModel):
         return False
 
     def flags(self, index: QtCore.QModelIndex):
-        flags: QtCore.Qt.ItemFlags = 0 | QtCore.Qt.NoItemFlags
+        flags: QtCore.Qt.ItemFlags = QtCore.Qt.NoItemFlags
         if not index.isValid():
             return flags
         if index.column() == 1:
@@ -388,7 +388,7 @@ class TreeView(QtWidgets.QTreeView):
                     if data.units:
                         default = f"{data.default} {data.units_unicode}"
                     contextMenu.addAction(f"Reset to default: {default}", reset)
-                    contextMenu.exec_(self.mapToGlobal(pos))
+                    contextMenu.exec(self.mapToGlobal(pos))
 
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(onTreeViewContextMenu)
@@ -422,8 +422,7 @@ class ScientificDoubleValidator(QtGui.QValidator):
         vallength = len(input) - len(self.suffix)
 
         # Check for invalid characters
-        rx = QtCore.QRegExp(r"[^\d\-+eE,.]")
-        if rx.indexIn(input[:vallength]) != -1:
+        if re.match(r"[^\d\-+eE,.]", input[:vallength]):
             return (QtGui.QValidator.Invalid, input, pos)
 
         # Check if we can convert it into a floating point value

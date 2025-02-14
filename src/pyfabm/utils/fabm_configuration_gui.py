@@ -46,7 +46,7 @@ def main() -> None:
     dialog.show()
 
     # Show dialog
-    app.exec_()
+    app.exec()
 
 
 if __name__ == "__main__":
