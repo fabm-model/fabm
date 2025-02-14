@@ -46,7 +46,7 @@ contains
 
       if (associated(self%id_output%link%target, self%id_output%link%original)) then
          self%id_output%link%target%units = self%id_input%link%target%units
-         if (.not. self%average) self%id_output%link%target%units = trim(self%id_output%link%target%units) // '*m'
+         if (.not. self%average) self%id_output%link%target%units = trim(self%id_output%link%target%units) // ' m'
       end if
    end subroutine depth_integral_after_coupling
 
