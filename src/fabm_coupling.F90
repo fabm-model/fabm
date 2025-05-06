@@ -396,6 +396,9 @@ contains
             case (domain_bottom)
                bottom_standard_variable%name = args
                task%target_standard_variable => bottom_standard_variable%typed_resolve()
+            case (domain_surface)
+               surface_standard_variable%name = args
+               task%target_standard_variable => surface_standard_variable%typed_resolve()
             case (domain_horizontal)
                horizontal_standard_variable%name = args
                task%target_standard_variable => horizontal_standard_variable%typed_resolve()
