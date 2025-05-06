@@ -9,9 +9,9 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       matrix:
-        version: [9, 10, 11, 12]
+        version: [9, 10, 11, 12, 13, 14]
         os: [ubuntu-latest]
-        include:
+        # include:
           #- version: 4.8
           #  os: ubuntu-18.04
           #  cmake_args: -DFABM_USE_IEEE_ARITHMETIC=OFF
@@ -24,10 +24,10 @@ jobs:
           # - version: 8
           #   os: ubuntu-20.04
           #   cmake_args: -DFABM_USE_CONTIGUOUS=OFF
-          - version: 13
-            os: ubuntu-24.04
-          - version: 14
-            os: ubuntu-24.04
+          # - version: 13
+          #   os: ubuntu-24.04
+          # - version: 14
+          #   os: ubuntu-24.04
       fail-fast: false
     runs-on: ${{ matrix.os }}
     env:
@@ -55,14 +55,10 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       matrix:
-        version: [7]
-        libversion: [5]
+        version: [7, 8]
         include:
-        - version: 5
-          libversion: 4
         - version: 8
           cmake_args: -DFABM_USE_CONTIGUOUS=OFF
-          libversion: 5
       fail-fast: false
     runs-on: ubuntu-latest
     defaults:
@@ -74,7 +70,7 @@ jobs:
         with:
           auto-update-conda: true
       - name: Install compiler and Python dependencies
-        run: conda install gfortran_linux-64=${{ matrix.version }} pip pyyaml # libgfortran${{ matrix.libversion }}
+        run: conda install gfortran_linux-64=${{ matrix.version }} pip pyyaml
       - name: Clone repository
         uses: actions/checkout@v4
         with:
