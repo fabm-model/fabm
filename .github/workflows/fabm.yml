@@ -74,7 +74,7 @@ jobs:
         with:
           auto-update-conda: true
       - name: Install compiler and Python dependencies
-        run: conda install gfortran_linux-64=${{ matrix.version }} libgfortran${{ matrix.libversion }} pip pyyaml
+        run: conda install gfortran_linux-64=${{ matrix.version }} pip pyyaml # libgfortran${{ matrix.libversion }}
       - name: Clone repository
         uses: actions/checkout@v4
         with:
