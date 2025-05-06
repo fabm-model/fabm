@@ -136,7 +136,7 @@ cdef class BaseModel:
 
       self.interior_cache = self._cache2dict(arr_read, arr_read_hz, arr_read_scalar, arr_write, None)
       self.interior_cache_source = cache
-      
+
    cdef _unpack_horizontal_cache(self, void* cache):
       cdef int ni, ni_hz, nread, nread_hz, nread_scalar, nwrite_hz
       cdef double* read
@@ -162,13 +162,19 @@ cdef class BaseModel:
       for varid in self.variables:
          print(varid.name, varid.read_index, varid.write_index, varid.sms_index)
          if varid.domain == domain_interior:
-            cache[varid.name] = arr_read[varid.read_index - 1, ...]
-            if varid.sms_index >= 0 and arr_write_hz is not None:
-               cache[varid.name + '.source'] = arr_write_hz[varid.sms_index - 1, ...]
-         elif varid.domain == domain_bottom or varid.domain == domain_surface:
-            cache[varid.name] = arr_read_hz[varid.read_index - 1, ...]
+            if varid.read_index >= 0:
+               cache[varid.name] = arr_read[varid.read_index - 1, ...]
+            if varid.write_index >= 0 and arr_write is not None:
+               cache[varid.name] = arr_write[varid.write_index - 1, ...]
             if varid.sms_index >= 0 and arr_write is not None:
                cache[varid.name + '.source'] = arr_write[varid.sms_index - 1, ...]
+         elif varid.domain == domain_bottom or varid.domain == domain_surface:
+            if varid.read_index >= 0:
+               cache[varid.name] = arr_read_hz[varid.read_index - 1, ...]
+            if varid.write_index >= 0 and arr_write_hz is not None:
+               cache[varid.name] = arr_write_hz[varid.write_index - 1, ...]
+            if varid.sms_index >= 0 and arr_write_hz is not None:
+               cache[varid.name + '.source'] = arr_write_hz[varid.sms_index - 1, ...]
          elif varid.domain == domain_scalar:
             cache[varid.name] = arr_read_scalar[varid.read_index - 1, ...]
       return cache
