@@ -23,7 +23,7 @@ extern "C" {
 
       /* Add a built-in module, before Py_Initialize */
       if (PyImport_AppendInittab("fabm_base", PyInit_fabm_base) == -1) {
-         fprintf(stderr, "Error: could not extend in-built modules table\n");
+         fputs("Error: could not extend in-built modules table\n", stderr);
          goto error;
       }
 
@@ -35,7 +35,7 @@ extern "C" {
       PyConfig_Clear(&config);
       return(0);
    error:
-      if (PyStatus_Exception(status)) fprintf(stderr, status.err_msg);
+      if (PyStatus_Exception(status)) fputs(status.err_msg, stderr);
       PyConfig_Clear(&config);
       return(1);
    }

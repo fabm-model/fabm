@@ -73,40 +73,51 @@ contains
    subroutine do(self, _ARGUMENTS_DO_)
       class(type_wrapped_python_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
-      integer(c_int) :: iret
-      iret =  embedded_python_do(self%pobject, c_loc(cache))
-      if (iret == -1) call self%fatal_error("do", "Python exception occurred")
+      if (.not. ccall(cache)) call self%fatal_error("do", "Python exception occurred")
+   contains
+      logical function ccall(cache)
+         type (type_interior_cache), target :: cache
+         ccall = embedded_python_do(self%pobject, c_loc(cache)) == -1
+      end function
    end subroutine
 
    subroutine do_bottom(self, _ARGUMENTS_DO_BOTTOM_)
       class(type_wrapped_python_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_
-      integer(c_int) :: iret
-      iret =  embedded_python_do_bottom(self%pobject, c_loc(cache))
-      if (iret == -1) call self%fatal_error("do_bottom", "Python exception occurred")
+      if (.not. ccall(cache)) call self%fatal_error("do_bottom", "Python exception occurred")
+   contains
+      logical function ccall(cache)
+         type (type_horizontal_cache), target :: cache
+         ccall = embedded_python_do_bottom(self%pobject, c_loc(cache)) == -1
+      end function
    end subroutine
 
    subroutine do_surface(self, _ARGUMENTS_DO_SURFACE_)
       class(type_wrapped_python_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_SURFACE_
-      integer(c_int) :: iret
-      iret =  embedded_python_do_surface(self%pobject, c_loc(cache))
-      if (iret == -1) call self%fatal_error("do_surface", "Python exception occurred")
+      if (.not. ccall(cache)) call self%fatal_error("do_surface", "Python exception occurred")
+   contains
+      logical function ccall(cache)
+         type (type_horizontal_cache), target :: cache
+         ccall = embedded_python_do_surface(self%pobject, c_loc(cache)) == -1
+      end function
    end subroutine
 
-   subroutine c_register_variable(self, name, units, long_name, domain, source, presence, initial_value, read_index, write_index, sms_index) bind(c)
-      type(type_base_model),  intent(inout), target :: self
-      character(kind=c_char), intent(in)            :: name(*), units(*), long_name(*)
+   subroutine c_register_variable(pself, name, units, long_name, domain, source, presence, initial_value, read_index, write_index, sms_index) bind(c)
+      type (c_ptr),           intent(in),    value  :: pself
+      character(kind=c_char), intent(in),    target :: name(*), units(*), long_name(*)
       integer(c_int),         intent(in),    value  :: domain, source, presence
       real(c_double),         intent(in),    value  :: initial_value
       integer(c_int),         intent(inout), target :: read_index, write_index, sms_index
 
+      type (type_base_model),          pointer :: self
       type (type_link), pointer :: link, sms_link, link2
       character(len=attribute_length), pointer :: pname, punits, plong_name
       type (type_internal_variable), pointer :: variable, sms_variable
       integer(c_int), pointer :: pread_index, pwrite_index
       integer :: sms_source
 
+      call c_f_pointer(pself, self)
       call c_f_pointer(c_loc(name), pname)
       call c_f_pointer(c_loc(units), punits)
       call c_f_pointer(c_loc(long_name), plong_name)
@@ -168,11 +179,14 @@ contains
       read_scalar = c_loc(cache%read_scalar)
    end subroutine
 
-   subroutine c_unpack_interior_cache(cache, ni, ni_hz, nread, nread_hz, nread_scalar, nwrite, read, read_hz, read_scalar, write) bind(c)
-      type (type_interior_cache), target :: cache
+   subroutine c_unpack_interior_cache(pcache, ni, ni_hz, nread, nread_hz, nread_scalar, nwrite, read, read_hz, read_scalar, write) bind(c)
+      type (c_ptr), intent(in), value  :: pcache
       integer,      intent(out) :: ni, ni_hz, nread, nread_hz, nread_scalar, nwrite
       type (c_ptr), intent(out) :: read, read_hz, read_scalar, write
 
+      type (type_interior_cache), pointer :: cache
+
+      call c_f_pointer(pcache, cache)
       call c_unpack_cache(cache, ni, ni_hz, nread, nread_hz, nread_scalar, read, read_hz, read_scalar)
 #ifdef _INTERIOR_IS_VECTORIZED_
       nwrite = size(cache%write, 2)
@@ -182,11 +196,14 @@ contains
       write = c_loc(cache%write)
    end subroutine
 
-   subroutine c_unpack_horizontal_cache(cache, ni, ni_hz, nread, nread_hz, nread_scalar, nwrite_hz, read, read_hz, read_scalar, write_hz) bind(c)
-      type (type_horizontal_cache), target :: cache
+   subroutine c_unpack_horizontal_cache(pcache, ni, ni_hz, nread, nread_hz, nread_scalar, nwrite_hz, read, read_hz, read_scalar, write_hz) bind(c)
+      type (c_ptr), intent(in), value  :: pcache
       integer,      intent(out) :: ni, ni_hz, nread, nread_hz, nread_scalar, nwrite_hz
       type (c_ptr), intent(out) :: read, read_hz, read_scalar, write_hz
 
+      type (type_horizontal_cache), pointer :: cache
+
+      call c_f_pointer(pcache, cache)
       call c_unpack_cache(cache, ni, ni_hz, nread, nread_hz, nread_scalar, read, read_hz, read_scalar)
 #ifdef _HORIZONTAL_IS_VECTORIZED_
       nwrite_hz = size(cache%write_hz, 2)
@@ -196,12 +213,14 @@ contains
       write_hz = c_loc(cache%write_hz)
    end subroutine
 
-   subroutine c_log_message(self, msg) bind(c)
-      type(type_base_model),  intent(inout), target :: self
-      character(kind=c_char), intent(in)            :: msg(*)
+   subroutine c_log_message(pself, msg) bind(c)
+      type (c_ptr),           intent(in), value  :: pself
+      character(kind=c_char), intent(in), target :: msg(*)
 
+      type (type_base_model),          pointer :: self
       character(len=attribute_length), pointer :: pmsg
 
+      call c_f_pointer(pself, self)
       call c_f_pointer(c_loc(msg), pmsg)
       call self%log_message(pmsg(:index(pmsg, C_NULL_CHAR) - 1))
    end subroutine
