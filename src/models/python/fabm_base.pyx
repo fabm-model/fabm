@@ -78,6 +78,8 @@ cdef class BaseModel:
       self.interior_cache_source = NULL
       self.horizontal_cache_source = NULL
       self.logger = Logger(self)
+      self.interior_cache = {}
+      self.horizontal_cache = {}
 
    def __dealloc__(self):
       pass
@@ -133,8 +135,9 @@ cdef class BaseModel:
       arr_read_hz = _unpack_cache_array(nread_hz, ni_hz, read_hz)
       arr_read_scalar = _unpack_cache_array(nread_scalar, 1, read_scalar)
       arr_write = _unpack_cache_array(nwrite, ni, write, writeable=True)
+      arr_write = arr_write[1:, ...]    # first field (Fortran index=0) contains zeros
 
-      self.interior_cache = self._cache2dict(arr_read, arr_read_hz, arr_read_scalar, arr_write, None)
+      self._populate_cache(self.interior_cache, arr_read, arr_read_hz, arr_read_scalar, arr_write, None)
       self.interior_cache_source = cache
 
    cdef _unpack_horizontal_cache(self, void* cache):
@@ -151,14 +154,15 @@ cdef class BaseModel:
       arr_read_hz = _unpack_cache_array(nread_hz, ni_hz, read_hz)
       arr_read_scalar = _unpack_cache_array(nread_scalar, 1, read_scalar)
       arr_write_hz = _unpack_cache_array(nwrite_hz, ni_hz, write_hz, writeable=True)
+      arr_write_hz = arr_write_hz[1:, ...]    # first field (Fortran index=0) contains zeros
 
-      self.horizontal_cache = self._cache2dict(arr_read, arr_read_hz, arr_read_scalar, None, arr_write_hz)
+      self._populate_cache(self.horizontal_cache, arr_read, arr_read_hz, arr_read_scalar, None, arr_write_hz)
       self.horizontal_cache_source = cache
 
-   cdef _cache2dict(self, np.ndarray arr_read, np.ndarray arr_read_hz, np.ndarray arr_read_scalar, np.ndarray arr_write, np.ndarray arr_write_hz):
+   cdef _populate_cache(self, cache, np.ndarray arr_read, np.ndarray arr_read_hz, np.ndarray arr_read_scalar, np.ndarray arr_write, np.ndarray arr_write_hz):
       cdef VariableId varid
 
-      cache = {}
+      cache.clear()
       for varid in self.variables:
          if varid.domain == domain_interior:
             if varid.read_index >= 0:
@@ -176,7 +180,6 @@ cdef class BaseModel:
                cache[varid.name + '.source'] = arr_write_hz[varid.sms_index - 1, ...]
          elif varid.domain == domain_scalar:
             cache[varid.name] = arr_read_scalar[varid.read_index - 1, ...]
-      return cache
 
    def do(self, cache):
       pass
