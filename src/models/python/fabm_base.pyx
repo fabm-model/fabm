@@ -132,7 +132,7 @@ cdef class BaseModel:
       arr_read = _unpack_cache_array(nread, ni, read)
       arr_read_hz = _unpack_cache_array(nread_hz, ni_hz, read_hz)
       arr_read_scalar = _unpack_cache_array(nread_scalar, 1, read_scalar)
-      arr_write = _unpack_cache_array(nwrite, ni, write)
+      arr_write = _unpack_cache_array(nwrite, ni, write, writeable=True)
 
       self.interior_cache = self._cache2dict(arr_read, arr_read_hz, arr_read_scalar, arr_write, None)
       self.interior_cache_source = cache
@@ -150,7 +150,7 @@ cdef class BaseModel:
       arr_read = _unpack_cache_array(nread, ni, read)
       arr_read_hz = _unpack_cache_array(nread_hz, ni_hz, read_hz)
       arr_read_scalar = _unpack_cache_array(nread_scalar, 1, read_scalar)
-      arr_write_hz = _unpack_cache_array(nwrite_hz, ni_hz, write_hz)
+      arr_write_hz = _unpack_cache_array(nwrite_hz, ni_hz, write_hz, writeable=True)
 
       self.horizontal_cache = self._cache2dict(arr_read, arr_read_hz, arr_read_scalar, None, arr_write_hz)
       self.horizontal_cache_source = cache
@@ -160,7 +160,6 @@ cdef class BaseModel:
 
       cache = {}
       for varid in self.variables:
-         print(varid.name, varid.read_index, varid.write_index, varid.sms_index)
          if varid.domain == domain_interior:
             if varid.read_index >= 0:
                cache[varid.name] = arr_read[varid.read_index - 1, ...]
@@ -188,13 +187,17 @@ cdef class BaseModel:
    def do_surface(self, cache):
       pass
 
-cdef np.ndarray _unpack_cache_array(int n, int ni, double* array):
+cdef np.ndarray _unpack_cache_array(int n, int ni, double* array, bint writeable=False):
+   cdef np.ndarray arr
    if n == 0:
       return None
    elif ni == 1:
-      return np.asarray(<double[:n:1]> array)
+      arr = np.asarray(<double[:n:1]> array)
    else:
-      return np.asarray(<double[:n, :ni:1]> array)
+      arr = np.asarray(<double[:n, :ni:1]> array)
+   if not writeable:
+      arr.flags["WRITEABLE"] = False
+   return arr
 
 
 cdef public object embedded_python_get_model2(const char* module_name, const char* class_name, void* base):
