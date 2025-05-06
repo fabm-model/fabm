@@ -62,6 +62,7 @@ jobs:
           libversion: 4
         - version: 8
           cmake_args: -DFABM_USE_CONTIGUOUS=OFF
+          libversion: 5
       fail-fast: false
     runs-on: ubuntu-latest
     defaults:
@@ -79,11 +80,11 @@ jobs:
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
-        run: python util/developers/run_all_testcases.py harness --show_logs --compiler gfortran ${{ matrix.cmake_args }}
+        run: python util/developers/run_all_testcases.py harness --show_logs --compiler $GFORTRAN ${{ matrix.cmake_args }}
         env:
           FFLAGS: -fcheck=all
       - name: Run all test cases with pyfabm
-        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran ${{ matrix.cmake_args }}
+        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler $GFORTRAN ${{ matrix.cmake_args }}
         env:
           FFLAGS: -fcheck=all
   ifort:
