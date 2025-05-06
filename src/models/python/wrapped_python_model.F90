@@ -77,7 +77,7 @@ contains
    contains
       logical function ccall(cache)
          type (type_interior_cache), target :: cache
-         ccall = embedded_python_do(self%pobject, c_loc(cache)) == -1
+         ccall = embedded_python_do(self%pobject, c_loc(cache)) /= -1
       end function
    end subroutine
 
@@ -88,7 +88,7 @@ contains
    contains
       logical function ccall(cache)
          type (type_horizontal_cache), target :: cache
-         ccall = embedded_python_do_bottom(self%pobject, c_loc(cache)) == -1
+         ccall = embedded_python_do_bottom(self%pobject, c_loc(cache)) /= -1
       end function
    end subroutine
 
@@ -99,7 +99,7 @@ contains
    contains
       logical function ccall(cache)
          type (type_horizontal_cache), target :: cache
-         ccall = embedded_python_do_surface(self%pobject, c_loc(cache)) == -1
+         ccall = embedded_python_do_surface(self%pobject, c_loc(cache)) /= -1
       end function
    end subroutine
 
