@@ -63,25 +63,27 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        shell: bash -el {0}    
-    env:
-      FFLAGS: -fcheck=all
+        shell: bash -el {0}
     steps:
       - name: Set up Python with conda
         uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
           python-version: ">=3.7"
-      - name: Install compiler
-        run: conda install gfortran_linux-64=${{ matrix.version }}
+      - name: Install compiler and Python dependencies
+        run: conda install gfortran_linux-64=${{ matrix.version }} pip pyyaml
       - name: Clone repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
         run: python util/developers/run_all_testcases.py harness --show_logs --compiler gfortran ${{ matrix.cmake_args }}
+        env:
+          FFLAGS: -fcheck=all
       - name: Run all test cases with pyfabm
         run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran ${{ matrix.cmake_args }}
+        env:
+          FFLAGS: -fcheck=all
   ifort:
     # for available versions, see https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/intel-oneapi-compilers/package.py
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
