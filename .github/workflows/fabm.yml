@@ -69,9 +69,9 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
-          python-version: ">=3.7"
+          python-version: "3.9"
       - name: Install compiler and Python dependencies
-        run: conda install gfortran_linux-64=${{ matrix.version }} pip pyyaml
+        run: conda install gfortran_linux-64=${{ matrix.version }} libgfortran5 pip pyyaml
       - name: Clone repository
         uses: actions/checkout@v4
         with:
