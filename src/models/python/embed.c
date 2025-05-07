@@ -5,6 +5,23 @@
 extern "C" {
 #endif
 
+   int prepend_cwd_to_path() {
+      PyObject* psys;
+      PyObject* sys_path;
+      PyObject* empty_string;
+
+      psys = PyImport_ImportModule("sys");
+      if (psys == NULL) return (1);
+      sys_path = PyObject_GetAttrString(psys, "path");
+      Py_DECREF(psys);
+      if (sys_path == NULL) return (1);
+      empty_string = PyUnicode_FromString("");
+      PyList_Insert(sys_path, 0, empty_string);
+      Py_DECREF(sys_path);
+      Py_DECREF(empty_string);
+      return (0);
+   }
+
    int embedded_python_initialize(const char* program_name, const char* home)
    {
       PyStatus status;
@@ -16,9 +33,6 @@ extern "C" {
       if (PyStatus_Exception(status)) goto error;
 
       status = PyConfig_SetBytesString(&config, &config.home, home);
-      if (PyStatus_Exception(status)) goto error;
-
-      status = PyConfig_SetString(&config, &config.pythonpath_env, L"");
       if (PyStatus_Exception(status)) goto error;
 
       /* Add a built-in module, before Py_Initialize */
@@ -33,13 +47,18 @@ extern "C" {
       if (PyStatus_Exception(status)) goto error;
 
       PyConfig_Clear(&config);
+
+      if (prepend_cwd_to_path() != 0) {
+         PyErr_Print();
+         return(1);
+      }
+
       return(0);
    error:
       if (PyStatus_Exception(status)) fputs(status.err_msg, stderr);
       PyConfig_Clear(&config);
       return(1);
    }
-
 
    PyObject* embedded_python_get_model(const char* module_name, const char* class_name, void* base) {
       PyObject* pmodule;
@@ -49,9 +68,11 @@ extern "C" {
       pmodule = PyImport_ImportModule(module_name);
       if (pmodule == NULL)  goto error;
       pclass = PyObject_GetAttrString(pmodule, class_name);
+      Py_DECREF(pmodule);
       if (pclass == NULL) goto error;
       pnext_base = base;
       presult = PyObject_CallNoArgs(pclass);
+      Py_DECREF(pclass);
       if (presult == NULL) goto error;
       return(presult);
 
