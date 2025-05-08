@@ -9,6 +9,7 @@ extern "C" {
       PyObject* psys;
       PyObject* sys_path;
       PyObject* empty_string;
+      int iret;
 
       psys = PyImport_ImportModule("sys");
       if (psys == NULL) return (1);
@@ -16,14 +17,19 @@ extern "C" {
       Py_DECREF(psys);
       if (sys_path == NULL) return (1);
       empty_string = PyUnicode_FromString("");
-      PyList_Insert(sys_path, 0, empty_string);
+      iret = PyList_Insert(sys_path, 0, empty_string);
       Py_DECREF(sys_path);
       Py_DECREF(empty_string);
-      return (0);
+      return (iret);
    }
 
    int embedded_python_initialize(const char* program_name, const char* home)
    {
+      if (Py_IsInitialized() != 0) {
+         fputs("Error: Python already initialized\n", stderr);
+         return(1);
+      }
+
       PyStatus status;
 
       PyConfig config;

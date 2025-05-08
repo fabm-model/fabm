@@ -48,6 +48,8 @@ module wrapped_python_model
       end function
    end interface
 
+   logical, save :: python_initialized = .false.
+
 contains
 
    subroutine initialize(self, configunit)
@@ -63,8 +65,13 @@ contains
       call self%get_parameter(class_name, 'class', '', 'name of model class', default='Model')
       call self%get_parameter(python_home, 'home', '', 'location of the standard Python libraries', default=default_python_home)
 
-      call get_command_argument(0, cmd)
-      iresult = embedded_python_initialize(trim(cmd) // c_null_char, trim(python_home) // c_null_char)
+      if (.not. python_initialized) then
+         call get_command_argument(0, cmd)
+         iresult = embedded_python_initialize(trim(cmd) // c_null_char, trim(python_home) // c_null_char)
+         if (iresult /= 0) call self%fatal_error('initialize', 'Python initialization failed.')
+         python_initialized = .true.
+      end if
+
       pself => self%type_base_model
       self%pobject = embedded_python_get_model(trim(module_name) // c_null_char, trim(class_name) // c_null_char, c_loc(pself))
       if (.not. c_associated(self%pobject)) call self%fatal_error('initialize', 'Unable to load Python model')
