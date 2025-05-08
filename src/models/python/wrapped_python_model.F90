@@ -26,7 +26,7 @@ module wrapped_python_model
        character(kind=c_char), dimension(*) :: program_name, home
       end function
 
-      type(c_ptr) function embedded_python_get_model(module_name, class_name, pbase) bind(c, name='embedded_python_get_model')
+      type(c_ptr) function embedded_python_get_model(module_name, class_name, pbase) bind(c)
        import c_char, c_ptr
        character(kind=c_char), dimension(*) :: module_name, class_name
        type(c_ptr), value :: pbase

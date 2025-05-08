@@ -202,17 +202,6 @@ cdef np.ndarray _unpack_cache_array(int n, int ni, double* array, bint writeable
       arr.flags["WRITEABLE"] = False
    return arr
 
-
-cdef public object embedded_python_get_model2(const char* module_name, const char* class_name, void* base):
-   pnext = base
-   class_name2 = class_name.decode('ascii')
-   print(class_name2)
-   module_name2 = module_name.decode('ascii')
-   print(module_name2)
-   mod = importlib.import_module(module_name2)
-   cls = getattr(mod, class_name2)
-   return cls()
-
 cdef public int embedded_python_do(object pobject, void* cache) noexcept:
    cdef BaseModel self = pobject
    try:

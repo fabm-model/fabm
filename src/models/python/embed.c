@@ -35,6 +35,8 @@ extern "C" {
       status = PyConfig_SetBytesString(&config, &config.home, home);
       if (PyStatus_Exception(status)) goto error;
 
+      config.install_signal_handlers = 0; /* Disable signal handlers */
+
       /* Add a built-in module, before Py_Initialize */
       if (PyImport_AppendInittab("fabm_base", PyInit_fabm_base) == -1) {
          fputs("Error: could not extend in-built modules table\n", stderr);
