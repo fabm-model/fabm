@@ -57,8 +57,7 @@ contains
       integer,                          intent(in)            :: configunit
 
       character(len=attribute_length) :: module_name, class_name, python_home, cmd
-      type(c_ptr) :: pmodule, pclass, pwhome, pwcmd
-      integer(c_int) :: iresult
+      integer(c_int)                  :: iresult
       type (type_base_model), pointer :: pself
 
       call self%get_parameter(module_name, 'module', '', 'Python module containing model class')
