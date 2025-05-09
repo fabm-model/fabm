@@ -11,8 +11,13 @@ module wrapped_python_model
 
    private
 
+   type type_ptr
+      class (type_wrapped_python_model), pointer :: p => null()
+   end type
+
    type, extends(type_base_model), public :: type_wrapped_python_model
-      type (c_ptr) :: pobject
+      type (c_ptr)    :: pobject
+      type (type_ptr) :: pself
    contains
       procedure :: initialize
       procedure :: do
@@ -48,10 +53,6 @@ module wrapped_python_model
       end function
    end interface
 
-   type type_ptr
-      class (type_wrapped_python_model), pointer :: p => null()
-   end type
-
    logical, save :: python_initialized = .false.
 
 contains
@@ -62,7 +63,6 @@ contains
 
       character(len=attribute_length) :: module_name, class_name, python_home, cmd
       integer(c_int)                  :: iresult
-      type (type_ptr), target         :: pself
 
       call self%get_parameter(module_name, 'module', '', 'Python module containing model class')
       call self%get_parameter(class_name, 'class', '', 'name of model class', default='Model')
@@ -75,8 +75,8 @@ contains
          python_initialized = .true.
       end if
 
-      pself%p => self
-      self%pobject = embedded_python_get_model(trim(module_name) // c_null_char, trim(class_name) // c_null_char, c_loc(pself))
+      self%pself%p => self
+      self%pobject = embedded_python_get_model(trim(module_name) // c_null_char, trim(class_name) // c_null_char, c_loc(self%pself))
       if (.not. c_associated(self%pobject)) call self%fatal_error('initialize', 'Unable to load Python model')
    end subroutine
 
@@ -234,12 +234,12 @@ contains
       type (c_ptr),           intent(in), value  :: pself
       character(kind=c_char), intent(in), target :: msg(*)
 
-      type (type_base_model),          pointer :: self
+      type (type_ptr),                 pointer :: self
       character(len=attribute_length), pointer :: pmsg
 
       call c_f_pointer(pself, self)
       call c_f_pointer(c_loc(msg), pmsg)
-      call self%log_message(pmsg(:index(pmsg, C_NULL_CHAR) - 1))
+      call self%p%log_message(pmsg(:index(pmsg, C_NULL_CHAR) - 1))
    end subroutine
 
 end module
