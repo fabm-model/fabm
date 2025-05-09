@@ -199,7 +199,12 @@ contains
 #else
       nwrite = size(cache%write, 1)
 #endif
-      write = c_loc(cache%write)
+      write = write_ptr(cache)
+   contains
+      type(c_ptr) function write_ptr(cache)
+         type (type_interior_cache), target :: cache
+         write_ptr = c_loc(cache%write)
+      end function
    end subroutine
 
    subroutine c_unpack_horizontal_cache(pcache, ni, ni_hz, nread, nread_hz, nread_scalar, nwrite_hz, read, read_hz, read_scalar, write_hz) bind(c)
@@ -216,7 +221,12 @@ contains
 #else
       nwrite_hz = size(cache%write_hz, 1)
 #endif
-      write_hz = c_loc(cache%write_hz)
+      write_hz = write_ptr(cache)
+   contains
+      type(c_ptr) function write_ptr(cache)
+         type (type_horizontal_cache), target :: cache
+         write_ptr = c_loc(cache%write_hz)
+      end function
    end subroutine
 
    subroutine c_log_message(pself, msg) bind(c)
