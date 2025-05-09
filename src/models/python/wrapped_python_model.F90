@@ -48,6 +48,10 @@ module wrapped_python_model
       end function
    end interface
 
+   type type_ptr
+      class (type_wrapped_python_model), pointer :: p => null()
+   end type
+
    logical, save :: python_initialized = .false.
 
 contains
@@ -58,7 +62,7 @@ contains
 
       character(len=attribute_length) :: module_name, class_name, python_home, cmd
       integer(c_int)                  :: iresult
-      type (type_base_model), pointer :: pself
+      type (type_ptr), target         :: pself
 
       call self%get_parameter(module_name, 'module', '', 'Python module containing model class')
       call self%get_parameter(class_name, 'class', '', 'name of model class', default='Model')
@@ -71,7 +75,7 @@ contains
          python_initialized = .true.
       end if
 
-      pself => self%type_base_model
+      pself%p => self
       self%pobject = embedded_python_get_model(trim(module_name) // c_null_char, trim(class_name) // c_null_char, c_loc(pself))
       if (.not. c_associated(self%pobject)) call self%fatal_error('initialize', 'Unable to load Python model')
    end subroutine
@@ -116,7 +120,7 @@ contains
       real(c_double),         intent(in),    value  :: initial_value
       integer(c_int),         intent(inout), target :: read_index, write_index, sms_index
 
-      type (type_base_model),          pointer :: self
+      type (type_ptr),          pointer :: self
       type (type_link), pointer :: link, sms_link, link2
       character(len=attribute_length), pointer :: pname, punits, plong_name
       type (type_internal_variable), pointer :: variable, sms_variable
@@ -131,10 +135,10 @@ contains
       variable%domain = domain
       link => null()
       if (source == source_state .or. source == source_unknown) then
-         call self%add_variable(variable, pname(:index(pname, C_NULL_CHAR) - 1), punits(:index(punits, C_NULL_CHAR) - 1), plong_name(:index(plong_name, C_NULL_CHAR) - 1), &
+         call self%p%add_variable(variable, pname(:index(pname, C_NULL_CHAR) - 1), punits(:index(punits, C_NULL_CHAR) - 1), plong_name(:index(plong_name, C_NULL_CHAR) - 1), &
                                 read_index=read_index, link=link, source=source, presence=presence, initial_value=initial_value)
       else
-         call self%add_variable(variable, pname(:index(pname, C_NULL_CHAR) - 1), punits(:index(punits, C_NULL_CHAR) - 1), plong_name(:index(plong_name, C_NULL_CHAR) - 1), &
+         call self%p%add_variable(variable, pname(:index(pname, C_NULL_CHAR) - 1), punits(:index(punits, C_NULL_CHAR) - 1), plong_name(:index(plong_name, C_NULL_CHAR) - 1), &
                                 write_index=write_index, link=link, source=source, presence=presence, initial_value=initial_value)
       end if
 
@@ -147,7 +151,7 @@ contains
          allocate(sms_variable)
          sms_variable%domain = variable%domain
          sms_link => null()
-         call self%add_variable(sms_variable, trim(link%name) // '_sms', &
+         call self%p%add_variable(sms_variable, trim(link%name) // '_sms', &
             trim(variable%units) // ' s-1', trim(variable%long_name) // ' sources-sinks', fill_value=0.0_rk, &
             missing_value=0.0_rk, output=output_none, write_index=sms_index, link=sms_link, &
             source=sms_source)
