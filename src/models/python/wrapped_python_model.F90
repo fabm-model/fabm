@@ -120,7 +120,6 @@ contains
       type (type_link), pointer :: link, sms_link, link2
       character(len=attribute_length), pointer :: pname, punits, plong_name
       type (type_internal_variable), pointer :: variable, sms_variable
-      integer(c_int), pointer :: pread_index, pwrite_index
       integer :: sms_source
 
       call c_f_pointer(pself, self)
@@ -132,14 +131,12 @@ contains
       variable%domain = domain
       link => null()
       if (source == source_state .or. source == source_unknown) then
-         pread_index => read_index
-         pwrite_index => null()
+         call self%add_variable(variable, pname(:index(pname, C_NULL_CHAR) - 1), punits(:index(punits, C_NULL_CHAR) - 1), plong_name(:index(plong_name, C_NULL_CHAR) - 1), &
+                                read_index=read_index, link=link, source=source, presence=presence, initial_value=initial_value)
       else
-         pread_index => null()
-         pwrite_index => write_index
+         call self%add_variable(variable, pname(:index(pname, C_NULL_CHAR) - 1), punits(:index(punits, C_NULL_CHAR) - 1), plong_name(:index(plong_name, C_NULL_CHAR) - 1), &
+                                write_index=write_index, link=link, source=source, presence=presence, initial_value=initial_value)
       end if
-      call self%add_variable(variable, pname(:index(pname, C_NULL_CHAR) - 1), punits(:index(punits, C_NULL_CHAR) - 1), plong_name(:index(plong_name, C_NULL_CHAR) - 1), &
-                             read_index=pread_index, write_index=pwrite_index, link=link, source=source, presence=presence, initial_value=initial_value)
 
       if (source == source_state) then
          select case (domain)
@@ -161,9 +158,9 @@ contains
    end subroutine
 
    subroutine c_unpack_cache(cache, ni, ni_hz, nread, nread_hz, nread_scalar, read, read_hz, read_scalar)
-      class (type_cache), target :: cache
-      integer,      intent(out) :: ni, ni_hz, nread, nread_hz, nread_scalar
-      type (c_ptr), intent(out) :: read, read_hz, read_scalar
+      class (type_cache), target  :: cache
+      integer(c_int), intent(out) :: ni, ni_hz, nread, nread_hz, nread_scalar
+      type (c_ptr),   intent(out) :: read, read_hz, read_scalar
 
 #ifdef _INTERIOR_IS_VECTORIZED_
       ni = size(cache%read, 1)
@@ -186,9 +183,9 @@ contains
    end subroutine
 
    subroutine c_unpack_interior_cache(pcache, ni, ni_hz, nread, nread_hz, nread_scalar, nwrite, read, read_hz, read_scalar, write) bind(c)
-      type (c_ptr), intent(in), value  :: pcache
-      integer,      intent(out) :: ni, ni_hz, nread, nread_hz, nread_scalar, nwrite
-      type (c_ptr), intent(out) :: read, read_hz, read_scalar, write
+      type (c_ptr),   intent(in), value  :: pcache
+      integer(c_int), intent(out) :: ni, ni_hz, nread, nread_hz, nread_scalar, nwrite
+      type (c_ptr),   intent(out) :: read, read_hz, read_scalar, write
 
       type (type_interior_cache), pointer :: cache
 
@@ -208,9 +205,9 @@ contains
    end subroutine
 
    subroutine c_unpack_horizontal_cache(pcache, ni, ni_hz, nread, nread_hz, nread_scalar, nwrite_hz, read, read_hz, read_scalar, write_hz) bind(c)
-      type (c_ptr), intent(in), value  :: pcache
-      integer,      intent(out) :: ni, ni_hz, nread, nread_hz, nread_scalar, nwrite_hz
-      type (c_ptr), intent(out) :: read, read_hz, read_scalar, write_hz
+      type (c_ptr),   intent(in), value  :: pcache
+      integer(c_int), intent(out) :: ni, ni_hz, nread, nread_hz, nread_scalar, nwrite_hz
+      type (c_ptr),   intent(out) :: read, read_hz, read_scalar, write_hz
 
       type (type_horizontal_cache), pointer :: cache
 
