@@ -62,7 +62,7 @@ elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
     add_compile_options("$<$<CONFIG:DEBUG>:/Od>")
   endif()
 elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Cray")
-  add_compile_options($<$<COMPILE_LANGUAGE:Fortran>:-N1023>)
+  add_compile_options("$<$<COMPILE_LANGUAGE:Fortran>:-N;1023>")
 endif()
 
 # Customize preprocessor definitions
