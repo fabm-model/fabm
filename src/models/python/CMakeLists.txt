@@ -25,6 +25,7 @@ add_library(fabm_models_python_c OBJECT
 )
 target_link_libraries(fabm_models_python_c Python3::Python Python3::NumPy)
 target_include_directories(fabm_models_python_c PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_definitions(fabm_models_python_c PRIVATE -DNPY_NO_DEPRECATED_API=NPY_1_9_API_VERSION)
 set_property(TARGET fabm_models_python_c PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 install(TARGETS fabm_models_python_c EXPORT fabmConfig)
 

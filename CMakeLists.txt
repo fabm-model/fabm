@@ -56,13 +56,22 @@ endif()
 
 # Customize compiler flags
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
-  add_compile_options(-ffree-line-length-none)
+  add_compile_options($<$<COMPILE_LANGUAGE:Fortran>:-ffree-line-length-none>)
+  if(CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER_EQUAL 15 AND CMAKE_Fortran_COMPILER_VERSION VERSION_LESS 15.2 AND FABM_USE_DO_CONCURRENT)
+    # Workaround for https://gcc.gnu.org/bugzilla/show_bug.cgi?id=120179
+    message(WARNING "Forcing FABM_USE_DO_CONCURRENT to OFF to work around GCC 15.1 bug")
+    set(FABM_USE_DO_CONCURRENT OFF)
+  endif()
+  if(CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER_EQUAL 8 AND CMAKE_Fortran_COMPILER_VERSION VERSION_LESS 9 AND FABM_USE_CONTIGUOUS)
+    message(WARNING "Forcing FABM_USE_CONTIGUOUS to OFF to work around GCC 8 bug")
+    set(FABM_USE_CONTIGUOUS OFF)
+  endif()
 elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
   if(WIN32)
     add_compile_options("$<$<CONFIG:DEBUG>:/Od>")
   endif()
 elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Cray")
-  add_compile_options(-N 1023)
+  add_compile_options("$<$<COMPILE_LANGUAGE:Fortran>:-N;1023>")
 endif()
 
 # Customize preprocessor definitions

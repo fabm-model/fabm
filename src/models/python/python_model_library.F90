@@ -18,9 +18,9 @@ module python_model_library
 contains
 
    subroutine create(self,name,model)
-      class (type_factory),intent(in) :: self
-      character(*),        intent(in) :: name
-      class (type_base_model),pointer :: model
+      class (type_factory), intent(in) :: self
+      character(*),         intent(in) :: name
+      class (type_base_model), pointer :: model
 
       select case (name)
          case ('wrapped_python_model'); allocate(type_wrapped_python_model::model)

@@ -9,9 +9,9 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       matrix:
-        version: [9, 10, 11, 12]
+        version: [9, 10, 11, 12, 13, 14]
         os: [ubuntu-latest]
-        include:
+        # include:
           #- version: 4.8
           #  os: ubuntu-18.04
           #  cmake_args: -DFABM_USE_IEEE_ARITHMETIC=OFF
@@ -19,15 +19,15 @@ jobs:
           #  os: ubuntu-18.04
           #- version: 6
           #  os: ubuntu-18.04
-          - version: 7
-            os: ubuntu-20.04
-          - version: 8
-            os: ubuntu-20.04
-            cmake_args: -DFABM_USE_CONTIGUOUS=OFF
-          - version: 13
-            os: ubuntu-24.04
-          - version: 14
-            os: ubuntu-24.04
+          # - version: 7
+          #   os: ubuntu-20.04
+          # - version: 8
+          #   os: ubuntu-20.04
+          #   cmake_args: -DFABM_USE_CONTIGUOUS=OFF
+          # - version: 13
+          #   os: ubuntu-24.04
+          # - version: 14
+          #   os: ubuntu-24.04
       fail-fast: false
     runs-on: ${{ matrix.os }}
     env:
@@ -51,6 +51,35 @@ jobs:
         run: python util/developers/run_all_testcases.py harness --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
       - name: Run all test cases with pyfabm
         run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler gfortran-${{ matrix.version }} ${{ matrix.cmake_args }}
+  old_gfortran:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    strategy:
+      matrix:
+        version: [7, 8]
+      fail-fast: false
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - name: Set up Python with conda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+      - name: Install compiler and Python dependencies
+        run: conda install gfortran_linux-64=${{ matrix.version }} pip pyyaml
+      - name: Clone repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Run all test cases with host emulators
+        run: python util/developers/run_all_testcases.py harness --show_logs --compiler $GFORTRAN ${{ matrix.cmake_args }}
+        env:
+          FFLAGS: -fcheck=all
+      - name: Run all test cases with pyfabm
+        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler $GFORTRAN ${{ matrix.cmake_args }}
+        env:
+          FFLAGS: -fcheck=all
   ifort:
     # for available versions, see https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/intel-oneapi-compilers/package.py
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository

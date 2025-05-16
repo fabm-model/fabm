@@ -1,7 +1,10 @@
-cdef extern void c_register_variable(void* pbase, const char* name, const char* units, const char* long_name, int domain, int source, int presence, double initial_value, int* read_index, int* sms_index)
-cdef extern void c_unpack_horizontal_cache(void* cache, int* ni, int* ni_hz, int* nread, int* nread_hz, int* nread_scalar, int* nwrite_hz, double** read, double** read_hz, double** read_scalar, double** write_hz)
+cdef extern void c_register_variable(void* pbase, const char* name, const char* units, const char* long_name, int domain, int source, int presence, double initial_value, int* read_index, int* write_index, int* sms_index) nogil
+cdef extern void c_unpack_horizontal_cache(void* cache, int* ni, int* ni_hz, int* nread, int* nread_hz, int* nread_scalar, int* nwrite_hz, double** read, double** read_hz, double** read_scalar, double** write_hz) nogil
+cdef extern void c_unpack_interior_cache(void* cache, int* ni, int* ni_hz, int* nread, int* nread_hz, int* nread_scalar, int* nwrite, double** read, double** read_hz, double** read_scalar, double** write) nogil
+cdef extern void c_log_message(void* pbase, const char* msg) nogil
 
 import importlib
+import traceback
 
 cimport numpy as np
 import numpy as np
@@ -44,31 +47,69 @@ cdef class VariableId:
    cdef int domain
    cdef int read_index
    cdef int sms_index
+   cdef int write_index
 
 cdef class Namespace:
    cdef dict __dict__
 
+cdef class Logger:
+   cdef void* pbase
+
+   def __cinit__(self, BaseModel owner):
+      self.pbase = owner.pbase
+
+   def write(self, s):
+      s_strip = s.rstrip()
+      if s_strip:
+         c_log_message(self.pbase, s_strip.encode("ascii"))
+
+
 cdef class BaseModel:
    cdef void* pbase;
    variables = []
+   cdef void* interior_cache_source
    cdef void* horizontal_cache_source
+   cdef dict interior_cache
    cdef dict horizontal_cache
+   cdef Logger logger
 
    def __cinit__(self):
       self.pbase = pnext_base
+      self.interior_cache_source = NULL
       self.horizontal_cache_source = NULL
+      self.logger = Logger(self)
+      self.interior_cache = {}
+      self.horizontal_cache = {}
 
    def __dealloc__(self):
       pass
 
+   def register_interior_state_variable(self, str name, str units, str long_name, *, double initial_value=0.0):
+      self.register_variable(name, units, long_name, domain_interior, source_state, presence_internal, initial_value)
+
    def register_bottom_state_variable(self, str name, str units, str long_name, *, double initial_value=0.0):
       self.register_variable(name, units, long_name, domain_bottom, source_state, presence_internal, initial_value)
+
+   def register_surface_state_variable(self, str name, str units, str long_name, *, double initial_value=0.0):
+      self.register_variable(name, units, long_name, domain_surface, source_state, presence_internal, initial_value)
+
+   def register_interior_dependency(self, str name, str units, str long_name):
+      self.register_variable(name, units, long_name, domain_interior, source_unknown, presence_external_required)
 
    def register_bottom_dependency(self, str name, str units, str long_name):
       self.register_variable(name, units, long_name, domain_bottom, source_unknown, presence_external_required)
 
-   def register_interior_dependency(self, str name, str units, str long_name):
-      self.register_variable(name, units, long_name, domain_interior, source_unknown, presence_external_required)
+   def register_surface_dependency(self, str name, str units, str long_name):
+      self.register_variable(name, units, long_name, domain_surface, source_unknown, presence_external_required)
+
+   def register_interior_diagnostic_variable(self, str name, str units, str long_name):
+      self.register_variable(name, units, long_name, domain_interior, source_do, presence_internal)
+
+   def register_bottom_diagnostic_variable(self, str name, str units, str long_name):
+      self.register_variable(name, units, long_name, domain_bottom, source_do_bottom, presence_internal)
+
+   def register_surface_diagnostic_variable(self, str name, str units, str long_name):
+      self.register_variable(name, units, long_name, domain_surface, source_do_surface, presence_internal)
 
    def register_variable(self, str name, str units, str long_name, int domain, int source, int presence, double initial_value=0.0):
       cdef VariableId id = VariableId()
@@ -76,8 +117,28 @@ cdef class BaseModel:
       id.name = name
       id.read_index = -1
       id.sms_index = -1
-      c_register_variable(self.pbase, name.encode('ascii'), units.encode('ascii'), long_name.encode('ascii'), domain, source, presence, initial_value, &id.read_index, &id.sms_index)
+      id.write_index = -1
+      c_register_variable(self.pbase, name.encode('ascii'), units.encode('ascii'), long_name.encode('ascii'), domain, source, presence, initial_value, &id.read_index, &id.write_index, &id.sms_index)
       self.variables.append(id)
+
+   cdef _unpack_interior_cache(self, void* cache):
+      cdef int ni, ni_hz, nread, nread_hz, nread_scalar, nwrite
+      cdef double* read
+      cdef double* read_hz
+      cdef double* read_scalar
+      cdef double* write
+      cdef np.ndarray arr_read, arr_read_hz, arr_read_scalar
+
+      c_unpack_interior_cache(cache, &ni, &ni_hz, &nread, &nread_hz, &nread_scalar, &nwrite, &read, &read_hz, &read_scalar, &write)
+
+      arr_read = _unpack_cache_array(nread, ni, read)
+      arr_read_hz = _unpack_cache_array(nread_hz, ni_hz, read_hz)
+      arr_read_scalar = _unpack_cache_array(nread_scalar, 1, read_scalar)
+      arr_write = _unpack_cache_array(nwrite, ni, write, writeable=True)
+      arr_write = arr_write[1:, ...]    # first field (Fortran index=0) contains zeros
+
+      self._populate_cache(self.interior_cache, arr_read, arr_read_hz, arr_read_scalar, arr_write, None)
+      self.interior_cache_source = cache
 
    cdef _unpack_horizontal_cache(self, void* cache):
       cdef int ni, ni_hz, nread, nread_hz, nread_scalar, nwrite_hz
@@ -86,58 +147,91 @@ cdef class BaseModel:
       cdef double* read_scalar
       cdef double* write_hz
       cdef np.ndarray arr_read, arr_read_hz, arr_read_scalar
-      cdef VariableId varid
 
       c_unpack_horizontal_cache(cache, &ni, &ni_hz, &nread, &nread_hz, &nread_scalar, &nwrite_hz, &read, &read_hz, &read_scalar, &write_hz)
 
-      if nread == 0:
-         arr_read = None
-      elif ni == 1:
-         arr_read = np.asarray(<double[:nread:1]> read)
-      else:
-         arr_read = np.asarray(<double[:nread, :ni:1]> read)
+      arr_read = _unpack_cache_array(nread, ni, read)
+      arr_read_hz = _unpack_cache_array(nread_hz, ni_hz, read_hz)
+      arr_read_scalar = _unpack_cache_array(nread_scalar, 1, read_scalar)
+      arr_write_hz = _unpack_cache_array(nwrite_hz, ni_hz, write_hz, writeable=True)
+      arr_write_hz = arr_write_hz[1:, ...]    # first field (Fortran index=0) contains zeros
 
-      if nread_hz == 0:
-         arr_read_hz = None
-         arr_write_hz = None
-      elif ni_hz == 1:
-         arr_read_hz = np.asarray(<double[:nread_hz:1]> read_hz)
-         arr_write_hz = np.asarray(<double[:nwrite_hz:1]> write_hz)
-      else:
-         arr_read_hz = np.asarray(<double[:nread_hz, :ni_hz:1]> read_hz)
-         arr_write_hz = np.asarray(<double[:nwrite_hz, :ni_hz:1]> write_hz)
-
-      if nread_scalar == 0:
-         arr_read_scalar = None
-      else:
-         arr_read_scalar = np.asarray(<double[:nread_scalar:1]> read_scalar)
-
-      self.horizontal_cache = {}
-      for varid in self.variables:
-         print(varid.name, varid.read_index, varid.sms_index)
-         if varid.domain == domain_interior:
-            self.horizontal_cache[varid.name] = arr_read[varid.read_index - 1, ...]
-         elif varid.domain == domain_bottom or varid.domain == domain_surface:
-            self.horizontal_cache[varid.name] = arr_read_hz[varid.read_index - 1, ...]
-            if varid.sms_index >= 0:
-               self.horizontal_cache[varid.name + '.source'] = arr_write_hz[varid.sms_index - 1, ...]
-         elif varid.domain == domain_scalar:
-            self.horizontal_cache[varid.name] = arr_read_scalar[varid.read_index - 1, ...]
-
+      self._populate_cache(self.horizontal_cache, arr_read, arr_read_hz, arr_read_scalar, None, arr_write_hz)
       self.horizontal_cache_source = cache
 
-cdef public object embedded_python_get_model2(const char* module_name, const char* class_name, void* base):
-   pnext = base
-   class_name2 = class_name.decode('ascii')
-   print(class_name2)
-   module_name2 = module_name.decode('ascii')
-   print(module_name2)
-   mod = importlib.import_module(module_name2)
-   cls = getattr(mod, class_name2)
-   return cls()
+   cdef _populate_cache(self, cache, np.ndarray arr_read, np.ndarray arr_read_hz, np.ndarray arr_read_scalar, np.ndarray arr_write, np.ndarray arr_write_hz):
+      cdef VariableId varid
 
-cdef public void embedded_python_do_bottom(object pobject, void* cache):
+      cache.clear()
+      for varid in self.variables:
+         if varid.domain == domain_interior:
+            if varid.read_index >= 0:
+               cache[varid.name] = arr_read[varid.read_index - 1, ...]
+            if varid.write_index >= 0 and arr_write is not None:
+               cache[varid.name] = arr_write[varid.write_index - 1, ...]
+            if varid.sms_index >= 0 and arr_write is not None:
+               cache[varid.name + '.source'] = arr_write[varid.sms_index - 1, ...]
+         elif varid.domain == domain_bottom or varid.domain == domain_surface:
+            if varid.read_index >= 0:
+               cache[varid.name] = arr_read_hz[varid.read_index - 1, ...]
+            if varid.write_index >= 0 and arr_write_hz is not None:
+               cache[varid.name] = arr_write_hz[varid.write_index - 1, ...]
+            if varid.sms_index >= 0 and arr_write_hz is not None:
+               cache[varid.name + '.source'] = arr_write_hz[varid.sms_index - 1, ...]
+         elif varid.domain == domain_scalar:
+            cache[varid.name] = arr_read_scalar[varid.read_index - 1, ...]
+
+   def do(self, cache):
+      pass
+
+   def do_bottom(self, cache):
+      pass
+
+   def do_surface(self, cache):
+      pass
+
+cdef np.ndarray _unpack_cache_array(int n, int ni, double* array, bint writeable=False):
+   cdef np.ndarray arr
+   if n == 0:
+      return None
+   elif ni == 1:
+      arr = np.asarray(<double[:n:1]> array)
+   else:
+      arr = np.asarray(<double[:n, :ni:1]> array)
+   if not writeable:
+      arr.flags["WRITEABLE"] = False
+   return arr
+
+cdef public int embedded_python_do(object pobject, void* cache) noexcept:
    cdef BaseModel self = pobject
-   if self.horizontal_cache_source != cache:
-      self._unpack_horizontal_cache(cache)
-   self.do_bottom(self.horizontal_cache)
+   try:
+      if self.interior_cache_source != cache:
+         self._unpack_interior_cache(cache)
+      self.do(self.interior_cache)
+   except:
+      traceback.print_exc(file=self.logger)
+      return -1
+   return 0
+
+cdef public int embedded_python_do_bottom(object pobject, void* cache) noexcept:
+   cdef BaseModel self = pobject
+   try:
+      if self.horizontal_cache_source != cache:
+         self._unpack_horizontal_cache(cache)
+      self.do_bottom(self.horizontal_cache)
+   except:
+      traceback.print_exc(file=self.logger)
+      return -1
+   return 0
+
+cdef public int embedded_python_do_surface(object pobject, void* cache) noexcept:
+   cdef BaseModel self = pobject
+
+   try:
+      if self.horizontal_cache_source != cache:
+         self._unpack_horizontal_cache(cache)
+      self.do_surface(self.horizontal_cache)
+   except:
+      traceback.print_exc(file=self.logger)
+      return -1
+   return 0

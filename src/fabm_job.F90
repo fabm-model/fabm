@@ -181,6 +181,7 @@ contains
 
       integer                                       :: icall
       type (type_input_variable_set_node),  pointer :: input_variable_node
+      logical,                              pointer :: pfrozen
       class (type_base_model),              pointer :: parent
       class (type_model_list_node),         pointer :: model_list_node
       type (type_output_variable_set_node), pointer :: variable_node
@@ -203,11 +204,12 @@ contains
          ! may end up with model pointers that are base class specific (and do not reference
          ! procedures overwritten at a higher level)
          _ASSERT_(associated(self%calls(icall)%model), 'task_initialize', 'Call without associated model pointer.')
+         pfrozen => self%calls(icall)%model%frozen
          parent => self%calls(icall)%model%parent
          if (associated(parent)) then
             model_list_node => parent%children%first
             do while (associated(model_list_node))
-               if (associated(self%calls(icall)%model, model_list_node%model)) then
+               if (associated(pfrozen, model_list_node%model%frozen)) then
                   ! Found ourselves in our parent - use the parent pointer to replace ours.
                   self%calls(icall)%model => model_list_node%model
                   exit
