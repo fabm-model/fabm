@@ -56,9 +56,6 @@ jobs:
     strategy:
       matrix:
         version: [7, 8]
-        include:
-        - version: 8
-          cmake_args: -DFABM_USE_CONTIGUOUS=OFF
       fail-fast: false
     runs-on: ubuntu-latest
     defaults:
