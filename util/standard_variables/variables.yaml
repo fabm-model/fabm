@@ -98,6 +98,8 @@ horizontal:
   - name: longitude
     units: degree_east
 global:
+  - name: calendar_year
+    units: year
   - name: number_of_days_since_start_of_the_year
     units: d
   - name: number_of_days_in_year
