@@ -171,6 +171,9 @@ module fabm
       !> Whether this variable will be included in output and thus needs to be computed.
       logical :: save = .false.
 
+      !> Whether this variable is considered to be part of the model state and thus needs to be included in restarts
+      logical :: part_of_state = .false.
+
       integer :: source
    end type
 
@@ -180,6 +183,9 @@ module fabm
 
       !> Whether this variable will be included in output and thus needs to be computed.
       logical :: save = .false.
+
+      !> Whether this variable is considered to be part of the model state and thus needs to be included in restarts
+      logical :: part_of_state = .false.
 
       integer :: source
    end type
