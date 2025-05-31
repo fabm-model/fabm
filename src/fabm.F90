@@ -2973,7 +2973,7 @@ contains
       variable_node => self%variable_register%catalog%interior%first
       do while (associated(variable_node))
          if (variable_node%target%store_index > 0) then
-            ! Note: we first assign to the pointer below to ensure ifort 15 recognizes its contiguity when _FABM_CONTIGUOUS is set
+            ! Note: we first assign to the pointer below to ensure ifort 15 recognizes its contiguity when _FABM_CONTIGUOUS_ is set
             pdata => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ variable_node%target%store_index)
             call self%link_interior_data(variable_node%target, pdata, source=data_source_fabm)
          end if
@@ -2982,7 +2982,7 @@ contains
       variable_node => self%variable_register%catalog%horizontal%first
       do while (associated(variable_node))
          if (variable_node%target%store_index > 0) then
-            ! Note: we first assign to the pointer below to ensure ifort 15 recognizes its contiguity when _FABM_CONTIGUOUS is set
+            ! Note: we first assign to the pointer below to ensure ifort 15 recognizes its contiguity when _FABM_CONTIGUOUS_ is set
             pdata_hz => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ variable_node%target%store_index)
             call self%link_horizontal_data(variable_node%target, pdata_hz, source=data_source_fabm)
          end if
