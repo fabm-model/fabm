@@ -269,13 +269,13 @@
 #  define _IS_UNMASKED_(maskvalue) .true.
 #endif
 
-#ifndef(_FABM_NO_CONTIGUOUS_)
+#ifndef _FABM_NO_CONTIGUOUS_
 #  define _CONTIGUOUS_ ,contiguous
 #else
 #  define _CONTIGUOUS_
 #endif
 
-#ifdef(_FABM_CONTIGUOUS_)
+#ifdef _FABM_CONTIGUOUS_
 #  define _HOST_CONTIGUOUS_ _CONTIGUOUS_
 #else
 #  define _HOST_CONTIGUOUS_
