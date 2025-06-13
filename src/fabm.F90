@@ -660,6 +660,7 @@ contains
       real(rke), optional, intent(in) :: seconds_per_time_unit
 
       class (type_expression), pointer :: expression
+      integer :: ibin
       real(rke) :: missing_value
 
       if (self%status < status_initialize_done) call fatal_error('set_domain', 'initialize has not yet been called on this model object.')
@@ -686,42 +687,45 @@ contains
                call self%finalize_outputs_job%request_variable(expression%link%target, store=.true.)
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / seconds_per_time_unit
-               allocate(expression%history(_PREARG_LOCATION_ expression%n + 1))
-               expression%history = 0.0_rke
-#if _FABM_DIMENSION_COUNT_>0
-               allocate(expression%previous_value _INDEX_LOCATION_, expression%last_exact_mean _INDEX_LOCATION_, expression%mean _INDEX_LOCATION_)
-#endif
-               expression%last_exact_mean = 0.0_rke
+               allocate(expression%history(expression%n + 1))
+               do ibin = 1, size(expression%history)
+                  allocate(expression%history(ibin)%p _INDEX_LOCATION_)
+                  expression%history(ibin)%p = 0.0_rke
+               end do
+               allocate(expression%previous_value%p _INDEX_LOCATION_, expression%last_exact_mean%p _INDEX_LOCATION_, expression%mean%p _INDEX_LOCATION_)
+               expression%last_exact_mean%p = 0.0_rke
                missing_value = expression%missing_value   ! To avoid a stack overflow for the next line with ifort 2021.3
-               expression%mean = missing_value
-               call self%link_interior_data(expression%output_name, expression%mean)
+               expression%mean%p = missing_value
+               call self%link_interior_data(expression%output_name, expression%mean%p)
             class is (type_horizontal_temporal_mean)
                ! Moving average of horizontal variable
                call self%finalize_outputs_job%request_variable(expression%link%target, store=.true.)
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / seconds_per_time_unit
-               allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 1))
-               expression%history = 0.0_rke
-#if _HORIZONTAL_DIMENSION_COUNT_>0
-               allocate(expression%previous_value _INDEX_HORIZONTAL_LOCATION_, expression%last_exact_mean _INDEX_HORIZONTAL_LOCATION_, expression%mean _INDEX_HORIZONTAL_LOCATION_)
-#endif
-               expression%last_exact_mean = 0.0_rke
+               allocate(expression%history(expression%n + 1))
+               do ibin = 1, size(expression%history)
+                  allocate(expression%history(ibin)%p _INDEX_HORIZONTAL_LOCATION_)
+                  expression%history(ibin)%p = 0.0_rke
+               end do
+               allocate(expression%previous_value%p _INDEX_HORIZONTAL_LOCATION_, expression%last_exact_mean%p _INDEX_HORIZONTAL_LOCATION_, expression%mean%p _INDEX_HORIZONTAL_LOCATION_)
+               expression%last_exact_mean%p = 0.0_rke
                missing_value = expression%missing_value   ! To avoid a stack overflow for the next line with ifort 2021.3
-               expression%mean = missing_value
-               call self%link_horizontal_data(expression%output_name, expression%mean)
+               expression%mean%p = missing_value
+               call self%link_horizontal_data(expression%output_name, expression%mean%p)
             class is (type_horizontal_temporal_maximum)
                ! Moving maximum of horizontal variable
                call self%finalize_outputs_job%request_variable(expression%link%target, store=.true.)
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / seconds_per_time_unit
-               allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n))
-               expression%history = -huge(1.0_rke)
-#if _HORIZONTAL_DIMENSION_COUNT_>0
-               allocate(expression%previous_value _INDEX_HORIZONTAL_LOCATION_, expression%maximum _INDEX_HORIZONTAL_LOCATION_)
-#endif
+               allocate(expression%history(expression%n))
+               do ibin = 1, size(expression%history)
+                  allocate(expression%history(ibin)%p _INDEX_HORIZONTAL_LOCATION_)
+                  expression%history(ibin)%p = -huge(1.0_rke)
+               end do
+               allocate(expression%previous_value%p _INDEX_HORIZONTAL_LOCATION_, expression%maximum%p _INDEX_HORIZONTAL_LOCATION_)
                missing_value = expression%missing_value   ! To avoid a stack overflow for the next line with ifort 2021.3
-               expression%maximum = missing_value
-               call self%link_horizontal_data(expression%output_name, expression%maximum)
+               expression%maximum%p = missing_value
+               call self%link_horizontal_data(expression%output_name, expression%maximum%p)
             end select
             expression => expression%next
          end do
