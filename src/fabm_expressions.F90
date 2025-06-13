@@ -40,8 +40,10 @@ module fabm_expressions
       integer,  private :: ioldest  = -1
       integer,  private :: icurrent = -1
       logical,  private :: complete = .false.
-      
-      type (type_link), pointer :: link_previous_value, link_last_exact_mean, link_mean
+
+      type (type_link), pointer :: link_previous_value  => null()
+      type (type_link), pointer :: link_last_exact_mean => null()
+      type (type_link), pointer :: link_mean            => null()
       type (type_link_list_element), allocatable :: link_history(:)
 
       type (type_contiguous_interior_data_pointer) :: previous_value, last_exact_mean, mean
@@ -59,7 +61,9 @@ module fabm_expressions
       type (type_link), pointer :: link => null()
       integer :: in = -1
 
-      type (type_link), pointer :: link_previous_value, link_last_exact_mean, link_mean
+      type (type_link), pointer :: link_previous_value  => null()
+      type (type_link), pointer :: link_last_exact_mean => null()
+      type (type_link), pointer :: link_mean            => null()
       type (type_link_list_element), allocatable :: link_history(:)
 
       real(rk), private :: previous_time, bin_end_time
@@ -80,7 +84,8 @@ module fabm_expressions
       type (type_link), pointer :: link => null()
       integer :: in = -1
 
-      type (type_link), pointer :: link_previous_value, link_maximum
+      type (type_link), pointer :: link_previous_value => null()
+      type (type_link), pointer :: link_maximum        => null()
       type (type_link_list_element), allocatable :: link_history(:)
 
       real(rk), private :: previous_time, bin_end_time
