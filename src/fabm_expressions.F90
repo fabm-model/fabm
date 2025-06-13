@@ -23,6 +23,10 @@ module fabm_expressions
       real(rke), pointer _ATTRIBUTES_GLOBAL_HORIZONTAL_CONTIGUOUS_ :: p => null()
    end type
 
+   type type_link_list_element
+      type (type_link), pointer :: p => null()
+   end type
+
    type, extends(type_interior_expression) :: type_interior_temporal_mean
       real(rk) :: period   ! Time period to average over (s)
       integer  :: n
@@ -36,6 +40,10 @@ module fabm_expressions
       integer,  private :: ioldest  = -1
       integer,  private :: icurrent = -1
       logical,  private :: complete = .false.
+      
+      type (type_link), pointer :: link_previous_value, link_last_exact_mean, link_mean
+      type (type_link_list_element), allocatable :: link_history(:)
+
       type (type_contiguous_interior_data_pointer) :: previous_value, last_exact_mean, mean
       type (type_contiguous_interior_data_pointer), allocatable :: history(:)
    contains
@@ -50,6 +58,9 @@ module fabm_expressions
 
       type (type_link), pointer :: link => null()
       integer :: in = -1
+
+      type (type_link), pointer :: link_previous_value, link_last_exact_mean, link_mean
+      type (type_link_list_element), allocatable :: link_history(:)
 
       real(rk), private :: previous_time, bin_end_time
       integer,  private :: ioldest  = -1
@@ -68,6 +79,9 @@ module fabm_expressions
 
       type (type_link), pointer :: link => null()
       integer :: in = -1
+
+      type (type_link), pointer :: link_previous_value, link_maximum
+      type (type_link_list_element), allocatable :: link_history(:)
 
       real(rk), private :: previous_time, bin_end_time
       integer :: icurrent = -1
