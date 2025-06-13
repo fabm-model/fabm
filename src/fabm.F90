@@ -2735,6 +2735,7 @@ contains
                ndiag = ndiag + 1
                diagvar => self%interior_diagnostic_variables(ndiag)
                call copy_variable_metadata(link%original, diagvar)
+               diagvar%part_of_state = diagvar%part_of_state .or. object%source == source_expression
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable => object%standard_variables%first%p)
                   class is (type_interior_standard_variable)
@@ -2775,6 +2776,7 @@ contains
                ndiag_hz = ndiag_hz + 1
                hz_diagvar => self%horizontal_diagnostic_variables(ndiag_hz)
                call copy_variable_metadata(link%original, hz_diagvar)
+               hz_diagvar%part_of_state = hz_diagvar%part_of_state .or. object%source == source_expression
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable => object%standard_variables%first%p)
                   class is (type_horizontal_standard_variable)
