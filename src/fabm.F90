@@ -930,12 +930,12 @@ contains
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / self%seconds_per_time_unit
                do ibin = 1, size(expression%history)
-                  expression%history(ibin)%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%link_history(ibin)%p%target%store_index)
+                  expression%history(ibin)%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%history(ibin)%link%target%store_index)
                   expression%history(ibin)%p = 0.0_rke
                end do
-               expression%previous_value%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%link_previous_value%target%store_index)
-               expression%last_exact_mean%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%link_last_exact_mean%target%store_index)
-               expression%mean%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%link_mean%target%store_index)
+               expression%previous_value%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%previous_value%link%target%store_index)
+               expression%last_exact_mean%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%last_exact_mean%link%target%store_index)
+               expression%mean%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%mean%link%target%store_index)
                expression%last_exact_mean%p = 0.0_rke
                missing_value = expression%missing_value   ! To avoid a stack overflow for the next line with ifort 2021.3
                expression%mean%p = missing_value
@@ -944,12 +944,12 @@ contains
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / self%seconds_per_time_unit
                do ibin = 1, size(expression%history)
-                  expression%history(ibin)%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%link_history(ibin)%p%target%store_index)
+                  expression%history(ibin)%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%history(ibin)%link%target%store_index)
                   expression%history(ibin)%p = 0.0_rke
                end do
-               expression%previous_value%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%link_previous_value%target%store_index)
-               expression%last_exact_mean%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%link_last_exact_mean%target%store_index)
-               expression%mean%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%link_mean%target%store_index)
+               expression%previous_value%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%previous_value%link%target%store_index)
+               expression%last_exact_mean%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%last_exact_mean%link%target%store_index)
+               expression%mean%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%mean%link%target%store_index)
                expression%last_exact_mean%p = 0.0_rke
                missing_value = expression%missing_value   ! To avoid a stack overflow for the next line with ifort 2021.3
                expression%mean%p = missing_value
@@ -958,11 +958,11 @@ contains
                expression%in = expression%link%target%catalog_index
                expression%period = expression%period / self%seconds_per_time_unit
                do ibin = 1, size(expression%history)
-                  expression%history(ibin)%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%link_history(ibin)%p%target%store_index)
+                  expression%history(ibin)%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%history(ibin)%link%target%store_index)
                   expression%history(ibin)%p = 0.0_rke
                end do
-               expression%previous_value%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%link_previous_value%target%store_index)
-               expression%maximum%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%link_maximum%target%store_index)
+               expression%previous_value%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%previous_value%link%target%store_index)
+               expression%maximum%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%maximum%link%target%store_index)
                missing_value = expression%missing_value   ! To avoid a stack overflow for the next line with ifort 2021.3
                expression%maximum%p = missing_value
             end select
@@ -3112,45 +3112,45 @@ contains
             call self%root%request_coupling(current%output_name, integral%id_output%link%target%name)
             filter = .true.
          class is (type_interior_temporal_mean)
-            allocate(current%link_history(current%n + 1), current%history(current%n + 1))
-            do ibin = 1, size(current%link_history)
+            allocate(current%history(current%n + 1))
+            do ibin = 1, size(current%history)
                write (strindex,'(i0)') ibin
-               call self%root%add_interior_variable(get_safe_name(trim(current%output_name)) // "_bin" // trim(strindex), link=current%link_history(ibin)%p, source=source_expression, output=output_none)
-               call self%variable_register%add_to_store(current%link_history(ibin)%p%target)
+               call self%root%add_interior_variable(get_safe_name(trim(current%output_name)) // "_bin" // trim(strindex), link=current%history(ibin)%link, source=source_expression, output=output_none)
+               call self%variable_register%add_to_store(current%history(ibin)%link%target)
             end do
-            call self%root%add_interior_variable(get_safe_name(trim(current%output_name)) // "_prev", link=current%link_previous_value, source=source_expression, output=output_none)
-            call self%root%add_interior_variable(get_safe_name(trim(current%output_name)) // "_lem", link=current%link_last_exact_mean, source=source_expression, output=output_none)
-            call self%root%add_interior_variable(get_safe_name(trim(current%output_name)) // "_mean", link=current%link_mean, source=source_expression, output=output_none)
-            call self%root%request_coupling(current%output_name, current%link_mean%target%name)
-            call self%variable_register%add_to_store(current%link_previous_value%target)
-            call self%variable_register%add_to_store(current%link_last_exact_mean%target)
-            call self%variable_register%add_to_store(current%link_mean%target)
+            call self%root%add_interior_variable(get_safe_name(trim(current%output_name)) // "_prev", link=current%previous_value%link, source=source_expression, output=output_none)
+            call self%root%add_interior_variable(get_safe_name(trim(current%output_name)) // "_lem", link=current%last_exact_mean%link, source=source_expression, output=output_none)
+            call self%root%add_interior_variable(get_safe_name(trim(current%output_name)) // "_mean", link=current%mean%link, source=source_expression, output=output_none)
+            call self%root%request_coupling(current%output_name, current%mean%link%target%name)
+            call self%variable_register%add_to_store(current%previous_value%link%target)
+            call self%variable_register%add_to_store(current%last_exact_mean%link%target)
+            call self%variable_register%add_to_store(current%mean%link%target)
          class is (type_horizontal_temporal_mean)
-            allocate(current%link_history(current%n + 1), current%history(current%n + 1))
-            do ibin = 1, size(current%link_history)
+            allocate(current%history(current%n + 1))
+            do ibin = 1, size(current%history)
                write (strindex,'(i0)') ibin
-               call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_bin" // trim(strindex), link=current%link_history(ibin)%p, source=source_expression, output=output_none)
-               call self%variable_register%add_to_store(current%link_history(ibin)%p%target)
+               call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_bin" // trim(strindex), link=current%history(ibin)%link, source=source_expression, output=output_none)
+               call self%variable_register%add_to_store(current%history(ibin)%link%target)
             end do
-            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_prev", link=current%link_previous_value, source=source_expression, output=output_none)
-            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_lem", link=current%link_last_exact_mean, source=source_expression, output=output_none)
-            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_mean", link=current%link_mean, source=source_expression, output=output_none)
-            call self%root%request_coupling(current%output_name, current%link_mean%target%name)
-            call self%variable_register%add_to_store(current%link_previous_value%target)
-            call self%variable_register%add_to_store(current%link_last_exact_mean%target)
-            call self%variable_register%add_to_store(current%link_mean%target)
+            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_prev", link=current%previous_value%link, source=source_expression, output=output_none)
+            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_lem", link=current%last_exact_mean%link, source=source_expression, output=output_none)
+            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_mean", link=current%mean%link, source=source_expression, output=output_none)
+            call self%root%request_coupling(current%output_name, current%mean%link%target%name)
+            call self%variable_register%add_to_store(current%previous_value%link%target)
+            call self%variable_register%add_to_store(current%last_exact_mean%link%target)
+            call self%variable_register%add_to_store(current%mean%link%target)
          class is (type_horizontal_temporal_maximum)
-            allocate(current%link_history(current%n), current%history(current%n))
-            do ibin = 1, size(current%link_history)
+            allocate(current%history(current%n))
+            do ibin = 1, size(current%history)
                write (strindex,'(i0)') ibin
-               call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_bin" // trim(strindex), link=current%link_history(ibin)%p, source=source_expression, output=output_none)
-               call self%variable_register%add_to_store(current%link_history(ibin)%p%target)
+               call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_bin" // trim(strindex), link=current%history(ibin)%link, source=source_expression, output=output_none)
+               call self%variable_register%add_to_store(current%history(ibin)%link%target)
             end do
-            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_prev", link=current%link_previous_value, source=source_expression, output=output_none)
-            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_max", link=current%link_maximum, source=source_expression, output=output_none)
-            call self%root%request_coupling(current%output_name, current%link_maximum%target%name)
-            call self%variable_register%add_to_store(current%link_previous_value%target)
-            call self%variable_register%add_to_store(current%link_maximum%target)
+            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_prev", link=current%previous_value%link, source=source_expression, output=output_none)
+            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_max", link=current%maximum%link, source=source_expression, output=output_none)
+            call self%root%request_coupling(current%output_name, current%maximum%link%target%name)
+            call self%variable_register%add_to_store(current%previous_value%link%target)
+            call self%variable_register%add_to_store(current%maximum%link%target)
          end select
 
          ! If FABM handles this expression internally, remove it from the list.

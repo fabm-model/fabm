@@ -15,16 +15,12 @@ module fabm_expressions
    public temporal_mean, temporal_maximum, vertical_mean, vertical_integral
    public type_interior_temporal_mean, type_horizontal_temporal_mean, type_horizontal_temporal_maximum, type_vertical_integral
 
-   type type_contiguous_interior_data_pointer
+   type, extends(type_variable_id) :: type_global_interior_variable_id
       real(rke), pointer _ATTRIBUTES_GLOBAL_CONTIGUOUS_ :: p => null()
    end type
 
-   type type_contiguous_horizontal_data_pointer
+   type, extends(type_variable_id) :: type_global_horizontal_variable_id
       real(rke), pointer _ATTRIBUTES_GLOBAL_HORIZONTAL_CONTIGUOUS_ :: p => null()
-   end type
-
-   type type_link_list_element
-      type (type_link), pointer :: p => null()
    end type
 
    type, extends(type_interior_expression) :: type_interior_temporal_mean
@@ -41,13 +37,8 @@ module fabm_expressions
       integer,  private :: icurrent = -1
       logical,  private :: complete = .false.
 
-      type (type_link), pointer :: link_previous_value  => null()
-      type (type_link), pointer :: link_last_exact_mean => null()
-      type (type_link), pointer :: link_mean            => null()
-      type (type_link_list_element), allocatable :: link_history(:)
-
-      type (type_contiguous_interior_data_pointer) :: previous_value, last_exact_mean, mean
-      type (type_contiguous_interior_data_pointer), allocatable :: history(:)
+      type (type_global_interior_variable_id) :: previous_value, last_exact_mean, mean
+      type (type_global_interior_variable_id), allocatable :: history(:)
    contains
       procedure :: update => interior_temporal_mean_update
    end type
@@ -61,17 +52,12 @@ module fabm_expressions
       type (type_link), pointer :: link => null()
       integer :: in = -1
 
-      type (type_link), pointer :: link_previous_value  => null()
-      type (type_link), pointer :: link_last_exact_mean => null()
-      type (type_link), pointer :: link_mean            => null()
-      type (type_link_list_element), allocatable :: link_history(:)
-
       real(rk), private :: previous_time, bin_end_time
       integer,  private :: ioldest  = -1
       integer,  private :: icurrent = -1
       logical,  private :: complete = .false.
-      type (type_contiguous_horizontal_data_pointer) :: previous_value, last_exact_mean, mean
-      type (type_contiguous_horizontal_data_pointer), allocatable :: history(:)
+      type (type_global_horizontal_variable_id) :: previous_value, last_exact_mean, mean
+      type (type_global_horizontal_variable_id), allocatable :: history(:)
    contains
       procedure :: update => horizontal_temporal_mean_update
    end type
@@ -84,15 +70,11 @@ module fabm_expressions
       type (type_link), pointer :: link => null()
       integer :: in = -1
 
-      type (type_link), pointer :: link_previous_value => null()
-      type (type_link), pointer :: link_maximum        => null()
-      type (type_link_list_element), allocatable :: link_history(:)
-
       real(rk), private :: previous_time, bin_end_time
       integer :: icurrent = -1
       logical,  private :: complete = .false.
-      type (type_contiguous_horizontal_data_pointer) :: previous_value, maximum
-      type (type_contiguous_horizontal_data_pointer), allocatable :: history(:)
+      type (type_global_horizontal_variable_id) :: previous_value, maximum
+      type (type_global_horizontal_variable_id), allocatable :: history(:)
    contains
       procedure :: update => horizontal_temporal_maximum_update
    end type
@@ -131,14 +113,14 @@ contains
       type (type_dependency_id), intent(inout), target :: input
       real(rk), optional,        intent(in)            :: minimum_depth,maximum_depth
       type (type_vertical_integral)                    :: expression
-      expression = vertical_integral(input,minimum_depth,maximum_depth,average=.true.)
+      expression = vertical_integral(input, minimum_depth, maximum_depth, average=.true.)
    end function
 
    function vertical_state_mean(input, minimum_depth, maximum_depth) result(expression)
       type (type_state_variable_id), intent(inout), target :: input
       real(rk), optional,            intent(in)            :: minimum_depth, maximum_depth
       type (type_vertical_integral)                        :: expression
-      expression = vertical_integral_generic(input,minimum_depth,maximum_depth,average=.true.)
+      expression = vertical_integral_generic(input, minimum_depth, maximum_depth, average=.true.)
    end function
 
    function vertical_dependency_integral(input, minimum_depth, maximum_depth, average) result(expression)
