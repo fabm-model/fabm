@@ -470,7 +470,7 @@ contains
          type (type_node),            pointer :: node
          type (type_output_variable), pointer :: output_variable
 
-         if (variable%source == source_constant .or. variable%source == source_state .or. variable%source == source_external .or. variable%source == source_unknown) return
+         if (variable%source == source_constant .or. variable%source == source_state .or. variable%source == source_external .or. variable%source == source_unknown .or. variable%source == source_expression) return
          _ASSERT_ (.not. variable%write_indices%is_empty(), 'graph_add_variable::add_call', 'Variable "' // trim(variable%name) // '" with source ' // trim(source2string(variable%source)) // ' does not have a write index')
 
          node => self%add_call(variable%owner, variable%source, stack_top)
