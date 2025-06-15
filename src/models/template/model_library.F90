@@ -25,7 +25,7 @@ contains
       class (type_base_model), pointer :: model
 
       select case (name)
-      case ('mymodel'): allocate (type_template_mymodel::model)
+      case ('mymodel'); allocate (type_template_mymodel::model)
       ! Add case statements for new models here
       end select
 
