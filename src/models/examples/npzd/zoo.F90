@@ -19,7 +19,6 @@ module examples_npzd_zoo
    contains
       procedure :: initialize
       procedure :: do
-      procedure :: do_ppdd
    end type
 
 contains
@@ -39,7 +38,8 @@ contains
       call self%get_parameter(self%rzd,  'rzd',  'd-1',       'mortality',                     default=0.02_rk, scale_factor=d_per_s)
 
       ! Register state variables
-      call self%register_state_variable(self%id_z, 'c', 'mmol m-3', 'concentration', 0.0_rk, minimum=0.0_rk)
+      call self%register_state_variable(self%id_z, 'c', 'mmol m-3', 'concentration', &
+         initial_value=0.0_rk, minimum=0.0_rk)
 
       ! Register contribution of state to global aggregate variables.
       call self%add_to_aggregate_variable(standard_variables%total_nitrogen, self%id_z)
@@ -63,10 +63,10 @@ contains
          _GET_(self%id_z, z)         ! zooplankton
          _GET_(self%id_grztarget, p) ! prey
 
-         ! Grazing rate
-         g = fpz(self%gmax, self%iv, p, z + self%z0)
+         ! Ivlev formulation for zooplankton grazing on phytoplankton
+         fpz = self%gmax * (1.0_rk - exp(-self%iv * self%iv * p * p)) * (z + self%z0)
 
-         ! Set temporal derivatives
+         ! Local source terms
          _ADD_SOURCE_(self%id_z, g - self%rzn*z - self%rzd*z)
          _ADD_SOURCE_(self%id_grztarget, -g)
          _ADD_SOURCE_(self%id_morttarget, self%rzd*z)
@@ -76,39 +76,4 @@ contains
       _LOOP_END_
    end subroutine do
 
-   subroutine do_ppdd(self, _ARGUMENTS_DO_PPDD_)
-      class (type_examples_npzd_zoo), intent(in) :: self
-      _DECLARE_ARGUMENTS_DO_PPDD_
-
-      real(rk) :: p, z
-
-      ! Enter spatial loops (if any)
-      _LOOP_BEGIN_
-
-         ! Retrieve current (local) state variable values.
-         _GET_(self%id_z,z)         ! zooplankton
-         _GET_(self%id_grztarget,p) ! prey
-
-         ! Assign destruction rates to different elements of the destruction matrix.
-         ! By assigning with _SET_DD_SYM_ [as opposed to _SET_DD_], assignments to dd(i,j)
-         ! are automatically assigned to pp(j,i) as well.
-          _SET_DD_SYM_(self%id_grztarget,self%id_z,fpz(self%gmax,self%iv,p,z+self%z0))
-          _SET_DD_SYM_(self%id_z,self%id_exctarget,self%rzn*z)
-          _SET_DD_SYM_(self%id_z,self%id_morttarget,self%rzd*z)
-
-      ! Leave spatial loops (if any)
-      _LOOP_END_
-   end subroutine do_ppdd
-
-   ! Ivlev formulation for zooplankton grazing on phytoplankton
-   elemental real(rk) function fpz(gmax, iv, p, z)
-      real(rk), intent(in) :: gmax, iv, p, z
-
-      fpz = gmax * (1.0_rk - exp(-iv * iv * p * p)) * z
-   end function fpz
-
 end module examples_npzd_zoo
-
-!-----------------------------------------------------------------------
-! Copyright Bolding & Bruggeman ApS - GNU Public License - www.gnu.org
-!-----------------------------------------------------------------------

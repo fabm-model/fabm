@@ -14,15 +14,14 @@ module examples_npzd_det
 
    type, extends(type_base_model),public :: type_examples_npzd_det
       ! Variable identifiers
-      type (type_state_variable_id)     :: id_d
-      type (type_state_variable_id)     :: id_mintarget
+      type (type_state_variable_id) :: id_d
+      type (type_state_variable_id) :: id_mintarget
 
       ! Model parameters
       real(rk) :: rdn
    contains
       procedure :: initialize
       procedure :: do
-      procedure :: do_ppdd
    end type
 
 contains
@@ -41,7 +40,7 @@ contains
       call self%get_parameter(self%rdn, 'rdn', 'd-1',       'remineralization rate',              default=0.003_rk, scale_factor=d_per_s)
 
       ! Register state variables
-      call self%register_state_variable(self%id_d, 'c','mmol m-3',  'concentration', 4.5_rk, &
+      call self%register_state_variable(self%id_d, 'c','mmol m-3',  'concentration', initial_value=4.5_rk, &
          minimum=0.0_rk, vertical_movement=w_d, specific_light_extinction=kc)
 
       ! Register contribution of state to global aggregate variables.
@@ -64,7 +63,7 @@ contains
          ! Retrieve current (local) state variable values.
          _GET_(self%id_d, d) ! detritus
 
-         ! Set temporal derivatives
+         ! Local source terms
          _ADD_SOURCE_(self%id_d, -self%rdn*d)
          _ADD_SOURCE_(self%id_mintarget, self%rdn*d)
 
@@ -73,30 +72,4 @@ contains
 
    end subroutine do
 
-   subroutine do_ppdd(self, _ARGUMENTS_DO_PPDD_)
-      class (type_examples_npzd_det), intent(in) :: self
-      _DECLARE_ARGUMENTS_DO_PPDD_
-
-      real(rk) :: d
-
-      ! Enter spatial loops (if any)
-      _LOOP_BEGIN_
-
-         ! Retrieve current (local) state variable values.
-         _GET_(self%id_d, d) ! detritus
-
-         ! Assign destruction rates to different elements of the destruction matrix.
-         ! By assigning with _SET_DD_SYM_ [as opposed to _SET_DD_], assignments to dd(i,j)
-         ! are automatically assigned to pp(j,i) as well.
-         _SET_DD_SYM_(self%id_d, self%id_mintarget, self%rdn*d)
-
-      ! Leave spatial loops (if any)
-      _LOOP_END_
-
-   end subroutine do_ppdd
-
 end module examples_npzd_det
-
-!-----------------------------------------------------------------------
-! Copyright Bolding & Bruggeman ApS - GNU Public License - www.gnu.org
-!-----------------------------------------------------------------------
