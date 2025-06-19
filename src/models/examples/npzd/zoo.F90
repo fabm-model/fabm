@@ -11,7 +11,7 @@ module examples_npzd_zoo
 
    type, extends(type_base_model), public :: type_examples_npzd_zoo
       ! Variable identifiers
-      type (type_state_variable_id) :: id_z
+      type (type_state_variable_id) :: id_c
       type (type_state_variable_id) :: id_exctarget, id_morttarget, id_grztarget
 
       ! Model parameters
@@ -30,7 +30,9 @@ contains
       real(rk), parameter :: d_per_s = 1.0_rk/86400.0_rk
 
       ! Store parameter values in our own derived type
-      ! NB: all rates must be provided in values per day and are converted here to values per second.
+      ! All rates must be provided in values per day in fabm.yaml.
+      ! They are converted here to values per second (scale_factor argument) to ensure
+      ! that the sources and sinks calculated from these parameters will be in per second as FABM expects.
       call self%get_parameter(self%z0,   'z0',   'mmol m-3',  'background concentration',      default=0.0225_rk)
       call self%get_parameter(self%gmax, 'gmax', 'd-1',       'maximum specific grazing rate', default=0.5_rk,  scale_factor=d_per_s)
       call self%get_parameter(self%iv,   'iv',   'm3 mmol-1', 'Ivlev grazing constant',        default=1.1_rk)
@@ -38,11 +40,11 @@ contains
       call self%get_parameter(self%rzd,  'rzd',  'd-1',       'mortality',                     default=0.02_rk, scale_factor=d_per_s)
 
       ! Register state variables
-      call self%register_state_variable(self%id_z, 'c', 'mmol m-3', 'concentration', &
+      call self%register_state_variable(self%id_c, 'c', 'mmol m-3', 'concentration', &
          initial_value=0.0_rk, minimum=0.0_rk)
 
       ! Register contribution of state to global aggregate variables.
-      call self%add_to_aggregate_variable(standard_variables%total_nitrogen, self%id_z)
+      call self%add_to_aggregate_variable(standard_variables%total_nitrogen, self%id_c)
 
       ! Register dependencies on external state variables.
       call self%register_state_dependency(self%id_grztarget,  'grazing_target',   'mmol m-3', 'prey source')
@@ -54,23 +56,23 @@ contains
       class (type_examples_npzd_zoo), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
 
-      real(rk) :: p, z, g
+      real(rk) :: p, c, g
 
       ! Enter spatial loops (if any)
       _LOOP_BEGIN_
 
          ! Retrieve current (local) state variable values.
-         _GET_(self%id_z, z)         ! zooplankton
+         _GET_(self%id_c, c)         ! zooplankton concentration
          _GET_(self%id_grztarget, p) ! prey
 
          ! Ivlev formulation for zooplankton grazing on phytoplankton
-         g = self%gmax * (1.0_rk - exp(-self%iv * self%iv * p * p)) * (z + self%z0)
+         g = self%gmax * (1.0_rk - exp(-self%iv * self%iv * p * p)) * (c + self%z0)
 
          ! Local source terms
-         _ADD_SOURCE_(self%id_z, g - self%rzn*z - self%rzd*z)
+         _ADD_SOURCE_(self%id_c, g - self%rzn*c - self%rzd*c)
          _ADD_SOURCE_(self%id_grztarget, -g)
-         _ADD_SOURCE_(self%id_morttarget, self%rzd*z)
-         _ADD_SOURCE_(self%id_exctarget, self%rzn*z)
+         _ADD_SOURCE_(self%id_morttarget, self%rzd*c)
+         _ADD_SOURCE_(self%id_exctarget, self%rzn*c)
 
       ! Leave spatial loops (if any)
       _LOOP_END_

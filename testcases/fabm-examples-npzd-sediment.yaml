@@ -1,0 +1,62 @@
+instances:
+  nut:
+    long_name: nutrient
+    model: examples/npzd_nut
+    initialization:
+      c: 4.5                         # concentration (mmol m-3)
+  phy:
+    long_name: phytoplankton
+    model: examples/npzd_phy
+    parameters:
+      p0: 0.0225                     # background concentration (mmol m-3), default = 0.0225
+      kc: 0.03                       # specific light extinction (m2 mmol-1), default = 0.03
+      i_min: 25.0                    # minimum light intensity in euphotic zone (W m-2), default = 25.0
+      rmax: 1.0                      # maximum specific growth rate (d-1), default = 1.0
+      alpha: 1.35                    # half-saturation nutrient concentration (mmol m-3), default = 0.3
+      rpn: 0.01                      # excretion rate (d-1), default = 0.01
+      rpdu: 0.02                     # mortality in euphotic zone (d-1), default = 0.02
+      rpdl: 0.1                      # mortality below euphotic zone (d-1), default = 0.1
+      w_p: -1.0                      # vertical velocity (<0 for sinking) (m d-1), default = -1.0
+    initialization:
+      c: 1e-15                       # concentration (mmol m-3)
+    coupling:
+      uptake_target: nut/c           # nutrient source (mmol m-3)
+      excretion_target: nut/c        # sink for excreted matter (mmol m-3)
+      mortality_target: det/c        # sink for dead matter (mmol m-3)
+  zoo:
+    long_name: zooplankton
+    model: examples/npzd_zoo
+    parameters:
+      z0: 0.0225                     # background concentration (mmol m-3), default = 0.0225
+      gmax: 0.2                      # maximum specific grazing rate (d-1), default = 0.5
+      iv: 1.1                        # Ivlev grazing constant (m3 mmol-1), default = 1.1
+      rzn: 0.01                      # excretion rate (d-1), default = 0.01
+      rzd: 0.02                      # mortality (d-1), default = 0.02
+    initialization:
+      c: 1e-15                       # concentration (mmol m-3)
+    coupling:
+      grazing_target: phy/c          # prey source (mmol m-3)
+      excretion_target: nut/c        # sink for excreted matter (mmol m-3)
+      mortality_target: det/c        # sink for dead matter (mmol m-3)
+  det:
+    long_name: detritus
+    model: examples/npzd_det
+    parameters:
+      w_d: -5.0                      # vertical velocity (<0 for sinking) (m d-1), default = -5.0
+      kc: 0.03                       # specific light extinction (m2 mmol-1), default = 0.03
+      rdn: 0.003                     # remineralization rate (d-1), default = 0.003
+      sedimentation: true
+    initialization:
+      c: 4.5                         # concentration (mmol m-3)
+    coupling:
+      mineralisation_target: nut/c   # sink for remineralized matter (mmol m-3)
+      sedimentation_target: sed/c    # sink for sedimented matter (mmol m-2)
+  sed:
+    long_name: sedimented detritus
+    model: examples/sediment_pom
+    parameters:
+      r: 0.01                        # remineralization rate (d-1)
+    initialization:
+      c: 0.0                         # density (mmol m-2)
+    coupling:
+      mineralisation_target: nut/c   # source for remineralized matter (mmol m-3)

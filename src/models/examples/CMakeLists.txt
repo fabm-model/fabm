@@ -10,6 +10,7 @@ add_library(fabm_models_examples OBJECT
             npzd/zoo.F90
             nonlocal.F90
             light_cycle.F90
+            sediment_pom.F90
            )
 
 add_subdirectory(particle)

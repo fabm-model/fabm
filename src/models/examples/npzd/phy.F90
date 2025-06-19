@@ -11,7 +11,7 @@ module examples_npzd_phy
 
    type, extends(type_base_model), public :: type_examples_npzd_phy
       ! Variable identifiers
-      type (type_state_variable_id)      :: id_p
+      type (type_state_variable_id)      :: id_c
       type (type_state_variable_id)      :: id_exctarget, id_morttarget, id_upttarget
       type (type_dependency_id)          :: id_par
       type (type_surface_dependency_id)  :: id_I_0
@@ -34,7 +34,9 @@ contains
       real(rk)            :: w_p
 
       ! Store parameter values in our own derived type
-      ! NB: all rates must be provided in values per day and are converted here to values per second.
+      ! All rates must be provided in values per day in fabm.yaml.
+      ! They are converted here to values per second (scale_factor argument) to ensure
+      ! that the sources and sinks calculated from these parameters will be in per second as FABM expects.
       call self%get_parameter(self%p0,    'p0',    'mmol m-3',  'background concentration ',                default=0.0225_rk)
       call self%get_parameter(self%kc,    'kc',    'm2 mmol-1', 'specific light extinction',                default=0.03_rk)
       call self%get_parameter(self%i_min, 'i_min', 'W m-2',     'minimum light intensity in euphotic zone', default=25.0_rk)
@@ -46,11 +48,11 @@ contains
       call self%get_parameter(w_p,        'w_p',   'm d-1',     'vertical velocity (<0 for sinking)',       default=-1.0_rk, scale_factor=d_per_s)
 
       ! Register state variables
-      call self%register_state_variable(self%id_p, 'c', 'mmol m-3', 'concentration', &
+      call self%register_state_variable(self%id_c, 'c', 'mmol m-3', 'concentration', &
          initial_value=0.0_rk, minimum=0.0_rk, vertical_movement=w_p)
 
       ! Register contribution of state to global aggregate variables.
-      call self%add_to_aggregate_variable(standard_variables%total_nitrogen, self%id_p)
+      call self%add_to_aggregate_variable(standard_variables%total_nitrogen, self%id_c)
 
       ! Register dependencies on external state variables
       call self%register_state_dependency(self%id_upttarget,  'uptake_target',    'mmol m-3', 'nutrient source')
@@ -67,7 +69,7 @@ contains
       call self%register_dependency(self%id_I_0, standard_variables%surface_downwelling_photosynthetic_radiative_flux)
 
       ! Contribute to light attentuation
-      call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, self%id_p, scale_factor=self%kc)
+      call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, self%id_c, scale_factor=self%kc)
       call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, self%p0 * self%kc)
    end subroutine initialize
 
@@ -75,7 +77,7 @@ contains
       class (type_examples_npzd_phy), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
 
-      real(rk)            :: n, p, par, I_0
+      real(rk)            :: n, c, par, I_0
       real(rk)            :: iopt, rpd, primprod
       real(rk), parameter :: secs_pr_day = 86400.0_rk
 
@@ -83,7 +85,7 @@ contains
       _LOOP_BEGIN_
 
          ! Retrieve current (local) state variable values.
-         _GET_(self%id_p, p)         ! phytoplankton
+         _GET_(self%id_c, c)         ! phytoplankton concentration
          _GET_(self%id_upttarget, n) ! nutrients
 
          ! Retrieve current environmental conditions.
@@ -101,18 +103,18 @@ contains
          end if
 
          ! Phytoplankton growth limited by light and nutrient availability (multiplicative)
-         primprod = self%rmax * par / iopt * exp(1.0_rk - par / iopt) * n / (self%alpha + n) * (p + self%p0)
+         primprod = self%rmax * par / iopt * exp(1.0_rk - par / iopt) * n / (self%alpha + n) * (c + self%p0)
 
          ! Set temporal derivatives
-         _ADD_SOURCE_(self%id_p, primprod - self%rpn*p - rpd*p)
+         _ADD_SOURCE_(self%id_c, primprod - self%rpn*c - rpd*c)
          _ADD_SOURCE_(self%id_upttarget, -primprod)
-         _ADD_SOURCE_(self%id_morttarget, rpd*p)
-         _ADD_SOURCE_(self%id_exctarget, self%rpn*p)
+         _ADD_SOURCE_(self%id_morttarget, rpd*c)
+         _ADD_SOURCE_(self%id_exctarget, self%rpn*c)
 
          ! Diagnostics
          _SET_DIAGNOSTIC_(self%id_dPAR, par)
          _SET_DIAGNOSTIC_(self%id_PPR, primprod*secs_pr_day)
-         _SET_DIAGNOSTIC_(self%id_NPR, (primprod - self%rpn*p)*secs_pr_day)
+         _SET_DIAGNOSTIC_(self%id_NPR, (primprod - self%rpn*c)*secs_pr_day)
 
       ! Leave spatial loops (if any)
       _LOOP_END_
