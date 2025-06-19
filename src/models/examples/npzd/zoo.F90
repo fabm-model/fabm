@@ -64,7 +64,7 @@ contains
          _GET_(self%id_grztarget, p) ! prey
 
          ! Ivlev formulation for zooplankton grazing on phytoplankton
-         fpz = self%gmax * (1.0_rk - exp(-self%iv * self%iv * p * p)) * (z + self%z0)
+         g = self%gmax * (1.0_rk - exp(-self%iv * self%iv * p * p)) * (z + self%z0)
 
          ! Local source terms
          _ADD_SOURCE_(self%id_z, g - self%rzn*z - self%rzd*z)
