@@ -8,6 +8,7 @@ module examples_model_library
    use examples_npzd_model_library
    use nonlocal
    use examples_light_cycle
+   use examples_sediment_pom
    use examples_particle_model_library
    ! Add new examples modules here
 
@@ -48,6 +49,7 @@ contains
          case ('depth_integral');        allocate(type_depth_integral::model)
          case ('vertical_distribution'); allocate(type_vertical_distribution::model)
          case ('light_cycle');           allocate(type_examples_light_cycle::model)
+         case ('sediment_pom');          allocate(type_examples_sediment_pom::model)
          ! Add individual example models here
          case default
             call self%type_base_model_factory%create(name, model)
