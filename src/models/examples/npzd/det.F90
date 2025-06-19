@@ -19,7 +19,7 @@ module examples_npzd_det
       type (type_bottom_state_variable_id) :: id_sedtarget
 
       ! Model parameters
-      real(rk) :: rdn
+      real(rk) :: rdn, w_d
       logical :: sedimentation
    contains
       procedure :: initialize
@@ -33,20 +33,20 @@ contains
       integer,                        intent(in)            :: configunit
 
       real(rk), parameter :: d_per_s = 1.0_rk/86400.0_rk
-      real(rk)            :: w_d, kc
+      real(rk)            :: kc
 
       ! Store parameter values in our own derived type
       ! All rates must be provided in values per day in fabm.yaml.
       ! They are converted here to values per second (scale_factor argument) to ensure
       ! that the sources and sinks calculated from these parameters will be in per second as FABM expects.
-      call self%get_parameter(w_d,      'w_d', 'm d-1',     'vertical velocity (<0 for sinking)', default=-5.0_rk, scale_factor=d_per_s)
+      call self%get_parameter(self%w_d, 'w_d', 'm d-1',     'vertical velocity (<0 for sinking)', default=-5.0_rk, scale_factor=d_per_s)
       call self%get_parameter(kc,       'kc',  'm2 mmol-1', 'specific light extinction',          default=0.03_rk)
       call self%get_parameter(self%rdn, 'rdn', 'd-1',       'remineralization rate',              default=0.003_rk, scale_factor=d_per_s)
       call self%get_parameter(self%sedimentation, 'sedimentation', '', 'transfer into sediment pool at the bed', default=.false.)
 
       ! Register state variables
       call self%register_state_variable(self%id_c, 'c','mmol m-3', 'concentration', initial_value=4.5_rk, &
-         minimum=0.0_rk, vertical_movement=w_d, specific_light_extinction=kc)
+         minimum=0.0_rk, vertical_movement=self%w_d, specific_light_extinction=kc)
 
       ! Register contribution of state to global aggregate variables.
       call self%add_to_aggregate_variable(standard_variables%total_nitrogen, self%id_c)
@@ -90,13 +90,13 @@ contains
       _BOTTOM_LOOP_BEGIN_
 
          ! Retrieve current (local) state variable values.
-         _GET_(self%id_d, c)
-
-         ! Local source terms
-         _ADD_BOTTOM_SOURCE_(self%id_sedtarget, -self%w_d * c)
+         _GET_(self%id_c, c)
 
          ! Bottom fluxes of pelagic variables
-         _ADD_BOTTOM_FLUX_(self%id_d, self%w_d * c)
+         _ADD_BOTTOM_FLUX_(self%id_c, self%w_d * c)
+
+         ! Local source terms of benthic variables
+         _ADD_BOTTOM_SOURCE_(self%id_sedtarget, -self%w_d * c)
 
       ! Leave spatial loops over the horizontal domain (if any).
       _BOTTOM_LOOP_END_
