@@ -101,7 +101,8 @@ module fabm_types
                                  source_get_drag                 = 15, &
                                  source_get_albedo               = 16, &
                                  source_external                 = 17, &
-                                 source_state                    = 18
+                                 source_state                    = 18, &
+                                 source_expression               = 19
 
    integer, parameter, public :: presence_internal          = 1, &
                                  presence_external_required = 2, &
@@ -1644,9 +1645,9 @@ contains
       class (type_base_model),             intent(inout)         :: self
       type (type_state_variable_id),       intent(inout), target :: id
       character(len=*),                    intent(in)            :: name, long_name, units
-      real(rk),                            intent(in), optional  :: initial_value,vertical_movement,specific_light_extinction
-      real(rk),                            intent(in), optional  :: minimum, maximum,missing_value,background_value
-      logical,                             intent(in), optional  :: no_precipitation_dilution,no_river_dilution
+      real(rk),                            intent(in), optional  :: initial_value, vertical_movement, specific_light_extinction
+      real(rk),                            intent(in), optional  :: minimum, maximum, missing_value, background_value
+      logical,                             intent(in), optional  :: no_precipitation_dilution, no_river_dilution
       class (type_base_standard_variable), intent(in), optional  :: standard_variable
       integer,                             intent(in), optional  :: presence
 

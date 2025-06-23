@@ -171,6 +171,9 @@ module fabm
       !> Whether this variable will be included in output and thus needs to be computed.
       logical :: save = .false.
 
+      !> Whether this variable is considered to be part of the model state and thus needs to be included in restarts
+      logical :: part_of_state = .false.
+
       integer :: source
    end type
 
@@ -180,6 +183,9 @@ module fabm
 
       !> Whether this variable will be included in output and thus needs to be computed.
       logical :: save = .false.
+
+      !> Whether this variable is considered to be part of the model state and thus needs to be included in restarts
+      logical :: part_of_state = .false.
 
       integer :: source
    end type
@@ -258,6 +264,7 @@ module fabm
       type (type_store)                    :: store
       type (type_schedules)                :: schedules
       type (type_domain)                   :: domain
+      real (rke)                           :: seconds_per_time_unit = 0.0_rke
       ! ---------------------------------------------------------------------------------------------------------------------------
       !> @name Memory caches for exchanging information with biogeochemical model instances
       !> @{
@@ -653,9 +660,6 @@ contains
       !! between calls to prepare_inputs(). In turn this enables support for built-in time filters such as moving averages.
       real(rke), optional, intent(in) :: seconds_per_time_unit
 
-      class (type_expression), pointer :: expression
-      real(rke) :: missing_value
-
       if (self%status < status_initialize_done) call fatal_error('set_domain', 'initialize has not yet been called on this model object.')
       if (self%status >= status_set_domain_done) call fatal_error('set_domain', 'set_domain has already been called on this model object.')
       self%status = status_set_domain_done
@@ -669,57 +673,7 @@ contains
       self%domain%horizontal_shape(:) = (/_HORIZONTAL_LOCATION_/)
 #endif
 
-      if (present(seconds_per_time_unit)) then
-         ! Since the host provides information about time, we will support time filters.
-         ! These includes moving average and moving maximum filters.
-         expression => self%root%first_expression
-         do while (associated(expression))
-            select type (expression)
-            class is (type_interior_temporal_mean)
-               ! Moving average of interior variable
-               call self%finalize_outputs_job%request_variable(expression%link%target, store=.true.)
-               expression%in = expression%link%target%catalog_index
-               expression%period = expression%period / seconds_per_time_unit
-               allocate(expression%history(_PREARG_LOCATION_ expression%n + 1))
-               expression%history = 0.0_rke
-#if _FABM_DIMENSION_COUNT_>0
-               allocate(expression%previous_value _INDEX_LOCATION_, expression%last_exact_mean _INDEX_LOCATION_, expression%mean _INDEX_LOCATION_)
-#endif
-               expression%last_exact_mean = 0.0_rke
-               missing_value = expression%missing_value   ! To avoid a stack overflow for the next line with ifort 2021.3
-               expression%mean = missing_value
-               call self%link_interior_data(expression%output_name, expression%mean)
-            class is (type_horizontal_temporal_mean)
-               ! Moving average of horizontal variable
-               call self%finalize_outputs_job%request_variable(expression%link%target, store=.true.)
-               expression%in = expression%link%target%catalog_index
-               expression%period = expression%period / seconds_per_time_unit
-               allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 1))
-               expression%history = 0.0_rke
-#if _HORIZONTAL_DIMENSION_COUNT_>0
-               allocate(expression%previous_value _INDEX_HORIZONTAL_LOCATION_, expression%last_exact_mean _INDEX_HORIZONTAL_LOCATION_, expression%mean _INDEX_HORIZONTAL_LOCATION_)
-#endif
-               expression%last_exact_mean = 0.0_rke
-               missing_value = expression%missing_value   ! To avoid a stack overflow for the next line with ifort 2021.3
-               expression%mean = missing_value
-               call self%link_horizontal_data(expression%output_name, expression%mean)
-            class is (type_horizontal_temporal_maximum)
-               ! Moving maximum of horizontal variable
-               call self%finalize_outputs_job%request_variable(expression%link%target, store=.true.)
-               expression%in = expression%link%target%catalog_index
-               expression%period = expression%period / seconds_per_time_unit
-               allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n))
-               expression%history = -huge(1.0_rke)
-#if _HORIZONTAL_DIMENSION_COUNT_>0
-               allocate(expression%previous_value _INDEX_HORIZONTAL_LOCATION_, expression%maximum _INDEX_HORIZONTAL_LOCATION_)
-#endif
-               missing_value = expression%missing_value   ! To avoid a stack overflow for the next line with ifort 2021.3
-               expression%maximum = missing_value
-               call self%link_horizontal_data(expression%output_name, expression%maximum)
-            end select
-            expression => expression%next
-         end do
-      end if
+      if (present(seconds_per_time_unit)) self%seconds_per_time_unit = seconds_per_time_unit
    end subroutine set_domain
 
 #if _FABM_DIMENSION_COUNT_>0
@@ -842,6 +796,10 @@ contains
       integer                             :: log_unit, ios
       class (type_fabm_variable), pointer :: pvariables(:)
 
+      class (type_expression), pointer :: expression
+      integer :: ibin
+      real(rke) :: missing_value
+
       if (self%status < status_set_domain_done) then
          call fatal_error('start', 'set_domain has not yet been called on this model object.')
          return
@@ -900,6 +858,26 @@ contains
             call self%finalize_outputs_job%request_variable(self%horizontal_diagnostic_variables(ivar)%target, store=.true.)
       end do
 
+   ! Since the host provides information about time, we will support time filters.
+      if (self%seconds_per_time_unit /= 0.0_rke) then
+         ! These includes moving average and moving maximum filters.
+         expression => self%root%first_expression
+         do while (associated(expression))
+            select type (expression)
+            class is (type_interior_temporal_mean)
+               ! Moving average of interior variable
+               call self%finalize_outputs_job%request_variable(expression%link%target, store=.true.)
+            class is (type_horizontal_temporal_mean)
+               ! Moving average of horizontal variable
+               call self%finalize_outputs_job%request_variable(expression%link%target, store=.true.)
+            class is (type_horizontal_temporal_maximum)
+               ! Moving maximum of horizontal variable
+               call self%finalize_outputs_job%request_variable(expression%link%target, store=.true.)
+            end select
+            expression => expression%next
+         end do
+      end if
+
       log_unit = -1
       if (self%log) log_unit = get_free_unit()
 
@@ -940,6 +918,46 @@ contains
       call cache_create(self%domain, self%cache_fill_values, self%cache_int)
       call cache_create(self%domain, self%cache_fill_values, self%cache_hz)
       call cache_create(self%domain, self%cache_fill_values, self%cache_vert)
+
+   ! Since the host provides information about time, we will support time filters.
+      if (self%seconds_per_time_unit /= 0.0_rke) then
+         ! These includes moving average and moving maximum filters.
+         expression => self%root%first_expression
+         do while (associated(expression))
+            select type (expression)
+            class is (type_interior_temporal_mean)
+               ! Moving average of interior variable
+               expression%in = expression%link%target%catalog_index
+               expression%period = expression%period / self%seconds_per_time_unit
+               do ibin = 1, size(expression%history)
+                  expression%history(ibin)%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%history(ibin)%link%target%store_index)
+               end do
+               expression%previous_value%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%previous_value%link%target%store_index)
+               expression%last_exact_mean%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%last_exact_mean%link%target%store_index)
+               expression%mean%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%mean%link%target%store_index)
+            class is (type_horizontal_temporal_mean)
+               ! Moving average of horizontal variable
+               expression%in = expression%link%target%catalog_index
+               expression%period = expression%period / self%seconds_per_time_unit
+               do ibin = 1, size(expression%history)
+                  expression%history(ibin)%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%history(ibin)%link%target%store_index)
+               end do
+               expression%previous_value%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%previous_value%link%target%store_index)
+               expression%last_exact_mean%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%last_exact_mean%link%target%store_index)
+               expression%mean%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%mean%link%target%store_index)
+            class is (type_horizontal_temporal_maximum)
+               ! Moving maximum of horizontal variable
+               expression%in = expression%link%target%catalog_index
+               expression%period = expression%period / self%seconds_per_time_unit
+               do ibin = 1, size(expression%history)
+                  expression%history(ibin)%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%history(ibin)%link%target%store_index)
+               end do
+               expression%previous_value%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%previous_value%link%target%store_index)
+               expression%maximum%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%maximum%link%target%store_index)
+            end select
+            expression => expression%next
+         end do
+      end if
 
       ! For diagnostics that are not needed, set their write index to 0 (rubbish bin)
       if (self%log) then
@@ -2626,7 +2644,7 @@ contains
                   object%source = source_unknown
                end select
             elseif (object%source /= source_unknown .or. .not. associated(link%target, link%original)) then
-               ! Interior diagnostic variable
+               ! Interior diagnostic variable or coupled variale marked with "output_always_available"
                ndiag = ndiag + 1
             end if
          case (domain_horizontal, domain_surface, domain_bottom)
@@ -2651,7 +2669,7 @@ contains
                   object%source = source_unknown
                end select
             elseif (object%source /= source_unknown .or. .not. associated(link%target, link%original)) then
-               ! Horizontal diagnostic variable
+               ! Horizontal diagnostic variable or coupled variale marked with "output_always_available"
                ndiag_hz = ndiag_hz + 1
             end if
          end select
@@ -2702,10 +2720,11 @@ contains
                   call object%movement_sum%target%write_indices%append(self%get_vertical_movement_job%arg1_sources(nstate))
                end if
             elseif (object%source /= source_unknown .or. .not. associated(link%target, link%original)) then
-               ! Interior diagnostic variable
+               ! Interior diagnostic variable or coupled variale marked with "output_always_available"
                ndiag = ndiag + 1
                diagvar => self%interior_diagnostic_variables(ndiag)
                call copy_variable_metadata(link%original, diagvar)
+               diagvar%part_of_state = diagvar%part_of_state .or. object%source == source_expression
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable => object%standard_variables%first%p)
                   class is (type_interior_standard_variable)
@@ -2742,10 +2761,11 @@ contains
                   hz_statevar%initial_value = object%initial_value
                end if
             elseif (object%source /= source_unknown .or. .not. associated(link%target, link%original)) then
-               ! Horizontal diagnostic variable
+               ! Horizontal diagnostic variable or coupled variale marked with "output_always_available"
                ndiag_hz = ndiag_hz + 1
                hz_diagvar => self%horizontal_diagnostic_variables(ndiag_hz)
                call copy_variable_metadata(link%original, hz_diagvar)
+               hz_diagvar%part_of_state = hz_diagvar%part_of_state .or. object%source == source_expression
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable => object%standard_variables%first%p)
                   class is (type_horizontal_standard_variable)
@@ -2967,7 +2987,7 @@ contains
       variable_node => self%variable_register%catalog%interior%first
       do while (associated(variable_node))
          if (variable_node%target%store_index > 0) then
-            ! Note: we first assign to the pointer below to ensure ifort 15 recognizes its contiguity when _FABM_CONTIGUOUS is set
+            ! Note: we first assign to the pointer below to ensure ifort 15 recognizes its contiguity when _FABM_CONTIGUOUS_ is set
             pdata => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ variable_node%target%store_index)
             call self%link_interior_data(variable_node%target, pdata, source=data_source_fabm)
          end if
@@ -2976,7 +2996,7 @@ contains
       variable_node => self%variable_register%catalog%horizontal%first
       do while (associated(variable_node))
          if (variable_node%target%store_index > 0) then
-            ! Note: we first assign to the pointer below to ensure ifort 15 recognizes its contiguity when _FABM_CONTIGUOUS is set
+            ! Note: we first assign to the pointer below to ensure ifort 15 recognizes its contiguity when _FABM_CONTIGUOUS_ is set
             pdata_hz => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ variable_node%target%store_index)
             call self%link_horizontal_data(variable_node%target, pdata_hz, source=data_source_fabm)
          end if
@@ -3058,6 +3078,8 @@ contains
       class (type_depth_integral),         pointer :: integral
       class (type_bounded_depth_integral), pointer :: bounded_integral
       logical                                      :: filter
+      integer :: ibin
+      character(len=10)         :: strindex
 
       previous => null()
       current => self%root%first_expression
@@ -3078,6 +3100,54 @@ contains
             call integral%request_coupling(integral%id_input, current%input_name)
             call self%root%request_coupling(current%output_name, integral%id_output%link%target%name)
             filter = .true.
+         class is (type_interior_temporal_mean)
+            allocate(current%history(current%n + 1))
+            do ibin = 1, size(current%history)
+               write (strindex,'(i0)') ibin
+               call self%root%add_interior_variable(get_safe_name(trim(current%output_name)) // "_bin" // trim(strindex), link=current%history(ibin)%link, source=source_expression, output=output_none)
+               current%history(ibin)%link%target%prefill_value = 0.0_rki
+               call self%variable_register%add_to_store(current%history(ibin)%link%target)
+            end do
+            call self%root%add_interior_variable(get_safe_name(trim(current%output_name)) // "_prev", link=current%previous_value%link, source=source_expression, output=output_none)
+            call self%root%add_interior_variable(get_safe_name(trim(current%output_name)) // "_lem", link=current%last_exact_mean%link, source=source_expression, output=output_none)
+            call self%root%add_interior_variable(get_safe_name(trim(current%output_name)) // "_mean", link=current%mean%link, source=source_expression, output=output_none)
+            current%last_exact_mean%link%target%prefill_value = 0.0_rki
+            current%mean%link%target%prefill_value = current%missing_value
+            call self%root%request_coupling(current%output_name, current%mean%link%target%name)
+            call self%variable_register%add_to_store(current%previous_value%link%target)
+            call self%variable_register%add_to_store(current%last_exact_mean%link%target)
+            call self%variable_register%add_to_store(current%mean%link%target)
+         class is (type_horizontal_temporal_mean)
+            allocate(current%history(current%n + 1))
+            do ibin = 1, size(current%history)
+               write (strindex,'(i0)') ibin
+               call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_bin" // trim(strindex), link=current%history(ibin)%link, source=source_expression, output=output_none)
+               current%history(ibin)%link%target%prefill_value = 0.0_rki
+               call self%variable_register%add_to_store(current%history(ibin)%link%target)
+            end do
+            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_prev", link=current%previous_value%link, source=source_expression, output=output_none)
+            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_lem", link=current%last_exact_mean%link, source=source_expression, output=output_none)
+            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_mean", link=current%mean%link, source=source_expression, output=output_none)
+            current%last_exact_mean%link%target%prefill_value = 0.0_rki
+            current%mean%link%target%prefill_value = current%missing_value
+            call self%root%request_coupling(current%output_name, current%mean%link%target%name)
+            call self%variable_register%add_to_store(current%previous_value%link%target)
+            call self%variable_register%add_to_store(current%last_exact_mean%link%target)
+            call self%variable_register%add_to_store(current%mean%link%target)
+         class is (type_horizontal_temporal_maximum)
+            allocate(current%history(current%n))
+            do ibin = 1, size(current%history)
+               write (strindex,'(i0)') ibin
+               call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_bin" // trim(strindex), link=current%history(ibin)%link, source=source_expression, output=output_none)
+               current%history(ibin)%link%target%prefill_value = 0.0_rki
+               call self%variable_register%add_to_store(current%history(ibin)%link%target)
+            end do
+            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_prev", link=current%previous_value%link, source=source_expression, output=output_none)
+            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_max", link=current%maximum%link, source=source_expression, output=output_none)
+            call self%root%request_coupling(current%output_name, current%maximum%link%target%name)
+            current%maximum%link%target%prefill_value = current%missing_value
+            call self%variable_register%add_to_store(current%previous_value%link%target)
+            call self%variable_register%add_to_store(current%maximum%link%target)
          end select
 
          ! If FABM handles this expression internally, remove it from the list.
