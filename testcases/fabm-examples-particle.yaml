@@ -1,0 +1,21 @@
+instances:
+  plankton:
+    model: examples/particle/particle_cs
+    initialization:
+      c: 1.0
+  detritus:
+    model: examples/particle/particle_vs
+    initialization:
+      c: 0.0
+      n: 0.0
+      p: 0.0
+  predator:
+    model: examples/particle/depth_integrated_predator
+    parameters:
+      clearance_rate: 0.1
+      mortality: 0.02
+    initialization:
+      c: 0.001
+    coupling:
+      prey: plankton
+      waste: detritus
