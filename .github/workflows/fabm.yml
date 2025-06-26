@@ -125,7 +125,7 @@ jobs:
         env:
           FFLAGS: ${{ env.FFLAGS }} -fp-model precise -fp-model source
   ifx:
-    # for available versions, see https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/intel-oneapi-compilers/package.py
+    # for available versions, see https://github.com/spack/spack-packages/blob/develop/repos/spack_repo/builtin/packages/intel_oneapi_compilers/package.py
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       matrix:
@@ -221,7 +221,7 @@ jobs:
       - name: Run all test cases with pyfabm
         run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
   aocc:
-    # for available versions, see https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/aocc/package.py
+    # for available versions, see https://github.com/spack/spack-packages/blob/develop/repos/spack_repo/builtin/packages/aocc/package.py
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       matrix:
