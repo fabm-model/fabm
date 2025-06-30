@@ -23,6 +23,10 @@ module fabm_expressions
       real(rke), pointer _ATTRIBUTES_GLOBAL_HORIZONTAL_CONTIGUOUS_ :: p => null()
    end type
 
+   type, extends(type_variable_id) :: type_global_scalar_variable_id
+      real(rke), pointer :: p => null()
+   end type
+
    type, extends(type_interior_expression) :: type_interior_temporal_mean
       real(rk) :: period   ! Time period to average over (s)
       integer  :: n
@@ -70,11 +74,9 @@ module fabm_expressions
       type (type_link), pointer :: link => null()
       integer :: in = -1
 
-      real(rk), private :: previous_time, bin_end_time
-      integer :: icurrent = -1
-      logical,  private :: complete = .false.
       type (type_global_horizontal_variable_id) :: previous_value, maximum
       type (type_global_horizontal_variable_id), allocatable :: history(:)
+      type (type_global_scalar_variable_id) :: previous_time, start_time, current
    contains
       procedure :: update => horizontal_temporal_maximum_update
    end type
@@ -441,35 +443,35 @@ contains
       real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, intent(in)    :: value
       _DECLARE_ARGUMENTS_HORIZONTAL_LOCATION_RANGE_
 
-      integer  :: ibin
-      real(rke) :: w
+      integer :: ibin, icurrent, icurrentbin
+      real(rke) :: w, bin_end_time
       _DECLARE_HORIZONTAL_LOCATION_
 
       ! Note that all array processing below uses explicit loops in order to respect
       ! any limits on the active domain given by the _HORIZONTAL_LOCATION_RANGE_ argument.
 
-      if (self%icurrent == -1) then
-         ! Start of simulation
-         self%bin_end_time = time + self%period / self%n
-         self%icurrent = 1
-      end if
+      if (self%start_time%p == -huge(self%start_time%p)) self%start_time%p = time
 
-      do while (time >= self%bin_end_time)
+      icurrent = self%current%p
+      icurrentbin = mod(icurrent - 1, self%n) + 1
+      do
+         bin_end_time = self%start_time%p + (self%period / self%n) * icurrent
+         if (bin_end_time > time) exit
+
          ! Update previous time and value to match end of current bin. For the latter, linearly interpolate to value at end-of-bin time.
-         w = (self%bin_end_time - self%previous_time) / (time - self%previous_time)   ! weight for current time (leaving 1-w for previous time)
-         self%previous_time = self%bin_end_time
+         w = (bin_end_time - self%previous_time%p) / (time - self%previous_time%p)   ! weight for current time (leaving 1-w for previous time)
+         self%previous_time%p = bin_end_time
          _BEGIN_OUTER_VERTICAL_LOOP_
             self%previous_value%p _INDEX_HORIZONTAL_LOCATION_ = (1._rke - w) * self%previous_value%p _INDEX_HORIZONTAL_LOCATION_ + w * value _INDEX_HORIZONTAL_LOCATION_
          _END_OUTER_VERTICAL_LOOP_
 
          ! Complete the current bin by taking the maximum over its previous value and the value at end-of-bin time.
          _BEGIN_OUTER_VERTICAL_LOOP_
-            self%history(self%icurrent)%p _INDEX_HORIZONTAL_LOCATION_ = max(self%history(self%icurrent)%p _INDEX_HORIZONTAL_LOCATION_, &
+            self%history(icurrentbin)%p _INDEX_HORIZONTAL_LOCATION_ = max(self%history(icurrentbin)%p _INDEX_HORIZONTAL_LOCATION_, &
                self%previous_value%p _INDEX_HORIZONTAL_LOCATION_)
          _END_OUTER_VERTICAL_LOOP_
 
-         self%complete = self%complete .or. self%icurrent == self%n
-         if (self%complete) then
+         if (icurrent >= self%n) then
             ! We have a complete history - compute the maximum over all bins
             _BEGIN_OUTER_VERTICAL_LOOP_
                self%maximum%p _INDEX_HORIZONTAL_LOCATION_ = self%history(1)%p _INDEX_HORIZONTAL_LOCATION_
@@ -483,22 +485,22 @@ contains
          end if
 
          ! Move to next bin: update indices, end time and set maximum of newly current bin to current value (at start of bin)
-         self%icurrent = self%icurrent + 1
-         if (self%icurrent > self%n) self%icurrent = 1
-         self%bin_end_time = self%bin_end_time + self%period / self%n
+         icurrent = icurrent + 1
+         icurrentbin = mod(icurrent -1, self%n) + 1
+         self%current%p = icurrent
          _BEGIN_OUTER_VERTICAL_LOOP_
-            self%history(self%icurrent)%p _INDEX_HORIZONTAL_LOCATION_ = self%previous_value%p _INDEX_HORIZONTAL_LOCATION_
+            self%history(icurrentbin)%p _INDEX_HORIZONTAL_LOCATION_ = self%previous_value%p _INDEX_HORIZONTAL_LOCATION_
          _END_OUTER_VERTICAL_LOOP_
       end do
 
       ! Update the maximum of the current bin
       _BEGIN_OUTER_VERTICAL_LOOP_
-         self%history(self%icurrent)%p _INDEX_HORIZONTAL_LOCATION_ = max(self%history(self%icurrent)%p _INDEX_HORIZONTAL_LOCATION_, &
+         self%history(icurrentbin)%p _INDEX_HORIZONTAL_LOCATION_ = max(self%history(icurrentbin)%p _INDEX_HORIZONTAL_LOCATION_, &
             value _INDEX_HORIZONTAL_LOCATION_)
       _END_OUTER_VERTICAL_LOOP_
 
       ! Store current time and value to enable linear interpolation in subsequent call.
-      self%previous_time = time
+      self%previous_time%p = time
       _BEGIN_OUTER_VERTICAL_LOOP_
          self%previous_value%p _INDEX_HORIZONTAL_LOCATION_ = value _INDEX_HORIZONTAL_LOCATION_
       _END_OUTER_VERTICAL_LOOP_
