@@ -199,6 +199,12 @@ def get_lib(name: str) -> FABMDLL:
         ctypes.c_int,
     ]
     lib.set_variable_save.restype = None
+    lib.get_variable_part_of_state.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.c_int,
+    ]
+    lib.get_variable_part_of_state.restype = ctypes.c_int
     lib.get_variable.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
     lib.get_variable.restype = ctypes.c_void_p
     lib.get_parameter_metadata.argtypes = [
@@ -818,6 +824,16 @@ class DiagnosticVariable(VariableFromPointer):
         self.model.fabm.set_variable_save(
             self.model.pmodel, self._type, self._index, 1 if value else 0
         )
+
+    @property
+    def part_of_state(self) -> bool:
+        """Whether the this diagnostic is part of the model state,
+        (that is, its current value impacts future source terms)
+        and therefore needs to be included in restarts"""
+        value: int = self.model.fabm.get_variable_part_of_state(
+            self.model.pmodel, self._type, self._index
+        )
+        return value != 0
 
 
 class Parameter(Variable):

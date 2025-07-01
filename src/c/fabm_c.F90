@@ -455,6 +455,26 @@ contains
       end select
    end subroutine set_variable_save
 
+   function get_variable_part_of_state(pmodel, category, index) bind(c) result(part_of_state)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_part_of_state
+      type (c_ptr),           intent(in), value :: pmodel
+      integer(c_int),         intent(in), value :: category, index
+      integer(c_int)                            :: part_of_state
+
+      type (type_model_wrapper),  pointer :: model
+
+      call c_f_pointer(pmodel, model)
+
+      select case (category)
+      case (INTERIOR_DIAGNOSTIC_VARIABLE)
+         part_of_state = logical2int(model%p%interior_diagnostic_variables(index)%part_of_state)
+      case (HORIZONTAL_DIAGNOSTIC_VARIABLE)
+         part_of_state = logical2int(model%p%horizontal_diagnostic_variables(index)%part_of_state)
+      case (SCALAR_DIAGNOSTIC_VARIABLE)
+         part_of_state = logical2int(model%p%scalar_diagnostic_variables(index)%part_of_state)
+      end select
+   end function get_variable_part_of_state
+
    function get_variable(pmodel, category, index) bind(c) result(pvariable)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_variable
       type (c_ptr),   intent(in), value :: pmodel
