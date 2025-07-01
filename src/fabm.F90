@@ -3167,7 +3167,7 @@ contains
             end if
             integral%average = current%average
             call self%root%add_child(integral, trim(current%output_name) // '_calculator')
-            call integral%request_coupling(integral%id_input, current%input_name)
+            call integral%request_coupling(integral%id_input, current%link)
             call self%root%request_coupling(current%output_name, integral%id_output%link%target%name)
             filter = .true.
          class is (type_interior_temporal_mean)

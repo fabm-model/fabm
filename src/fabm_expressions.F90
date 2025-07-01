@@ -85,7 +85,6 @@ module fabm_expressions
       real(rk) :: minimum_depth = 0.0_rk        ! Depth below surface in m (positive)
       real(rk) :: maximum_depth = huge(1.0_rk)  ! Depth below surface in m (positive)
       logical  :: average       = .false.       ! Whether to divide the depth integral by water depth, thus computing the vertical average
-      character(len=attribute_length) :: input_name = ''
 
       type (type_link), pointer :: link => null()
    end type
@@ -151,7 +150,6 @@ contains
 
       if (.not. associated(input%link)) call fatal_error('fabm_expressions::vertical_mean', &
          'Input variable has not been registered yet.')
-      expression%input_name = input%link%target%name
 
       ! Create a name for the expression
       postfix = ''
