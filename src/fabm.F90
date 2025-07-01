@@ -3214,8 +3214,8 @@ contains
             end do
             call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_last", link=current%previous_value%link, source=source_expression, output=output_none)
             call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_max", link=current%maximum%link, source=source_expression, output=output_none)
-            call self%root%add_scalar_variable(get_safe_name(trim(current%output_name)) // "_lasttime", link=current%previous_time%link, source=source_expression, output=output_none)
-            call self%root%add_scalar_variable(get_safe_name(trim(current%output_name)) // "_starttime", link=current%start_time%link, source=source_expression, output=output_none)
+            call self%root%add_scalar_variable(get_safe_name(trim(current%output_name)) // "_last_time", link=current%previous_time%link, source=source_expression, output=output_none)
+            call self%root%add_scalar_variable(get_safe_name(trim(current%output_name)) // "_start_time", link=current%start_time%link, source=source_expression, output=output_none)
             call self%root%add_scalar_variable(get_safe_name(trim(current%output_name)) // "_icurrent", link=current%current%link, source=source_expression, output=output_none)
             call self%root%request_coupling(current%output_name, current%maximum%link%target%name)
             current%maximum%link%target%prefill_value = current%missing_value
