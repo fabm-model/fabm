@@ -168,6 +168,8 @@ module fabm
       !> Whether this variable will be included in output and thus needs to be computed.
       logical :: save = .false.
 
+      logical :: part_of_state = .false.
+
       integer :: source
    end type
 
@@ -1016,6 +1018,16 @@ contains
 
       self%status = status_start_done
 
+      do ivar = 1, size(self%interior_diagnostic_variables)
+         self%interior_diagnostic_variables(ivar)%part_of_state = self%is_part_of_state(self%interior_diagnostic_variables(ivar))
+      end do
+      do ivar = 1, size(self%horizontal_diagnostic_variables)
+         self%horizontal_diagnostic_variables(ivar)%part_of_state = self%is_part_of_state(self%horizontal_diagnostic_variables(ivar))
+      end do
+      do ivar = 1, size(self%scalar_diagnostic_variables)
+         self%scalar_diagnostic_variables(ivar)%part_of_state = self%is_part_of_state(self%scalar_diagnostic_variables(ivar))
+      end do
+
    contains
 
       subroutine gather_check_state_data(variables, dat)
@@ -1695,7 +1707,7 @@ contains
       class (type_fabm_model),               intent(in) :: self
       class (type_fabm_diagnostic_variable), intent(in) :: variable   !< diagnostic variable
 
-      _ASSERT_(self%status >= status_start_done, 'get_scalar_data', 'This routine can only be called after model start.')
+      _ASSERT_(self%status >= status_start_done, 'is_part_of_state', 'This routine can only be called after model start.')
       is_part_of_state = variable%target%part_of_state
    end function is_part_of_state
 
