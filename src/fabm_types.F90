@@ -375,6 +375,7 @@ module fabm_types
       type (type_dependency_flag), allocatable :: dependency_flags(:)
 
       logical :: fake_state_variable = .false.
+      logical :: part_of_state = .false.
 
       ! Only used for interior state variables:
       logical :: no_precipitation_dilution = .false.
@@ -418,6 +419,8 @@ module fabm_types
       class (type_expression), pointer :: next        => null()
       character(len=attribute_length)  :: output_name = ''
       integer, pointer :: out => null()
+   contains
+      procedure :: initialize => expression_initialize
    end type
 
    type, abstract, extends(type_expression) :: type_interior_expression
@@ -675,7 +678,7 @@ module fabm_types
 
    type type_cache
       ! Number of active items in a single cache line [first dimension of any spatially explicit caches below]
-      integer :: n = 1
+      integer :: n = 0
 
       ! Read cache (separate interior, horizontal, scalar fields).
       real(rk), allocatable _DIMENSION_SLICE_PLUS_1_            :: read
@@ -692,6 +695,7 @@ module fabm_types
       logical :: valid
       logical :: set_interior
       logical :: set_horizontal
+      logical :: implemented = .true.
    end type
 
    type, extends(type_cache) :: type_interior_cache
@@ -810,16 +814,19 @@ contains
    subroutine base_check_state(self, _ARGUMENTS_CHECK_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_CHECK_STATE_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_check_surface_state(self, _ARGUMENTS_CHECK_SURFACE_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_check_bottom_state(self, _ARGUMENTS_CHECK_BOTTOM_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_
+      cache%implemented = .false.
    end subroutine
 
    recursive subroutine base_finalize(self)
@@ -902,21 +909,25 @@ contains
    subroutine base_get_light_extinction(self, _ARGUMENTS_GET_EXTINCTION_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_GET_EXTINCTION_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_get_drag(self, _ARGUMENTS_GET_DRAG_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_GET_DRAG_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_get_albedo(self, _ARGUMENTS_GET_ALBEDO_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_GET_ALBEDO_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_get_light(self, _ARGUMENTS_DO_COLUMN_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_COLUMN_
+      cache%implemented = .false.
    end subroutine
 
    function base_get_path(self) result(path)
@@ -966,7 +977,9 @@ contains
       integer,                 intent(in) :: source
       logical                             :: is_implemented
 
-      integer :: i
+      integer                      :: i
+      type (type_interior_cache)   :: interior_cache
+      type (type_horizontal_cache) :: horizontal_cache
 
       is_implemented = .true.
       if (allocated(self%implemented)) then
@@ -974,6 +987,27 @@ contains
             if (self%implemented(i) == source) return
          end do
          is_implemented = .false.
+      else
+         select case (source)
+         case (source_check_state)
+            call self%check_state(interior_cache)
+            is_implemented = interior_cache%implemented
+         case (source_check_bottom_state)
+            call self%check_bottom_state(horizontal_cache)
+            is_implemented = horizontal_cache%implemented
+         case (source_check_surface_state)
+            call self%check_surface_state(horizontal_cache)
+            is_implemented = horizontal_cache%implemented
+         case (source_get_light_extinction)
+            call self%get_light_extinction(interior_cache)
+            is_implemented = interior_cache%implemented
+         case (source_get_drag)
+            call self%get_drag(horizontal_cache)
+            is_implemented = horizontal_cache%implemented
+         case (source_get_albedo)
+            call self%get_albedo(horizontal_cache)
+            is_implemented = horizontal_cache%implemented
+         end select
       end if
    end function
 
@@ -1222,6 +1256,13 @@ contains
       end do
       self%first => null()
    end subroutine
+
+   function expression_initialize(self, model) result(link)
+      class (type_expression), intent(inout) :: self
+      class (type_base_model), intent(inout) :: model
+      type (type_link), pointer :: link
+      link => null()
+   end function
 
    subroutine model_list_append(self, model)
       class (type_model_list), intent(inout) :: self
@@ -2805,7 +2846,6 @@ contains
       integer :: n
       type (type_dependency_flag), allocatable :: prev(:)
 
-      n = 1
       if (allocated(self%dependency_flags)) then
          do n = 1, size(self%dependency_flags)
             if (self%dependency_flags(n)%source == source) then
@@ -2815,6 +2855,8 @@ contains
             end if
          end do
          call move_alloc(self%dependency_flags, prev)
+      else
+         n = 1
       end if
       allocate(self%dependency_flags(n))
       if (n > 1) self%dependency_flags(:n - 1) = prev

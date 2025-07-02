@@ -1445,7 +1445,11 @@ contains
             input_variable => graph_node%p%inputs%first
             do while (associated(input_variable))
                if (.not. input_variable%p%update) then
+                  ! Force calculation of this variable (if already calculated here, or earlier, this does nothing)
                   call finalize_job%graph%add_variable(input_variable%p%target, input_variable%p%sources)
+
+                  ! Ensure the variable is added to restarts
+                  input_variable%p%target%part_of_state = .true.
                end if
                input_variable => input_variable%next
             end do

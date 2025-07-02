@@ -21,7 +21,6 @@ module fabm
    use fabm_expressions
    use fabm_driver
    use fabm_properties
-   use fabm_builtin_depth_integral
    use fabm_builtin_reduction
    use fabm_coupling
    use fabm_job
@@ -164,43 +163,27 @@ module fabm
       real(rke) :: initial_value = 0.0_rke
    end type
 
-   !> Metadata for an interior diagnostic variable
-   type, extends(type_fabm_variable) :: type_fabm_interior_diagnostic_variable
-      class (type_interior_standard_variable), pointer :: standard_variable => null()
-
+   !> Metadata for a diagnostic variable
+   type, extends(type_fabm_variable) :: type_fabm_diagnostic_variable
       !> Whether this variable will be included in output and thus needs to be computed.
       logical :: save = .false.
 
-      !> Whether this variable is considered to be part of the model state and thus needs to be included in restarts
-      logical :: part_of_state = .false.
-
       integer :: source
+   end type
+
+   !> Metadata for an interior diagnostic variable
+   type, extends(type_fabm_diagnostic_variable) :: type_fabm_interior_diagnostic_variable
+      class (type_interior_standard_variable), pointer :: standard_variable => null()
    end type
 
    !> Metadata for a horizontal diagnostic variable
-   type, extends(type_fabm_variable) :: type_fabm_horizontal_diagnostic_variable
+   type, extends(type_fabm_diagnostic_variable) :: type_fabm_horizontal_diagnostic_variable
       class (type_horizontal_standard_variable), pointer :: standard_variable => null()
-
-      !> Whether this variable will be included in output and thus needs to be computed.
-      logical :: save = .false.
-
-      !> Whether this variable is considered to be part of the model state and thus needs to be included in restarts
-      logical :: part_of_state = .false.
-
-      integer :: source
    end type
 
    !> Metadata for a scalar [0D] diagnostic variable
-   type, extends(type_fabm_variable) :: type_fabm_scalar_diagnostic_variable
+   type, extends(type_fabm_diagnostic_variable) :: type_fabm_scalar_diagnostic_variable
       class (type_global_standard_variable), pointer :: standard_variable => null()
-
-      !> Whether this variable will be included in output and thus needs to be computed.
-      logical :: save = .false.
-
-      !> Whether this variable is considered to be part of the model state and thus needs to be included in restarts
-      logical :: part_of_state = .false.
-
-      integer :: source
    end type
 
    !> Metadata for a conserved quantity
@@ -432,6 +415,7 @@ module fabm
       generic :: variable_needs_values => interior_variable_needs_values, interior_variable_needs_values_sn, &
                                           horizontal_variable_needs_values, horizontal_variable_needs_values_sn, &
                                           scalar_variable_needs_values, scalar_variable_needs_values_sn
+      procedure :: is_part_of_state
       !> @}
       ! ---------------------------------------------------------------------------------------------------------------------------
       procedure :: process_job
@@ -950,6 +934,9 @@ contains
                expression%previous_value%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%previous_value%link%target%store_index)
                expression%last_exact_mean%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%last_exact_mean%link%target%store_index)
                expression%mean%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%mean%link%target%store_index)
+               expression%previous_time%p => self%store%scalar(expression%previous_time%link%target%store_index)
+               expression%start_time%p => self%store%scalar(expression%start_time%link%target%store_index)
+               expression%icurrent%p => self%store%scalar(expression%icurrent%link%target%store_index)
             class is (type_horizontal_temporal_mean)
                ! Moving average of horizontal variable
                expression%in = expression%link%target%catalog_index
@@ -960,6 +947,9 @@ contains
                expression%previous_value%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%previous_value%link%target%store_index)
                expression%last_exact_mean%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%last_exact_mean%link%target%store_index)
                expression%mean%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%mean%link%target%store_index)
+               expression%previous_time%p => self%store%scalar(expression%previous_time%link%target%store_index)
+               expression%start_time%p => self%store%scalar(expression%start_time%link%target%store_index)
+               expression%icurrent%p => self%store%scalar(expression%icurrent%link%target%store_index)
             class is (type_horizontal_temporal_maximum)
                ! Moving maximum of horizontal variable
                expression%in = expression%link%target%catalog_index
@@ -1697,6 +1687,17 @@ contains
       if (.not. associated(id%variable)) return
       if (id%variable%catalog_index /= -1) dat => self%catalog%scalar(id%variable%catalog_index)%p
    end function get_scalar_data
+
+   ! ------------------------------------------------------------------------------------------------------------------------------
+   !> Returns whether this variable is part of the model state
+   ! ------------------------------------------------------------------------------------------------------------------------------
+   logical function is_part_of_state(self, variable)
+      class (type_fabm_model),               intent(in) :: self
+      class (type_fabm_diagnostic_variable), intent(in) :: variable   !< diagnostic variable
+
+      _ASSERT_(self%status >= status_start_done, 'get_scalar_data', 'This routine can only be called after model start.')
+      is_part_of_state = variable%target%part_of_state
+   end function is_part_of_state
 
    ! ------------------------------------------------------------------------------------------------------------------------------
    !> Initialize all interior state variables
@@ -2761,11 +2762,10 @@ contains
                   call object%movement_sum%target%write_indices%append(self%get_vertical_movement_job%arg1_sources(nstate))
                end if
             elseif (object%source /= source_unknown .or. .not. associated(link%target, link%original)) then
-               ! Interior diagnostic variable or coupled variale marked with "output_always_available"
+               ! Interior diagnostic variable or coupled variable marked with "output_always_available"
                ndiag = ndiag + 1
                diagvar => self%interior_diagnostic_variables(ndiag)
                call copy_variable_metadata(link%original, diagvar)
-               diagvar%part_of_state = diagvar%part_of_state .or. object%source == source_expression
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable => object%standard_variables%first%p)
                   class is (type_interior_standard_variable)
@@ -2802,11 +2802,10 @@ contains
                   hz_statevar%initial_value = object%initial_value
                end if
             elseif (object%source /= source_unknown .or. .not. associated(link%target, link%original)) then
-               ! Horizontal diagnostic variable or coupled variale marked with "output_always_available"
+               ! Horizontal diagnostic variable or coupled variable marked with "output_always_available"
                ndiag_hz = ndiag_hz + 1
                hz_diagvar => self%horizontal_diagnostic_variables(ndiag_hz)
                call copy_variable_metadata(link%original, hz_diagvar)
-               hz_diagvar%part_of_state = hz_diagvar%part_of_state .or. object%source == source_expression
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable => object%standard_variables%first%p)
                   class is (type_horizontal_standard_variable)
@@ -2819,11 +2818,10 @@ contains
             end if
          case (domain_scalar)
             if ((object%source /= source_unknown .and. object%source /= source_state) .or. .not. associated(link%target, link%original)) then
-               ! Scalar diagnostic variable or coupled variale marked with "output_always_available"
+               ! Scalar diagnostic variable or coupled variable marked with "output_always_available"
                ndiag_sc = ndiag_sc + 1
                sc_diagvar => self%scalar_diagnostic_variables(ndiag_sc)
                call copy_variable_metadata(link%original, sc_diagvar)
-               sc_diagvar%part_of_state = sc_diagvar%part_of_state .or. object%source == source_expression
                if (associated(object%standard_variables%first)) then
                   select type (standard_variable => object%standard_variables%first%p)
                   class is (type_global_standard_variable)
@@ -3142,90 +3140,23 @@ contains
    end subroutine merge_indices
 
    subroutine filter_expressions(self)
-      class (type_fabm_model),intent(inout) :: self
+      class (type_fabm_model), intent(inout) :: self
 
-      class (type_expression),             pointer :: current, previous, next
-      class (type_depth_integral),         pointer :: integral
-      class (type_bounded_depth_integral), pointer :: bounded_integral
-      logical                                      :: filter
-      integer :: ibin
-      character(len=10)         :: strindex
+      class (type_expression), pointer :: current, previous, next
+      logical                          :: filter
+      type (type_link),        pointer :: link
 
       previous => null()
       current => self%root%first_expression
       do while (associated(current))
-         filter = .false.
+         link => current%initialize(self%root)
+         call self%root%request_coupling(current%output_name, link%target%name)
+
          select type (current)
          class is (type_vertical_integral)
-            if (current%minimum_depth == 0._rki .and. current%maximum_depth == huge(current%maximum_depth)) then
-               allocate(integral)
-            else
-               allocate(bounded_integral)
-               bounded_integral%minimum_depth = current%minimum_depth
-               bounded_integral%maximum_depth = current%maximum_depth
-               integral => bounded_integral
-            end if
-            integral%average = current%average
-            call self%root%add_child(integral, trim(current%output_name) // '_calculator')
-            call integral%request_coupling(integral%id_input, current%link)
-            call self%root%request_coupling(current%output_name, integral%id_output%link%target%name)
             filter = .true.
-         class is (type_interior_temporal_mean)
-            allocate(current%history(current%n + 1))
-            do ibin = 1, size(current%history)
-               write (strindex,'(i0)') ibin
-               call self%root%add_interior_variable(get_safe_name(trim(current%output_name)) // "_bin" // trim(strindex), link=current%history(ibin)%link, source=source_expression, output=output_none)
-               current%history(ibin)%link%target%prefill_value = 0.0_rki
-               call self%variable_register%add_to_store(current%history(ibin)%link%target)
-            end do
-            call self%root%add_interior_variable(get_safe_name(trim(current%output_name)) // "_prev", link=current%previous_value%link, source=source_expression, output=output_none)
-            call self%root%add_interior_variable(get_safe_name(trim(current%output_name)) // "_lem", link=current%last_exact_mean%link, source=source_expression, output=output_none)
-            call self%root%add_interior_variable(get_safe_name(trim(current%output_name)) // "_mean", link=current%mean%link, source=source_expression, output=output_none)
-            current%last_exact_mean%link%target%prefill_value = 0.0_rki
-            current%mean%link%target%prefill_value = current%missing_value
-            call self%root%request_coupling(current%output_name, current%mean%link%target%name)
-            call self%variable_register%add_to_store(current%previous_value%link%target)
-            call self%variable_register%add_to_store(current%last_exact_mean%link%target)
-            call self%variable_register%add_to_store(current%mean%link%target)
-         class is (type_horizontal_temporal_mean)
-            allocate(current%history(current%n + 1))
-            do ibin = 1, size(current%history)
-               write (strindex,'(i0)') ibin
-               call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_bin" // trim(strindex), link=current%history(ibin)%link, source=source_expression, output=output_none)
-               current%history(ibin)%link%target%prefill_value = 0.0_rki
-               call self%variable_register%add_to_store(current%history(ibin)%link%target)
-            end do
-            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_prev", link=current%previous_value%link, source=source_expression, output=output_none)
-            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_lem", link=current%last_exact_mean%link, source=source_expression, output=output_none)
-            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_mean", link=current%mean%link, source=source_expression, output=output_none)
-            current%last_exact_mean%link%target%prefill_value = 0.0_rki
-            current%mean%link%target%prefill_value = current%missing_value
-            call self%root%request_coupling(current%output_name, current%mean%link%target%name)
-            call self%variable_register%add_to_store(current%previous_value%link%target)
-            call self%variable_register%add_to_store(current%last_exact_mean%link%target)
-            call self%variable_register%add_to_store(current%mean%link%target)
-         class is (type_horizontal_temporal_maximum)
-            allocate(current%history(current%n))
-            do ibin = 1, size(current%history)
-               write (strindex,'(i0)') ibin
-               call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_bin" // trim(strindex), link=current%history(ibin)%link, source=source_expression, output=output_none)
-               current%history(ibin)%link%target%prefill_value = 0.0_rki
-               call self%variable_register%add_to_store(current%history(ibin)%link%target)
-            end do
-            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_last", link=current%previous_value%link, source=source_expression, output=output_none)
-            call self%root%add_horizontal_variable(get_safe_name(trim(current%output_name)) // "_max", link=current%maximum%link, source=source_expression, output=output_none)
-            call self%root%add_scalar_variable(get_safe_name(trim(current%output_name)) // "_last_time", link=current%previous_time%link, source=source_expression, output=output_none)
-            call self%root%add_scalar_variable(get_safe_name(trim(current%output_name)) // "_start_time", link=current%start_time%link, source=source_expression, output=output_none)
-            call self%root%add_scalar_variable(get_safe_name(trim(current%output_name)) // "_icurrent", link=current%current%link, source=source_expression, output=output_none)
-            call self%root%request_coupling(current%output_name, current%maximum%link%target%name)
-            current%maximum%link%target%prefill_value = current%missing_value
-            current%start_time%link%target%prefill_value = -huge(current%start_time%p)
-            current%current%link%target%prefill_value = 1
-            call self%variable_register%add_to_store(current%previous_value%link%target)
-            call self%variable_register%add_to_store(current%maximum%link%target)
-            call self%variable_register%add_to_store(current%previous_time%link%target)
-            call self%variable_register%add_to_store(current%start_time%link%target)
-            call self%variable_register%add_to_store(current%current%link%target)
+         class default
+            filter = .false.
          end select
 
          ! If FABM handles this expression internally, remove it from the list.
@@ -3242,6 +3173,13 @@ contains
          end if
          current => next
       end do
+
+      link => self%root%links%first
+      do while (associated(link))
+         if (link%target%source == source_expression) call self%variable_register%add_to_store(link%target)
+         link => link%next
+      end do
+
    end subroutine filter_expressions
 
    function get_variable_by_name(self, name, domain) result(variable)
