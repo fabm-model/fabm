@@ -1,4 +1,10 @@
-This example is a proof of concept carried out at AED/UWA.
+This example is a proof of concept carried out at AED/UWA (https://aed.see.uwa.edu.au/).
 
-The original gotm/npzd model has been split into 4 components and FABM
-is responsible for the coupling.
+The original gotm/npzd model has been split into 4 components.
+FABM is responsible for the coupling.
+
+The next step would be to generalize the zooplankton to accept multiple prey types.
+That then allows any number of phytoplankton types to be combined with any number
+of zooplankton predators in fabm.yaml. For instance, 4 phytoplankton types being
+eaten by a single zooplankton type. An example of this is available under
+selma/zooplankton.F90.

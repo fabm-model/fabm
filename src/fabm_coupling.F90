@@ -386,6 +386,7 @@ contains
          type (type_bottom_standard_variable)     :: bottom_standard_variable
          type (type_surface_standard_variable)    :: surface_standard_variable
          type (type_horizontal_standard_variable) :: horizontal_standard_variable
+         type (type_global_standard_variable)     :: global_standard_variable
 
          select case (name)
          case ('standard_variable')
@@ -402,6 +403,9 @@ contains
             case (domain_horizontal)
                horizontal_standard_variable%name = args
                task%target_standard_variable => horizontal_standard_variable%typed_resolve()
+            case (domain_scalar)
+               global_standard_variable%name = args
+               task%target_standard_variable => global_standard_variable%typed_resolve()
             case default
                call self%fatal_error('process_coupling_tasks', 'Unknown domain for ' // task%link%name // '.')
             end select
