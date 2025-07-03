@@ -198,6 +198,8 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo docker image prune --all --force
+          sudo docker builder prune -a
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
