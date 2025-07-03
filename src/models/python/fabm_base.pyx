@@ -102,6 +102,9 @@ cdef class BaseModel:
    def register_surface_dependency(self, str name, str units, str long_name):
       self.register_variable(name, units, long_name, domain_surface, source_unknown, presence_external_required)
 
+   def register_global_dependency(self, str name, str units, str long_name):
+      self.register_variable(name, units, long_name, domain_scalar, source_unknown, presence_external_required)
+
    def register_interior_diagnostic_variable(self, str name, str units, str long_name):
       self.register_variable(name, units, long_name, domain_interior, source_do, presence_internal)
 
