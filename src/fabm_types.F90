@@ -990,35 +990,23 @@ contains
       else
          select case (source)
          case (source_check_state)
-#ifdef _INTERIOR_IS_VECTORIZED_
             call self%check_state(interior_cache)
             is_implemented = interior_cache%implemented
-#endif
          case (source_check_bottom_state)
-#ifdef _HORIZONTAL_IS_VECTORIZED_
             call self%check_bottom_state(horizontal_cache)
             is_implemented = horizontal_cache%implemented
-#endif
          case (source_check_surface_state)
-#ifdef _HORIZONTAL_IS_VECTORIZED_
             call self%check_surface_state(horizontal_cache)
             is_implemented = horizontal_cache%implemented
-#endif
          case (source_get_light_extinction)
-#ifdef _INTERIOR_IS_VECTORIZED_
             call self%get_light_extinction(interior_cache)
             is_implemented = interior_cache%implemented
-#endif
          case (source_get_drag)
-#ifdef _HORIZONTAL_IS_VECTORIZED_
             call self%get_drag(horizontal_cache)
             is_implemented = horizontal_cache%implemented
-#endif
          case (source_get_albedo)
-#ifdef _HORIZONTAL_IS_VECTORIZED_
             call self%get_albedo(horizontal_cache)
             is_implemented = horizontal_cache%implemented
-#endif
          end select
       end if
    end function
