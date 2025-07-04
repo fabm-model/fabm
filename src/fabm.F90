@@ -798,8 +798,6 @@ contains
       class (type_fabm_variable), pointer :: pvariables(:)
 
       class (type_expression), pointer :: expression
-      integer :: ibin
-      real(rke) :: missing_value
 
       if (self%status < status_set_domain_done) then
          call fatal_error('start', 'set_domain has not yet been called on this model object.')
@@ -928,42 +926,13 @@ contains
             select type (expression)
             class is (type_interior_temporal_mean)
                ! Moving average of interior variable
-               expression%in = expression%link%target%catalog_index
-               expression%period = expression%period / self%seconds_per_time_unit
-               do ibin = 1, size(expression%history)
-                  expression%history(ibin)%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%history(ibin)%link%target%store_index)
-               end do
-               expression%previous_value%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%previous_value%link%target%store_index)
-               expression%last_exact_mean%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%last_exact_mean%link%target%store_index)
-               expression%mean%p => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ expression%mean%link%target%store_index)
-               expression%previous_time%p => self%store%scalar(expression%previous_time%link%target%store_index)
-               expression%start_time%p => self%store%scalar(expression%start_time%link%target%store_index)
-               expression%icurrent%p => self%store%scalar(expression%icurrent%link%target%store_index)
+               call expression%set_data(self%store%interior, self%store%horizontal, self%store%scalar, self%seconds_per_time_unit)
             class is (type_horizontal_temporal_mean)
                ! Moving average of horizontal variable
-               expression%in = expression%link%target%catalog_index
-               expression%period = expression%period / self%seconds_per_time_unit
-               do ibin = 1, size(expression%history)
-                  expression%history(ibin)%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%history(ibin)%link%target%store_index)
-               end do
-               expression%previous_value%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%previous_value%link%target%store_index)
-               expression%last_exact_mean%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%last_exact_mean%link%target%store_index)
-               expression%mean%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%mean%link%target%store_index)
-               expression%previous_time%p => self%store%scalar(expression%previous_time%link%target%store_index)
-               expression%start_time%p => self%store%scalar(expression%start_time%link%target%store_index)
-               expression%icurrent%p => self%store%scalar(expression%icurrent%link%target%store_index)
+               call expression%set_data(self%store%interior, self%store%horizontal, self%store%scalar, self%seconds_per_time_unit)
             class is (type_horizontal_temporal_maximum)
                ! Moving maximum of horizontal variable
-               expression%in = expression%link%target%catalog_index
-               expression%period = expression%period / self%seconds_per_time_unit
-               do ibin = 1, size(expression%history)
-                  expression%history(ibin)%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%history(ibin)%link%target%store_index)
-               end do
-               expression%previous_value%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%previous_value%link%target%store_index)
-               expression%maximum%p => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ expression%maximum%link%target%store_index)
-               expression%previous_time%p => self%store%scalar(expression%previous_time%link%target%store_index)
-               expression%start_time%p => self%store%scalar(expression%start_time%link%target%store_index)
-               expression%current%p => self%store%scalar(expression%current%link%target%store_index)
+               call expression%set_data(self%store%interior, self%store%horizontal, self%store%scalar, self%seconds_per_time_unit)
             end select
             expression => expression%next
          end do

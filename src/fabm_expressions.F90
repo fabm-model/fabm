@@ -37,11 +37,12 @@ module fabm_expressions
       type (type_link), pointer :: link => null()
       integer :: in = -1
 
-      type (type_global_interior_variable_id) :: previous_value, last_exact_mean, mean
-      type (type_global_interior_variable_id), allocatable :: history(:)
-      type (type_global_scalar_variable_id) :: previous_time, start_time, icurrent
+      type (type_global_interior_variable_id), private :: previous_value, last_exact_mean, mean
+      type (type_global_interior_variable_id), allocatable, private :: history(:)
+      type (type_global_scalar_variable_id), private :: previous_time, start_time, icurrent
    contains
       procedure :: initialize => interior_temporal_mean_initialize
+      procedure :: set_data   => interior_temporal_mean_set_data
       procedure :: update     => interior_temporal_mean_update
    end type
 
@@ -54,11 +55,12 @@ module fabm_expressions
       type (type_link), pointer :: link => null()
       integer :: in = -1
 
-      type (type_global_horizontal_variable_id) :: previous_value, last_exact_mean, mean
-      type (type_global_horizontal_variable_id), allocatable :: history(:)
-      type (type_global_scalar_variable_id) :: previous_time, start_time, icurrent
+      type (type_global_horizontal_variable_id), private :: previous_value, last_exact_mean, mean
+      type (type_global_horizontal_variable_id), allocatable, private :: history(:)
+      type (type_global_scalar_variable_id), private :: previous_time, start_time, icurrent
    contains
       procedure :: initialize => horizontal_temporal_mean_initialize
+      procedure :: set_data   => horizontal_temporal_mean_set_data
       procedure :: update     => horizontal_temporal_mean_update
    end type
 
@@ -70,12 +72,13 @@ module fabm_expressions
       type (type_link), pointer :: link => null()
       integer :: in = -1
 
-      type (type_global_horizontal_variable_id) :: previous_value, maximum
-      type (type_global_horizontal_variable_id), allocatable :: history(:)
-      type (type_global_scalar_variable_id) :: previous_time, start_time, current
+      type (type_global_horizontal_variable_id), private :: previous_value, maximum
+      type (type_global_horizontal_variable_id), allocatable, private :: history(:)
+      type (type_global_scalar_variable_id), private :: previous_time, start_time, current
    contains
       procedure :: initialize => horizontal_temporal_maximum_initialize
-      procedure :: update => horizontal_temporal_maximum_update
+      procedure :: set_data   => horizontal_temporal_maximum_set_data
+      procedure :: update     => horizontal_temporal_maximum_update
    end type
 
    type, extends(type_horizontal_expression) :: type_vertical_integral
@@ -279,6 +282,28 @@ contains
       link => self%mean%link
    end function interior_temporal_mean_initialize
 
+   subroutine interior_temporal_mean_set_data(self, interior_store, horizontal_store, scalar_store, seconds_per_time_unit)
+      class (type_interior_temporal_mean), intent(inout) :: self
+      real(rke), target _CONTIGUOUS_, dimension(_PREARG_LOCATION_DIMENSIONS_ 0:)            :: interior_store
+      real(rke), target _CONTIGUOUS_, dimension(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ 0:) :: horizontal_store
+      real(rke), target _CONTIGUOUS_, dimension(0:)                                         :: scalar_store
+      real(rke), intent(in)                                                                 :: seconds_per_time_unit
+
+      integer :: ibin
+
+      self%in = self%link%target%catalog_index
+      self%period = self%period / seconds_per_time_unit
+      do ibin = 1, size(self%history)
+         self%history(ibin)%p => interior_store(_PREARG_LOCATION_DIMENSIONS_ self%history(ibin)%link%target%store_index)
+      end do
+      self%previous_value%p => interior_store(_PREARG_LOCATION_DIMENSIONS_ self%previous_value%link%target%store_index)
+      self%last_exact_mean%p => interior_store(_PREARG_LOCATION_DIMENSIONS_ self%last_exact_mean%link%target%store_index)
+      self%mean%p => interior_store(_PREARG_LOCATION_DIMENSIONS_ self%mean%link%target%store_index)
+      self%previous_time%p => scalar_store(self%previous_time%link%target%store_index)
+      self%start_time%p => scalar_store(self%start_time%link%target%store_index)
+      self%icurrent%p => scalar_store(self%icurrent%link%target%store_index)
+   end subroutine
+
    subroutine interior_temporal_mean_update(self, time, value _POSTARG_LOCATION_RANGE_)
       class (type_interior_temporal_mean), intent(inout) :: self
       real(rke),                           intent(in)    :: time
@@ -419,6 +444,28 @@ contains
       link => self%mean%link
    end function horizontal_temporal_mean_initialize
 
+   subroutine horizontal_temporal_mean_set_data(self, interior_store, horizontal_store, scalar_store, seconds_per_time_unit)
+      class (type_horizontal_temporal_mean), intent(inout) :: self
+      real(rke), target _CONTIGUOUS_, dimension(_PREARG_LOCATION_DIMENSIONS_ 0:)            :: interior_store
+      real(rke), target _CONTIGUOUS_, dimension(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ 0:) :: horizontal_store
+      real(rke), target _CONTIGUOUS_, dimension(0:)                                         :: scalar_store
+      real(rke), intent(in)                                                                 :: seconds_per_time_unit
+
+      integer :: ibin
+
+      self%in = self%link%target%catalog_index
+      self%period = self%period / seconds_per_time_unit
+      do ibin = 1, size(self%history)
+         self%history(ibin)%p => horizontal_store(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ self%history(ibin)%link%target%store_index)
+      end do
+      self%previous_value%p => horizontal_store(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ self%previous_value%link%target%store_index)
+      self%last_exact_mean%p => horizontal_store(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ self%last_exact_mean%link%target%store_index)
+      self%mean%p => horizontal_store(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ self%mean%link%target%store_index)
+      self%previous_time%p => scalar_store(self%previous_time%link%target%store_index)
+      self%start_time%p => scalar_store(self%start_time%link%target%store_index)
+      self%icurrent%p => scalar_store(self%icurrent%link%target%store_index)
+   end subroutine
+
    subroutine horizontal_temporal_mean_update(self, time, value _POSTARG_HORIZONTAL_LOCATION_RANGE_)
       class (type_horizontal_temporal_mean),    intent(inout) :: self
       real(rke),                                intent(in)    :: time
@@ -556,6 +603,27 @@ contains
       self%current%link%target%part_of_state = self%n > 1
       link => self%maximum%link
    end function horizontal_temporal_maximum_initialize
+
+   subroutine horizontal_temporal_maximum_set_data(self, interior_store, horizontal_store, scalar_store, seconds_per_time_unit)
+      class (type_horizontal_temporal_maximum), intent(inout) :: self
+      real(rke), target _CONTIGUOUS_, dimension(_PREARG_LOCATION_DIMENSIONS_ 0:)            :: interior_store
+      real(rke), target _CONTIGUOUS_, dimension(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ 0:) :: horizontal_store
+      real(rke), target _CONTIGUOUS_, dimension(0:)                                         :: scalar_store
+      real(rke), intent(in)                                                                 :: seconds_per_time_unit
+
+      integer :: ibin
+
+      self%in = self%link%target%catalog_index
+      self%period = self%period / seconds_per_time_unit
+      do ibin = 1, size(self%history)
+         self%history(ibin)%p => horizontal_store(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ self%history(ibin)%link%target%store_index)
+      end do
+      self%previous_value%p =>horizontal_store(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ self%previous_value%link%target%store_index)
+      self%maximum%p => horizontal_store(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ self%maximum%link%target%store_index)
+      self%previous_time%p => scalar_store(self%previous_time%link%target%store_index)
+      self%start_time%p => scalar_store(self%start_time%link%target%store_index)
+      self%current%p => scalar_store(self%current%link%target%store_index)
+   end subroutine
 
    subroutine horizontal_temporal_maximum_update(self, time, value _POSTARG_HORIZONTAL_LOCATION_RANGE_)
       class (type_horizontal_temporal_maximum), intent(inout) :: self
