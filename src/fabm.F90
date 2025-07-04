@@ -27,6 +27,7 @@ module fabm
    use fabm_schedule
    use fabm_debug
    use fabm_work
+   use fabm_global_types
 
    implicit none
 
@@ -926,13 +927,13 @@ contains
             select type (expression)
             class is (type_interior_temporal_mean)
                ! Moving average of interior variable
-               call expression%set_data(self%store%interior, self%store%horizontal, self%store%scalar, self%seconds_per_time_unit)
+               call expression%set_data(self%store, self%seconds_per_time_unit)
             class is (type_horizontal_temporal_mean)
                ! Moving average of horizontal variable
-               call expression%set_data(self%store%interior, self%store%horizontal, self%store%scalar, self%seconds_per_time_unit)
+               call expression%set_data(self%store, self%seconds_per_time_unit)
             class is (type_horizontal_temporal_maximum)
                ! Moving maximum of horizontal variable
-               call expression%set_data(self%store%interior, self%store%horizontal, self%store%scalar, self%seconds_per_time_unit)
+               call expression%set_data(self%store, self%seconds_per_time_unit)
             end select
             expression => expression%next
          end do
@@ -2523,14 +2524,11 @@ contains
          do while (associated(expression))
             select type (expression)
             class is (type_interior_temporal_mean)
-               _ASSERT_(associated(self%catalog%interior(expression%source%icatalog)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
-               call expression%update(t, self%catalog%interior(expression%source%icatalog)%p _POSTARG_LOCATION_RANGE_)
+               call expression%update(self%catalog _POSTARG_LOCATION_RANGE_, t)
             class is (type_horizontal_temporal_mean)
-               _ASSERT_(associated(self%catalog%horizontal(expression%source%icatalog)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
-               call expression%update(t, self%catalog%horizontal(expression%source%icatalog)%p _POSTARG_HORIZONTAL_LOCATION_RANGE_)
+               call expression%update(self%catalog _POSTARG_LOCATION_RANGE_, t)
             class is (type_horizontal_temporal_maximum)
-               _ASSERT_(associated(self%catalog%horizontal(expression%source%icatalog)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
-               call expression%update(t, self%catalog%horizontal(expression%source%icatalog)%p _POSTARG_HORIZONTAL_LOCATION_RANGE_)
+               call expression%update(self%catalog _POSTARG_LOCATION_RANGE_, t)
             end select
             expression => expression%next
          end do
