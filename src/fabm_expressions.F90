@@ -16,6 +16,14 @@ module fabm_expressions
    public temporal_mean, temporal_maximum, vertical_mean, vertical_integral
    public type_interior_temporal_mean, type_horizontal_temporal_mean, type_horizontal_temporal_maximum, type_vertical_integral
 
+   type, extends(type_variable_id) :: type_global_interior_dependency_id
+      integer :: icatalog = -1
+   end type
+
+   type, extends(type_variable_id) :: type_global_horizontal_dependency_id
+      integer :: icatalog = -1
+   end type
+
    type, extends(type_variable_id) :: type_global_interior_variable_id
       real(rke), pointer _ATTRIBUTES_GLOBAL_CONTIGUOUS_ :: p => null()
    end type
@@ -34,9 +42,7 @@ module fabm_expressions
       real(rk) :: missing_value = -2.e20_rk
       logical  :: use_incomplete_result = .false.
 
-      type (type_link), pointer :: link => null()
-      integer :: in = -1
-
+      type (type_global_interior_dependency_id) :: source
       type (type_global_interior_variable_id), private :: previous_value, last_exact_mean, mean
       type (type_global_interior_variable_id), allocatable, private :: history(:)
       type (type_global_scalar_variable_id), private :: previous_time, start_time, icurrent
@@ -52,9 +58,7 @@ module fabm_expressions
       real(rk) :: missing_value = 0.0_rk
       logical  :: use_incomplete_result = .false.
 
-      type (type_link), pointer :: link => null()
-      integer :: in = -1
-
+      type (type_global_horizontal_dependency_id) :: source
       type (type_global_horizontal_variable_id), private :: previous_value, last_exact_mean, mean
       type (type_global_horizontal_variable_id), allocatable, private :: history(:)
       type (type_global_scalar_variable_id), private :: previous_time, start_time, icurrent
@@ -69,9 +73,7 @@ module fabm_expressions
       integer  :: n                          ! Number of bins to use to cover the period
       real(rk) :: missing_value = -2.e20_rk  ! Missing value to use until the simulation has covered the window size [period]
 
-      type (type_link), pointer :: link => null()
-      integer :: in = -1
-
+      type (type_global_horizontal_dependency_id) :: source
       type (type_global_horizontal_variable_id), private :: previous_value, maximum
       type (type_global_horizontal_variable_id), allocatable, private :: history(:)
       type (type_global_scalar_variable_id), private :: previous_time, start_time, current
@@ -100,53 +102,13 @@ module fabm_expressions
       module procedure horizontal_temporal_maximum
    end interface
 
-   interface vertical_mean
-      module procedure vertical_dependency_mean
-      module procedure vertical_state_mean
-   end interface
-
-   interface vertical_integral
-      module procedure vertical_dependency_integral
-      module procedure vertical_state_integral
-   end interface
-
 contains
 
-   function vertical_dependency_mean(input, minimum_depth, maximum_depth) result(expression)
-      type (type_dependency_id), intent(inout), target :: input
-      real(rk), optional,        intent(in)            :: minimum_depth,maximum_depth
-      type (type_vertical_integral)                    :: expression
-      expression = vertical_integral(input, minimum_depth, maximum_depth, average=.true.)
-   end function
-
-   function vertical_state_mean(input, minimum_depth, maximum_depth) result(expression)
-      type (type_state_variable_id), intent(inout), target :: input
-      real(rk), optional,            intent(in)            :: minimum_depth, maximum_depth
-      type (type_vertical_integral)                        :: expression
-      expression = vertical_integral_generic(input, minimum_depth, maximum_depth, average=.true.)
-   end function
-
-   function vertical_dependency_integral(input, minimum_depth, maximum_depth, average) result(expression)
-      type (type_dependency_id), intent(inout),target :: input
-      real(rk), optional,        intent(in)           :: minimum_depth, maximum_depth
-      logical,  optional,        intent(in)           :: average
+   function vertical_integral(input, minimum_depth, maximum_depth, average) result(expression)
+      class (type_dependency_id), intent(inout), target :: input
+      real(rk), optional,         intent(in)            :: minimum_depth, maximum_depth
+      logical,  optional,         intent(in)            :: average
       type (type_vertical_integral)                     :: expression
-      expression = vertical_integral_generic(input, minimum_depth, maximum_depth, average)
-   end function
-
-   function vertical_state_integral(input, minimum_depth, maximum_depth, average) result(expression)
-      type (type_state_variable_id), intent(inout), target :: input
-      real(rk), optional,            intent(in)            :: minimum_depth, maximum_depth
-      logical,  optional,            intent(in)            :: average
-      type (type_vertical_integral)                          :: expression
-      expression = vertical_integral_generic(input, minimum_depth, maximum_depth, average)
-   end function
-
-   function vertical_integral_generic(input, minimum_depth, maximum_depth, average) result(expression)
-      class (type_variable_id), intent(inout), target :: input
-      real(rk), optional,       intent(in)            :: minimum_depth, maximum_depth
-      logical,  optional,       intent(in)            :: average
-      type (type_vertical_integral)                   :: expression
 
       character(len=attribute_length) :: postfix
 
@@ -154,7 +116,6 @@ contains
          'Input variable has not been registered yet.')
 
       ! Create a name for the expression
-      postfix = ''
       if (present(minimum_depth) .and. present(maximum_depth)) then
          if (minimum_depth > maximum_depth) call fatal_error('fabm_expressions::vertical_mean', &
             'Minimum depth exceeds maximum depth.')
@@ -163,6 +124,8 @@ contains
          write (postfix,'(a,i0,a)') '_below_', int(minimum_depth), '_m'
       elseif (present(maximum_depth)) then
          write (postfix,'(a,i0,a)') '_above_', int(maximum_depth), '_m'
+      else
+         postfix = ''
       end if
       if (present(average)) expression%average = average
 
@@ -175,6 +138,13 @@ contains
       expression%link => input%link
       if (present(minimum_depth)) expression%minimum_depth = minimum_depth
       if (present(maximum_depth)) expression%maximum_depth = maximum_depth
+   end function
+
+   function vertical_mean(input, minimum_depth, maximum_depth) result(expression)
+      class (type_dependency_id), intent(inout), target :: input
+      real(rk), optional,        intent(in)             :: minimum_depth,maximum_depth
+      type (type_vertical_integral)                     :: expression
+      expression = vertical_integral(input, minimum_depth, maximum_depth, average=.true.)
    end function
 
    function vertical_integral_initialize(self, model) result(link)
@@ -209,7 +179,7 @@ contains
          'Input variable has not been registered yet.')
 
       write (expression%output_name,'(i0,a,a,a,i0,a)') int(period), '_s_mean_', trim(input%link%name), '_at_', int(resolution), '_s_resolution'
-      expression%link => input%link
+      expression%source%link => input%link
       expression%n = nint(period / resolution)
       expression%period = period
       expression%use_incomplete_result = .not. present(missing_value)
@@ -226,7 +196,7 @@ contains
          'Input variable has not been registered yet.')
 
       write (expression%output_name,'(i0,a,a,a,i0,a)') int(period), '_s_mean_', trim(input%link%name), '_at_', int(resolution), '_s_resolution'
-      expression%link => input%link
+      expression%source%link => input%link
       expression%n = nint(period / resolution)
       expression%period = period
       expression%use_incomplete_result = .not. present(missing_value)
@@ -243,7 +213,7 @@ contains
          'Input variable has not been registered yet.')
 
       write (expression%output_name,'(i0,a,a,a,i0,a)') int(period), '_s_max_', trim(input%link%name), '_at_', int(resolution), '_s_resolution'
-      expression%link => input%link
+      expression%source%link => input%link
       expression%n = nint(period / resolution)
       expression%period = period
       if (present(missing_value)) expression%missing_value = missing_value
@@ -291,7 +261,7 @@ contains
 
       integer :: ibin
 
-      self%in = self%link%target%catalog_index
+      self%source%icatalog = self%source%link%target%catalog_index
       self%period = self%period / seconds_per_time_unit
       do ibin = 1, size(self%history)
          self%history(ibin)%p => interior_store(_PREARG_LOCATION_DIMENSIONS_ self%history(ibin)%link%target%store_index)
@@ -453,7 +423,7 @@ contains
 
       integer :: ibin
 
-      self%in = self%link%target%catalog_index
+      self%source%icatalog = self%source%link%target%catalog_index
       self%period = self%period / seconds_per_time_unit
       do ibin = 1, size(self%history)
          self%history(ibin)%p => horizontal_store(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ self%history(ibin)%link%target%store_index)
@@ -613,7 +583,7 @@ contains
 
       integer :: ibin
 
-      self%in = self%link%target%catalog_index
+      self%source%icatalog = self%source%link%target%catalog_index
       self%period = self%period / seconds_per_time_unit
       do ibin = 1, size(self%history)
          self%history(ibin)%p => horizontal_store(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ self%history(ibin)%link%target%store_index)
