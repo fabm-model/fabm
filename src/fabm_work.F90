@@ -82,8 +82,10 @@ module fabm_work
    type type_store
       real(rke), allocatable _DIMENSION_GLOBAL_PLUS_1_            :: interior
       real(rke), allocatable _DIMENSION_GLOBAL_HORIZONTAL_PLUS_1_ :: horizontal
+      real(rke), allocatable, dimension(:)                        :: scalar
       real(rke), allocatable                                      :: interior_fill_value(:)
       real(rke), allocatable                                      :: horizontal_fill_value(:)
+      real(rke), allocatable                                      :: scalar_fill_value(:)
       real(rke), allocatable                                      :: interior_missing_value(:)
       real(rke), allocatable                                      :: horizontal_missing_value(:)
    end type
