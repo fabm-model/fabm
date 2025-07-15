@@ -88,7 +88,7 @@ contains
 
       !call self%register_dependency(self%id_input, 'source', '', 'variable for which to compute running mean')
       !call self%register_diagnostic_variable(self%id_output, 'mean',  '', 'running mean')
-      call self%add_interior_variable("source", link=self%source%link, source=source_external)
+      call self%add_interior_variable("source", link=self%source%link, presence=presence_external_required)
 
       allocate(self%history(self%n + 1))
       do ibin = 1, size(self%history)
@@ -129,7 +129,7 @@ contains
 
       !call self%register_dependency(self%id_input, 'source', '', 'variable for which to compute running mean')
       !call self%register_diagnostic_variable(self%id_output, 'mean',  '', 'running mean')
-      call self%add_horizontal_variable("source", link=self%source%link, source=source_external)
+      call self%add_horizontal_variable("source", link=self%source%link, presence=presence_external_required)
 
       allocate(self%history(self%n + 1))
       do ibin = 1, size(self%history)
@@ -184,7 +184,7 @@ contains
       end if
 
       !call self%register_dependency(self%id_input, 'source', '', 'variable for which to compute running maximum')
-      call self%add_horizontal_variable("source", link=self%source%link, source=source_external)
+      call self%add_horizontal_variable("source", link=self%source%link, presence=presence_external_required)
 
       allocate(self%history(self%n))
       do ibin = 1, size(self%history)

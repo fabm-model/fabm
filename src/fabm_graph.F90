@@ -394,7 +394,7 @@ contains
 
       link => model%links%first
       do while (associated(link))
-         if (index(link%name, '/') == 0 .and. (associated(link%original%read_index) .or. link%original%source == source_external)) then
+         if (index(link%name, '/') == 0 .and. (associated(link%original%read_index) .or. (source==source_global .and. link%original%presence == presence_external_required))) then
             ! This is the model's own variable (not inherited from child model) and the model itself originally requested read access to it.
             ! (note the check for source_exetrnal is needed for global models/operators, which do not use read_index)
             _ASSERT_(.not. associated(link%target%write_owner), 'graph::add_call', 'BUG: required input variable is co-written.')
