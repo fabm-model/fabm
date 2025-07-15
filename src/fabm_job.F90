@@ -431,7 +431,7 @@ contains
          do icall = 1, size(self%calls)
             variable_node => self%calls(icall)%graph_node%outputs%first
             do while (associated(variable_node))
-               if (variable_node%p%copy_to_store .and. iand(variable_node%p%target%domain,domain) /= 0 .and. self%calls(icall)%graph_node%source /= source_constant) &
+               if (variable_node%p%copy_to_store .and. iand(variable_node%p%target%domain,domain) /= 0 .and. self%calls(icall)%graph_node%source /= source_constant .and. self%calls(icall)%graph_node%source /= source_global) &
                   commands(variable_node%p%target%store_index) = variable_node%p%target%write_indices%value
                variable_node => variable_node%next
             end do
