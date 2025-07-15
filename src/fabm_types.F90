@@ -102,7 +102,7 @@ module fabm_types
                                  source_get_albedo               = 16, &
                                  source_external                 = 17, &
                                  source_state                    = 18, &
-                                 source_expression               = 19
+                                 source_global                   = 19
 
    integer, parameter, public :: presence_internal          = 1, &
                                  presence_external_required = 2, &
@@ -415,20 +415,14 @@ module fabm_types
    ! variables).
    ! --------------------------------------------------------------------------
 
-   type, abstract :: type_expression
-      class (type_expression), pointer :: next        => null()
-      character(len=attribute_length)  :: output_name = ''
-      integer, pointer :: out => null()
-   contains
-      procedure :: initialize => expression_initialize
+   type, extends(type_coupling_task) :: type_expression
+      character(len=attribute_length) :: output_name = ''
    end type
 
    type, abstract, extends(type_expression) :: type_interior_expression
-      !type (type_interior_data_pointer), pointer :: out => null()
    end type
 
    type, abstract, extends(type_expression) :: type_horizontal_expression
-      !type (type_horizontal_data_pointer), pointer :: out => null()
    end type
 
    ! --------------------------------------------------------------------------
@@ -481,8 +475,6 @@ module fabm_types
       type (type_fabm_settings) :: couplings
       type (type_fabm_settings) :: parameters
       type (type_fabm_settings) :: initialization
-
-      class (type_expression), pointer :: first_expression => null()
 
       type (type_coupling_task_list) :: coupling_task_list
 
@@ -835,7 +827,6 @@ contains
       type (type_model_list_node),           pointer :: node
       class (type_base_model),               pointer :: child
       type (type_aggregate_variable_access), pointer :: aggregate_variable_access, next_aggregate_variable_access
-      class (type_expression),               pointer :: expression, next_expression
       type (type_link),                      pointer :: link
 
       node => self%children%first
@@ -855,14 +846,6 @@ contains
          aggregate_variable_access => next_aggregate_variable_access
       end do
       self%first_aggregate_variable_access => null()
-
-      expression => self%first_expression
-      do while (associated(expression))
-         next_expression => expression%next
-         deallocate(expression)
-         expression => next_expression
-      end do
-      self%first_expression => null()
 
       link => self%links%first
       do while (associated(link))
@@ -1256,13 +1239,6 @@ contains
       end do
       self%first => null()
    end subroutine
-
-   function expression_initialize(self, model) result(link)
-      class (type_expression), intent(inout) :: self
-      class (type_base_model), intent(inout) :: model
-      type (type_link), pointer :: link
-      link => null()
-   end function
 
    subroutine model_list_append(self, model)
       class (type_model_list), intent(inout) :: self
@@ -2549,54 +2525,25 @@ contains
    subroutine register_interior_expression_dependency(self, id, expression)
       class (type_base_model),           intent(inout) :: self
       type (type_dependency_id), target, intent(inout) :: id
-      class (type_interior_expression),  intent(in)    :: expression
+      class (type_interior_expression), pointer        :: expression
 
-      class (type_interior_expression), allocatable :: copy
+      class (type_coupling_task), pointer :: base_coupling
 
-      allocate(copy, source=expression)
-      copy%out => id%index
-      call self%register_dependency(id, copy%output_name, '', copy%output_name)
-      copy%output_name = id%link%target%name
-
-      call register_expression(self,copy)
-      deallocate(copy)
+      call self%register_dependency(id, expression%output_name, '', expression%output_name)
+      base_coupling => expression
+      call self%request_coupling(id%link, base_coupling)
    end subroutine
 
    subroutine register_horizontal_expression_dependency(self, id, expression)
       class (type_base_model),              intent(inout)         :: self
       type (type_horizontal_dependency_id), intent(inout), target :: id
-      class (type_horizontal_expression),   intent(in)            :: expression
+      class (type_horizontal_expression), pointer                 :: expression
 
-      class (type_horizontal_expression), allocatable :: copy
+      class (type_coupling_task), pointer :: base_coupling
 
-      allocate(copy, source=expression)
-      copy%out => id%horizontal_index
-      call self%register_dependency(id, copy%output_name, '', copy%output_name)
-      copy%output_name = id%link%target%name
-
-      call register_expression(self, copy)
-      deallocate(copy)
-   end subroutine
-
-   recursive subroutine register_expression(self, expression)
-      class (type_base_model), intent(inout) :: self
-      class (type_expression), intent(in)    :: expression
-
-      class (type_expression), pointer :: current
-
-      if (.not. associated(self%first_expression)) then
-         allocate(self%first_expression, source=expression)
-         current => self%first_expression
-      else
-         current => self%first_expression
-         do while (associated(current%next))
-            current => current%next
-         end do
-         allocate(current%next, source=expression)
-         current => current%next
-      end if
-
-      if (associated(self%parent)) call register_expression(self%parent, expression)
+      call self%register_dependency(id, expression%output_name, '', expression%output_name)
+      base_coupling => expression
+      call self%request_coupling(id%link, base_coupling)
    end subroutine
 
    function get_effective_string(value, default) result(value_)
@@ -3091,6 +3038,7 @@ contains
       case (source_get_light_extinction);     source2string = 'get_light_extinction'
       case (source_get_drag);                 source2string = 'get_drag'
       case (source_get_albedo);               source2string = 'get_albedo'
+      case (source_global);                   source2string = 'global'
       case default
          write (source2string,'(i0)') source
       end select

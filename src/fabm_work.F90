@@ -22,7 +22,7 @@ module fabm_work
 
    public type_cache_fill_values
    public cache_create, cache_pack, cache_unpack
-   public process_interior_slice, process_horizontal_slice, process_vertical_slice
+   public process_interior_slice, process_horizontal_slice, process_vertical_slice, process_global
 
    ! --------------------------------------------------------------------------
    ! Derived type for fill/missing values of cache entries
@@ -760,6 +760,24 @@ end subroutine end_vertical_task
       call cache_unpack(task, cache, store _POSTARG_VERTICAL_IN_)
 
    end subroutine process_vertical_slice
+
+   subroutine process_global(task, catalog  _POSTARG_LOCATION_RANGE_, time)
+      type (type_task),    intent(in) :: task
+      type (type_catalog), intent(in) :: catalog
+      _DECLARE_ARGUMENTS_LOCATION_RANGE_
+      real(rke), optional, intent(in) :: time
+
+      integer :: icall
+
+      do icall = 1, size(task%calls)
+         if (task%calls(icall)%active) then
+            select type (model => task%calls(icall)%model)
+            class is (type_global_model)
+               call model%update(catalog _POSTARG_LOCATION_RANGE_, time)
+            end select
+         end if
+      end do
+   end subroutine process_global
 
    subroutine invalidate_interior_call_output(call_node, cache)
       use fabm_graph, only: type_output_variable_set_node

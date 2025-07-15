@@ -223,7 +223,7 @@ contains
          ! of to save it to the persistent data store.
          variable_node => self%calls(icall)%graph_node%outputs%first
          do while (associated(variable_node))
-            call variable_register%add_to_write_cache(variable_node%p%target)
+            if (variable_node%p%target%source /= source_global) call variable_register%add_to_write_cache(variable_node%p%target)
             if (variable_node%p%copy_to_cache) call variable_register%add_to_read_cache(variable_node%p%target)
             if (variable_node%p%copy_to_store) call variable_register%add_to_store(variable_node%p%target)
             variable_node => variable_node%next
@@ -412,7 +412,7 @@ contains
          do icall = 1, size(self%calls)
             variable_node => self%calls(icall)%graph_node%outputs%first
             do while (associated(variable_node))
-               if (variable_node%p%copy_to_store .and. iand(variable_node%p%target%domain, domain) /= 0 .and. self%calls(icall)%graph_node%source /= source_constant) then
+               if (variable_node%p%copy_to_store .and. iand(variable_node%p%target%domain, domain) /= 0 .and. self%calls(icall)%graph_node%source /= source_constant .and. self%calls(icall)%graph_node%source /= source_global) then
                   _ASSERT_(variable_node%p%target%write_indices%value > 0, 'create_prefill_commands', 'Variable ' // trim(variable_node%p%target%name) // ' has copy_to_store set, but it does not have a write cache index.')
                   _ASSERT_(variable_node%p%target%store_index /= store_index_none, 'create_persistent_store_commands', 'Variable ' // trim(variable_node%p%target%name) // ' has copy_to_store set, but it does not have a persistent storage index.')
                   ilast = max(ilast,variable_node%p%target%store_index)

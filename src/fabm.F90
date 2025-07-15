@@ -265,6 +265,7 @@ module fabm
       type (type_schedules)                :: schedules
       type (type_domain)                   :: domain
       real (rke)                           :: seconds_per_time_unit = 0.0_rke
+      real (rke)                           :: time = 0.0_rke
       ! ---------------------------------------------------------------------------------------------------------------------------
       !> @name Memory caches for exchanging information with biogeochemical model instances
       !> @{
@@ -555,10 +556,6 @@ contains
       call self%root%add_horizontal_variable('zero_hz', act_as_state_variable=.true., source=source_constant, &
          missing_value=0.0_rki, output=output_none)
 
-      ! Filter out expressions that FABM can handle itself.
-      ! The remainder, if any, must be handled by the host model.
-      call filter_expressions(self)
-
       log_unit = -1
       if (self%log) then
          log_unit = get_free_unit()
@@ -798,8 +795,6 @@ contains
       integer                             :: log_unit, ios
       class (type_fabm_variable), pointer :: pvariables(:)
 
-      class (type_expression), pointer :: expression
-
       if (self%status < status_set_domain_done) then
          call fatal_error('start', 'set_domain has not yet been called on this model object.')
          return
@@ -858,26 +853,6 @@ contains
             call self%finalize_outputs_job%request_variable(self%horizontal_diagnostic_variables(ivar)%target, store=.true.)
       end do
 
-      if (self%seconds_per_time_unit /= 0.0_rke) then
-         ! Since the host provides information about time, we will support time filters.
-         ! These includes moving average and moving maximum filters.
-         expression => self%root%first_expression
-         do while (associated(expression))
-            select type (expression)
-            class is (type_interior_temporal_mean)
-               ! Moving average of interior variable
-               call self%finalize_outputs_job%request_variable(expression%source%link%target, store=.true.)
-            class is (type_horizontal_temporal_mean)
-               ! Moving average of horizontal variable
-               call self%finalize_outputs_job%request_variable(expression%source%link%target, store=.true.)
-            class is (type_horizontal_temporal_maximum)
-               ! Moving maximum of horizontal variable
-               call self%finalize_outputs_job%request_variable(expression%source%link%target, store=.true.)
-            end select
-            expression => expression%next
-         end do
-      end if
-
       log_unit = -1
       if (self%log) log_unit = get_free_unit()
 
@@ -919,25 +894,7 @@ contains
       call cache_create(self%domain, self%cache_fill_values, self%cache_hz)
       call cache_create(self%domain, self%cache_fill_values, self%cache_vert)
 
-      if (self%seconds_per_time_unit /= 0.0_rke) then
-         ! Since the host provides information about time, we will support time filters.
-         ! These includes moving average and moving maximum filters.
-         expression => self%root%first_expression
-         do while (associated(expression))
-            select type (expression)
-            class is (type_interior_temporal_mean)
-               ! Moving average of interior variable
-               call expression%set_data(self%store, self%seconds_per_time_unit)
-            class is (type_horizontal_temporal_mean)
-               ! Moving average of horizontal variable
-               call expression%set_data(self%store, self%seconds_per_time_unit)
-            class is (type_horizontal_temporal_maximum)
-               ! Moving maximum of horizontal variable
-               call expression%set_data(self%store, self%seconds_per_time_unit)
-            end select
-            expression => expression%next
-         end do
-      end if
+      call initialize_global(self%root)
 
       ! For diagnostics that are not needed, set their write index to 0 (rubbish bin)
       if (self%log) then
@@ -1027,6 +984,24 @@ contains
                variable_node%target%source = source_external
             end if
             variable_node => variable_node%next
+         end do
+      end subroutine
+
+      recursive subroutine initialize_global(model)
+         class (type_base_model), intent(inout) :: model
+
+         type (type_model_list_node), pointer :: child
+
+         select type (model)
+         class is (type_global_model)
+            call model%set_data(self%store, self%seconds_per_time_unit)
+         end select
+
+         ! Process children
+         child => model%children%first
+         do while (associated(child))
+            call initialize_global(child%model)
+            child => child%next
          end do
       end subroutine
 
@@ -2471,6 +2446,8 @@ contains
             _VERTICAL_START_ = self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
             _VERTICAL_STOP_ = self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
 #endif
+         case (source_global)
+            call process_global(task, self%catalog  _POSTARG_LOCATION_RANGE_, self%time)
          end select
          task => task%next
       end do
@@ -2499,7 +2476,6 @@ contains
       class (type_fabm_model),  intent(inout) :: self
       real(rke), optional,      intent(in)    :: t
 
-      class (type_expression), pointer :: expression
       _DECLARE_LOCATION_
 
 #  if _FABM_DIMENSION_COUNT_ > 0
@@ -2516,24 +2492,8 @@ contains
       kstop__ = self%domain%stop(3)
 #  endif
 
+      if (present(t)) self%time = t
       call self%process(self%prepare_inputs_job)
-
-      if (present(t)) then
-         ! The host has provided information about time. Use this to update moving averages, maxima (if any)
-         expression => self%root%first_expression
-         do while (associated(expression))
-            select type (expression)
-            class is (type_interior_temporal_mean)
-               call expression%update(self%catalog _POSTARG_LOCATION_RANGE_, t)
-            class is (type_horizontal_temporal_mean)
-               call expression%update(self%catalog _POSTARG_LOCATION_RANGE_, t)
-            class is (type_horizontal_temporal_maximum)
-               call expression%update(self%catalog _POSTARG_LOCATION_RANGE_, t)
-            end select
-            expression => expression%next
-         end do
-      end if
-
    end subroutine prepare_inputs1
 
    subroutine prepare_inputs2(self, t, year, month, day, seconds)
@@ -2578,6 +2538,12 @@ contains
             newlink => self%links_postcoupling%append(link%original, link%original%name)
             newlink%target => link%target
          end if
+         link => link%next
+      end do
+
+      link => self%root%links%first
+      do while (associated(link))
+         if (link%target%source == source_global) call self%variable_register%add_to_store(link%target)
          link => link%next
       end do
 
@@ -3117,49 +3083,6 @@ contains
          child => child%next
       end do
    end subroutine merge_indices
-
-   subroutine filter_expressions(self)
-      class (type_fabm_model), intent(inout) :: self
-
-      class (type_expression), pointer :: current, previous, next
-      logical                          :: filter
-      type (type_link),        pointer :: link
-
-      previous => null()
-      current => self%root%first_expression
-      do while (associated(current))
-         link => current%initialize(self%root)
-         call self%root%request_coupling(current%output_name, link%target%name)
-
-         select type (current)
-         class is (type_vertical_integral)
-            filter = .true.
-         class default
-            filter = .false.
-         end select
-
-         ! If FABM handles this expression internally, remove it from the list.
-         next => current%next
-         if (filter) then
-            if (associated(previous)) then
-               previous%next => next
-            else
-               self%root%first_expression => next
-            end if
-            deallocate(current)
-         else
-            previous => current
-         end if
-         current => next
-      end do
-
-      link => self%root%links%first
-      do while (associated(link))
-         if (link%target%source == source_expression) call self%variable_register%add_to_store(link%target)
-         link => link%next
-      end do
-
-   end subroutine filter_expressions
 
    function get_variable_by_name(self, name, domain) result(variable)
       class (type_fabm_model), intent(in)    :: self

@@ -3,13 +3,16 @@
 
 module fabm_global_types
 
-   use fabm_types, only: rke
+   use fabm_types, only: rke, type_base_model, type_variable_id
 
    implicit none
 
    private
 
    public type_domain, type_catalog, type_store
+   public type_global_model
+   public type_global_interior_dependency_id, type_global_horizontal_dependency_id
+   public type_global_interior_variable_id, type_global_horizontal_variable_id, type_global_scalar_variable_id
 
    ! --------------------------------------------------------------------------
    ! Derived type for model domain
@@ -77,5 +80,47 @@ module fabm_global_types
       real(rke), allocatable                                      :: interior_missing_value(:)
       real(rke), allocatable                                      :: horizontal_missing_value(:)
    end type
+
+
+   type, extends(type_variable_id) :: type_global_interior_dependency_id
+      integer :: icatalog = -1
+   end type
+
+   type, extends(type_variable_id) :: type_global_horizontal_dependency_id
+      integer :: icatalog = -1
+   end type
+
+   type, extends(type_variable_id) :: type_global_interior_variable_id
+      real(rke), pointer _ATTRIBUTES_GLOBAL_CONTIGUOUS_ :: p => null()
+   end type
+
+   type, extends(type_variable_id) :: type_global_horizontal_variable_id
+      real(rke), pointer _ATTRIBUTES_GLOBAL_HORIZONTAL_CONTIGUOUS_ :: p => null()
+   end type
+
+   type, extends(type_variable_id) :: type_global_scalar_variable_id
+      real(rke), pointer :: p => null()
+   end type
+
+   type, extends(type_base_model) :: type_global_model
+   contains
+      procedure :: set_data
+      procedure :: update
+   end type
+
+contains
+
+   subroutine set_data(self, store, seconds_per_time_unit)
+      class (type_global_model), intent(inout) :: self
+      type (type_store), target                :: store
+      real(rke), intent(in)                    :: seconds_per_time_unit
+   end subroutine
+
+   subroutine update(self, catalog _POSTARG_LOCATION_RANGE_, time)
+      class (type_global_model), intent(in) :: self
+      type (type_catalog),       intent(in) :: catalog
+      _DECLARE_ARGUMENTS_LOCATION_RANGE_
+      real(rke), optional,       intent(in) :: time
+   end subroutine
 
 end module

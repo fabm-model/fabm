@@ -47,7 +47,7 @@ contains
 
       _LOOP_BEGIN_
          _GET_(self%id_temp_tempmean, temp)
-         _SET_DIAGNOSTIC_(self%id_temp_tempmean_diag ,temp)
+         _SET_DIAGNOSTIC_(self%id_temp_tempmean_diag, temp)
       _LOOP_END_
    end subroutine do
 
