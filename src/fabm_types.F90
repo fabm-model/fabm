@@ -753,17 +753,20 @@ contains
    subroutine base_initialize_state(self, _ARGUMENTS_INITIALIZE_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_INITIALIZE_STATE_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_initialize_horizontal_state(self, _ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_
+      cache%implemented = .false.
    end subroutine
 
    ! Providing process rates and diagnostics
    subroutine base_do(self, _ARGUMENTS_DO_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_do_ppdd(self, _ARGUMENTS_DO_PPDD_)
@@ -775,32 +778,38 @@ contains
    subroutine base_do_bottom(self, _ARGUMENTS_DO_BOTTOM_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_do_bottom_ppdd(self, _ARGUMENTS_DO_BOTTOM_PPDD_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_do_surface(self, _ARGUMENTS_DO_SURFACE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_SURFACE_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_do_horizontal(self, _ARGUMENTS_HORIZONTAL_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_do_column(self, _ARGUMENTS_DO_COLUMN_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_COLUMN_
       call self%get_light(_ARGUMENTS_DO_COLUMN_)
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_get_vertical_movement(self, _ARGUMENTS_GET_VERTICAL_MOVEMENT_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_check_state(self, _ARGUMENTS_CHECK_STATE_)
@@ -972,6 +981,15 @@ contains
          is_implemented = .false.
       else
          select case (source)
+         case (source_initialize_state)
+            call self%initialize_state(interior_cache)
+            is_implemented = interior_cache%implemented
+         case (source_initialize_bottom_state)
+            call self%initialize_bottom_state(horizontal_cache)
+            is_implemented = horizontal_cache%implemented
+         case (source_initialize_surface_state)
+            call self%initialize_surface_state(horizontal_cache)
+            is_implemented = horizontal_cache%implemented
          case (source_check_state)
             call self%check_state(interior_cache)
             is_implemented = interior_cache%implemented
@@ -981,6 +999,18 @@ contains
          case (source_check_surface_state)
             call self%check_surface_state(horizontal_cache)
             is_implemented = horizontal_cache%implemented
+         case (source_do)
+            call self%do(interior_cache)
+            is_implemented = interior_cache%implemented
+         case (source_do_surface)
+            call self%do_surface(horizontal_cache)
+            is_implemented = horizontal_cache%implemented
+         case (source_do_bottom)
+            call self%do_bottom(horizontal_cache)
+            is_implemented = horizontal_cache%implemented
+         case (source_get_vertical_movement)
+            call self%get_vertical_movement(interior_cache)
+            is_implemented = interior_cache%implemented
          case (source_get_light_extinction)
             call self%get_light_extinction(interior_cache)
             is_implemented = interior_cache%implemented
