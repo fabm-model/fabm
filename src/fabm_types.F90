@@ -1111,7 +1111,9 @@ contains
       link => model%links%first
       do while (associated(link))
          if (index(link%name, '/') == 0) then
-            if (.not. model%implements(link%target%source)) link%target%source = source_constant
+            if (source /= source_unknown .or. source /= source_state) then
+               if (.not. model%implements(link%target%source)) link%target%source = source_constant
+            end if
          end if
          link => link%next
       end do
