@@ -980,6 +980,7 @@ contains
          end do
          is_implemented = .false.
       else
+         allocate(interior_cache%read_scalar(-1:-1), horizontal_cache%read_scalar(-1:-1))
          select case (source)
          case (source_initialize_state)
             call self%initialize_state(interior_cache)
@@ -1046,6 +1047,7 @@ contains
       class (type_base_model),     pointer :: parent
       type (type_model_list_node), pointer :: child
       integer                              :: ind
+      type (type_link),            pointer :: link
 
       ! If a path with / is given, redirect to tentative parent model.
       islash = index(name, '/', .true.)
@@ -1106,6 +1108,13 @@ contains
       call model%initialize(-1)
       model%rdt__ = 1._rk / model%dt
 
+      link => model%links%first
+      do while (associated(link))
+         if (index(link%name, '/') == 0) then
+            if (.not. model%implements(link%target%source)) link%target%source = source_constant
+         end if
+         link => link%next
+      end do
       if (model%implements(source_get_light_extinction)) then
          call model%add_interior_variable('_attenuation_coefficient_of_photosynthetic_radiative_flux', 'm-1', &
             'light extinction contribution computed by get_light_extinction', fill_value=0.0_rk, missing_value=0.0_rk, &
@@ -1723,7 +1732,6 @@ contains
 
       source_ = source_do
       if (present(source)) source_ = source
-      if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(sms_id%link)) call self%add_interior_variable(trim(link%name)//'_sms', &
          trim(link%target%units)//' s-1', trim(link%target%long_name)//' sources-sinks', fill_value=0.0_rk, &
          missing_value=0.0_rk, output=output_none, write_index=sms_id%sum_index, source=source_, link=sms_id%link)
@@ -1743,7 +1751,6 @@ contains
 
       source_ = source_do_surface
       if (present(source)) source_ = source
-      if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(surface_flux_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sfl', &
          trim(link%target%units) // ' m s-1', trim(link%target%long_name) // ' surface flux', fill_value=0.0_rk, &
          missing_value=0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
@@ -1764,7 +1771,6 @@ contains
 
       source_ = source_do_bottom
       if (present(source)) source_ = source
-      if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(bottom_flux_id%link)) call self%add_horizontal_variable(trim(link%name) // '_bfl', &
          trim(link%target%units) // ' m s-1', trim(link%target%long_name) // ' bottom flux', fill_value=0.0_rk, &
          missing_value=0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
@@ -1787,11 +1793,8 @@ contains
       if (present(vertical_movement)) vertical_movement_ = vertical_movement
       if (.not. associated(movement_id%link)) call self%add_interior_variable(trim(link%name) // '_w', &
          'm s-1', trim(link%target%long_name) // ' vertical velocity', fill_value=vertical_movement_, missing_value=0.0_rk, &
-         output=output_none, write_index=movement_id%sum_index, link=movement_id%link, source=source_constant)
-      if (self%implements(source_get_vertical_movement)) then
-         movement_id%link%target%source = source_get_vertical_movement
-         movement_id%link%target%write_operator = operator_add
-      end if
+         output=output_none, write_index=movement_id%sum_index, link=movement_id%link, source=source_get_vertical_movement)
+      movement_id%link%target%write_operator = operator_add
       link2 => link%target%movement_list%append(movement_id%link%target, movement_id%link%target%name)
    end subroutine register_movement
 
@@ -1806,7 +1809,6 @@ contains
 
       source_ = source_do_surface
       if (present(source)) source_ = source
-      if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(sms_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sms', &
          trim(link%target%units) // ' s-1', trim(link%target%long_name) // ' sources-sinks', fill_value=0.0_rk, &
          missing_value=0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, &
@@ -1827,7 +1829,6 @@ contains
 
       source_ = source_do_bottom
       if (present(source)) source_ = source
-      if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(sms_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sms', &
          trim(link%target%units) // ' s-1', trim(link%target%long_name) // ' sources-sinks', fill_value=0.0_rk, &
          missing_value=0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, &
