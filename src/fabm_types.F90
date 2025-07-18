@@ -1113,7 +1113,7 @@ contains
       link => model%links%first
       do while (associated(link))
          if (index(link%name, '/') == 0) then
-            if (link%target%source /= source_unknown .and. link%target%source /= source_state .and. link%target%source /= source_constant) then
+            if (link%target%source /= source_unknown .and. link%target%source /= source_state .and. link%target%source /= source_constant .and. link%target%source /= source_do_column) then
                if (.not. model%implements(link%target%source)) then
                   if (link%target%write_operator == operator_add) then
                      ! Quietly change to no-op - the base class would just not have any effect
