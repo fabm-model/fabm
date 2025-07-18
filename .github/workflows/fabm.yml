@@ -286,6 +286,7 @@ jobs:
         shell: cmd /C call {0}
     env:
       CMAKE_GENERATOR: Ninja
+      #FFLAGS: -fno-vectorize  # requires flang 21 and later
     steps:
       - uses: conda-incubator/setup-miniconda@v3
         with:

@@ -394,8 +394,9 @@ contains
 
       link => model%links%first
       do while (associated(link))
-         if (index(link%name, '/') == 0 .and. associated(link%original%read_index)) then
+         if (index(link%name, '/') == 0 .and. (associated(link%original%read_index) .or. (source==source_global .and. link%original%presence == presence_external_required))) then
             ! This is the model's own variable (not inherited from child model) and the model itself originally requested read access to it.
+            ! (note the check for source_exetrnal is needed for global models/operators, which do not use read_index)
             _ASSERT_(.not. associated(link%target%write_owner), 'graph::add_call', 'BUG: required input variable is co-written.')
             input_variable => node%inputs%add(link%target)
             input_variable%update = get_update_flag(link%target, link%original) == dependency_flag_none
@@ -471,7 +472,7 @@ contains
          type (type_output_variable), pointer :: output_variable
 
          if (variable%source == source_constant .or. variable%source == source_state .or. variable%source == source_external .or. variable%source == source_unknown) return
-         _ASSERT_ (.not. variable%write_indices%is_empty(), 'graph_add_variable::add_call', 'Variable "' // trim(variable%name) // '" with source ' // trim(source2string(variable%source)) // ' does not have a write index')
+         _ASSERT_ (variable%source == source_global .or. .not. variable%write_indices%is_empty(), 'graph_add_variable::add_call', 'Variable "' // trim(variable%name) // '" with source ' // trim(source2string(variable%source)) // ' does not have a write index')
 
          node => self%add_call(variable%owner, variable%source, stack_top)
          output_variable => node%outputs%add(variable)
@@ -497,6 +498,8 @@ contains
          operation = source_do_bottom
       case (source_initialize_surface_state, source_check_surface_state, source_get_drag, source_get_albedo)
          operation = source_do_surface
+      case (source_global)
+         operation = source_global
       case default
          call driver%fatal_error('source2operation', 'unknown source value')
       end select

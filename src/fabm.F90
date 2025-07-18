@@ -21,13 +21,13 @@ module fabm
    use fabm_expressions
    use fabm_driver
    use fabm_properties
-   use fabm_builtin_depth_integral
    use fabm_builtin_reduction
    use fabm_coupling
    use fabm_job
    use fabm_schedule
    use fabm_debug
    use fabm_work
+   use fabm_global_types
 
    implicit none
 
@@ -164,24 +164,29 @@ module fabm
       real(rke) :: initial_value = 0.0_rke
    end type
 
-   !> Metadata for an interior diagnostic variable
-   type, extends(type_fabm_variable) :: type_fabm_interior_diagnostic_variable
-      class (type_interior_standard_variable), pointer :: standard_variable => null()
-
+   !> Metadata for a diagnostic variable
+   type, extends(type_fabm_variable) :: type_fabm_diagnostic_variable
       !> Whether this variable will be included in output and thus needs to be computed.
       logical :: save = .false.
+
+      logical :: part_of_state = .false.
 
       integer :: source
    end type
 
+   !> Metadata for an interior diagnostic variable
+   type, extends(type_fabm_diagnostic_variable) :: type_fabm_interior_diagnostic_variable
+      class (type_interior_standard_variable), pointer :: standard_variable => null()
+   end type
+
    !> Metadata for a horizontal diagnostic variable
-   type, extends(type_fabm_variable) :: type_fabm_horizontal_diagnostic_variable
+   type, extends(type_fabm_diagnostic_variable) :: type_fabm_horizontal_diagnostic_variable
       class (type_horizontal_standard_variable), pointer :: standard_variable => null()
+   end type
 
-      !> Whether this variable will be included in output and thus needs to be computed.
-      logical :: save = .false.
-
-      integer :: source
+   !> Metadata for a scalar [0D] diagnostic variable
+   type, extends(type_fabm_diagnostic_variable) :: type_fabm_scalar_diagnostic_variable
+      class (type_global_standard_variable), pointer :: standard_variable => null()
    end type
 
    !> Metadata for a conserved quantity
@@ -210,6 +215,7 @@ module fabm
       type (type_fabm_horizontal_state_variable),      allocatable, dimension(:) :: bottom_state_variables
       type (type_fabm_interior_diagnostic_variable),   allocatable, dimension(:) :: interior_diagnostic_variables
       type (type_fabm_horizontal_diagnostic_variable), allocatable, dimension(:) :: horizontal_diagnostic_variables
+      type (type_fabm_scalar_diagnostic_variable),     allocatable, dimension(:) :: scalar_diagnostic_variables
       type (type_fabm_conserved_quantity),             allocatable, dimension(:) :: conserved_quantities
       !> @}
       ! ---------------------------------------------------------------------------------------------------------------------------
@@ -258,6 +264,8 @@ module fabm
       type (type_store)                    :: store
       type (type_schedules)                :: schedules
       type (type_domain)                   :: domain
+      real (rke)                           :: seconds_per_time_unit = 0.0_rke
+      real (rke)                           :: time = 0.0_rke
       ! ---------------------------------------------------------------------------------------------------------------------------
       !> @name Memory caches for exchanging information with biogeochemical model instances
       !> @{
@@ -379,6 +387,7 @@ module fabm
 
       procedure :: get_interior_diagnostic_data
       procedure :: get_horizontal_diagnostic_data
+      procedure :: get_scalar_diagnostic_data
       !> @}
       ! ---------------------------------------------------------------------------------------------------------------------------
       !> @name Get variable identifiers
@@ -410,6 +419,7 @@ module fabm
       generic :: variable_needs_values => interior_variable_needs_values, interior_variable_needs_values_sn, &
                                           horizontal_variable_needs_values, horizontal_variable_needs_values_sn, &
                                           scalar_variable_needs_values, scalar_variable_needs_values_sn
+      procedure :: is_part_of_state
       !> @}
       ! ---------------------------------------------------------------------------------------------------------------------------
       procedure :: process_job
@@ -546,10 +556,6 @@ contains
       call self%root%add_horizontal_variable('zero_hz', act_as_state_variable=.true., source=source_constant, &
          missing_value=0.0_rki, output=output_none)
 
-      ! Filter out expressions that FABM can handle itself.
-      ! The remainder, if any, must be handled by the host model.
-      call filter_expressions(self)
-
       log_unit = -1
       if (self%log) then
          log_unit = get_free_unit()
@@ -653,9 +659,6 @@ contains
       !! between calls to prepare_inputs(). In turn this enables support for built-in time filters such as moving averages.
       real(rke), optional, intent(in) :: seconds_per_time_unit
 
-      class (type_expression), pointer :: expression
-      real(rke) :: missing_value
-
       if (self%status < status_initialize_done) call fatal_error('set_domain', 'initialize has not yet been called on this model object.')
       if (self%status >= status_set_domain_done) call fatal_error('set_domain', 'set_domain has already been called on this model object.')
       self%status = status_set_domain_done
@@ -669,57 +672,7 @@ contains
       self%domain%horizontal_shape(:) = (/_HORIZONTAL_LOCATION_/)
 #endif
 
-      if (present(seconds_per_time_unit)) then
-         ! Since the host provides information about time, we will support time filters.
-         ! These includes moving average and moving maximum filters.
-         expression => self%root%first_expression
-         do while (associated(expression))
-            select type (expression)
-            class is (type_interior_temporal_mean)
-               ! Moving average of interior variable
-               call self%finalize_outputs_job%request_variable(expression%link%target, store=.true.)
-               expression%in = expression%link%target%catalog_index
-               expression%period = expression%period / seconds_per_time_unit
-               allocate(expression%history(_PREARG_LOCATION_ expression%n + 1))
-               expression%history = 0.0_rke
-#if _FABM_DIMENSION_COUNT_>0
-               allocate(expression%previous_value _INDEX_LOCATION_, expression%last_exact_mean _INDEX_LOCATION_, expression%mean _INDEX_LOCATION_)
-#endif
-               expression%last_exact_mean = 0.0_rke
-               missing_value = expression%missing_value   ! To avoid a stack overflow for the next line with ifort 2021.3
-               expression%mean = missing_value
-               call self%link_interior_data(expression%output_name, expression%mean)
-            class is (type_horizontal_temporal_mean)
-               ! Moving average of horizontal variable
-               call self%finalize_outputs_job%request_variable(expression%link%target, store=.true.)
-               expression%in = expression%link%target%catalog_index
-               expression%period = expression%period / seconds_per_time_unit
-               allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n + 1))
-               expression%history = 0.0_rke
-#if _HORIZONTAL_DIMENSION_COUNT_>0
-               allocate(expression%previous_value _INDEX_HORIZONTAL_LOCATION_, expression%last_exact_mean _INDEX_HORIZONTAL_LOCATION_, expression%mean _INDEX_HORIZONTAL_LOCATION_)
-#endif
-               expression%last_exact_mean = 0.0_rke
-               missing_value = expression%missing_value   ! To avoid a stack overflow for the next line with ifort 2021.3
-               expression%mean = missing_value
-               call self%link_horizontal_data(expression%output_name, expression%mean)
-            class is (type_horizontal_temporal_maximum)
-               ! Moving maximum of horizontal variable
-               call self%finalize_outputs_job%request_variable(expression%link%target, store=.true.)
-               expression%in = expression%link%target%catalog_index
-               expression%period = expression%period / seconds_per_time_unit
-               allocate(expression%history(_PREARG_HORIZONTAL_LOCATION_ expression%n))
-               expression%history = -huge(1.0_rke)
-#if _HORIZONTAL_DIMENSION_COUNT_>0
-               allocate(expression%previous_value _INDEX_HORIZONTAL_LOCATION_, expression%maximum _INDEX_HORIZONTAL_LOCATION_)
-#endif
-               missing_value = expression%missing_value   ! To avoid a stack overflow for the next line with ifort 2021.3
-               expression%maximum = missing_value
-               call self%link_horizontal_data(expression%output_name, expression%maximum)
-            end select
-            expression => expression%next
-         end do
-      end if
+      if (present(seconds_per_time_unit)) self%seconds_per_time_unit = seconds_per_time_unit
    end subroutine set_domain
 
 #if _FABM_DIMENSION_COUNT_>0
@@ -941,6 +894,8 @@ contains
       call cache_create(self%domain, self%cache_fill_values, self%cache_hz)
       call cache_create(self%domain, self%cache_fill_values, self%cache_vert)
 
+      call initialize_global(self%root)
+
       ! For diagnostics that are not needed, set their write index to 0 (rubbish bin)
       if (self%log) then
          open(unit=log_unit, file=log_prefix // 'discards.log', action='write', status='replace', iostat=ios)
@@ -990,6 +945,16 @@ contains
 
       self%status = status_start_done
 
+      do ivar = 1, size(self%interior_diagnostic_variables)
+         self%interior_diagnostic_variables(ivar)%part_of_state = self%is_part_of_state(self%interior_diagnostic_variables(ivar))
+      end do
+      do ivar = 1, size(self%horizontal_diagnostic_variables)
+         self%horizontal_diagnostic_variables(ivar)%part_of_state = self%is_part_of_state(self%horizontal_diagnostic_variables(ivar))
+      end do
+      do ivar = 1, size(self%scalar_diagnostic_variables)
+         self%scalar_diagnostic_variables(ivar)%part_of_state = self%is_part_of_state(self%scalar_diagnostic_variables(ivar))
+      end do
+
    contains
 
       subroutine gather_check_state_data(variables, dat)
@@ -1019,6 +984,24 @@ contains
                variable_node%target%source = source_external
             end if
             variable_node => variable_node%next
+         end do
+      end subroutine
+
+      recursive subroutine initialize_global(model)
+         class (type_base_model), intent(inout) :: model
+
+         type (type_model_list_node), pointer :: child
+
+         select type (model)
+         class is (type_global_model)
+            call model%set_data(self%store, self%seconds_per_time_unit)
+         end select
+
+         ! Process children
+         child => model%children%first
+         do while (associated(child))
+            call initialize_global(child%model)
+            child => child%next
          end do
       end subroutine
 
@@ -1607,6 +1590,20 @@ contains
    end function get_horizontal_diagnostic_data
 
    ! ------------------------------------------------------------------------------------------------------------------------------
+   !> Get pointer to data for scalar diagnostic variable
+   ! ------------------------------------------------------------------------------------------------------------------------------
+   function get_scalar_diagnostic_data(self, index) result(dat)
+      class (type_fabm_model), intent(in) :: self
+      integer,                 intent(in) :: index   !< variable index
+      real(rke), pointer                  :: dat
+
+      _ASSERT_(self%status >= status_start_done, 'get_scalar_diagnostic_data', 'This routine can only be called after model start.')
+      dat => null()
+      if (self%scalar_diagnostic_variables(index)%target%catalog_index /= -1) &
+         dat => self%catalog%scalar(self%scalar_diagnostic_variables(index)%target%catalog_index)%p
+   end function get_scalar_diagnostic_data
+
+   ! ------------------------------------------------------------------------------------------------------------------------------
    !> Get pointer to data for interior variable
    ! ------------------------------------------------------------------------------------------------------------------------------
    function get_interior_data(self, id) result(dat)
@@ -1647,6 +1644,17 @@ contains
       if (.not. associated(id%variable)) return
       if (id%variable%catalog_index /= -1) dat => self%catalog%scalar(id%variable%catalog_index)%p
    end function get_scalar_data
+
+   ! ------------------------------------------------------------------------------------------------------------------------------
+   !> Returns whether this variable is part of the model state
+   ! ------------------------------------------------------------------------------------------------------------------------------
+   logical function is_part_of_state(self, variable)
+      class (type_fabm_model),               intent(in) :: self
+      class (type_fabm_diagnostic_variable), intent(in) :: variable   !< diagnostic variable
+
+      _ASSERT_(self%status >= status_start_done, 'is_part_of_state', 'This routine can only be called after model start.')
+      is_part_of_state = variable%target%part_of_state
+   end function is_part_of_state
 
    ! ------------------------------------------------------------------------------------------------------------------------------
    !> Initialize all interior state variables
@@ -2438,6 +2446,8 @@ contains
             _VERTICAL_START_ = self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
             _VERTICAL_STOP_ = self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
 #endif
+         case (source_global)
+            call process_global(task, self%catalog  _POSTARG_LOCATION_RANGE_, self%time)
          end select
          task => task%next
       end do
@@ -2466,7 +2476,6 @@ contains
       class (type_fabm_model),  intent(inout) :: self
       real(rke), optional,      intent(in)    :: t
 
-      class (type_expression), pointer :: expression
       _DECLARE_LOCATION_
 
 #  if _FABM_DIMENSION_COUNT_ > 0
@@ -2483,27 +2492,8 @@ contains
       kstop__ = self%domain%stop(3)
 #  endif
 
+      if (present(t)) self%time = t
       call self%process(self%prepare_inputs_job)
-
-      if (present(t)) then
-         ! The host has provided information about time. Use this to update moving averages, maxima (if any)
-         expression => self%root%first_expression
-         do while (associated(expression))
-            select type (expression)
-            class is (type_interior_temporal_mean)
-               _ASSERT_(associated(self%catalog%interior(expression%in)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
-               call expression%update(t, self%catalog%interior(expression%in)%p _POSTARG_LOCATION_RANGE_)
-            class is (type_horizontal_temporal_mean)
-               _ASSERT_(associated(self%catalog%horizontal(expression%in)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
-               call expression%update(t, self%catalog%horizontal(expression%in)%p _POSTARG_HORIZONTAL_LOCATION_RANGE_)
-            class is (type_horizontal_temporal_maximum)
-               _ASSERT_(associated(self%catalog%horizontal(expression%in)%p), 'prepare_inputs1', 'source pointer of ' // trim(expression%output_name) // ' not associated.')
-               call expression%update(t, self%catalog%horizontal(expression%in)%p _POSTARG_HORIZONTAL_LOCATION_RANGE_)
-            end select
-            expression => expression%next
-         end do
-      end if
-
    end subroutine prepare_inputs1
 
    subroutine prepare_inputs2(self, t, year, month, day, seconds)
@@ -2530,9 +2520,10 @@ contains
       type (type_fabm_horizontal_state_variable),      pointer :: hz_statevar
       type (type_fabm_interior_diagnostic_variable),   pointer :: diagvar
       type (type_fabm_horizontal_diagnostic_variable), pointer :: hz_diagvar
+      type (type_fabm_scalar_diagnostic_variable),     pointer :: sc_diagvar
       type (type_fabm_conserved_quantity),             pointer :: consvar
       type (type_internal_variable),                   pointer :: object
-      integer                                                  :: nstate, nstate_bot, nstate_surf, ndiag, ndiag_hz, ncons
+      integer                                                  :: nstate, nstate_bot, nstate_surf, ndiag, ndiag_hz, ndiag_sc, ncons
 
       type (type_aggregate_variable_list)         :: aggregate_variable_list
       type (type_aggregate_variable),     pointer :: aggregate_variable
@@ -2547,6 +2538,12 @@ contains
             newlink => self%links_postcoupling%append(link%original, link%original%name)
             newlink%target => link%target
          end if
+         link => link%next
+      end do
+
+      link => self%root%links%first
+      do while (associated(link))
+         if (link%target%source == source_global) call self%variable_register%add_to_store(link%target)
          link => link%next
       end do
 
@@ -2605,6 +2602,7 @@ contains
       nstate_bot  = 0
       nstate_surf = 0
       ndiag_hz    = 0
+      ndiag_sc    = 0
       link => self%links_postcoupling%first
       do while (associated(link))
          object => link%target
@@ -2626,7 +2624,7 @@ contains
                   object%source = source_unknown
                end select
             elseif (object%source /= source_unknown .or. .not. associated(link%target, link%original)) then
-               ! Interior diagnostic variable
+               ! Interior diagnostic variable or coupled variale marked with "output_always_available"
                ndiag = ndiag + 1
             end if
          case (domain_horizontal, domain_surface, domain_bottom)
@@ -2651,8 +2649,13 @@ contains
                   object%source = source_unknown
                end select
             elseif (object%source /= source_unknown .or. .not. associated(link%target, link%original)) then
-               ! Horizontal diagnostic variable
+               ! Horizontal diagnostic variable or coupled variale marked with "output_always_available"
                ndiag_hz = ndiag_hz + 1
+            end if
+         case (domain_scalar)
+            if ((object%source /= source_unknown .and. object%source /= source_state) .or. .not. associated(link%target, link%original)) then
+               ! Scalar diagnostic variable or coupled variale marked with "output_always_available"
+               ndiag_sc = ndiag_sc + 1
             end if
          end select
          link => link%next
@@ -2664,6 +2667,7 @@ contains
       allocate(self%surface_state_variables        (nstate_surf))
       allocate(self%interior_diagnostic_variables  (ndiag))
       allocate(self%horizontal_diagnostic_variables(ndiag_hz))
+      allocate(self%scalar_diagnostic_variables    (ndiag_sc))
 
       allocate(self%get_interior_sources_job%arg1_sources(nstate))
       allocate(self%get_surface_sources_job%arg1_sources(nstate), self%get_surface_sources_job%arg2_sources(nstate_surf))
@@ -2676,6 +2680,7 @@ contains
       nstate_bot  = 0
       nstate_surf = 0
       ndiag_hz    = 0
+      ndiag_sc    = 0
       link => self%links_postcoupling%first
       do while (associated(link))
          object => link%target
@@ -2702,7 +2707,7 @@ contains
                   call object%movement_sum%target%write_indices%append(self%get_vertical_movement_job%arg1_sources(nstate))
                end if
             elseif (object%source /= source_unknown .or. .not. associated(link%target, link%original)) then
-               ! Interior diagnostic variable
+               ! Interior diagnostic variable or coupled variable marked with "output_always_available"
                ndiag = ndiag + 1
                diagvar => self%interior_diagnostic_variables(ndiag)
                call copy_variable_metadata(link%original, diagvar)
@@ -2742,7 +2747,7 @@ contains
                   hz_statevar%initial_value = object%initial_value
                end if
             elseif (object%source /= source_unknown .or. .not. associated(link%target, link%original)) then
-               ! Horizontal diagnostic variable
+               ! Horizontal diagnostic variable or coupled variable marked with "output_always_available"
                ndiag_hz = ndiag_hz + 1
                hz_diagvar => self%horizontal_diagnostic_variables(ndiag_hz)
                call copy_variable_metadata(link%original, hz_diagvar)
@@ -2755,6 +2760,22 @@ contains
                hz_diagvar%save = hz_diagvar%output /= output_none
                hz_diagvar%source = object%source
                hz_diagvar%target => object
+            end if
+         case (domain_scalar)
+            if ((object%source /= source_unknown .and. object%source /= source_state) .or. .not. associated(link%target, link%original)) then
+               ! Scalar diagnostic variable or coupled variable marked with "output_always_available"
+               ndiag_sc = ndiag_sc + 1
+               sc_diagvar => self%scalar_diagnostic_variables(ndiag_sc)
+               call copy_variable_metadata(link%original, sc_diagvar)
+               if (associated(object%standard_variables%first)) then
+                  select type (standard_variable => object%standard_variables%first%p)
+                  class is (type_global_standard_variable)
+                     sc_diagvar%standard_variable => standard_variable
+                  end select
+               end if
+               sc_diagvar%save = sc_diagvar%output /= output_none
+               sc_diagvar%source = object%source
+               sc_diagvar%target => object
             end if
          end select
          link => link%next
@@ -2958,6 +2979,7 @@ contains
       ! Collect missing values in array for faster access. These will be used to fill masked parts of outputs.
       call collect_fill_values(self%variable_register%store%interior,   self%store%interior_fill_value,      use_missing=.false.)
       call collect_fill_values(self%variable_register%store%horizontal, self%store%horizontal_fill_value,    use_missing=.false.)
+      call collect_fill_values(self%variable_register%store%scalar,     self%store%scalar_fill_value,        use_missing=.false.)
       call collect_fill_values(self%variable_register%store%interior,   self%store%interior_missing_value,   use_missing=.true.)
       call collect_fill_values(self%variable_register%store%horizontal, self%store%horizontal_missing_value, use_missing=.true.)
 
@@ -2967,7 +2989,7 @@ contains
       variable_node => self%variable_register%catalog%interior%first
       do while (associated(variable_node))
          if (variable_node%target%store_index > 0) then
-            ! Note: we first assign to the pointer below to ensure ifort 15 recognizes its contiguity when _FABM_CONTIGUOUS is set
+            ! Note: we first assign to the pointer below to ensure ifort 15 recognizes its contiguity when _FABM_CONTIGUOUS_ is set
             pdata => self%store%interior(_PREARG_LOCATION_DIMENSIONS_ variable_node%target%store_index)
             call self%link_interior_data(variable_node%target, pdata, source=data_source_fabm)
          end if
@@ -2976,9 +2998,16 @@ contains
       variable_node => self%variable_register%catalog%horizontal%first
       do while (associated(variable_node))
          if (variable_node%target%store_index > 0) then
-            ! Note: we first assign to the pointer below to ensure ifort 15 recognizes its contiguity when _FABM_CONTIGUOUS is set
+            ! Note: we first assign to the pointer below to ensure ifort 15 recognizes its contiguity when _FABM_CONTIGUOUS_ is set
             pdata_hz => self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ variable_node%target%store_index)
             call self%link_horizontal_data(variable_node%target, pdata_hz, source=data_source_fabm)
+         end if
+         variable_node => variable_node%next
+      end do
+      variable_node => self%variable_register%catalog%scalar%first
+      do while (associated(variable_node))
+         if (variable_node%target%store_index > 0) then
+            call self%link_scalar(variable_node%target, self%store%scalar(variable_node%target%store_index), source=data_source_fabm)
          end if
          variable_node => variable_node%next
       end do
@@ -2989,6 +3018,7 @@ contains
          _DECLARE_ARGUMENTS_LOCATION_
          allocate(self%store%interior(_PREARG_LOCATION_ 0:self%variable_register%store%interior%count))
          allocate(self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_ 0:self%variable_register%store%horizontal%count))
+         allocate(self%store%scalar(0:self%variable_register%store%scalar%count))
       end subroutine
 
       subroutine collect_fill_values(variable_list, values, use_missing)
@@ -3030,6 +3060,9 @@ contains
          fill_value = self%store%horizontal_fill_value(i)
          self%store%horizontal(_PREARG_HORIZONTAL_LOCATION_DIMENSIONS_ i) = fill_value
       end do
+      do i = 1, self%variable_register%store%scalar%count
+         self%store%scalar(i) = self%store%scalar_fill_value(i)
+      end do
    end subroutine
 
    recursive subroutine merge_indices(model, log_unit)
@@ -3050,51 +3083,6 @@ contains
          child => child%next
       end do
    end subroutine merge_indices
-
-   subroutine filter_expressions(self)
-      class (type_fabm_model),intent(inout) :: self
-
-      class (type_expression),             pointer :: current, previous, next
-      class (type_depth_integral),         pointer :: integral
-      class (type_bounded_depth_integral), pointer :: bounded_integral
-      logical                                      :: filter
-
-      previous => null()
-      current => self%root%first_expression
-      do while (associated(current))
-         filter = .false.
-         select type (current)
-         class is (type_vertical_integral)
-            if (current%minimum_depth == 0._rki .and. current%maximum_depth == huge(current%maximum_depth)) then
-               allocate(integral)
-            else
-               allocate(bounded_integral)
-               bounded_integral%minimum_depth = current%minimum_depth
-               bounded_integral%maximum_depth = current%maximum_depth
-               integral => bounded_integral
-            end if
-            integral%average = current%average
-            call self%root%add_child(integral, trim(current%output_name) // '_calculator')
-            call integral%request_coupling(integral%id_input, current%input_name)
-            call self%root%request_coupling(current%output_name, integral%id_output%link%target%name)
-            filter = .true.
-         end select
-
-         ! If FABM handles this expression internally, remove it from the list.
-         next => current%next
-         if (filter) then
-            if (associated(previous)) then
-               previous%next => next
-            else
-               self%root%first_expression => next
-            end if
-            deallocate(current)
-         else
-            previous => current
-         end if
-         current => next
-      end do
-   end subroutine filter_expressions
 
    function get_variable_by_name(self, name, domain) result(variable)
       class (type_fabm_model), intent(in)    :: self

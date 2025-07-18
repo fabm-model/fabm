@@ -123,4 +123,31 @@ instances:
       maximum_depth: 20.0
     coupling:
       source: tracer/c
-      
+  interior_temporal_mean:
+    model: interior_temporal_mean
+    parameters:
+      window: 86400
+      n: 24
+    coupling:
+      source: tracer/c
+  surface_temporal_mean:
+    model: surface_temporal_mean
+    parameters:
+      window: 86400
+      n: 24
+    coupling:
+      source: surface_layer/result
+  bottom_temporal_mean:
+    model: bottom_temporal_mean
+    parameters:
+      window: 86400
+      n: 24
+    coupling:
+      source: bottom_layer/result
+  surface_temporal_maximum:
+    model: surface_temporal_maximum
+    parameters:
+      window: 86400
+      n: 24
+    coupling:
+      source: surface_layer/result

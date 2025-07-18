@@ -101,7 +101,8 @@ module fabm_types
                                  source_get_drag                 = 15, &
                                  source_get_albedo               = 16, &
                                  source_external                 = 17, &
-                                 source_state                    = 18
+                                 source_state                    = 18, &
+                                 source_global                   = 19
 
    integer, parameter, public :: presence_internal          = 1, &
                                  presence_external_required = 2, &
@@ -374,6 +375,7 @@ module fabm_types
       type (type_dependency_flag), allocatable :: dependency_flags(:)
 
       logical :: fake_state_variable = .false.
+      logical :: part_of_state = .false.
 
       ! Only used for interior state variables:
       logical :: no_precipitation_dilution = .false.
@@ -413,18 +415,14 @@ module fabm_types
    ! variables).
    ! --------------------------------------------------------------------------
 
-   type, abstract :: type_expression
-      class (type_expression), pointer :: next        => null()
-      character(len=attribute_length)  :: output_name = ''
-      integer, pointer :: out => null()
+   type, extends(type_coupling_task) :: type_expression
+      character(len=attribute_length) :: output_name = ''
    end type
 
    type, abstract, extends(type_expression) :: type_interior_expression
-      !type (type_interior_data_pointer), pointer :: out => null()
    end type
 
    type, abstract, extends(type_expression) :: type_horizontal_expression
-      !type (type_horizontal_data_pointer), pointer :: out => null()
    end type
 
    ! --------------------------------------------------------------------------
@@ -477,8 +475,6 @@ module fabm_types
       type (type_fabm_settings) :: couplings
       type (type_fabm_settings) :: parameters
       type (type_fabm_settings) :: initialization
-
-      class (type_expression), pointer :: first_expression => null()
 
       type (type_coupling_task_list) :: coupling_task_list
 
@@ -674,7 +670,7 @@ module fabm_types
 
    type type_cache
       ! Number of active items in a single cache line [first dimension of any spatially explicit caches below]
-      integer :: n = 1
+      integer :: n = 0
 
       ! Read cache (separate interior, horizontal, scalar fields).
       real(rk), allocatable _DIMENSION_SLICE_PLUS_1_            :: read
@@ -691,6 +687,7 @@ module fabm_types
       logical :: valid
       logical :: set_interior
       logical :: set_horizontal
+      logical :: implemented = .true.
    end type
 
    type, extends(type_cache) :: type_interior_cache
@@ -756,17 +753,20 @@ contains
    subroutine base_initialize_state(self, _ARGUMENTS_INITIALIZE_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_INITIALIZE_STATE_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_initialize_horizontal_state(self, _ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_INITIALIZE_HORIZONTAL_STATE_
+      cache%implemented = .false.
    end subroutine
 
    ! Providing process rates and diagnostics
    subroutine base_do(self, _ARGUMENTS_DO_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_do_ppdd(self, _ARGUMENTS_DO_PPDD_)
@@ -778,47 +778,56 @@ contains
    subroutine base_do_bottom(self, _ARGUMENTS_DO_BOTTOM_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_do_bottom_ppdd(self, _ARGUMENTS_DO_BOTTOM_PPDD_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_BOTTOM_PPDD_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_do_surface(self, _ARGUMENTS_DO_SURFACE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_SURFACE_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_do_horizontal(self, _ARGUMENTS_HORIZONTAL_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_HORIZONTAL_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_do_column(self, _ARGUMENTS_DO_COLUMN_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_COLUMN_
       call self%get_light(_ARGUMENTS_DO_COLUMN_)
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_get_vertical_movement(self, _ARGUMENTS_GET_VERTICAL_MOVEMENT_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_check_state(self, _ARGUMENTS_CHECK_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_CHECK_STATE_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_check_surface_state(self, _ARGUMENTS_CHECK_SURFACE_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_CHECK_SURFACE_STATE_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_check_bottom_state(self, _ARGUMENTS_CHECK_BOTTOM_STATE_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_CHECK_BOTTOM_STATE_
+      cache%implemented = .false.
    end subroutine
 
    recursive subroutine base_finalize(self)
@@ -827,7 +836,6 @@ contains
       type (type_model_list_node),           pointer :: node
       class (type_base_model),               pointer :: child
       type (type_aggregate_variable_access), pointer :: aggregate_variable_access, next_aggregate_variable_access
-      class (type_expression),               pointer :: expression, next_expression
       type (type_link),                      pointer :: link
 
       node => self%children%first
@@ -847,14 +855,6 @@ contains
          aggregate_variable_access => next_aggregate_variable_access
       end do
       self%first_aggregate_variable_access => null()
-
-      expression => self%first_expression
-      do while (associated(expression))
-         next_expression => expression%next
-         deallocate(expression)
-         expression => next_expression
-      end do
-      self%first_expression => null()
 
       link => self%links%first
       do while (associated(link))
@@ -901,21 +901,25 @@ contains
    subroutine base_get_light_extinction(self, _ARGUMENTS_GET_EXTINCTION_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_GET_EXTINCTION_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_get_drag(self, _ARGUMENTS_GET_DRAG_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_GET_DRAG_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_get_albedo(self, _ARGUMENTS_GET_ALBEDO_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_GET_ALBEDO_
+      cache%implemented = .false.
    end subroutine
 
    subroutine base_get_light(self, _ARGUMENTS_DO_COLUMN_)
       class (type_base_model), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_COLUMN_
+      cache%implemented = .false.
    end subroutine
 
    function base_get_path(self) result(path)
@@ -965,7 +969,9 @@ contains
       integer,                 intent(in) :: source
       logical                             :: is_implemented
 
-      integer :: i
+      integer                      :: i
+      type (type_interior_cache)   :: interior_cache
+      type (type_horizontal_cache) :: horizontal_cache
 
       is_implemented = .true.
       if (allocated(self%implemented)) then
@@ -973,6 +979,51 @@ contains
             if (self%implemented(i) == source) return
          end do
          is_implemented = .false.
+      else
+         allocate(interior_cache%read_scalar(-1:-1), horizontal_cache%read_scalar(-1:-1))
+         interior_cache%read_scalar(:) = 0.0_rk
+         horizontal_cache%read_scalar(:) = 0.0_rk
+         select case (source)
+         case (source_initialize_state)
+            call self%initialize_state(interior_cache)
+            is_implemented = interior_cache%implemented
+         case (source_initialize_bottom_state)
+            call self%initialize_bottom_state(horizontal_cache)
+            is_implemented = horizontal_cache%implemented
+         case (source_initialize_surface_state)
+            call self%initialize_surface_state(horizontal_cache)
+            is_implemented = horizontal_cache%implemented
+         case (source_check_state)
+            call self%check_state(interior_cache)
+            is_implemented = interior_cache%implemented
+         case (source_check_bottom_state)
+            call self%check_bottom_state(horizontal_cache)
+            is_implemented = horizontal_cache%implemented
+         case (source_check_surface_state)
+            call self%check_surface_state(horizontal_cache)
+            is_implemented = horizontal_cache%implemented
+         case (source_do)
+            call self%do(interior_cache)
+            is_implemented = interior_cache%implemented
+         case (source_do_surface)
+            call self%do_surface(horizontal_cache)
+            is_implemented = horizontal_cache%implemented
+         case (source_do_bottom)
+            call self%do_bottom(horizontal_cache)
+            is_implemented = horizontal_cache%implemented
+         case (source_get_vertical_movement)
+            call self%get_vertical_movement(interior_cache)
+            is_implemented = interior_cache%implemented
+         case (source_get_light_extinction)
+            call self%get_light_extinction(interior_cache)
+            is_implemented = interior_cache%implemented
+         case (source_get_drag)
+            call self%get_drag(horizontal_cache)
+            is_implemented = horizontal_cache%implemented
+         case (source_get_albedo)
+            call self%get_albedo(horizontal_cache)
+            is_implemented = horizontal_cache%implemented
+         end select
       end if
    end function
 
@@ -998,6 +1049,7 @@ contains
       class (type_base_model),     pointer :: parent
       type (type_model_list_node), pointer :: child
       integer                              :: ind
+      type (type_link),            pointer :: link
 
       ! If a path with / is given, redirect to tentative parent model.
       islash = index(name, '/', .true.)
@@ -1058,6 +1110,24 @@ contains
       call model%initialize(-1)
       model%rdt__ = 1._rk / model%dt
 
+      link => model%links%first
+      do while (associated(link))
+         if (index(link%name, '/') == 0) then
+            if (link%target%source /= source_unknown .and. link%target%source /= source_state .and. link%target%source /= source_constant .and. link%target%source /= source_do_column) then
+               if (.not. model%implements(link%target%source)) then
+                  if (link%target%write_operator == operator_add) then
+                     ! Quietly change to no-op - the base class would just not have any effect
+                     link%target%source = source_constant
+                  else
+                     ! Throw an error - the variable will not be given a value
+                     call self%fatal_error('add_child', trim(model%get_path()) // ' does not implement a routine to set ' &
+                        // trim(link%name) // ' (source ' // trim(source2string(link%target%source)) // ' not implemented)')
+                  end if
+               end if
+            end if
+         end if
+         link => link%next
+      end do
       if (model%implements(source_get_light_extinction)) then
          call model%add_interior_variable('_attenuation_coefficient_of_photosynthetic_radiative_flux', 'm-1', &
             'light extinction contribution computed by get_light_extinction', fill_value=0.0_rk, missing_value=0.0_rk, &
@@ -1644,9 +1714,9 @@ contains
       class (type_base_model),             intent(inout)         :: self
       type (type_state_variable_id),       intent(inout), target :: id
       character(len=*),                    intent(in)            :: name, long_name, units
-      real(rk),                            intent(in), optional  :: initial_value,vertical_movement,specific_light_extinction
-      real(rk),                            intent(in), optional  :: minimum, maximum,missing_value,background_value
-      logical,                             intent(in), optional  :: no_precipitation_dilution,no_river_dilution
+      real(rk),                            intent(in), optional  :: initial_value, vertical_movement, specific_light_extinction
+      real(rk),                            intent(in), optional  :: minimum, maximum, missing_value, background_value
+      logical,                             intent(in), optional  :: no_precipitation_dilution, no_river_dilution
       class (type_base_standard_variable), intent(in), optional  :: standard_variable
       integer,                             intent(in), optional  :: presence
 
@@ -1675,7 +1745,6 @@ contains
 
       source_ = source_do
       if (present(source)) source_ = source
-      if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(sms_id%link)) call self%add_interior_variable(trim(link%name)//'_sms', &
          trim(link%target%units)//' s-1', trim(link%target%long_name)//' sources-sinks', fill_value=0.0_rk, &
          missing_value=0.0_rk, output=output_none, write_index=sms_id%sum_index, source=source_, link=sms_id%link)
@@ -1695,7 +1764,6 @@ contains
 
       source_ = source_do_surface
       if (present(source)) source_ = source
-      if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(surface_flux_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sfl', &
          trim(link%target%units) // ' m s-1', trim(link%target%long_name) // ' surface flux', fill_value=0.0_rk, &
          missing_value=0.0_rk, output=output_none, write_index=surface_flux_id%horizontal_sum_index, &
@@ -1716,7 +1784,6 @@ contains
 
       source_ = source_do_bottom
       if (present(source)) source_ = source
-      if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(bottom_flux_id%link)) call self%add_horizontal_variable(trim(link%name) // '_bfl', &
          trim(link%target%units) // ' m s-1', trim(link%target%long_name) // ' bottom flux', fill_value=0.0_rk, &
          missing_value=0.0_rk, output=output_none, write_index=bottom_flux_id%horizontal_sum_index, &
@@ -1739,11 +1806,8 @@ contains
       if (present(vertical_movement)) vertical_movement_ = vertical_movement
       if (.not. associated(movement_id%link)) call self%add_interior_variable(trim(link%name) // '_w', &
          'm s-1', trim(link%target%long_name) // ' vertical velocity', fill_value=vertical_movement_, missing_value=0.0_rk, &
-         output=output_none, write_index=movement_id%sum_index, link=movement_id%link, source=source_constant)
-      if (self%implements(source_get_vertical_movement)) then
-         movement_id%link%target%source = source_get_vertical_movement
-         movement_id%link%target%write_operator = operator_add
-      end if
+         output=output_none, write_index=movement_id%sum_index, link=movement_id%link, source=source_get_vertical_movement)
+      movement_id%link%target%write_operator = operator_add
       link2 => link%target%movement_list%append(movement_id%link%target, movement_id%link%target%name)
    end subroutine register_movement
 
@@ -1758,7 +1822,6 @@ contains
 
       source_ = source_do_surface
       if (present(source)) source_ = source
-      if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(sms_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sms', &
          trim(link%target%units) // ' s-1', trim(link%target%long_name) // ' sources-sinks', fill_value=0.0_rk, &
          missing_value=0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, &
@@ -1779,7 +1842,6 @@ contains
 
       source_ = source_do_bottom
       if (present(source)) source_ = source
-      if (.not. self%implements(source_)) source_ = source_constant
       if (.not. associated(sms_id%link)) call self%add_horizontal_variable(trim(link%name) // '_sms', &
          trim(link%target%units) // ' s-1', trim(link%target%long_name) // ' sources-sinks', fill_value=0.0_rk, &
          missing_value=0.0_rk, output=output_none, write_index=sms_id%horizontal_sum_index, link=sms_id%link, &
@@ -2507,54 +2569,25 @@ contains
    subroutine register_interior_expression_dependency(self, id, expression)
       class (type_base_model),           intent(inout) :: self
       type (type_dependency_id), target, intent(inout) :: id
-      class (type_interior_expression),  intent(in)    :: expression
+      class (type_interior_expression), pointer        :: expression
 
-      class (type_interior_expression), allocatable :: copy
+      class (type_coupling_task), pointer :: base_coupling
 
-      allocate(copy, source=expression)
-      copy%out => id%index
-      call self%register_dependency(id, copy%output_name, '', copy%output_name)
-      copy%output_name = id%link%target%name
-
-      call register_expression(self,copy)
-      deallocate(copy)
+      call self%register_dependency(id, expression%output_name, '', expression%output_name)
+      base_coupling => expression
+      call self%request_coupling(id%link, base_coupling)
    end subroutine
 
    subroutine register_horizontal_expression_dependency(self, id, expression)
       class (type_base_model),              intent(inout)         :: self
       type (type_horizontal_dependency_id), intent(inout), target :: id
-      class (type_horizontal_expression),   intent(in)            :: expression
+      class (type_horizontal_expression), pointer                 :: expression
 
-      class (type_horizontal_expression), allocatable :: copy
+      class (type_coupling_task), pointer :: base_coupling
 
-      allocate(copy, source=expression)
-      copy%out => id%horizontal_index
-      call self%register_dependency(id, copy%output_name, '', copy%output_name)
-      copy%output_name = id%link%target%name
-
-      call register_expression(self, copy)
-      deallocate(copy)
-   end subroutine
-
-   recursive subroutine register_expression(self, expression)
-      class (type_base_model), intent(inout) :: self
-      class (type_expression), intent(in)    :: expression
-
-      class (type_expression), pointer :: current
-
-      if (.not. associated(self%first_expression)) then
-         allocate(self%first_expression, source=expression)
-         current => self%first_expression
-      else
-         current => self%first_expression
-         do while (associated(current%next))
-            current => current%next
-         end do
-         allocate(current%next, source=expression)
-         current => current%next
-      end if
-
-      if (associated(self%parent)) call register_expression(self%parent, expression)
+      call self%register_dependency(id, expression%output_name, '', expression%output_name)
+      base_coupling => expression
+      call self%request_coupling(id%link, base_coupling)
    end subroutine
 
    function get_effective_string(value, default) result(value_)
@@ -2804,7 +2837,6 @@ contains
       integer :: n
       type (type_dependency_flag), allocatable :: prev(:)
 
-      n = 1
       if (allocated(self%dependency_flags)) then
          do n = 1, size(self%dependency_flags)
             if (self%dependency_flags(n)%source == source) then
@@ -2814,6 +2846,8 @@ contains
             end if
          end do
          call move_alloc(self%dependency_flags, prev)
+      else
+         n = 1
       end if
       allocate(self%dependency_flags(n))
       if (n > 1) self%dependency_flags(:n - 1) = prev
@@ -3048,6 +3082,7 @@ contains
       case (source_get_light_extinction);     source2string = 'get_light_extinction'
       case (source_get_drag);                 source2string = 'get_drag'
       case (source_get_albedo);               source2string = 'get_albedo'
+      case (source_global);                   source2string = 'global'
       case default
          write (source2string,'(i0)') source
       end select
