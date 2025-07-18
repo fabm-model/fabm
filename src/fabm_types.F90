@@ -981,6 +981,8 @@ contains
          is_implemented = .false.
       else
          allocate(interior_cache%read_scalar(-1:-1), horizontal_cache%read_scalar(-1:-1))
+         interior_cache%read_scalar(:) = 0.0_rk
+         horizontal_cache%read_scalar(:) = 0.0_rk
          select case (source)
          case (source_initialize_state)
             call self%initialize_state(interior_cache)
@@ -1111,8 +1113,17 @@ contains
       link => model%links%first
       do while (associated(link))
          if (index(link%name, '/') == 0) then
-            if (link%target%source /= source_unknown .or. link%target%source /= source_state) then
-               if (.not. model%implements(link%target%source)) link%target%source = source_constant
+            if (link%target%source /= source_unknown .and. link%target%source /= source_state .and. link%target%source /= source_constant) then
+               if (.not. model%implements(link%target%source)) then
+                  if (link%target%write_operator == operator_add) then
+                     ! Quietly change to no-op - the base class would just not have any effect
+                     link%target%source = source_constant
+                  else
+                     ! Throw an error - the variable will not be given a value
+                     call self%fatal_error('add_child', trim(model%get_path()) // ' does not implement a routine to set ' &
+                        // trim(link%name) // ' (source ' // trim(source2string(link%target%source)) // ' not implemented)')
+                  end if
+               end if
             end if
          end if
          link => link%next
