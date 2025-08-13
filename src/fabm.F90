@@ -419,7 +419,6 @@ module fabm
       generic :: variable_needs_values => interior_variable_needs_values, interior_variable_needs_values_sn, &
                                           horizontal_variable_needs_values, horizontal_variable_needs_values_sn, &
                                           scalar_variable_needs_values, scalar_variable_needs_values_sn
-      procedure :: is_part_of_state
       !> @}
       ! ---------------------------------------------------------------------------------------------------------------------------
       procedure :: process_job
@@ -946,13 +945,13 @@ contains
       self%status = status_start_done
 
       do ivar = 1, size(self%interior_diagnostic_variables)
-         self%interior_diagnostic_variables(ivar)%part_of_state = self%is_part_of_state(self%interior_diagnostic_variables(ivar))
+         self%interior_diagnostic_variables(ivar)%part_of_state = self%interior_diagnostic_variables(ivar)%target%part_of_state
       end do
       do ivar = 1, size(self%horizontal_diagnostic_variables)
-         self%horizontal_diagnostic_variables(ivar)%part_of_state = self%is_part_of_state(self%horizontal_diagnostic_variables(ivar))
+         self%horizontal_diagnostic_variables(ivar)%part_of_state = self%horizontal_diagnostic_variables(ivar)%target%part_of_state
       end do
       do ivar = 1, size(self%scalar_diagnostic_variables)
-         self%scalar_diagnostic_variables(ivar)%part_of_state = self%is_part_of_state(self%scalar_diagnostic_variables(ivar))
+         self%scalar_diagnostic_variables(ivar)%part_of_state = self%scalar_diagnostic_variables(ivar)%target%part_of_state
       end do
 
    contains
@@ -1644,17 +1643,6 @@ contains
       if (.not. associated(id%variable)) return
       if (id%variable%catalog_index /= -1) dat => self%catalog%scalar(id%variable%catalog_index)%p
    end function get_scalar_data
-
-   ! ------------------------------------------------------------------------------------------------------------------------------
-   !> Returns whether this variable is part of the model state
-   ! ------------------------------------------------------------------------------------------------------------------------------
-   logical function is_part_of_state(self, variable)
-      class (type_fabm_model),               intent(in) :: self
-      class (type_fabm_diagnostic_variable), intent(in) :: variable   !< diagnostic variable
-
-      _ASSERT_(self%status >= status_start_done, 'is_part_of_state', 'This routine can only be called after model start.')
-      is_part_of_state = variable%target%part_of_state
-   end function is_part_of_state
 
    ! ------------------------------------------------------------------------------------------------------------------------------
    !> Initialize all interior state variables

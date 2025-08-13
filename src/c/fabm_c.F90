@@ -467,11 +467,11 @@ contains
 
       select case (category)
       case (INTERIOR_DIAGNOSTIC_VARIABLE)
-         part_of_state = logical2int(model%p%is_part_of_state(model%p%interior_diagnostic_variables(index)))
+         part_of_state = logical2int(model%p%interior_diagnostic_variables(index)%part_of_state)
       case (HORIZONTAL_DIAGNOSTIC_VARIABLE)
-         part_of_state = logical2int(model%p%is_part_of_state(model%p%horizontal_diagnostic_variables(index)))
+         part_of_state = logical2int(model%p%horizontal_diagnostic_variables(index)%part_of_state)
       case (SCALAR_DIAGNOSTIC_VARIABLE)
-         part_of_state = logical2int(model%p%is_part_of_state(model%p%scalar_diagnostic_variables(index)))
+         part_of_state = logical2int(model%p%scalar_diagnostic_variables(index)%part_of_state)
       end select
    end function get_variable_part_of_state
 
