@@ -394,9 +394,9 @@ contains
 
       link => model%links%first
       do while (associated(link))
-         if (index(link%name, '/') == 0 .and. (associated(link%original%read_index) .or. (source==source_global .and. link%original%presence == presence_external_required))) then
+         if (index(link%name, '/') == 0 .and. (associated(link%original%read_index) .or. (source == source_global .and. link%original%presence == presence_external_required))) then
             ! This is the model's own variable (not inherited from child model) and the model itself originally requested read access to it.
-            ! (note the check for source_exetrnal is needed for global models/operators, which do not use read_index)
+            ! (note: global models/operators do not use read_index, so we detect inputs based on the presence attribute)
             _ASSERT_(.not. associated(link%target%write_owner), 'graph::add_call', 'BUG: required input variable is co-written.')
             input_variable => node%inputs%add(link%target)
             input_variable%update = get_update_flag(link%target, link%original) == dependency_flag_none
@@ -490,7 +490,7 @@ contains
       integer,intent(in) :: source
       integer            :: operation
       select case (source)
-      case (source_do, source_do_column, source_do_bottom, source_do_surface, source_do_horizontal)
+      case (source_do, source_do_column, source_do_bottom, source_do_surface, source_do_horizontal, source_global)
          operation = source
       case (source_get_vertical_movement, source_initialize_state, source_check_state, source_get_light_extinction)
          operation = source_do
@@ -498,8 +498,6 @@ contains
          operation = source_do_bottom
       case (source_initialize_surface_state, source_check_surface_state, source_get_drag, source_get_albedo)
          operation = source_do_surface
-      case (source_global)
-         operation = source_global
       case default
          call driver%fatal_error('source2operation', 'unknown source value')
       end select

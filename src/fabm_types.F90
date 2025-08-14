@@ -2831,15 +2831,20 @@ contains
 
    subroutine set_dependency_flag(self, source, flag)
       class (type_internal_variable), intent(inout) :: self
-      integer,                        intent(in)    :: source
+      integer, optional,              intent(in)    :: source
       integer,                        intent(in)    :: flag
 
-      integer :: n
+      integer :: source_, n
       type (type_dependency_flag), allocatable :: prev(:)
 
+      if (present(source)) then
+         source_ = source
+      else
+         source_ = -1
+      end if
       if (allocated(self%dependency_flags)) then
          do n = 1, size(self%dependency_flags)
-            if (self%dependency_flags(n)%source == source) then
+            if (self%dependency_flags(n)%source == source_) then
                ! A flag for this source was already set - overwrite it and return immediately
                self%dependency_flags(n)%flag = flag
                return
@@ -2851,7 +2856,7 @@ contains
       end if
       allocate(self%dependency_flags(n))
       if (n > 1) self%dependency_flags(:n - 1) = prev
-      self%dependency_flags(n)%source = source
+      self%dependency_flags(n)%source = source_
       self%dependency_flags(n)%flag = flag
    end subroutine
 

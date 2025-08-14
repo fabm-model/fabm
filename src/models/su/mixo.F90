@@ -400,8 +400,8 @@ contains
     call self%register_dependency(self%id_mPStotdep,'mPStot', 'gC (gC)-1 (day)-1', 'enables reading the previous value of the diagnostic mPStot')
     call self%register_dependency(self%id_avgCu,    temporal_mean(self%id_mCudep,    period=86400._rk,resolution=3600._rk,missing_value=0.0_rk))
     call self%register_dependency(self%id_avgPStot, temporal_mean(self%id_mPStotdep, period=86400._rk,resolution=3600._rk,missing_value=0.0_rk))
-    call set_dependency_flag(self%id_avgCu%link%target, source=-1, flag=dependency_flag_stale)
-    call set_dependency_flag(self%id_avgPStot%link%target, source=-1, flag=dependency_flag_stale)
+    call set_dependency_flag(self%id_avgCu%link%target, flag=dependency_flag_stale)
+    call set_dependency_flag(self%id_avgPStot%link%target, flag=dependency_flag_stale)
     call self%register_dependency(self%id_PAR, standard_variables%downwelling_photosynthetic_radiative_flux) ! local PAR
     call self%register_dependency(self%id_ETW, standard_variables%temperature)
 
