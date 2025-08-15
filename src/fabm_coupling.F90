@@ -246,7 +246,7 @@ contains
             target_name = self%couplings%get_string(trim(link%name), trim(link%original%long_name), units=trim(link%original%units), default='', display=display)
             if (len(target_name) >= 4) then
                if (target_name(len(target_name) - 3:len(target_name)) == '@old') then
-                  call set_dependency_flag(link%original, source=-1, flag=dependency_flag_stale)
+                  call set_dependency_flag(link%original, flag=dependency_flag_stale)
                   target_name = target_name(:len(target_name) - 4)
                end if
             end if
