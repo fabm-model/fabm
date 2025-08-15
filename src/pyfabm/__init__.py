@@ -165,21 +165,8 @@ def get_lib(name: str) -> FABMDLL:
 
     # Access to model objects (variables, parameters, dependencies, couplings,
     # model instances)
-    lib.get_counts.argtypes = [
-        ctypes.c_void_p,
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-    ]
+    ncat = 12 if hasattr(lib, "get_variable_part_of_state") else 11
+    lib.get_counts.argtypes = [ctypes.c_void_p] + [ctypes.POINTER(ctypes.c_int)] * ncat
     lib.get_counts.restype = None
     lib.get_variable_metadata.argtypes = [
         ctypes.c_void_p,
@@ -199,12 +186,15 @@ def get_lib(name: str) -> FABMDLL:
         ctypes.c_int,
     ]
     lib.set_variable_save.restype = None
-    lib.get_variable_part_of_state.argtypes = [
-        ctypes.c_void_p,
-        ctypes.c_int,
-        ctypes.c_int,
-    ]
-    lib.get_variable_part_of_state.restype = ctypes.c_int
+    try:
+        lib.get_variable_part_of_state.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_int,
+            ctypes.c_int,
+        ]
+        lib.get_variable_part_of_state.restype = ctypes.c_int
+    except AttributeError:
+        setattr(lib, "get_variable_part_of_state", lambda p, t, i: 0)
     lib.get_variable.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
     lib.get_variable.restype = ctypes.c_void_p
     lib.get_parameter_metadata.argtypes = [
@@ -398,8 +388,11 @@ def get_lib(name: str) -> FABMDLL:
     lib.get_interior_diagnostic_data.restype = ctypes.POINTER(lib.dtype)
     lib.get_horizontal_diagnostic_data.argtypes = [ctypes.c_void_p, ctypes.c_int]
     lib.get_horizontal_diagnostic_data.restype = ctypes.POINTER(lib.dtype)
-    lib.get_scalar_diagnostic_data.argtypes = [ctypes.c_void_p, ctypes.c_int]
-    lib.get_scalar_diagnostic_data.restype = ctypes.POINTER(lib.dtype)
+    try:
+        lib.get_scalar_diagnostic_data.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        lib.get_scalar_diagnostic_data.restype = ctypes.POINTER(lib.dtype)
+    except AttributeError:
+        pass
     lib.require_data.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     lib.require_data.restype = None
     lib.get_standard_variable_data.argtypes = [
@@ -436,7 +429,7 @@ def get_lib(name: str) -> FABMDLL:
     lib.check_state.restype = ctypes.c_int
 
     # Routine for getting git repository version information.
-    lib.get_version.argtypes = (ctypes.c_int, ctypes.c_char_p)
+    lib.get_version.argtypes = [ctypes.c_int, ctypes.c_char_p]
     lib.get_version.restype = None
 
     lib.save_settings.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
@@ -1327,28 +1320,33 @@ class Model(object):
         nstate_bottom = ctypes.c_int()
         ndiag_interior = ctypes.c_int()
         ndiag_horizontal = ctypes.c_int()
-        ndiag_scalar = ctypes.c_int()
+        ndiag_scalar = ctypes.c_int(0)
         ndependencies_interior = ctypes.c_int()
         ndependencies_horizontal = ctypes.c_int()
         ndependencies_scalar = ctypes.c_int()
         nconserved = ctypes.c_int()
         nparameters = ctypes.c_int()
         ncouplings = ctypes.c_int()
-        self.fabm.get_counts(
-            self.pmodel,
+        args = []
+        args += [
             ctypes.byref(nstate_interior),
             ctypes.byref(nstate_surface),
             ctypes.byref(nstate_bottom),
-            ctypes.byref(ndiag_interior),
-            ctypes.byref(ndiag_horizontal),
-            ctypes.byref(ndiag_scalar),
+        ]
+        args += [ctypes.byref(ndiag_interior), ctypes.byref(ndiag_horizontal)]
+        if len(self.fabm.get_counts.argtypes) == 13:
+            args += [ctypes.byref(ndiag_scalar)]
+        args += [
             ctypes.byref(ndependencies_interior),
             ctypes.byref(ndependencies_horizontal),
             ctypes.byref(ndependencies_scalar),
+        ]
+        args += [
             ctypes.byref(nconserved),
             ctypes.byref(nparameters),
             ctypes.byref(ncouplings),
-        )
+        ]
+        self.fabm.get_counts(self.pmodel, *args)
 
         # Allocate memory for state variable values, and send ctypes.pointer to
         # this memory to FABM.
