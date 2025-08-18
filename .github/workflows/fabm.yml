@@ -45,7 +45,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install gfortran-${{ matrix.version }}
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
@@ -70,7 +70,7 @@ jobs:
       - name: Install compiler and Python dependencies
         run: conda install gfortran_linux-64=${{ matrix.version }} pip pyyaml
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
@@ -111,7 +111,7 @@ jobs:
           wget --no-verbose ${{ matrix.url_dir }}/l_fortran-compiler_p_${{ matrix.version }}_offline.sh
           /bin/sh l_fortran-compiler_p_${{ matrix.version }}_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
@@ -156,7 +156,7 @@ jobs:
           wget --no-verbose ${{ matrix.url_dir }}/l_fortran-compiler_p_${{ matrix.version }}_offline.sh
           /bin/sh l_fortran-compiler_p_${{ matrix.version }}_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
@@ -218,7 +218,7 @@ jobs:
           NVHPC_INSTALL_DIR: /home/runner/nvhpc
           NVHPC_INSTALL_TYPE: single
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
@@ -259,7 +259,7 @@ jobs:
           rm aocc-compiler-${{ matrix.version }}.tar
           ./aocc-compiler-${{ matrix.version }}/install.sh
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
@@ -293,7 +293,7 @@ jobs:
       - name: Install Python dependencies
         run: conda install -c conda-forge pyyaml flang>=19.0 ninja c-compiler
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
@@ -318,7 +318,7 @@ jobs:
         shell: bash -el {0}
     steps:
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
       - name: Set up Python ${{ matrix.python-version }} with conda
@@ -369,11 +369,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install libnetcdff-dev
       - name: Clone FABM
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
       - name: Clone GOTM
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: gotm-model/code
           ref: v6.0
@@ -392,7 +392,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Clone FABM
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
       - name: Download and extract cmake
@@ -408,7 +408,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Clone FABM
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
       - name: Install Ninja
@@ -427,7 +427,7 @@ jobs:
         shell: bash -el {0}
     steps:
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
       - name: Set up Python with conda
