@@ -1,4 +1,5 @@
 bottom_depth: 10
+bottom_depth_below_geoid: 10
 bottom_stress: 0.01
 cell_thickness: 10
 density: 1020

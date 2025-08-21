@@ -208,6 +208,7 @@ program test_host
    integer :: ntest = -1
    logical :: no_mask = .false.
    logical :: no_diag = .false.
+   real(rke) :: dt = 1._rke
 
 #if _FABM_DIMENSION_COUNT_>0
    i__ = 50
@@ -259,6 +260,10 @@ program test_host
          i = i + 1
          call get_command_argument(i, arg)
          read (arg,*) ntest
+      case ('--dt')
+         i = i + 1
+         call get_command_argument(i, arg)
+         read (arg,*) dt
       case ('-h')
          write (*,'(a)') ''
          write (*,'(a)') ''
@@ -346,7 +351,7 @@ program test_host
    ! ======================================================================
 
    call start_test('set_domain')
-   call model%set_domain(_PREARG_LOCATION_ seconds_per_time_unit=1._rke)
+   call model%set_domain(_PREARG_LOCATION_ seconds_per_time_unit=dt)
    call report_test_result()
 
    ! ======================================================================
@@ -815,7 +820,7 @@ contains
       call cpu_time(time_begin)
 
       do i = 1, n
-         call model%prepare_inputs()
+         call model%prepare_inputs(real(i, rke))
 
          _BEGIN_OUTER_HORIZONTAL_LOOP_
             flux = 0
