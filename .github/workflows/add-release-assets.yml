@@ -13,7 +13,7 @@ jobs:
       - name: Python dependencies
         run: python -m pip install git-archive-all
       - name: Clone fabm-plus
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: fabm-model/fabm-plus
           submodules: recursive
