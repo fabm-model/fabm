@@ -438,9 +438,6 @@ def test_0d(args, testcases: Mapping[str, str], gotm_url=DEFAULT_GOTM_URL):
 
 
 def test_harness(args, testcases: Mapping[str, str]):
-    run_dir = os.path.join(args.work_root, "run")
-    os.mkdir(run_dir)
-    shutil.copy(os.path.join(SCRIPT_ROOT, "environment.yaml"), run_dir)
     print("Running FABM testcases with testing harness:")
     for host in sorted(os.listdir(os.path.join(FABM_BASE, "src/drivers"))):
         print(f"  host {host}")
@@ -462,11 +459,10 @@ def test_harness(args, testcases: Mapping[str, str]):
             if not os.path.isfile(os.path.join(build_dir, exe)):
                 exe = os.path.join("Debug", exe)
         for case, path in testcases.items():
-            shutil.copy(path, os.path.join(run_dir, "fabm.yaml"))
             run(
                 f"test_harness/{host}/{case}",
-                [os.path.join(build_dir, exe), "--simulate", "-n", "10"],
-                cwd=run_dir,
+                [os.path.join(build_dir, exe), "--simulate", "-n", "10", path],
+                cwd=SCRIPT_ROOT,
             )
 
 
