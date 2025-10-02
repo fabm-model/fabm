@@ -201,13 +201,16 @@ program test_host
    integer :: domain_stop(_FABM_DIMENSION_COUNT_)
 
    character(len=1024) :: version
-   character(len=20) :: arg
+   character(len=1024) :: arg
+   character(len=1024) :: fabm_yaml_path = 'fabm.yaml'
+   character(len=1024) :: diag_path = ''
    integer :: ivar
    integer :: i
    integer :: mode = 1
    integer :: ntest = -1
    logical :: no_mask = .false.
    logical :: no_diag = .false.
+   logical :: custom_path = .false.
    real(rke) :: dt = 1._rke
 
 #if _FABM_DIMENSION_COUNT_>0
@@ -238,6 +241,10 @@ program test_host
          no_mask = .true.
       case ('--nodiag')
          no_diag = .true.
+      case ('--diag')
+         i = i + 1
+         call get_command_argument(i, arg)
+         read (arg,*) diag_path
 #if _FABM_DIMENSION_COUNT_>0
       case ('--nx')
          i = i + 1
@@ -269,18 +276,37 @@ program test_host
          write (*,'(a)') ''
          write (*,'(a)') 'FABM host emulator'
          write (*,'(a)') ''
-         write (*,'(a)') 'Accepted arguments:'
+         write (*,'(a)') 'Usage: test_host [options] [fabm.yaml]'
+         write (*,'(a)') ''
+         write (*,'(a)') 'Options:'
          write (*,'(a)') '-s/--simulate: simulate using provided fabm.yaml/environment.yaml'
-         write (*,'(a)') '-n:            number of replicates when simulating'
+         write (*,'(a)') '-n N:          number of replicates when simulating'
+#if _FABM_DIMENSION_COUNT_>0
+         write (*,'(a)') '--nx NX:       size of first dimension'
+#endif
+#if _FABM_DIMENSION_COUNT_>1
+         write (*,'(a)') '--ny NY:       size of second dimension'
+#endif
+#if _FABM_DIMENSION_COUNT_>2
+         write (*,'(a)') '--nz NZ:       size of third dimension'
+#endif
+         write (*,'(a)') '--dt DT:       time step (s) when simulating'
          write (*,'(a)') '--nomask:      unmask all points when simulating'
          write (*,'(a)') '--nodiag:      flag all diagnostics as not required by the host'
+         write (*,'(a)') '--diag FILE:   yaml file with diagnostics selection (list of names)'
          stop 0
       case default
-         write (*,'(a)') 'ERROR'
-         write (*,'(a)') ''
-         write (*,'(a)') 'Unknown command line argument: ' // trim(arg)
-         write (*,'(a)') 'To see supported arguments, run with -h.'
-         stop 2
+         if (mode == 2 .and. .not. custom_path) then
+            ! First unknown argument in simulate mode is the path to fabm.yaml
+            fabm_yaml_path = trim(arg)
+            custom_path = .true.
+         else
+            write (*,'(a)') 'ERROR'
+            write (*,'(a)') ''
+            write (*,'(a)') 'Unknown command line argument: ' // trim(arg)
+            write (*,'(a)') 'To see supported arguments, run with -h.'
+            stop 2
+         end if
       end select
       i = i + 1
    end do
@@ -327,7 +353,7 @@ program test_host
        call model%root%add_child(test_model, 'test_model', 'test model')
    case (2)
        ! Test with user-provided fabm.yaml
-       model => fabm_create_model(initialize=.false.)
+       model => fabm_create_model(fabm_yaml_path, initialize=.false.)
    end select
    call report_test_result()
 
@@ -341,9 +367,10 @@ program test_host
    end if
    call report_test_result()
 
-   if (no_diag) then
+   if (no_diag .or. diag_path /= '') then
       model%interior_diagnostic_variables%save = .false.
       model%horizontal_diagnostic_variables%save = .false.
+      if (diag_path /= '') call read_diagnostics_selection
    end if
 
    ! ======================================================================
@@ -494,6 +521,61 @@ program test_host
    call fabm_finalize_library()
 
 contains
+
+   subroutine read_diagnostics_selection
+      use yaml, only: yaml_parse => parse, yaml_error_length => error_length
+      use yaml_types, only: type_node, type_scalar, type_yaml_list => type_list, &
+         type_yaml_list_item => type_list_item, yaml_real_kind => real_kind
+
+      character(yaml_error_length)        :: yaml_error
+      class (type_node),          pointer :: yaml_root
+      type (type_yaml_list_item), pointer :: yaml_item
+
+      yaml_root => yaml_parse(diag_path, get_free_unit(), yaml_error)
+      if (yaml_error /= '') then
+         call driver%log_message(yaml_error)
+         stop 2
+      end if
+      select type (yaml_root)
+      class is (type_yaml_list)
+         yaml_item => yaml_root%first
+         do while (associated(yaml_item))
+            select type (node => yaml_item%node)
+               class is (type_scalar)
+                  if (.not. select_for_saving(node%string)) then
+                     call driver%log_message(trim(diag_path) // ': diagnostic ' // trim(node%string) // ' not found in model.')
+                     stop 2
+                  end if
+               class default
+                  call driver%log_message(trim(diag_path) // ' should contain a list of strings')
+                  stop 2
+            end select
+            yaml_item => yaml_item%next
+         end do
+      class default
+         call driver%log_message(trim(diag_path) // ' should contain a list at root level')
+         stop 2
+      end select
+   end subroutine read_diagnostics_selection
+
+   logical function select_for_saving(name)
+      character(len=*), intent(in) :: name
+      integer :: i
+      select_for_saving = .true.
+      do i = 1, size(model%interior_diagnostic_variables)
+         if (name == model%interior_diagnostic_variables(i)%name) then
+            model%interior_diagnostic_variables(i)%save = .true.
+            return
+         end if
+      end do
+      do i = 1, size(model%horizontal_diagnostic_variables)
+         if (name == model%horizontal_diagnostic_variables(i)%name) then
+            model%horizontal_diagnostic_variables(i)%save = .true.
+            return
+         end if
+      end do
+      select_for_saving = .false.
+   end function
 
    subroutine read_environment
       use yaml, only: yaml_parse => parse, yaml_error_length => error_length
@@ -839,19 +921,35 @@ contains
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
          ! We are looping over depth, but as we have a non-constant bottom index (yet no mask), we need to skip everything below bottom
 #  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-         _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
+            _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
 #  else
-         _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
+            _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
 #  endif
 #endif
             call model%get_interior_sources(_PREARG_INTERIOR_IN_ dy _INTERIOR_SLICE_RANGE_PLUS_1_)
          _END_OUTER_INTERIOR_LOOP_
 #if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-      _START_ = domain_start(_FABM_VECTORIZED_DIMENSION_INDEX_)
-      _STOP_ = domain_stop(_FABM_VECTORIZED_DIMENSION_INDEX_)
+         _START_ = domain_start(_FABM_VECTORIZED_DIMENSION_INDEX_)
+         _STOP_ = domain_stop(_FABM_VECTORIZED_DIMENSION_INDEX_)
 #  endif
 
          call model%finalize_outputs()
+
+         _BEGIN_OUTER_INTERIOR_LOOP_
+#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
+         ! We are looping over depth, but as we have a non-constant bottom index (yet no mask), we need to skip everything below bottom
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+            _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
+#  else
+            _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
+#  endif
+#endif
+            call model%get_vertical_movement(_PREARG_INTERIOR_IN_ w _INTERIOR_SLICE_RANGE_PLUS_1_)
+         _END_OUTER_INTERIOR_LOOP_
+#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
+         _START_ = domain_start(_FABM_VECTORIZED_DIMENSION_INDEX_)
+         _STOP_ = domain_stop(_FABM_VECTORIZED_DIMENSION_INDEX_)
+#  endif
 
          _BEGIN_OUTER_HORIZONTAL_LOOP_
             call model%check_bottom_state(_PREARG_HORIZONTAL_IN_ repair, valid)
