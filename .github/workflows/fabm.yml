@@ -35,7 +35,7 @@ jobs:
       FFLAGS: -fcheck=all
     steps:
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ">=3.7"
       - name: Install Python dependencies
@@ -103,7 +103,7 @@ jobs:
       FFLAGS: -check all
     steps:
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ">=3.7"
       - name: Install Python dependencies
@@ -151,7 +151,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ">=3.7"
       - name: Install Python dependencies
@@ -200,7 +200,7 @@ jobs:
       FFLAGS: -Mbounds -Mchkptr
     steps:
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ">=3.7"
       - name: Install Python dependencies
@@ -251,7 +251,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ">=3.7"
       - name: Install Python dependencies
