@@ -82,19 +82,21 @@ jobs:
         env:
           FFLAGS: -fcheck=all
   ifort:
-    # for available versions, see https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/intel-oneapi-compilers/package.py
+    # for available versions, see https://github.com/spack/spack-packages/blob/develop/repos/spack_repo/builtin/packages/intel_oneapi_compilers/package.py
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       matrix:
         include:
           - version: "2021.1.2.62"
             url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/17508"
-          # - version: "2022.2.1.16992"
+          # - version: "l_fortran-compiler_p_2022.2.1.16992"
           #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/18998"
-          # - version: "2023.2.0.49254"
+          # - version: "l_fortran-compiler_p_2023.2.0.49254"
           #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/237236c4-434b-4576-96ac-020ceeb22619"
-          - version: "2024.2.0.426"
-            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/801143de-6c01-4181-9911-57e00fe40181"
+          # - version: "l_fortran-compiler_p_2024.2.0.426"
+          #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/801143de-6c01-4181-9911-57e00fe40181"
+          - version: "2024.2.1.80"
+            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/5e7b0f1c-6f25-4cc8-94d7-3a527e596739"            
       fail-fast: false
     runs-on: ubuntu-latest
     env:
@@ -125,23 +127,26 @@ jobs:
         env:
           FFLAGS: ${{ env.FFLAGS }} -fp-model precise -fp-model source
   ifx:
-    # for available versions, see https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/intel-oneapi-compilers/package.py
+    # for available versions, see https://github.com/spack/spack-packages/blob/develop/repos/spack_repo/builtin/packages/intel_oneapi_compilers/package.py
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       matrix:
         include:
-          - version: "2023.2.0.49254"
+          - version: "l_fortran-compiler_p_2023.2.0.49254"
             url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/237236c4-434b-4576-96ac-020ceeb22619"
             fflags: -check all,nouninit,nocontiguous
               # nouninit because https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-missing-clang-rt-msan-to-link-Fortran-program-in-debug-build/m-p/1536555
               # nocontiguous because spurious errors occur when assigning null() to contiguous pointers, see https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-2024-0-2-runtime-error-about-non-contiguous-target/m-p/1583909
-          #- version: "2024.0.2.28"
+          #- version: "l_fortran-compiler_p_2024.0.2.28"
           #  url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/41df6814-ec4b-4698-a14d-421ee2b02aa7"
-          - version: "2024.2.0.426"
-            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/801143de-6c01-4181-9911-57e00fe40181"
-            fflags: -check all,nouninit,nocontiguous
-              # memory sanitizer (uninit) still seems broken, as it reports errors in libc.so (it should be auto-linked to sanitized libc, but apparently not)
-              # contiguous check still broken, to be fixed in 2025.x as per https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-2024-0-2-runtime-error-about-non-contiguous-target/m-p/1583909
+          # - version: "l_fortran-compiler_p_2024.2.0.426"
+          #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/801143de-6c01-4181-9911-57e00fe40181"
+          #   fflags: -check all,nouninit,nocontiguous
+          #     # memory sanitizer (uninit) still seems broken, as it reports errors in libc.so (it should be auto-linked to sanitized libc, but apparently not)
+          #     # contiguous check still broken, to be fixed in 2025.x as per https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-2024-0-2-runtime-error-about-non-contiguous-target/m-p/1583909
+          - version: "intel-fortran-compiler-2025.2.0.534"
+            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/2c69ab6a-dfff-4d8f-ae1c-8368c79a1709"
+            fflags: -check all
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
@@ -153,8 +158,8 @@ jobs:
         run: python -m pip install --upgrade pip pyyaml
       - name: Install compiler
         run: |
-          wget --no-verbose ${{ matrix.url_dir }}/l_fortran-compiler_p_${{ matrix.version }}_offline.sh
-          /bin/sh l_fortran-compiler_p_${{ matrix.version }}_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
+          wget --no-verbose ${{ matrix.url_dir }}/${{ matrix.version }}_offline.sh
+          /bin/sh ${{ matrix.version }}_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
       - name: Clone repository
         uses: actions/checkout@v5
         with:
@@ -226,7 +231,7 @@ jobs:
       - name: Run all test cases with pyfabm
         run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
   aocc:
-    # for available versions, see https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/aocc/package.py
+    # for available versions, see https://github.com/spack/spack-packages/blob/develop/repos/spack_repo/builtin/packages/aocc/package.py
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       matrix:
@@ -286,12 +291,13 @@ jobs:
         shell: cmd /C call {0}
     env:
       CMAKE_GENERATOR: Ninja
+      FFLAGS: -fno-vectorize -fno-slp-vectorize  # -fno-vectorize requires flang 21 and later
     steps:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
       - name: Install Python dependencies
-        run: conda install -c conda-forge pyyaml flang>=19.0 ninja c-compiler
+        run: conda install -c conda-forge pyyaml flang>=21.0 ninja c-compiler flang-rt_win-64
       - name: Clone repository
         uses: actions/checkout@v5
         with:
