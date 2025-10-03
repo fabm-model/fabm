@@ -654,6 +654,7 @@ module fabm_types
 
       procedure :: implements
       procedure :: register_implemented_routines
+      procedure :: freeze
 
       procedure :: finalize => base_finalize
 
@@ -1049,7 +1050,6 @@ contains
       class (type_base_model),     pointer :: parent
       type (type_model_list_node), pointer :: child
       integer                              :: ind
-      type (type_link),            pointer :: link
 
       ! If a path with / is given, redirect to tentative parent model.
       islash = index(name, '/', .true.)
@@ -1110,24 +1110,6 @@ contains
       call model%initialize(-1)
       model%rdt__ = 1._rk / model%dt
 
-      link => model%links%first
-      do while (associated(link))
-         if (index(link%name, '/') == 0) then
-            if (link%target%source /= source_unknown .and. link%target%source /= source_state .and. link%target%source /= source_constant .and. link%target%source /= source_do_column) then
-               if (.not. model%implements(link%target%source)) then
-                  if (link%target%write_operator == operator_add) then
-                     ! Quietly change to no-op - the base class would just not have any effect
-                     link%target%source = source_constant
-                  else
-                     ! Throw an error - the variable will not be given a value
-                     call self%fatal_error('add_child', trim(model%get_path()) // ' does not implement a routine to set ' &
-                        // trim(link%name) // ' (source ' // trim(source2string(link%target%source)) // ' not implemented)')
-                  end if
-               end if
-            end if
-         end if
-         link => link%next
-      end do
       if (model%implements(source_get_light_extinction)) then
          call model%add_interior_variable('_attenuation_coefficient_of_photosynthetic_radiative_flux', 'm-1', &
             'light extinction contribution computed by get_light_extinction', fill_value=0.0_rk, missing_value=0.0_rk, &
@@ -1156,6 +1138,33 @@ contains
          call model%add_to_aggregate_variable(standard_variables%surface_drag_coefficient_in_air, model%surface_drag_id)
       end if
    end subroutine add_child
+
+   subroutine freeze(self)
+      class (type_base_model), intent(inout) :: self
+
+      type (type_link), pointer :: link
+
+      link => self%links%first
+      do while (associated(link))
+         if (index(link%name, '/') == 0) then
+            if (link%original%source /= source_unknown .and. link%original%source /= source_state .and. link%original%source /= source_constant .and. link%original%source /= source_do_column) then
+               if (.not. self%implements(link%original%source)) then
+                  if (link%original%write_operator == operator_add) then
+                     ! Quietly change to no-op - the base class would just not have any effect
+                     link%original%source = source_constant
+                  else
+                     ! Throw an error - the variable will not be given a value
+                     call self%fatal_error('freeze', trim(link%name) // ' is registered with source ' &
+                        // trim(source2string(link%original%source)) // ', but the routine for this is not implemented.')
+                  end if
+               end if
+            end if
+         end if
+         link => link%next
+      end do
+
+      self%frozen = .true.
+   end subroutine
 
    subroutine set_variable_property_real(self, variable, name, value)
       class (type_base_model),  intent(inout) :: self

@@ -45,7 +45,6 @@ contains
       real(rk)                               :: value
       type (type_interior_standard_variable) :: standard_variable
 
-      call self%register_implemented_routines()
       call self%get_parameter(standard_variable%name, 'standard_name', '', 'standard name', default='')
       call self%get_parameter(value, 'value', '', 'value')
       if (standard_variable%name /= '') then
@@ -66,7 +65,6 @@ contains
       real(rk)                                 :: value
       type (type_horizontal_standard_variable) :: standard_variable
 
-      call self%register_implemented_routines()
       call self%get_parameter(standard_variable%name, 'standard_name', '', 'standard name', default='')
       call self%get_parameter(value, 'value', '', 'value')
       if (standard_variable%name /= '') then
@@ -87,7 +85,6 @@ contains
       real(rk)                              :: value
       type (type_surface_standard_variable) :: standard_variable
 
-      call self%register_implemented_routines()
       call self%get_parameter(standard_variable%name, 'standard_name', '', 'standard name', default='')
       call self%get_parameter(value, 'value', '', 'value')
       if (standard_variable%name /= '') then
@@ -108,7 +105,6 @@ contains
       real(rk)                             :: value
       type (type_bottom_standard_variable) :: standard_variable
 
-      call self%register_implemented_routines()
       call self%get_parameter(standard_variable%name, 'standard_name', '', 'standard name', default='')
       call self%get_parameter(value, 'value', '', 'value')
       if (standard_variable%name /= '') then
@@ -129,7 +125,6 @@ contains
       real(rk)                             :: value
       type (type_global_standard_variable) :: standard_variable
 
-      call self%register_implemented_routines()
       call self%get_parameter(standard_variable%name, 'standard_name', '', 'standard name', default='')
       call self%get_parameter(value, 'value', '', 'value')
       if (standard_variable%name /= '') then

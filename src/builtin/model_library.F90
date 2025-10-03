@@ -106,7 +106,6 @@ contains
       class (type_bottom_field), intent(inout), target :: self
       integer,                   intent(in)            :: configunit
 
-      call self%register_implemented_routines((/source_do_bottom/))
       call self%register_diagnostic_variable(self%id_result, 'result', '', 'bottom values', source=source_do_bottom)
       call self%register_dependency(self%id_source, 'source', '', 'interior values')
    end subroutine bottom_field_initialize
@@ -127,7 +126,6 @@ contains
       class (type_surface_field), intent(inout), target :: self
       integer,                    intent(in)            :: configunit
 
-      call self%register_implemented_routines((/source_do_surface/))
       call self%register_diagnostic_variable(self%id_result, 'result', '', 'surface values', source=source_do_surface)
       call self%register_dependency(self%id_source, 'source', '', 'interior values')
    end subroutine surface_field_initialize
@@ -148,7 +146,6 @@ contains
       class (type_column_projection),intent(inout),target :: self
       integer,                       intent(in)           :: configunit
 
-      call self%register_implemented_routines((/source_do/))
       call self%register_dependency(self%id_source,'source', '', 'horizontal source')
       call self%register_diagnostic_variable(self%id_result,'result', '', 'interior result')
    end subroutine column_projection_initialize

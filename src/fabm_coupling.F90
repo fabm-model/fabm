@@ -159,7 +159,7 @@ contains
 
       type (type_model_list_node), pointer :: node
 
-      self%frozen = .true.
+      call self%freeze()
       node => self%children%first
       do while (associated(node))
          call freeze(node%model)
