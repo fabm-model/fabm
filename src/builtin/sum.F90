@@ -326,6 +326,9 @@ contains
          component => component%next
       end do
 
+      ! Allow "do" to be called before merge_components
+      allocate(self%sources(0))
+
       if (n == 0) then
          ! No components - create constant field with offset (typically 0)
          call self%add_interior_variable('result', self%units, 'result', fill_value=self%offset, missing_value=self%missing_value, &
@@ -398,6 +401,7 @@ contains
       n = base_merge_components(self, log_unit)
 
       ! Put all ids and weights in a single array to minimize memory bottlenecks when computing sum
+      deallocate(self%sources)
       allocate(self%sources(n))
       component => self%first
       do i = 1, n
@@ -445,6 +449,9 @@ contains
          component%link => self%id_terms(i)%link
          component => component%next
       end do
+
+      ! Allow "do_horizontal" to be called before merge_components
+      allocate(self%sources(0))
 
       if (n == 0) then
          ! No components - create constant field with offset (typically 0)
@@ -496,6 +503,7 @@ contains
       n = base_merge_components(self, log_unit)
 
       ! Put all ids and weights in a single array to minimize memory bottlenecks when computing sum
+      deallocate(self%sources)
       allocate(self%sources(n))
       component => self%first
       do i = 1, n
