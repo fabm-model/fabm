@@ -175,7 +175,6 @@ contains
 
       type (type_component), pointer :: component
       real(rk)                       :: background
-      integer                        :: i
 
       ! If we are not using the actual sum (because we have 0 or 1 components), skip this routine altogether
       if (.not. self%active) return
@@ -183,10 +182,8 @@ contains
       ! At this stage, the background values for all variables (if any) are fixed. We can therefore
       ! compute background contributions already, and add those to the space- and time-invariant offset.
       background = 0.0_rk
-      i = 0
       component => self%first
       do while (associated(component))
-         i = i + 1
          if (component%include_background) then
             self%offset = self%offset + component%weight * component%link%target%background_values%value
          else
@@ -339,7 +336,7 @@ contains
          output = self%result_output
          if (output /= output_none) output = ior(output, output_always_available)
          call self%add_interior_variable('result', self%units, 'result', link=self%result_link, &
-            output=output, act_as_state_variable=self%act_as_state_variable, presence=presence_external_required)
+            output=output, presence=presence_external_required)
          if (self%first%weight == 1.0_rk) then
             ! One component with scale factor 1 - directly link to the component's source variable.
             call request_coupling_to_component(self, self%result_link, self%first)
@@ -364,12 +361,11 @@ contains
       self%active = .true.
 
       call self%add_interior_variable('result', self%units, 'result', fill_value=0.0_rk, missing_value=self%missing_value, &
-         output=self%result_output, write_index=self%id_result%sum_index, link=self%id_result%link, source=source_do, &
-         act_as_state_variable=self%act_as_state_variable)
+         output=self%result_output, write_index=self%id_result%sum_index, link=self%id_result%link, source=source_do)
       self%result_link => self%id_result%link
 
-      if (self%act_as_state_variable) then
-         ! NB this does not function yet (hence the act_as_state_variable=.false. above)
+      if (self%act_as_state_variable .and. .false.) then
+         ! NB this does not function yet
          ! Auto-generation of result_sms_tot fails and the do routine of type_weighted_sum_sms_distributor is not yet implemented.
 
          ! The sum will act as a state variable. Any source terms will have to be distributed over the individual variables that contribute to the sum.
@@ -463,7 +459,7 @@ contains
          output = self%result_output
          if (output /= output_none) output = ior(output, output_always_available)
          call self%add_horizontal_variable('result', self%units, 'result', link=self%result_link, domain=self%domain, &
-            output=output, act_as_state_variable=self%act_as_state_variable, presence=presence_external_required)
+            output=output, presence=presence_external_required)
          if (self%first%weight == 1.0_rk) then
             ! One component with scale factor 1 - directly link to the component's source variable.
             call request_coupling_to_component(self, self%result_link, self%first)

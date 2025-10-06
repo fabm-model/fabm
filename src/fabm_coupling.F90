@@ -659,7 +659,7 @@ contains
             sum => horizontal_sum
          end select
          sum%units = aggregate_variable_access%link%target%units
-         sum%act_as_state_variable = aggregate_variable_access%link%target%fake_state_variable
+         sum%act_as_state_variable = associated(aggregate_variable_access%link%target%sms_list%first)
          sum%result_output = output_none
 
          contributing_variable => aggregate_variable%first_contributing_variable

@@ -112,11 +112,6 @@ module fabm_types
                                  prefill_constant       = -1, &
                                  prefill_previous_value = -2
 
-   integer, parameter, public :: access_none       = 0, &
-                                 access_read       = 1, &
-                                 access_add_source = 2, &
-                                 access_state      = ior(access_read, access_add_source)
-
    integer, parameter, public :: store_index_none = -1
 
    integer, parameter, public :: operator_assign = 0, &
@@ -2798,10 +2793,9 @@ contains
       end do
    end function find_model
 
-   function get_aggregate_variable_access(self, standard_variable, access) result(link)
+   function get_aggregate_variable_access(self, standard_variable) result(link)
       class (type_base_model),                        intent(inout) :: self
       class (type_domain_specific_standard_variable), target        :: standard_variable
-      integer, optional,                              intent(in)    :: access
       type (type_link), pointer :: link
 
       type (type_aggregate_variable_access), pointer :: aggregate_variable_access
@@ -2835,7 +2829,6 @@ contains
          self%first_aggregate_variable_access => aggregate_variable_access
       end if
       link => aggregate_variable_access%link
-      if (present(access)) link%target%fake_state_variable = link%target%fake_state_variable .or. iand(access, access_add_source) /= 0
    end function get_aggregate_variable_access
 
    subroutine set_dependency_flag(self, source, flag)
