@@ -1482,12 +1482,12 @@ contains
          if (associated(current_link, link)) exit
          current_link => current_link%next
       end do
-      if (.not.associated(current_link)) call self%fatal_error('request_coupling_ln', &
+      if (.not. associated(current_link)) call self%fatal_error('request_coupling', &
          'Couplings can only be requested for variables that you own yourself.')
 
       ! Make sure that the link also points to a variable that we registered ourselves,
       ! rather than one registered by a child model.
-      if (index(link%name, '/') /= 0) call self%fatal_error('request_coupling_ln', &
+      if (index(link%name, '/') /= 0) call self%fatal_error('request_coupling', &
          'Couplings can only be requested for variables that you registered yourself, &
          &not inherited ones such as the current ' // trim(link%name) // '.')
 
@@ -1618,7 +1618,7 @@ contains
       integer :: i
 
       if (allocated(other%pointers)) then
-         do i=1,size(other%pointers)
+         do i = 1, size(other%pointers)
             call self%append(other%pointers(i)%p)
          end do
       end if
@@ -1638,7 +1638,7 @@ contains
       integer :: i
 
       if (allocated(self%pointers)) then
-         do i=1,size(self%pointers)
+         do i = 1, size(self%pointers)
             self%pointers(i)%p = value
          end do
       end if
@@ -1679,7 +1679,7 @@ contains
       integer :: i
 
       if (allocated(other%pointers)) then
-         do i=1,size(other%pointers)
+         do i = 1, size(other%pointers)
             call self%append(other%pointers(i)%p)
          end do
       end if
@@ -1692,7 +1692,7 @@ contains
       integer :: i
 
       if (allocated(self%pointers)) then
-         do i=1,size(self%pointers)
+         do i = 1, size(self%pointers)
             self%pointers(i)%p = value
          end do
       end if
@@ -1886,7 +1886,7 @@ contains
                            initial_value, background_value, fill_value, standard_variable, presence, output, source, &
                            act_as_state_variable, read_index, state_index, write_index, background, link)
       class (type_base_model),       target,intent(inout)       :: self
-      type (type_internal_variable),pointer                     :: variable
+      type (type_internal_variable), pointer                    :: variable
       character(len=*),              target,intent(in)          :: name
       character(len=*),                     intent(in), optional :: long_name, units
       real(rk),                             intent(in), optional :: minimum, maximum, missing_value
@@ -2674,7 +2674,6 @@ contains
       object => null()
       link => self%find_link(name, recursive, exact)
       if (associated(link)) object => link%target
-
    end function find_object
 
    recursive function find_link(self, name, recursive, exact) result(link)
@@ -2683,9 +2682,9 @@ contains
       logical,        optional, intent(in)         :: recursive, exact
       type (type_link), pointer                    :: link
 
-      integer                         :: n
-      logical                         :: recursive_eff, exact_eff
-      class (type_base_model),pointer :: current
+      integer                          :: n
+      logical                          :: recursive_eff, exact_eff
+      class (type_base_model), pointer :: current
 
       link => null()
 
@@ -2984,18 +2983,21 @@ contains
    function coupling_task_resolve(self) result(link)
       class (type_coupling_task), intent(inout) :: self
       type (type_link), pointer :: link
+
       link => null()
    end function
 
    function link_coupling_task_resolve(self) result(link)
       class (type_link_coupling_task), intent(inout) :: self
       type (type_link), pointer :: link
+
       link => self%target_link
    end function
 
    subroutine coupling_task_list_remove(self, task)
       class (type_coupling_task_list), intent(inout) :: self
       class (type_coupling_task), pointer            :: task
+
       if (associated(task%previous)) then
          task%previous%next => task%next
       else
@@ -3058,6 +3060,7 @@ contains
 
    character(len=32) function source2string(source)
       integer, intent(in) :: source
+
       select case (source)
       case (source_unknown);                  source2string = 'unknown'
       case (source_state);                    source2string = 'state'
@@ -3086,6 +3089,7 @@ contains
 
    character(len=32) function domain2string(domain)
       integer, intent(in) :: domain
+
       select case (domain)
       case (domain_interior);   domain2string = 'interior'
       case (domain_surface);    domain2string = 'surface'
@@ -3245,6 +3249,7 @@ contains
    function settings_create_child(self) result(child)
       class (type_fabm_settings), intent(in) :: self
       class (type_settings),  pointer        :: child
+
       allocate(type_fabm_settings::child)
    end function settings_create_child
 
