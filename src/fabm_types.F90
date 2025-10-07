@@ -481,8 +481,6 @@ module fabm_types
       type (type_add_id)            :: extinction_id
       type (type_horizontal_add_id) :: albedo_id
       type (type_horizontal_add_id) :: surface_drag_id
-
-      integer, allocatable :: implemented(:)
    contains
 
       ! Procedure for adding child models [during initialization only]
@@ -521,12 +519,13 @@ module fabm_types
       procedure :: get_integer_parameter
       procedure :: get_logical_parameter
       procedure :: get_string_parameter
-      generic :: get_parameter => get_real_parameter,get_integer_parameter,get_logical_parameter,get_string_parameter
+      generic :: get_parameter => get_real_parameter, get_integer_parameter, get_logical_parameter, get_string_parameter
 
       procedure :: set_variable_property_real
       procedure :: set_variable_property_integer
       procedure :: set_variable_property_logical
-      generic   :: set_variable_property => set_variable_property_real,set_variable_property_integer,set_variable_property_logical
+      generic   :: set_variable_property => set_variable_property_real, set_variable_property_integer, &
+                                            set_variable_property_logical
 
       procedure :: add_variable_to_aggregate_variable
       procedure :: add_constant_to_aggregate_variable
@@ -648,7 +647,6 @@ module fabm_types
       procedure :: after_coupling  => base_after_coupling
 
       procedure :: implements
-      procedure :: register_implemented_routines
       procedure :: freeze
 
       procedure :: finalize => base_finalize
@@ -658,6 +656,9 @@ module fabm_types
       procedure :: get_light_extinction     => base_get_light_extinction
       procedure :: get_drag                 => base_get_drag
       procedure :: get_albedo               => base_get_albedo
+
+      ! Deprecated as of FABM 3.0
+      procedure :: register_implemented_routines
    end type type_base_model
 
    ! ====================================================================================================
@@ -969,70 +970,58 @@ contains
       type (type_interior_cache)   :: interior_cache
       type (type_horizontal_cache) :: horizontal_cache
 
-      is_implemented = .true.
-      if (allocated(self%implemented)) then
-         do i = 1, size(self%implemented)
-            if (self%implemented(i) == source) return
-         end do
-         is_implemented = .false.
-      else
-         allocate(interior_cache%read_scalar(-1:-1), horizontal_cache%read_scalar(-1:-1))
-         interior_cache%read_scalar(:) = 0.0_rk
-         horizontal_cache%read_scalar(:) = 0.0_rk
-         select case (source)
-         case (source_initialize_state)
-            call self%initialize_state(interior_cache)
-            is_implemented = interior_cache%implemented
-         case (source_initialize_bottom_state)
-            call self%initialize_bottom_state(horizontal_cache)
-            is_implemented = horizontal_cache%implemented
-         case (source_initialize_surface_state)
-            call self%initialize_surface_state(horizontal_cache)
-            is_implemented = horizontal_cache%implemented
-         case (source_check_state)
-            call self%check_state(interior_cache)
-            is_implemented = interior_cache%implemented
-         case (source_check_bottom_state)
-            call self%check_bottom_state(horizontal_cache)
-            is_implemented = horizontal_cache%implemented
-         case (source_check_surface_state)
-            call self%check_surface_state(horizontal_cache)
-            is_implemented = horizontal_cache%implemented
-         case (source_do)
-            call self%do(interior_cache)
-            is_implemented = interior_cache%implemented
-         case (source_do_surface)
-            call self%do_surface(horizontal_cache)
-            is_implemented = horizontal_cache%implemented
-         case (source_do_bottom)
-            call self%do_bottom(horizontal_cache)
-            is_implemented = horizontal_cache%implemented
-         case (source_get_vertical_movement)
-            call self%get_vertical_movement(interior_cache)
-            is_implemented = interior_cache%implemented
-         case (source_get_light_extinction)
-            call self%get_light_extinction(interior_cache)
-            is_implemented = interior_cache%implemented
-         case (source_get_drag)
-            call self%get_drag(horizontal_cache)
-            is_implemented = horizontal_cache%implemented
-         case (source_get_albedo)
-            call self%get_albedo(horizontal_cache)
-            is_implemented = horizontal_cache%implemented
-         end select
-      end if
+      allocate(interior_cache%read_scalar(-1:-1), horizontal_cache%read_scalar(-1:-1))
+      interior_cache%read_scalar(:) = 0.0_rk
+      horizontal_cache%read_scalar(:) = 0.0_rk
+      select case (source)
+      case (source_initialize_state)
+         call self%initialize_state(interior_cache)
+         is_implemented = interior_cache%implemented
+      case (source_initialize_bottom_state)
+         call self%initialize_bottom_state(horizontal_cache)
+         is_implemented = horizontal_cache%implemented
+      case (source_initialize_surface_state)
+         call self%initialize_surface_state(horizontal_cache)
+         is_implemented = horizontal_cache%implemented
+      case (source_check_state)
+         call self%check_state(interior_cache)
+         is_implemented = interior_cache%implemented
+      case (source_check_bottom_state)
+         call self%check_bottom_state(horizontal_cache)
+         is_implemented = horizontal_cache%implemented
+      case (source_check_surface_state)
+         call self%check_surface_state(horizontal_cache)
+         is_implemented = horizontal_cache%implemented
+      case (source_do)
+         call self%do(interior_cache)
+         is_implemented = interior_cache%implemented
+      case (source_do_surface)
+         call self%do_surface(horizontal_cache)
+         is_implemented = horizontal_cache%implemented
+      case (source_do_bottom)
+         call self%do_bottom(horizontal_cache)
+         is_implemented = horizontal_cache%implemented
+      case (source_get_vertical_movement)
+         call self%get_vertical_movement(interior_cache)
+         is_implemented = interior_cache%implemented
+      case (source_get_light_extinction)
+         call self%get_light_extinction(interior_cache)
+         is_implemented = interior_cache%implemented
+      case (source_get_drag)
+         call self%get_drag(horizontal_cache)
+         is_implemented = horizontal_cache%implemented
+      case (source_get_albedo)
+         call self%get_albedo(horizontal_cache)
+         is_implemented = horizontal_cache%implemented
+      case default
+         is_implemented = .true.
+      end select
    end function
 
    subroutine register_implemented_routines(self, sources)
       class (type_base_model), intent(inout) :: self
       integer, optional,       intent(in)    :: sources(:)
-      if (allocated(self%implemented)) deallocate(self%implemented)
-      if (present(sources)) then
-         allocate(self%implemented(size(sources)))
-         self%implemented(:) = sources
-      else
-         allocate(self%implemented(0))
-      end if
+      !call self%log_message('Warning: register_implemented_routines is superfluous as of FABM 3.0 and will be removed in future versions.')
    end subroutine
 
    recursive subroutine add_child(self, model, name, long_name, configunit)
