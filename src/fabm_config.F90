@@ -7,6 +7,7 @@ module fabm_config
    use fabm_schedule
 
    use yaml_settings
+   use yaml_types, only: yaml_rk => real_kind
 
    implicit none
 
@@ -133,7 +134,7 @@ contains
       do while (associated(link))
          if (index(link%name, '/') == 0 .and. link%target%source == source_state .and. link%target%presence == presence_internal) then
             realvalue = subsettings%get_real(trim(link%name), trim(link%target%long_name), trim(link%target%units), &
-               default=link%target%background_values%value, display=display_advanced)
+               default=real(link%target%background_values%value, yaml_rk), display=display_advanced)
             call link%target%background_values%set_value(realvalue)
          end if
          link => link%next

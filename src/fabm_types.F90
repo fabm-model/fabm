@@ -18,6 +18,7 @@ module fabm_types
    use fabm_properties
    use fabm_driver, only: driver
    use yaml_settings
+   use yaml_types, only: yaml_rk => real_kind
 
    implicit none
 
@@ -527,10 +528,11 @@ module fabm_types
 
       ! Procedures that may be used to query parameter values during initialization.
       procedure :: get_real_parameter
+      procedure :: get_double_parameter
       procedure :: get_integer_parameter
       procedure :: get_logical_parameter
       procedure :: get_string_parameter
-      generic :: get_parameter => get_real_parameter,get_integer_parameter,get_logical_parameter,get_string_parameter
+      generic :: get_parameter => get_real_parameter,get_double_parameter,get_integer_parameter,get_logical_parameter,get_string_parameter
 
       procedure :: set_variable_property_real
       procedure :: set_variable_property_integer
@@ -2585,10 +2587,32 @@ contains
 
    subroutine get_real_parameter(self, value, name, units, long_name, default, scale_factor, minimum, maximum, display)
       class (type_base_model), intent(inout), target  :: self
-      real(rk),                intent(inout), target  :: value
+      real(kind(1.0e0)),       intent(inout), target  :: value
       character(len=*),        intent(in)             :: name
       character(len=*),        intent(in),   optional :: units, long_name
-      real(rk),                intent(in),   optional :: default, scale_factor, minimum, maximum
+      real(kind(1.0e0)),       intent(in),   optional :: default, scale_factor, minimum, maximum
+      integer,                 intent(in),   optional :: display
+
+      real(yaml_rk), pointer :: scale_factor_, minimum_, maximum_, default_
+
+      minimum_ => null()
+      maximum_ => null()
+      scale_factor_ => null()
+      default_ => null()
+      if (present(default)) allocate(default_, source=real(default, yaml_rk))
+      if (present(minimum)) allocate(minimum_, source=real(minimum, yaml_rk))
+      if (present(maximum)) allocate(maximum_, source=real(maximum, yaml_rk))
+      if (present(scale_factor)) allocate(scale_factor_, source=real(scale_factor, yaml_rk))
+      value = self%parameters%get_real(name, get_effective_string(long_name, name), get_effective_string(units, ''), &
+         default=default_, minimum=minimum_, maximum=maximum_, scale_factor=scale_factor_, display=get_effective_display(display, self%user_created))
+   end subroutine get_real_parameter
+
+   subroutine get_double_parameter(self, value, name, units, long_name, default, scale_factor, minimum, maximum, display)
+      class (type_base_model), intent(inout), target  :: self
+      real(kind(1.0d0)),       intent(inout), target  :: value
+      character(len=*),        intent(in)             :: name
+      character(len=*),        intent(in),   optional :: units, long_name
+      real(kind(1.0d0)),       intent(in),   optional :: default, scale_factor, minimum, maximum
       integer,                 intent(in),   optional :: display
 
       if (fabm_parameter_pointers) then
@@ -2598,7 +2622,7 @@ contains
          value = self%parameters%get_real(name, get_effective_string(long_name, name), get_effective_string(units, ''), &
             default, minimum, maximum, scale_factor, display=get_effective_display(display, self%user_created))
       end if
-   end subroutine get_real_parameter
+   end subroutine get_double_parameter
 
    subroutine get_integer_parameter(self, value, name, units, long_name, default, minimum, maximum, options, display)
       class (type_base_model), intent(inout), target :: self
@@ -3224,7 +3248,7 @@ contains
 
       real(rk) :: final_value
 
-      final_value = self%get_real(key, key, '', default=value)
+      final_value = self%get_real(key, key, '', default=real(value, yaml_rk))
    end subroutine settings_set_real
 
    subroutine settings_set_integer(self, key, value)

@@ -446,3 +446,13 @@ jobs:
         run: .binder/postBuild
         env:
           REPO_DIR: .
+  single_prec:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone FABM
+        uses: actions/checkout@v5
+      - name: Build
+        run: |
+          cmake -S . -B build -DFABM_REAL_KIND='SELECTED_REAL_KIND(6)'
+          cmake --build build --target install
