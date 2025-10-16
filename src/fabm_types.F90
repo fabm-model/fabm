@@ -2598,7 +2598,7 @@ contains
 
       minimum_ = yaml_default_minimum_real
       maximum_ = yaml_default_maximum_real
-      scale_factor_ = 1.0_rk
+      scale_factor_ = 1.0_yaml_rk
       if (present(minimum)) minimum_ = minimum
       if (present(maximum)) maximum_ = maximum
       if (present(scale_factor)) scale_factor_ = scale_factor
