@@ -17,7 +17,8 @@ module fabm_types
       type_universal_standard_variable => type_universal_standard_variable
    use fabm_properties
    use fabm_driver, only: driver
-   use yaml_settings
+
+   use yaml_settings, yaml_default_minimum_real => default_minimum_real, yaml_default_maximum_real => default_maximum_real
    use yaml_types, only: yaml_rk => real_kind
 
    implicit none
@@ -2593,18 +2594,22 @@ contains
       real(kind(1.0e0)),       intent(in),   optional :: default, scale_factor, minimum, maximum
       integer,                 intent(in),   optional :: display
 
-      real(yaml_rk), pointer :: scale_factor_, minimum_, maximum_, default_
+      real(yaml_rk) :: scale_factor_, minimum_, maximum_
 
-      minimum_ => null()
-      maximum_ => null()
-      scale_factor_ => null()
-      default_ => null()
-      if (present(default)) allocate(default_, source=real(default, yaml_rk))
-      if (present(minimum)) allocate(minimum_, source=real(minimum, yaml_rk))
-      if (present(maximum)) allocate(maximum_, source=real(maximum, yaml_rk))
-      if (present(scale_factor)) allocate(scale_factor_, source=real(scale_factor, yaml_rk))
-      value = self%parameters%get_real(name, get_effective_string(long_name, name), get_effective_string(units, ''), &
-         default=default_, minimum=minimum_, maximum=maximum_, scale_factor=scale_factor_, display=get_effective_display(display, self%user_created))
+      minimum_ = yaml_default_minimum_real
+      maximum_ = yaml_default_maximum_real
+      scale_factor_ = 1.0_rk
+      if (present(minimum)) minimum_ = minimum
+      if (present(maximum)) maximum_ = maximum
+      if (present(scale_factor)) scale_factor_ = scale_factor
+
+      if (present(default)) then
+         value = self%parameters%get_real(name, get_effective_string(long_name, name), get_effective_string(units, ''), &
+            default=real(default, yaml_rk), minimum=minimum_, maximum=maximum_, scale_factor=scale_factor_, display=get_effective_display(display, self%user_created))
+      else
+         value = self%parameters%get_real(name, get_effective_string(long_name, name), get_effective_string(units, ''), &
+            minimum=minimum_, maximum=maximum_, scale_factor=scale_factor_, display=get_effective_display(display, self%user_created))
+      end if
    end subroutine get_real_parameter
 
    subroutine get_double_parameter(self, value, name, units, long_name, default, scale_factor, minimum, maximum, display)
