@@ -17,7 +17,9 @@ module fabm_types
       type_universal_standard_variable => type_universal_standard_variable
    use fabm_properties
    use fabm_driver, only: driver
-   use yaml_settings
+
+   use yaml_settings, yaml_default_minimum_real => default_minimum_real, yaml_default_maximum_real => default_maximum_real
+   use yaml_types, only: yaml_rk => real_kind
 
    implicit none
 
@@ -527,10 +529,11 @@ module fabm_types
 
       ! Procedures that may be used to query parameter values during initialization.
       procedure :: get_real_parameter
+      procedure :: get_double_parameter
       procedure :: get_integer_parameter
       procedure :: get_logical_parameter
       procedure :: get_string_parameter
-      generic :: get_parameter => get_real_parameter,get_integer_parameter,get_logical_parameter,get_string_parameter
+      generic :: get_parameter => get_real_parameter,get_double_parameter,get_integer_parameter,get_logical_parameter,get_string_parameter
 
       procedure :: set_variable_property_real
       procedure :: set_variable_property_integer
@@ -2585,10 +2588,36 @@ contains
 
    subroutine get_real_parameter(self, value, name, units, long_name, default, scale_factor, minimum, maximum, display)
       class (type_base_model), intent(inout), target  :: self
-      real(rk),                intent(inout), target  :: value
+      real(kind(1.0e0)),       intent(inout), target  :: value
       character(len=*),        intent(in)             :: name
       character(len=*),        intent(in),   optional :: units, long_name
-      real(rk),                intent(in),   optional :: default, scale_factor, minimum, maximum
+      real(kind(1.0e0)),       intent(in),   optional :: default, scale_factor, minimum, maximum
+      integer,                 intent(in),   optional :: display
+
+      real(yaml_rk) :: scale_factor_, minimum_, maximum_
+
+      minimum_ = yaml_default_minimum_real
+      maximum_ = yaml_default_maximum_real
+      scale_factor_ = 1.0_yaml_rk
+      if (present(minimum)) minimum_ = minimum
+      if (present(maximum)) maximum_ = maximum
+      if (present(scale_factor)) scale_factor_ = scale_factor
+
+      if (present(default)) then
+         value = self%parameters%get_real(name, get_effective_string(long_name, name), get_effective_string(units, ''), &
+            default=real(default, yaml_rk), minimum=minimum_, maximum=maximum_, scale_factor=scale_factor_, display=get_effective_display(display, self%user_created))
+      else
+         value = self%parameters%get_real(name, get_effective_string(long_name, name), get_effective_string(units, ''), &
+            minimum=minimum_, maximum=maximum_, scale_factor=scale_factor_, display=get_effective_display(display, self%user_created))
+      end if
+   end subroutine get_real_parameter
+
+   subroutine get_double_parameter(self, value, name, units, long_name, default, scale_factor, minimum, maximum, display)
+      class (type_base_model), intent(inout), target  :: self
+      real(kind(1.0d0)),       intent(inout), target  :: value
+      character(len=*),        intent(in)             :: name
+      character(len=*),        intent(in),   optional :: units, long_name
+      real(kind(1.0d0)),       intent(in),   optional :: default, scale_factor, minimum, maximum
       integer,                 intent(in),   optional :: display
 
       if (fabm_parameter_pointers) then
@@ -2598,7 +2627,7 @@ contains
          value = self%parameters%get_real(name, get_effective_string(long_name, name), get_effective_string(units, ''), &
             default, minimum, maximum, scale_factor, display=get_effective_display(display, self%user_created))
       end if
-   end subroutine get_real_parameter
+   end subroutine get_double_parameter
 
    subroutine get_integer_parameter(self, value, name, units, long_name, default, minimum, maximum, options, display)
       class (type_base_model), intent(inout), target :: self
@@ -3224,7 +3253,7 @@ contains
 
       real(rk) :: final_value
 
-      final_value = self%get_real(key, key, '', default=value)
+      final_value = self%get_real(key, key, '', default=real(value, yaml_rk))
    end subroutine settings_set_real
 
    subroutine settings_set_integer(self, key, value)
