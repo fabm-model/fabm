@@ -28,8 +28,6 @@ contains
       class (type_bb_gas), intent(inout), target :: self
       integer,             intent(in)            :: configunit
 
-      call self%register_implemented_routines((/source_do_surface/))
-
       call self%get_parameter(self%A, 'A', '', 'coefficient A for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)')
       call self%get_parameter(self%B, 'B', '', 'coefficient B for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)')
       call self%get_parameter(self%C, 'C', '', 'coefficient C for Schmidt number polynomial (Table 1 in https://doi.org/10.5194/gmd-10-2169-2017)')

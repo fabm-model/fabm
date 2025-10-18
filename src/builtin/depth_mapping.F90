@@ -153,7 +153,6 @@ contains
       class (type_vertical_depth_range), intent(inout), target :: self
       integer,                           intent(in)            :: configunit
 
-      call self%register_implemented_routines((/source_do/))
       call self%get_parameter(self%minimum_depth, 'minimum_depth', 'm', 'minimum depth (distance from surface)', &
          default=self%minimum_depth)
       call self%get_parameter(self%maximum_depth, 'maximum_depth', 'm', 'maximum depth (distance from surface)', &
@@ -258,8 +257,6 @@ contains
 
       class (type_absolute_rate_distributor), pointer :: rate_distributor
 
-      call self%register_implemented_routines((/source_do_column/))
-
       call self%get_parameter(self%average, 'average', '', 'average', default=self%average)
       call self%get_parameter(self%act_as_state_variable, 'act_as_state_variable', '', 'act as state variable', &
          default=self%act_as_state_variable)
@@ -324,8 +321,6 @@ contains
 
       class (type_projected_rate_distributor), pointer :: rate_distributor
 
-      call self%register_implemented_routines((/source_do/))
-
       call self%get_parameter(self%act_as_state_variable, 'act_as_state_variable', '', 'act as state variable', &
          default=self%act_as_state_variable)
 
@@ -365,7 +360,6 @@ contains
       class (type_absolute_rate_distributor), intent(inout), target :: self
       integer,                                intent(in)            :: configunit
 
-      call self%register_implemented_routines((/source_do/))
       call self%register_state_dependency(self%id_target, 'target', '', 'variable to apply sources and sinks to')
       call self%register_dependency(self%id_w, 'w', '1', 'weights for vertical distribution')
       call self%register_dependency(self%id_w_int, 'w_int', 'm', 'depth-integrated weights for vertical distribution')
@@ -416,7 +410,6 @@ contains
       class (type_projected_rate_distributor), intent(inout), target :: self
       integer,                                 intent(in)            :: configunit
 
-      call self%register_implemented_routines((/source_do_column/))
       call self%register_state_dependency(self%id_target, 'target', '', 'variable to apply sources and sinks to')
       call self%register_dependency(self%id_h, standard_variables%cell_thickness)
       call self%register_dependency(self%id_sms, 'sms', '', 'sources-sinks')

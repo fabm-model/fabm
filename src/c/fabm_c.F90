@@ -30,6 +30,7 @@ module fabm_c
    integer, parameter :: INTERIOR_DEPENDENCY            = 7
    integer, parameter :: HORIZONTAL_DEPENDENCY          = 8
    integer, parameter :: SCALAR_DEPENDENCY              = 9
+   integer, parameter :: SCALAR_DIAGNOSTIC_VARIABLE     = 10
 
    logical, save :: error_occurred = .false.
    character(len=:), allocatable, save :: error_message
@@ -306,11 +307,12 @@ contains
    end function model_count
 
    subroutine get_counts(pmodel, nstate_interior, nstate_surface, nstate_bottom, ndiagnostic_interior, ndiagnostic_horizontal, &
-      ndependencies_interior, ndependencies_horizontal, ndependencies_scalar, nconserved, nparameters, ncouplings) bind(c)
+      ndiagnostic_scalar, ndependencies_interior, ndependencies_horizontal, ndependencies_scalar, nconserved, nparameters, &
+      ncouplings) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_counts
       type (c_ptr),   intent(in), value :: pmodel
       integer(c_int), intent(out)       :: nstate_interior, nstate_surface, nstate_bottom
-      integer(c_int), intent(out)       :: ndiagnostic_interior, ndiagnostic_horizontal
+      integer(c_int), intent(out)       :: ndiagnostic_interior, ndiagnostic_horizontal, ndiagnostic_scalar
       integer(c_int), intent(out)       :: ndependencies_interior, ndependencies_horizontal, ndependencies_scalar
       integer(c_int), intent(out)       :: nconserved, nparameters, ncouplings
 
@@ -323,6 +325,7 @@ contains
       nstate_bottom = size(model%p%bottom_state_variables)
       ndiagnostic_interior = size(model%p%interior_diagnostic_variables)
       ndiagnostic_horizontal = size(model%p%horizontal_diagnostic_variables)
+      ndiagnostic_scalar = size(model%p%scalar_diagnostic_variables)
 
       ndependencies_interior = 0
       ndependencies_horizontal = 0
@@ -424,6 +427,8 @@ contains
          variable => model%p%interior_diagnostic_variables(index)
       case (HORIZONTAL_DIAGNOSTIC_VARIABLE)
          variable => model%p%horizontal_diagnostic_variables(index)
+      case (SCALAR_DIAGNOSTIC_VARIABLE)
+         variable => model%p%scalar_diagnostic_variables(index)
       case (CONSERVED_QUANTITY)
          variable => model%p%conserved_quantities(index)
       end select
@@ -450,6 +455,26 @@ contains
       end select
    end subroutine set_variable_save
 
+   function get_variable_part_of_state(pmodel, category, index) bind(c) result(part_of_state)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_variable_part_of_state
+      type (c_ptr),           intent(in), value :: pmodel
+      integer(c_int),         intent(in), value :: category, index
+      integer(c_int)                            :: part_of_state
+
+      type (type_model_wrapper),  pointer :: model
+
+      call c_f_pointer(pmodel, model)
+
+      select case (category)
+      case (INTERIOR_DIAGNOSTIC_VARIABLE)
+         part_of_state = logical2int(model%p%interior_diagnostic_variables(index)%part_of_state)
+      case (HORIZONTAL_DIAGNOSTIC_VARIABLE)
+         part_of_state = logical2int(model%p%horizontal_diagnostic_variables(index)%part_of_state)
+      case (SCALAR_DIAGNOSTIC_VARIABLE)
+         part_of_state = logical2int(model%p%scalar_diagnostic_variables(index)%part_of_state)
+      end select
+   end function get_variable_part_of_state
+
    function get_variable(pmodel, category, index) bind(c) result(pvariable)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_variable
       type (c_ptr),   intent(in), value :: pmodel
@@ -475,6 +500,8 @@ contains
          variable => model%p%interior_diagnostic_variables(index)%original
       case (HORIZONTAL_DIAGNOSTIC_VARIABLE)
          variable => model%p%horizontal_diagnostic_variables(index)%original
+      case (SCALAR_DIAGNOSTIC_VARIABLE)
+         variable => model%p%scalar_diagnostic_variables(index)%original
       case (CONSERVED_QUANTITY)
          variable => model%p%conserved_quantities(index)%target_hz
       case (INTERIOR_DEPENDENCY, HORIZONTAL_DEPENDENCY, SCALAR_DEPENDENCY)
@@ -493,6 +520,8 @@ contains
             end if
             node => node%next
          end do
+      case default
+         stop 'get_variable: Unknown variable category'
       end select
       pvariable = c_null_ptr
       if (associated(variable)) pvariable = c_loc(variable)
@@ -1106,6 +1135,22 @@ contains
       pvalue => model%p%get_horizontal_diagnostic_data(index)
       if (associated(pvalue)) ptr = c_loc(pvalue)
    end function get_horizontal_diagnostic_data
+
+   function get_scalar_diagnostic_data(pmodel, index) result(ptr) bind(c)
+      !DIR$ ATTRIBUTES DLLEXPORT :: get_scalar_diagnostic_data
+      type (c_ptr),   intent(in), value :: pmodel
+      integer(c_int), intent(in), value :: index
+      type(c_ptr)                       :: ptr
+
+      real(rke), pointer :: pvalue
+
+      type (type_model_wrapper), pointer :: model
+
+      call c_f_pointer(pmodel, model)
+      ptr = c_null_ptr
+      pvalue => model%p%get_scalar_diagnostic_data(index)
+      if (associated(pvalue)) ptr = c_loc(pvalue)
+   end function get_scalar_diagnostic_data
 
    function get_standard_variable_data(pmodel, pstandard_variable, horizontal) result(ptr) bind(c)
       !DIR$ ATTRIBUTES DLLEXPORT :: get_standard_variable_data

@@ -161,7 +161,7 @@ contains
 
       type (type_model_list_node), pointer :: node
 
-      self%frozen = .true.
+      call self%freeze()
       node => self%children%first
       do while (associated(node))
          call freeze(node%model)
@@ -248,7 +248,7 @@ contains
             target_name = self%couplings%get_string(trim(link%name), trim(link%original%long_name), units=trim(link%original%units), default='', display=display)
             if (len(target_name) >= 4) then
                if (target_name(len(target_name) - 3:len(target_name)) == '@old') then
-                  call set_dependency_flag(link%original, source=-1, flag=dependency_flag_stale)
+                  call set_dependency_flag(link%original, flag=dependency_flag_stale)
                   target_name = target_name(:len(target_name) - 4)
                end if
             end if
@@ -661,7 +661,7 @@ contains
             sum => horizontal_sum
          end select
          sum%units = aggregate_variable_access%link%target%units
-         sum%act_as_state_variable = aggregate_variable_access%link%target%fake_state_variable
+         sum%act_as_state_variable = associated(aggregate_variable_access%link%target%sms_list%first)
          sum%result_output = output_none
 
          contributing_variable => aggregate_variable%first_contributing_variable

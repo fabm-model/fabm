@@ -107,9 +107,9 @@
 #else
 !  Interior procedures operate in 0D
 !  Interior slices may be 0D scalars or 1D arrays [the latter if the model has a vertical dimension]
-#  define _LOOP_BEGIN_EX_(cache)
-#  define _CONCURRENT_LOOP_BEGIN_EX_(cache)
-#  define _LOOP_END_
+#  define _LOOP_BEGIN_EX_(cache) if (cache%n /= 0) then
+#  define _CONCURRENT_LOOP_BEGIN_EX_(cache) if (cache%n /= 0) then
+#  define _LOOP_END_ end if
 #  ifdef _INTERIOR_IS_VECTORIZED_
 !    Interior slices are 1D arrays - we will operate on their first element (_I_=1)
 #    define _DECLARE_INTERIOR_INDICES_ integer,parameter :: _I_=1
@@ -134,9 +134,9 @@
 #else
 !  Horizontal procedures operate in 0D
 !  Horizontal slices MUST be scalars; interior slices can be scalars or 1D arrays
-#  define _HORIZONTAL_LOOP_BEGIN_EX_(cache)
-#  define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(cache)
-#  define _HORIZONTAL_LOOP_END_
+#  define _HORIZONTAL_LOOP_BEGIN_EX_(cache) if (cache%n /= 0) then
+#  define _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(cache) if (cache%n /= 0) then
+#  define _HORIZONTAL_LOOP_END_ end if
 #  ifdef _INTERIOR_IS_VECTORIZED_
 !    Interior slices are 1D arrays - we will operate on their first element (_I_=1)
 #    define _DECLARE_HORIZONTAL_INDICES_ integer,parameter :: _I_=1
@@ -186,11 +186,11 @@
 !  Vertical procedures operate in 0D
 !  Interior slices may scalars or 1D arrays [the latter if the model is vectorized over a horizontal dimension]
 !  Applies to all models without depth dimension; for instance, 0D box or model with i,j or i
-#  define _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(cache)
-#  define _VERTICAL_LOOP_END_
+#  define _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(cache) if (cache%n /= 0) then
+#  define _VERTICAL_LOOP_END_ end if
 #  define _VERTICAL_LOOP_EXIT_
-#  define _DOWNWARD_LOOP_BEGIN_
-#  define _UPWARD_LOOP_BEGIN_
+#  define _DOWNWARD_LOOP_BEGIN_ if (cache%n /= 0) then
+#  define _UPWARD_LOOP_BEGIN_ if (cache%n /= 0) then
 #  define _MOVE_TO_SURFACE_
 #  define _MOVE_TO_BOTTOM_
 #  ifdef _INTERIOR_IS_VECTORIZED_

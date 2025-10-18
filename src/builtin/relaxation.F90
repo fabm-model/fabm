@@ -26,7 +26,6 @@ contains
       class (type_interior_relaxation),intent(inout),target :: self
       integer,                         intent(in)           :: configunit
 
-      call self%register_implemented_routines((/source_do/))
       call self%register_state_dependency(self%id_original, 'original', '', 'variable that is to be relaxed')
       call self%register_dependency(self%id_target, 'target', '', 'target to relax towards')
       call self%get_parameter(self%rate_is_variable, 'rate_is_variable', '', 'use variable relaxation rate', default=.false.)

@@ -394,8 +394,9 @@ contains
 
       link => model%links%first
       do while (associated(link))
-         if (index(link%name, '/') == 0 .and. associated(link%original%read_index)) then
+         if (index(link%name, '/') == 0 .and. (associated(link%original%read_index) .or. (source == source_global .and. link%original%presence == presence_external_required))) then
             ! This is the model's own variable (not inherited from child model) and the model itself originally requested read access to it.
+            ! (note: global models/operators do not use read_index, so we detect inputs based on the presence attribute)
             _ASSERT_(.not. associated(link%target%write_owner), 'graph::add_call', 'BUG: required input variable is co-written.')
             input_variable => node%inputs%add(link%target)
             input_variable%update = get_update_flag(link%target, link%original) == dependency_flag_none
@@ -471,7 +472,7 @@ contains
          type (type_output_variable), pointer :: output_variable
 
          if (variable%source == source_constant .or. variable%source == source_state .or. variable%source == source_external .or. variable%source == source_unknown) return
-         _ASSERT_ (.not. variable%write_indices%is_empty(), 'graph_add_variable::add_call', 'Variable "' // trim(variable%name) // '" with source ' // trim(source2string(variable%source)) // ' does not have a write index')
+         _ASSERT_ (variable%source == source_global .or. .not. variable%write_indices%is_empty(), 'graph_add_variable::add_call', 'Variable "' // trim(variable%name) // '" with source ' // trim(source2string(variable%source)) // ' does not have a write index')
 
          node => self%add_call(variable%owner, variable%source, stack_top)
          output_variable => node%outputs%add(variable)
@@ -489,7 +490,7 @@ contains
       integer,intent(in) :: source
       integer            :: operation
       select case (source)
-      case (source_do, source_do_column, source_do_bottom, source_do_surface, source_do_horizontal)
+      case (source_do, source_do_column, source_do_bottom, source_do_surface, source_do_horizontal, source_global)
          operation = source
       case (source_get_vertical_movement, source_initialize_state, source_check_state, source_get_light_extinction)
          operation = source_do

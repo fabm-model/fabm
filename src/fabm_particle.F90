@@ -55,7 +55,6 @@ module fabm_particle
 
    type, extends(type_coupling_task) :: type_coupling_from_model
       type (type_model_reference), pointer :: model_reference => null()
-      integer                              :: access          = access_read
       class (type_particle_model), pointer :: owner           => null()
    contains
       procedure :: resolve => coupling_from_model_resolve
@@ -240,8 +239,6 @@ contains
          class is (type_domain_specific_standard_variable)
             coupling%target_standard_variable => standard_variable
          end select
-         if (coupling%link%target%source == source_state .or. coupling%link%target%fake_state_variable) &
-            coupling%access = access_state
       end if
       if (present(target_model)) then
          coupling%model_reference => target_model%reference
@@ -402,7 +399,7 @@ contains
       type (type_model_reference), pointer :: reference
       class (type_base_model),     pointer :: model
 
-      ! For model references that include the model state, buid the corresponding lists
+      ! For model references that include the model state, build the corresponding lists
       ! of state variable identifiers now, and request their coupling to the referenced model.
       ! This must be done before the actual [variable] coupling starts, and therefore has
       ! to happen here, in before_coupling.
@@ -434,7 +431,7 @@ contains
          link => null()
       elseif (associated(self%target_standard_variable)) then
          ! Coupling to a standard [aggregate] variable
-         link => get_aggregate_variable_access(model, self%target_standard_variable, self%access)
+         link => get_aggregate_variable_access(model, self%target_standard_variable)
       else
          ! Coupling to a named variable
          link => model%find_link(trim(self%target_name))

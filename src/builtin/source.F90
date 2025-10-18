@@ -69,7 +69,6 @@ contains
       class (type_constant_surface_flux), intent(inout), target :: self
       integer,                            intent(in)            :: configunit
 
-      call self%register_implemented_routines((/source_do_surface/))
       call self%register_state_dependency(self%id_target, 'target', 'UNITS m-3', 'target variable')
       call self%get_parameter(self%flux, 'flux', 'UNITS m-2 s-1', 'flux (positive for into water)')
    end subroutine constant_surface_flux_initialize
@@ -99,7 +98,6 @@ contains
       class (type_external_surface_flux), intent(inout), target :: self
       integer,                            intent(in)            :: configunit
 
-      call self%register_implemented_routines((/source_do_horizontal/))
       call self%add_interior_variable('target', 'UNITS m-3', 'target variable', link=self%target)
       call self%register_surface_flux(self%target, self%id_target_flux, source=source_do_horizontal)
       call self%register_dependency(self%id_flux, 'flux', 'UNITS m-2 s-1', 'surface flux')
@@ -110,7 +108,6 @@ contains
       class (type_external_bottom_flux), intent(inout), target :: self
       integer,                           intent(in)            :: configunit
 
-      call self%register_implemented_routines((/source_do_horizontal/))
       call self%add_interior_variable('target', 'UNITS m-3', 'target variable', link=self%target)
       call self%register_bottom_flux(self%target, self%id_target_flux, source=source_do_horizontal)
       call self%register_dependency(self%id_flux, 'flux', 'UNITS m-2 s-1', 'bottom flux')
@@ -121,7 +118,6 @@ contains
       class (type_interior_source), intent(inout), target :: self
       integer,                      intent(in)            :: configunit
 
-      call self%register_implemented_routines((/source_do/))
       call self%add_interior_variable('target', 'UNITS m-3', 'target variable', link=self%target)
       call self%register_source(self%target, self%id_target_sms)
       call self%register_dependency(self%id_source, 'source', 'UNITS m-3 s-1', 'source')
@@ -144,7 +140,6 @@ contains
       class (type_bottom_source), intent(inout), target :: self
       integer,                    intent(in)            :: configunit
 
-      call self%register_implemented_routines((/source_do_horizontal/))
       call self%add_horizontal_variable('target', 'UNITS m-2', 'target variable', domain=domain_bottom, link=self%target)
       call self%register_bottom_source(self%target, self%id_target_flux, source=source_do_horizontal)
       call self%register_dependency(self%id_flux, 'source', 'UNITS m-2 s-1', 'source')
@@ -155,7 +150,6 @@ contains
       class (type_surface_source), intent(inout), target :: self
       integer,                     intent(in)            :: configunit
 
-      call self%register_implemented_routines((/source_do_horizontal/))
       call self%add_horizontal_variable('target', 'UNITS m-2', 'target variable', domain=domain_bottom, link=self%target)
       call self%register_surface_source(self%target, self%id_target_flux, source=source_do_horizontal)
       call self%register_dependency(self%id_flux, 'source', 'UNITS m-2 s-1', 'source')
