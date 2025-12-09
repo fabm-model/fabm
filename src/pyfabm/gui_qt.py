@@ -344,7 +344,7 @@ class ItemModel(QtCore.QAbstractItemModel):
             QtCore.Qt.ItemDataRole.CheckStateRole,
         ):
             assert isinstance(value, (float, int, bool, str))
-            entry = cast(Entry, index.internalPointer())
+            entry: Entry = index.internalPointer()
             data = entry.object
             assert isinstance(data, pyfabm.Variable)
             data.value = value

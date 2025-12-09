@@ -32,8 +32,6 @@ contains
       logical                         :: conserved
       character(len=attribute_length) :: standard_name
 
-      call self%register_implemented_routines()
-
       ! Retrieve parameter values
       call self%get_parameter(units, 'units', default='mol m-3')
       call self%get_parameter(vertical_velocity, 'vertical_velocity', 'm d-1', 'vertical velocity (negative for settling, positive for rising)', default=0.0_rk, scale_factor=days_per_second)

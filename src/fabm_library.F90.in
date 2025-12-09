@@ -40,7 +40,7 @@ contains
 
       model => null()
 
-      call self%type_base_model_factory%create(name,model)
+      call self%type_base_model_factory%create(name, model)
 
       ! Store name that was used to create this model, so we can re-create it in the future.
       if (associated(model)) model%type_name = name

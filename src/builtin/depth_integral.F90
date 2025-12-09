@@ -34,7 +34,6 @@ contains
       class (type_depth_integral), intent(inout), target :: self
       integer,                     intent(in)            :: configunit
 
-      call self%register_implemented_routines((/source_do_column/))
       call self%get_parameter(self%average, 'average', '', 'compute average by dividing integral by total height', default=self%average)
       call self%register_dependency(self%id_input, 'source', '', 'source')
       call self%register_dependency(self%id_thickness, standard_variables%cell_thickness)

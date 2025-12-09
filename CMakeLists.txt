@@ -5,7 +5,7 @@
 cmake_minimum_required(VERSION 3.13)
 
 project(fabm
-  VERSION 2.1.6
+  VERSION 3.0.0
   DESCRIPTION "Framework for Aquatic Biogeochemical Models"
   HOMEPAGE_URL https://fabm.net
   LANGUAGES Fortran

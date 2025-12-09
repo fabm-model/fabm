@@ -2,6 +2,7 @@
 
 module fabm_builtin_scale
    use fabm_types
+   use fabm_builtin_source, only: copy_fluxes, copy_horizontal_fluxes
 
    implicit none
 
@@ -9,24 +10,29 @@ module fabm_builtin_scale
 
    public type_scaled_interior_variable, type_scaled_horizontal_variable
 
-   type, extends(type_base_model) :: type_scaled_interior_variable
+   type, extends(type_base_model) :: type_scaled_variable
+      real(rk)                        :: weight = 1.0_rk
+      real(rk)                        :: offset = 0.0_rk
+      character(len=attribute_length) :: units         = ''
+      real(rk)                        :: missing_value = -2.e20_rk
+      logical                         :: act_as_state_variable = .false.
+      logical                         :: include_background = .false.
+      integer                         :: result_output = output_instantaneous
+   end type
+
+   type, extends(type_scaled_variable) :: type_scaled_interior_variable
       type (type_dependency_id)          :: id_source
       type (type_diagnostic_variable_id) :: id_result
-      real(rk)                           :: weight = 1.0_rk
-      real(rk)                           :: offset = 0.0_rk
-      logical                            :: include_background = .false.
    contains
       procedure :: initialize     => scaled_interior_variable_initialize
       procedure :: do             => scaled_interior_variable_do
       procedure :: after_coupling => scaled_interior_variable_after_coupling
    end type
 
-   type, extends(type_base_model) :: type_scaled_horizontal_variable
+   type, extends(type_scaled_variable) :: type_scaled_horizontal_variable
       type (type_horizontal_dependency_id)          :: id_source
       type (type_horizontal_diagnostic_variable_id) :: id_result
-      real(rk)                                      :: weight = 1.0_rk
-      real(rk)                                      :: offset = 0.0_rk
-      logical                                       :: include_background = .false.
+      integer                                       :: domain = domain_horizontal
    contains
       procedure :: initialize     => scaled_horizontal_variable_initialize
       procedure :: do_horizontal  => scaled_horizontal_variable_do_horizontal
@@ -38,7 +44,11 @@ contains
    subroutine scaled_interior_variable_initialize(self, configunit)
       class (type_scaled_interior_variable), intent(inout), target :: self
       integer,                               intent(in)            :: configunit
-      call self%register_implemented_routines((/source_do/))
+
+      call self%register_dependency(self%id_source, 'source', '', 'source variable')
+      call self%register_diagnostic_variable(self%id_result, 'result', self%units, 'result', &
+         missing_value=self%missing_value, output=self%result_output, act_as_state_variable=self%act_as_state_variable)
+      if (self%act_as_state_variable) call copy_fluxes(self, self%id_result, self%id_source%link%target%name, scale_factor=1.0_rk / self%weight)
    end subroutine
 
    subroutine scaled_interior_variable_do(self, _ARGUMENTS_DO_)
@@ -66,7 +76,12 @@ contains
    subroutine scaled_horizontal_variable_initialize(self, configunit)
       class (type_scaled_horizontal_variable), intent(inout), target :: self
       integer,                                 intent(in)            :: configunit
-      call self%register_implemented_routines((/source_do_horizontal/))
+
+      call self%register_dependency(self%id_source, 'source', '', 'source variable')
+      call self%register_diagnostic_variable(self%id_result, 'result', self%units, 'result', &
+         missing_value=self%missing_value, output=self%result_output, act_as_state_variable= &
+         self%act_as_state_variable, source=source_do_horizontal, domain=self%domain)
+      if (self%act_as_state_variable) call copy_horizontal_fluxes(self, self%id_result, self%id_source%link%target%name, scale_factor=1.0_rk / self%weight)
    end subroutine
 
    subroutine scaled_horizontal_variable_do_horizontal(self, _ARGUMENTS_HORIZONTAL_)

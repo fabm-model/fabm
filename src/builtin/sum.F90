@@ -4,7 +4,6 @@ module fabm_builtin_sum
    use fabm_types
    use fabm_builtin_reduction
    use fabm_builtin_scale
-   use fabm_builtin_source
 
    implicit none
 
@@ -61,7 +60,7 @@ module fabm_builtin_sum
    end type
 
    type, extends(type_base_sum) :: type_horizontal_weighted_sum
-      class (type_horizontal_standard_variable), pointer :: aggregate_variable
+      class (type_horizontal_standard_variable), pointer :: aggregate_variable => null()
       integer                                           :: domain = domain_horizontal
       type (type_horizontal_dependency_id), allocatable :: id_terms(:)
       type (type_horizontal_add_id)                     :: id_result
@@ -169,9 +168,6 @@ contains
 
       component => append_component(self, weight, include_background)
       component%link => link
-
-      ! Temporary: also store the name for use in calls to copy_fluxes from add_to_parent
-      component%name = link%target%name
    end subroutine add_component_by_link
 
    subroutine after_coupling(self)
@@ -179,7 +175,6 @@ contains
 
       type (type_component), pointer :: component
       real(rk)                       :: background
-      integer                        :: i
 
       ! If we are not using the actual sum (because we have 0 or 1 components), skip this routine altogether
       if (.not. self%active) return
@@ -187,10 +182,8 @@ contains
       ! At this stage, the background values for all variables (if any) are fixed. We can therefore
       ! compute background contributions already, and add those to the space- and time-invariant offset.
       background = 0.0_rk
-      i = 0
       component => self%first
       do while (associated(component))
-         i = i + 1
          if (component%include_background) then
             self%offset = self%offset + component%weight * component%link%target%background_values%value
          else
@@ -317,8 +310,6 @@ contains
       class (type_weighted_sum_sms_distributor), pointer :: sms_distributor
       class (type_scaled_interior_variable), pointer :: scaled_variable
 
-      call self%register_implemented_routines((/source_do/))
-
       n = base_initialize(self)
 
       allocate(self%id_terms(n))
@@ -332,36 +323,37 @@ contains
          component => component%next
       end do
 
+      ! Allow "do" to be called before merge_components
+      allocate(self%sources(0))
+
       if (n == 0) then
-         ! No components at all - the result is a constant
+         ! No components - create constant field with offset (typically 0)
          call self%add_interior_variable('result', self%units, 'result', fill_value=self%offset, missing_value=self%missing_value, &
             output=self%result_output, source=source_constant, link=self%result_link)
          return
       elseif (n == 1) then
+         ! One component only - set up an alias that will be linked to the actual values
          output = self%result_output
          if (output /= output_none) output = ior(output, output_always_available)
          call self%add_interior_variable('result', self%units, 'result', link=self%result_link, &
-            output=output, act_as_state_variable=self%act_as_state_variable, presence=presence_external_required)
+            output=output, presence=presence_external_required)
          if (self%first%weight == 1.0_rk) then
             ! One component with scale factor 1 - directly link to the component's source variable.
             call request_coupling_to_component(self, self%result_link, self%first)
          else
-            ! One component with scale factor other than 1 (or a user-specified requirement NOT to make a direct link to the source variable)
+            ! One component with scale factor other than 1 - add a child model to perform the scaling
             allocate(scaled_variable)
-            call self%add_child(scaled_variable, '*')
-            call scaled_variable%register_dependency(scaled_variable%id_source, 'source', '', 'source variable')
-            call request_coupling_to_component(scaled_variable, scaled_variable%id_source%link, self%first)
-            call scaled_variable%register_diagnostic_variable(scaled_variable%id_result, 'result', self%units, 'result', &
-               missing_value=self%missing_value, output=output_none, act_as_state_variable=self%act_as_state_variable)
+            scaled_variable%units = self%units
             scaled_variable%weight = self%first%weight
-            scaled_variable%include_background = self%first%include_background
             scaled_variable%offset = self%offset
+            scaled_variable%include_background = self%first%include_background
+            scaled_variable%act_as_state_variable = self%act_as_state_variable
+            scaled_variable%missing_value = self%missing_value
+            scaled_variable%result_output = output_none
+            call self%add_child(scaled_variable, '*')
+            call request_coupling_to_component(scaled_variable, scaled_variable%id_source%link, self%first)
             call self%request_coupling(self%result_link, scaled_variable%id_result%link)
-            if (self%act_as_state_variable) then
-               ! This scaled variable acts as a state variable. Create a child model to distribute source terms to the original source variable.
-               call copy_fluxes(scaled_variable, scaled_variable%id_result, self%first%name, scale_factor=1.0_rk / scaled_variable%weight)
-               if (associated(self%aggregate_variable)) call scaled_variable%add_to_aggregate_variable(self%aggregate_variable, scaled_variable%id_result)
-            end if
+            if (self%act_as_state_variable .and. associated(self%aggregate_variable)) call scaled_variable%add_to_aggregate_variable(self%aggregate_variable, scaled_variable%id_result)
          end if
          return
       end if
@@ -369,12 +361,11 @@ contains
       self%active = .true.
 
       call self%add_interior_variable('result', self%units, 'result', fill_value=0.0_rk, missing_value=self%missing_value, &
-         output=self%result_output, write_index=self%id_result%sum_index, link=self%id_result%link, source=source_do, &
-         act_as_state_variable=self%act_as_state_variable)
+         output=self%result_output, write_index=self%id_result%sum_index, link=self%id_result%link, source=source_do)
       self%result_link => self%id_result%link
 
-      if (self%act_as_state_variable) then
-         ! NB this does not function yet (hence the act_as_state_variable=.false. above)
+      if (self%act_as_state_variable .and. .false.) then
+         ! NB this does not function yet
          ! Auto-generation of result_sms_tot fails and the do routine of type_weighted_sum_sms_distributor is not yet implemented.
 
          ! The sum will act as a state variable. Any source terms will have to be distributed over the individual variables that contribute to the sum.
@@ -389,7 +380,7 @@ contains
          do i = 1, n
             write (temp,'(i0)') i
             call sms_distributor%register_state_dependency(sms_distributor%id_targets(i), 'target' // trim(temp), self%units, 'target ' // trim(temp))
-            call sms_distributor%request_coupling(sms_distributor%id_targets(i), trim(component%name))
+            call request_coupling_to_component(sms_distributor, sms_distributor%id_targets(i)%link, component)
             sms_distributor%weights(i) = component%weight
             component => component%next
          end do
@@ -406,6 +397,7 @@ contains
       n = base_merge_components(self, log_unit)
 
       ! Put all ids and weights in a single array to minimize memory bottlenecks when computing sum
+      deallocate(self%sources)
       allocate(self%sources(n))
       component => self%first
       do i = 1, n
@@ -441,8 +433,6 @@ contains
       character(len=10) :: temp
       class (type_scaled_horizontal_variable), pointer :: scaled_variable
 
-      call self%register_implemented_routines((/source_do_horizontal/))
-
       n = base_initialize(self)
 
       allocate(self%id_terms(n))
@@ -456,37 +446,38 @@ contains
          component => component%next
       end do
 
+      ! Allow "do_horizontal" to be called before merge_components
+      allocate(self%sources(0))
+
       if (n == 0) then
-         ! No components - link to constant field with offset (typically 0)
+         ! No components - create constant field with offset (typically 0)
          call self%add_horizontal_variable('result', self%units, 'result', fill_value=self%offset, missing_value=self%missing_value, &
             output=self%result_output, source=source_constant, link=self%result_link, domain=self%domain)
          return
       elseif (n == 1) then
-         ! One component only.
+         ! One component only - set up an alias that will be linked to the actual values
          output = self%result_output
          if (output /= output_none) output = ior(output, output_always_available)
          call self%add_horizontal_variable('result', self%units, 'result', link=self%result_link, domain=self%domain, &
-            output=output, act_as_state_variable=self%act_as_state_variable, presence=presence_external_required)
+            output=output, presence=presence_external_required)
          if (self%first%weight == 1.0_rk) then
             ! One component with scale factor 1 - directly link to the component's source variable.
             call request_coupling_to_component(self, self%result_link, self%first)
          else
-            ! One component with scale factor other than 1
+            ! One component with scale factor other than 1 - add a child model to perform the scaling
             allocate(scaled_variable)
-            call self%add_child(scaled_variable, '*')
-            call scaled_variable%register_dependency(scaled_variable%id_source, 'source', '', 'source variable')
-            call request_coupling_to_component(scaled_variable, scaled_variable%id_source%link, self%first)
-            call scaled_variable%register_diagnostic_variable(scaled_variable%id_result, 'result', self%units, 'result', &
-               missing_value=self%missing_value, output=output_none, act_as_state_variable= &
-               self%act_as_state_variable, source=source_do_horizontal, domain=self%domain)
+            scaled_variable%units = self%units
             scaled_variable%weight = self%first%weight
-            scaled_variable%include_background = self%first%include_background
             scaled_variable%offset = self%offset
+            scaled_variable%domain = self%domain
+            scaled_variable%include_background = self%first%include_background
+            scaled_variable%act_as_state_variable = self%act_as_state_variable
+            scaled_variable%missing_value = self%missing_value
+            scaled_variable%result_output = output_none
+            call self%add_child(scaled_variable, '*')
+            call request_coupling_to_component(scaled_variable, scaled_variable%id_source%link, self%first)
             call self%request_coupling(self%result_link, scaled_variable%id_result%link)
-            if (self%act_as_state_variable) then
-               call copy_horizontal_fluxes(scaled_variable, scaled_variable%id_result, self%first%name, scale_factor=1.0_rk / scaled_variable%weight)
-               if (associated(self%aggregate_variable)) call scaled_variable%add_to_aggregate_variable(self%aggregate_variable, scaled_variable%id_result)
-            end if
+            if (self%act_as_state_variable .and. associated(self%aggregate_variable)) call scaled_variable%add_to_aggregate_variable(self%aggregate_variable, scaled_variable%id_result)
          end if
          return
       end if
@@ -508,6 +499,7 @@ contains
       n = base_merge_components(self, log_unit)
 
       ! Put all ids and weights in a single array to minimize memory bottlenecks when computing sum
+      deallocate(self%sources)
       allocate(self%sources(n))
       component => self%first
       do i = 1, n
