@@ -67,6 +67,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
+          channels: conda-forge
           conda-remove-defaults: "true"
       - name: Install compiler and Python dependencies
         run: conda install gfortran_linux-64=${{ matrix.version }} pip pyyaml
@@ -297,6 +298,7 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
+          channels: conda-forge
           conda-remove-defaults: "true"
       - name: Install Python dependencies
         run: conda install -c conda-forge pyyaml flang>=21.0 ninja c-compiler flang-rt_win-64
