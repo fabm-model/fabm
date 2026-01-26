@@ -67,6 +67,8 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
+          channels: defaults
+          conda-remove-defaults: "true"
       - name: Install compiler and Python dependencies
         run: conda install gfortran_linux-64=${{ matrix.version }} pip pyyaml
       - name: Clone repository
@@ -95,7 +97,7 @@ jobs:
           #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/237236c4-434b-4576-96ac-020ceeb22619"
           # - version: "l_fortran-compiler_p_2024.2.0.426"
           #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/801143de-6c01-4181-9911-57e00fe40181"
-          - version: "2024.2.1.80"
+          - version: "2024.2.1.80"  # last version that includes ifort! 2025.x and later only include ifx
             url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/5e7b0f1c-6f25-4cc8-94d7-3a527e596739"            
       fail-fast: false
     runs-on: ubuntu-latest
@@ -144,8 +146,11 @@ jobs:
           #   fflags: -check all,nouninit,nocontiguous
           #     # memory sanitizer (uninit) still seems broken, as it reports errors in libc.so (it should be auto-linked to sanitized libc, but apparently not)
           #     # contiguous check still broken, to be fixed in 2025.x as per https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-2024-0-2-runtime-error-about-non-contiguous-target/m-p/1583909
-          - version: "intel-fortran-compiler-2025.2.0.534"
-            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/2c69ab6a-dfff-4d8f-ae1c-8368c79a1709"
+          # - version: "intel-fortran-compiler-2025.2.0.534"
+          #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/2c69ab6a-dfff-4d8f-ae1c-8368c79a1709"
+          #   fflags: -check all
+          - version: "intel-fortran-compiler-2025.3.2.25"
+            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/3e53d136-2870-4836-adb1-892b558fa34a"
             fflags: -check all
       fail-fast: false
     runs-on: ubuntu-latest
@@ -192,8 +197,10 @@ jobs:
           #   exe: nvhpc_2023_237_Linux_x86_64_cuda_12.2
           #- version: "24.5" # released 2024-05
           #  exe: nvhpc_2024_245_Linux_x86_64_cuda_12.4
-          - version: "25.5" # released 2025-05
-            exe: nvhpc_2025_255_Linux_x86_64_cuda_12.9
+          # - version: "25.5" # released 2025-05
+          #   exe: nvhpc_2025_255_Linux_x86_64_cuda_12.9
+          - version: "25.9" # released 2025-09
+            exe: nvhpc_2025_259_Linux_x86_64_cuda_13.0
       fail-fast: false
     runs-on: ubuntu-latest
     env:
@@ -227,9 +234,9 @@ jobs:
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
-        run: python util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
+        run: python util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/nvfortran
       - name: Run all test cases with pyfabm
-        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
+        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/nvfortran
   aocc:
     # for available versions, see https://github.com/spack/spack-packages/blob/develop/repos/spack_repo/builtin/packages/aocc/package.py
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
@@ -245,8 +252,10 @@ jobs:
           #   url_dir: https://download.amd.com/developer/eula/aocc/aocc-4-1
           - version: "4.2.0" # released 2024-02-27 (LLVM 16.0.3)
             url_dir: https://download.amd.com/developer/eula/aocc/aocc-4-2
-          # - version: "5.0.0" # released 2024-10-10 (LLVM 17.0.6)
+          # - version: "5.0.0" # released 2024-10-10 (LLVM 17.0.6)  # Broken! See email discussion wiht AMD support Feb 2025
           #   url_dir: https://download.amd.com/developer/eula/aocc/aocc-5-0
+          - version: "5.1.0" # released 2026-01-02 (LLVM 17.0.6)
+            url_dir: https://download.amd.com/developer/eula/aocc/aocc-5-1
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
@@ -296,8 +305,10 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
+          channels: conda-forge
+          conda-remove-defaults: "true"
       - name: Install Python dependencies
-        run: conda install -c conda-forge pyyaml flang>=21.0 ninja c-compiler flang-rt_win-64
+        run: conda install pyyaml flang>=21.0 ninja c-compiler flang-rt_win-64
       - name: Clone repository
         uses: actions/checkout@v6
         with:
@@ -317,7 +328,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
       fail-fast: false
     defaults:
       run:
@@ -333,6 +344,7 @@ jobs:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
+          conda-remove-defaults: "true"
       - name: Install dependencies
         run: conda install pip python-build
       - name: Build distribution
@@ -347,9 +359,9 @@ jobs:
       - name: Run notebooks
         if: matrix.python-version != '3.7'  # due to https://github.com/conda-forge/webcolors-feedstock/issues/26
         run: |
-          conda install ipython jupyterlab ipympl matplotlib scipy
+          conda install ipython jupyterlab ipympl matplotlib-base scipy
           cd testcases/python
-          for f in *.ipynb; do ipython --gui qt -c "%run $f"; done
+          for f in *.ipynb; do ipython --gui tk -c "%run $f"; done
       - name: Type checking with mypy
         if: matrix.python-version != '3.7' && matrix.python-version != '3.8'
         run: |
@@ -442,6 +454,7 @@ jobs:
           auto-update-conda: true
           environment-file: .binder/environment.yml
           activate-environment: fabm
+          conda-remove-defaults: "true"
       - name: Install
         run: .binder/postBuild
         env:
