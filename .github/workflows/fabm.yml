@@ -200,7 +200,7 @@ jobs:
           # - version: "25.5" # released 2025-05
           #   exe: nvhpc_2025_255_Linux_x86_64_cuda_12.9
           - version: "25.9" # released 2025-09
-            exe: nvhpc_2025_259_Linux_x86_64_cuda_13
+            exe: nvhpc_2025_259_Linux_x86_64_cuda_13.0
       fail-fast: false
     runs-on: ubuntu-latest
     env:
@@ -234,9 +234,9 @@ jobs:
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
-        run: python util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
+        run: python util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/nvfortran
       - name: Run all test cases with pyfabm
-        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
+        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/nvfortran
   aocc:
     # for available versions, see https://github.com/spack/spack-packages/blob/develop/repos/spack_repo/builtin/packages/aocc/package.py
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
