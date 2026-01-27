@@ -1093,6 +1093,7 @@ contains
       model%parent => self
       if (.not. associated(model%parameters%parent)) call self%parameters%attach_child(model%parameters, trim(model%name), display=display_hidden)
       if (.not. associated(model%couplings%parent)) call self%couplings%attach_child(model%couplings, trim(model%name), display=display_hidden)
+      if (.not. associated(model%initialization%parent)) call self%initialization%attach_child(model%initialization, trim(model%name), display=display_hidden)
       call self%children%append(model)
       call model%initialize(-1)
       model%rdt__ = 1._rk / model%dt

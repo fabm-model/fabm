@@ -213,6 +213,18 @@ program test_host
    logical :: custom_path = .false.
    real(rke) :: dt = 1._rke
 
+   type type_input
+      type (type_fabm_interior_variable_id)                :: interior_id
+      type (type_fabm_horizontal_variable_id)              :: horizontal_id
+      type (type_fabm_scalar_variable_id)                  :: scalar_id
+      real(rke), allocatable _DIMENSION_GLOBAL_            :: interior_data
+      real(rke), allocatable _DIMENSION_GLOBAL_HORIZONTAL_ :: horizontal_data
+      real(rke)                                            :: scalar_data
+      type (type_input), pointer                           :: next => null()
+   end type
+   type (type_input), pointer :: first_input => null()
+   type (type_input), pointer :: next_input
+   
 #if _FABM_DIMENSION_COUNT_>0
    i__ = 50
 #endif
@@ -222,6 +234,8 @@ program test_host
 #if _FABM_DIMENSION_COUNT_>2
    k__ = 45
 #endif
+
+   allocate(type_test_driver::driver)
 
    call start_test('fabm_get_version')
    call fabm_get_version(version)
@@ -337,8 +351,6 @@ program test_host
 
    allocate(tmp _INDEX_LOCATION_)
    allocate(tmp_hz _INDEX_HORIZONTAL_LOCATION_)
-
-   allocate(type_test_driver::driver)
 
    call start_test('fabm_initialize_library')
    call fabm_initialize_library()
@@ -512,13 +524,55 @@ program test_host
       call simulate(ntest)
    end select
 
+   deallocate(flux)
+   deallocate(sms_sf)
+   deallocate(sms_bt)
+   deallocate(total_hz)
+
+   deallocate(dy)
+   deallocate(w)
+   deallocate(total_int)
+
+   select case (mode)
+   case (1)
+       deallocate(depth)
+       deallocate(temperature)
+       deallocate(wind_speed)
+   end select
+
+   deallocate(interior_state)
+   deallocate(surface_state)
+   deallocate(bottom_state)
+
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_)&&_FABM_BOTTOM_INDEX_==-1
+   deallocate(bottom_index)
+#endif
+
+#ifdef _HAS_MASK_
+   deallocate(mask_hz)
+#  ifndef _FABM_HORIZONTAL_MASK_
+   deallocate(mask)
+#  endif
+#endif
+
    call start_test('finalize')
    call model%finalize()
    call report_test_result()
 
    deallocate(model)
 
+   deallocate(tmp)
+   deallocate(tmp_hz)
+
    call fabm_finalize_library()
+
+   deallocate(driver)
+
+   do while (associated(first_input))
+      next_input => first_input%next
+      deallocate(first_input)
+      first_input => next_input
+   end do
 
 contains
 
@@ -587,14 +641,6 @@ contains
       type (type_yaml_key_value_pair), pointer :: yaml_pair
       real(rke) :: value
       logical :: success
-      type type_input
-         type (type_fabm_interior_variable_id)                :: interior_id
-         type (type_fabm_horizontal_variable_id)              :: horizontal_id
-         type (type_fabm_scalar_variable_id)                  :: scalar_id
-         real(rke), allocatable _DIMENSION_GLOBAL_            :: interior_data
-         real(rke), allocatable _DIMENSION_GLOBAL_HORIZONTAL_ :: horizontal_data
-         real(rke)                                            :: scalar_data
-      end type
       type (type_input), pointer :: input
 
       yaml_root => yaml_parse('environment.yaml', get_free_unit(), yaml_error)
@@ -615,6 +661,8 @@ contains
                      stop 2
                   end if
                   allocate(input)
+                  input%next => first_input
+                  first_input => input
                   input%interior_id = model%get_interior_variable_id(trim(yaml_pair%key))
                   if (model%is_variable_used(input%interior_id)) then
                       allocate(input%interior_data _INDEX_LOCATION_)

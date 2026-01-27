@@ -463,11 +463,19 @@ contains
    !> Deallocate all global variables allocated by fabm_initialize_library()
    ! ------------------------------------------------------------------------------------------------------------------------------
    subroutine fabm_finalize_library()
+      type (type_version), pointer :: next_version
+
       call fabm_standard_variables%finalize()
 
       if (associated(driver) .and. default_driver) deallocate(driver)
       if (associated(factory)) call factory%finalize()
       factory => null()
+      
+      do while (associated(first_module_version))
+         next_version => first_module_version%next
+         deallocate(first_module_version)
+         first_module_version => next_version
+      end do
    end subroutine fabm_finalize_library
 
    ! ------------------------------------------------------------------------------------------------------------------------------
@@ -642,6 +650,9 @@ contains
       call self%variable_register%finalize()
       call self%settings%finalize()
       call self%settings%finalize_store()
+      call self%root%parameters%finalize()
+      call self%root%couplings%finalize()
+      call self%root%initialization%finalize()
       call self%root%finalize()
       call self%links_postcoupling%finalize()
    end subroutine finalize
