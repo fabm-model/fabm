@@ -2491,7 +2491,11 @@ contains
       kstop__ = self%domain%stop(3)
 #  endif
 
-      if (present(t)) self%time = t
+      if (present(t)) then
+         self%time = t
+      else
+         _ASSERT_(self%seconds_per_time_unit==0.0_rke, 'prepare_inputs1', 'time must be provided as set_domain was called with seconds_per_time_unit.')
+      end if
       call self%process(self%prepare_inputs_job)
    end subroutine prepare_inputs1
 
