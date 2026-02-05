@@ -378,7 +378,7 @@ contains
       if (.not. associated(value)) call self%fatal_error('horizontal_temporal_mean_update', 'source pointer not associated.')
 
       ! Note that all array processing below uses explicit loops in order to respect
-      ! any limits on the active domain given by the _HORIZONTAL_LOCATION_RANGE_ argument.
+      ! any limits on the active domain given by the _LOCATION_RANGE_ argument.
 
       dt_bin = self%window / self%n
 
@@ -510,7 +510,7 @@ contains
       if (.not. associated(value)) call self%fatal_error('horizontal_temporal_maximum_update', 'source pointer not associated.')
 
       ! Note that all array processing below uses explicit loops in order to respect
-      ! any limits on the active domain given by the _HORIZONTAL_LOCATION_RANGE_ argument.
+      ! any limits on the active domain given by the _LOCATION_RANGE_ argument.
 
       if (self%start_time%p == -huge(self%start_time%p)) self%start_time%p = time
 
