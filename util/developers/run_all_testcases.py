@@ -380,8 +380,8 @@ def test_pyfabm(args, testcases: Mapping[str, str]):
                 if d.required:
                     d.value = environment[d.name]
             m.start()
-        r0d = m0d.getRates()
-        r1d = m1d.getRates()
+        r0d = m0d.getRates(t=0.0)
+        r1d = m1d.getRates(t=0.0)
         if (r1d != r1d[:, :1]).any():
             ran = r1d.max(axis=1) - r1d.min(axis=1)
             bad = {}

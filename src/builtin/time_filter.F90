@@ -239,8 +239,10 @@ contains
       integer :: icurrent, icurrentbin, ioldest
       _DECLARE_LOCATION_
 
+      if (.not. present(time)) call self%fatal_error('interior_temporal_mean_update', 'host did not provide time information.')
+
       value => catalog%interior(self%source%icatalog)%p
-      if (.not. associated(value)) call self%fatal_error('interior_temporal_mean_update', 'source pointer of not associated.')
+      if (.not. associated(value)) call self%fatal_error('interior_temporal_mean_update', 'source pointer not associated.')
 
       ! Note that all array processing below uses explicit loops in order to respect
       ! any limits on the active domain given by the _LOCATION_RANGE_ argument.
@@ -370,11 +372,13 @@ contains
       integer :: icurrent, icurrentbin, ioldest
       _DECLARE_HORIZONTAL_LOCATION_
 
+      if (.not. present(time)) call self%fatal_error('horizontal_temporal_mean_update', 'host did not provide time information.')
+
       value => catalog%horizontal(self%source%icatalog)%p
-      if (.not. associated(value)) call self%fatal_error('interior_temporal_mean_update', 'source pointer of not associated.')
+      if (.not. associated(value)) call self%fatal_error('horizontal_temporal_mean_update', 'source pointer not associated.')
 
       ! Note that all array processing below uses explicit loops in order to respect
-      ! any limits on the active domain given by the _HORIZONTAL_LOCATION_RANGE_ argument.
+      ! any limits on the active domain given by the _LOCATION_RANGE_ argument.
 
       dt_bin = self%window / self%n
 
@@ -500,11 +504,13 @@ contains
       real(rke) :: w, bin_end_time
       _DECLARE_HORIZONTAL_LOCATION_
 
+      if (.not. present(time)) call self%fatal_error('horizontal_temporal_maximum_update', 'host did not provide time information.')
+
       value => catalog%horizontal(self%source%icatalog)%p
-      if (.not. associated(value)) call self%fatal_error('interior_temporal_mean_update', 'source pointer of not associated.')
+      if (.not. associated(value)) call self%fatal_error('horizontal_temporal_maximum_update', 'source pointer not associated.')
 
       ! Note that all array processing below uses explicit loops in order to respect
-      ! any limits on the active domain given by the _HORIZONTAL_LOCATION_RANGE_ argument.
+      ! any limits on the active domain given by the _LOCATION_RANGE_ argument.
 
       if (self%start_time%p == -huge(self%start_time%p)) self%start_time%p = time
 

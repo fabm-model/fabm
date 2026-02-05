@@ -264,8 +264,9 @@ module fabm
       type (type_store)                    :: store
       type (type_schedules)                :: schedules
       type (type_domain)                   :: domain
-      real (rke)                           :: seconds_per_time_unit = 0.0_rke
-      real (rke)                           :: time = 0.0_rke
+      real(rke), private                   :: seconds_per_time_unit = 0.0_rke
+      real(rke), private                   :: time = 0.0_rke
+      logical, private                     :: has_time = .false.
       ! ---------------------------------------------------------------------------------------------------------------------------
       !> @name Memory caches for exchanging information with biogeochemical model instances
       !> @{
@@ -2446,7 +2447,11 @@ contains
             _VERTICAL_STOP_ = self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
 #endif
          case (source_global)
-            call process_global(task, self%catalog  _POSTARG_LOCATION_RANGE_, self%time)
+            if (self%has_time) then
+               call process_global(task, self%catalog  _POSTARG_LOCATION_RANGE_, self%time)
+            else
+               call process_global(task, self%catalog  _POSTARG_LOCATION_RANGE_)
+            end if
          end select
          task => task%next
       end do
@@ -2491,7 +2496,8 @@ contains
       kstop__ = self%domain%stop(3)
 #  endif
 
-      if (present(t)) self%time = t
+      self%has_time = present(t)
+      if (self%has_time) self%time = t
       call self%process(self%prepare_inputs_job)
    end subroutine prepare_inputs1
 
