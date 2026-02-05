@@ -1948,7 +1948,7 @@ contains
             catalog_index = self%interior_state_variables(ivar)%target%catalog_index
             if (self%catalog%interior_sources(catalog_index) == data_source_fabm) then
                read_index = self%check_interior_state_data(ivar)%index
-               _UNPACK_TO_GLOBAL_(self%cache_int%read, read_index, self%catalog%interior(catalog_index)%p, self%cache_int, self%interior_state_variables(ivar)%missing_value)
+               _UNPACK_TO_GLOBAL_SKIPMASK_(self%cache_int%read, read_index, self%catalog%interior(catalog_index)%p, self%cache_int)
             end if
          end do
       end if
@@ -2086,7 +2086,7 @@ contains
             catalog_index = state_variables(ivar)%target%catalog_index
             if (self%catalog%horizontal_sources(catalog_index) == data_source_fabm) then
                read_index = check_state_data(ivar)%index
-               _HORIZONTAL_UNPACK_TO_GLOBAL_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(catalog_index)%p, self%cache_hz, state_variables(ivar)%missing_value)
+               _HORIZONTAL_UNPACK_TO_GLOBAL_SKIPMASK_(self%cache_hz%read_hz, read_index, self%catalog%horizontal(catalog_index)%p, self%cache_hz)
             end if
          end do
       end if
