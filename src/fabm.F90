@@ -908,7 +908,11 @@ contains
       call cache_create(self%domain, self%cache_fill_values, self%cache_hz)
       call cache_create(self%domain, self%cache_fill_values, self%cache_vert)
 
-      call initialize_global(self%root)
+      if (self%seconds_per_time_unit == 0.0_rke) then
+         call initialize_global(self%root)
+      else
+         call initialize_global(self%root, self%seconds_per_time_unit)
+      end if
 
       ! For diagnostics that are not needed, set their write index to 0 (rubbish bin)
       if (self%log) then
@@ -1001,24 +1005,21 @@ contains
          end do
       end subroutine
 
-      recursive subroutine initialize_global(model)
+      recursive subroutine initialize_global(model, seconds_per_time_unit)
          class (type_base_model), intent(inout) :: model
+         real(rke), optional, intent(in)        :: seconds_per_time_unit
 
          type (type_model_list_node), pointer :: child
 
          select type (model)
          class is (type_global_model)
-            if (self%seconds_per_time_unit == 0.0_rke) then
-               call model%set_data(self%store)
-            else
-               call model%set_data(self%store, self%seconds_per_time_unit)
-            end if
+            call model%set_data(self%store, seconds_per_time_unit)
          end select
 
          ! Process children
          child => model%children%first
          do while (associated(child))
-            call initialize_global(child%model)
+            call initialize_global(child%model, seconds_per_time_unit)
             child => child%next
          end do
       end subroutine
