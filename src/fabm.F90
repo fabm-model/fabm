@@ -683,7 +683,10 @@ contains
       self%domain%horizontal_shape(:) = (/_HORIZONTAL_LOCATION_/)
 #endif
 
-      if (present(seconds_per_time_unit)) self%seconds_per_time_unit = seconds_per_time_unit
+      if (present(seconds_per_time_unit)) then
+         if (seconds_per_time_unit <= 0.0_rke) call fatal_error('set_domain', 'seconds_per_time_unit must be positive if provided.')
+         self%seconds_per_time_unit = seconds_per_time_unit
+      end if
    end subroutine set_domain
 
 #if _FABM_DIMENSION_COUNT_>0
@@ -1005,7 +1008,11 @@ contains
 
          select type (model)
          class is (type_global_model)
-            call model%set_data(self%store, self%seconds_per_time_unit)
+            if (self%seconds_per_time_unit == 0.0_rke) then
+               call model%set_data(self%store)
+            else
+               call model%set_data(self%store, self%seconds_per_time_unit)
+            end if
          end select
 
          ! Process children

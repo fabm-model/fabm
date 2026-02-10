@@ -211,10 +211,11 @@ contains
    subroutine interior_temporal_mean_set_data(self, store, seconds_per_time_unit)
       class (type_interior_temporal_mean), intent(inout) :: self
       type (type_store), target                          :: store
-      real(rke), intent(in)                              :: seconds_per_time_unit
+      real(rke), optional, intent(in)                    :: seconds_per_time_unit
 
       integer :: ibin
 
+      if (.not. present(seconds_per_time_unit)) call self%fatal_error('interior_temporal_mean_set_data', 'host did not provide time information.')
       self%source%icatalog = self%source%link%target%catalog_index
       self%window = self%window / seconds_per_time_unit
       do ibin = 1, size(self%history)
@@ -344,10 +345,11 @@ contains
    subroutine horizontal_temporal_mean_set_data(self, store, seconds_per_time_unit)
       class (type_horizontal_temporal_mean), intent(inout) :: self
       type (type_store), target                            :: store
-      real(rke), intent(in)                                :: seconds_per_time_unit
+      real(rke), optional, intent(in)                      :: seconds_per_time_unit
 
       integer :: ibin
 
+      if (.not. present(seconds_per_time_unit)) call self%fatal_error('horizontal_temporal_mean_set_data', 'host did not provide time information.')
       self%source%icatalog = self%source%link%target%catalog_index
       self%window = self%window / seconds_per_time_unit
       do ibin = 1, size(self%history)
@@ -477,10 +479,11 @@ contains
    subroutine horizontal_temporal_maximum_set_data(self, store, seconds_per_time_unit)
       class (type_horizontal_temporal_maximum), intent(inout) :: self
       type (type_store), target                               :: store
-      real(rke), intent(in)                                   :: seconds_per_time_unit
+      real(rke), optional, intent(in)                         :: seconds_per_time_unit
 
       integer :: ibin
 
+      if (.not. present(seconds_per_time_unit)) call self%fatal_error('horizontal_temporal_maximum_set_data', 'host did not provide time information.')
       self%source%icatalog = self%source%link%target%catalog_index
       self%window = self%window / seconds_per_time_unit
       do ibin = 1, size(self%history)

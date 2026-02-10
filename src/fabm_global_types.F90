@@ -113,7 +113,7 @@ contains
    subroutine set_data(self, store, seconds_per_time_unit)
       class (type_global_model), intent(inout) :: self
       type (type_store), target                :: store
-      real(rke), intent(in)                    :: seconds_per_time_unit
+      real(rke), optional, intent(in)          :: seconds_per_time_unit
    end subroutine
 
    subroutine update(self, catalog _POSTARG_LOCATION_RANGE_, time)
