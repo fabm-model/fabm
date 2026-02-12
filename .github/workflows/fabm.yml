@@ -35,7 +35,7 @@ jobs:
       FFLAGS: -fcheck=all
     steps:
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ">=3.7"
       - name: Install Python dependencies
@@ -45,7 +45,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install gfortran-${{ matrix.version }}
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
@@ -67,10 +67,12 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
+          channels: defaults
+          conda-remove-defaults: "true"
       - name: Install compiler and Python dependencies
         run: conda install gfortran_linux-64=${{ matrix.version }} pip pyyaml
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
@@ -82,26 +84,28 @@ jobs:
         env:
           FFLAGS: -fcheck=all
   ifort:
-    # for available versions, see https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/intel-oneapi-compilers/package.py
+    # for available versions, see https://github.com/spack/spack-packages/blob/develop/repos/spack_repo/builtin/packages/intel_oneapi_compilers/package.py
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       matrix:
         include:
           - version: "2021.1.2.62"
             url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/17508"
-          # - version: "2022.2.1.16992"
+          # - version: "l_fortran-compiler_p_2022.2.1.16992"
           #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/18998"
-          # - version: "2023.2.0.49254"
+          # - version: "l_fortran-compiler_p_2023.2.0.49254"
           #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/237236c4-434b-4576-96ac-020ceeb22619"
-          - version: "2024.2.0.426"
-            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/801143de-6c01-4181-9911-57e00fe40181"
+          # - version: "l_fortran-compiler_p_2024.2.0.426"
+          #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/801143de-6c01-4181-9911-57e00fe40181"
+          - version: "2024.2.1.80"  # last version that includes ifort! 2025.x and later only include ifx
+            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/5e7b0f1c-6f25-4cc8-94d7-3a527e596739"            
       fail-fast: false
     runs-on: ubuntu-latest
     env:
       FFLAGS: -check all
     steps:
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ">=3.7"
       - name: Install Python dependencies
@@ -111,7 +115,7 @@ jobs:
           wget --no-verbose ${{ matrix.url_dir }}/l_fortran-compiler_p_${{ matrix.version }}_offline.sh
           /bin/sh l_fortran-compiler_p_${{ matrix.version }}_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
@@ -130,33 +134,39 @@ jobs:
     strategy:
       matrix:
         include:
-          - version: "2023.2.0.49254"
+          - version: "l_fortran-compiler_p_2023.2.0.49254"
             url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/237236c4-434b-4576-96ac-020ceeb22619"
             fflags: -check all,nouninit,nocontiguous
               # nouninit because https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-missing-clang-rt-msan-to-link-Fortran-program-in-debug-build/m-p/1536555
               # nocontiguous because spurious errors occur when assigning null() to contiguous pointers, see https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-2024-0-2-runtime-error-about-non-contiguous-target/m-p/1583909
-          #- version: "2024.0.2.28"
+          #- version: "l_fortran-compiler_p_2024.0.2.28"
           #  url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/41df6814-ec4b-4698-a14d-421ee2b02aa7"
-          - version: "2024.2.0.426"
-            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/801143de-6c01-4181-9911-57e00fe40181"
-            fflags: -check all,nouninit,nocontiguous
-              # memory sanitizer (uninit) still seems broken, as it reports errors in libc.so (it should be auto-linked to sanitized libc, but apparently not)
-              # contiguous check still broken, to be fixed in 2025.x as per https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-2024-0-2-runtime-error-about-non-contiguous-target/m-p/1583909
+          # - version: "l_fortran-compiler_p_2024.2.0.426"
+          #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/801143de-6c01-4181-9911-57e00fe40181"
+          #   fflags: -check all,nouninit,nocontiguous
+          #     # memory sanitizer (uninit) still seems broken, as it reports errors in libc.so (it should be auto-linked to sanitized libc, but apparently not)
+          #     # contiguous check still broken, to be fixed in 2025.x as per https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-2024-0-2-runtime-error-about-non-contiguous-target/m-p/1583909
+          # - version: "intel-fortran-compiler-2025.2.0.534"
+          #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/2c69ab6a-dfff-4d8f-ae1c-8368c79a1709"
+          #   fflags: -check all
+          - version: "intel-fortran-compiler-2025.3.2.25"
+            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/3e53d136-2870-4836-adb1-892b558fa34a"
+            fflags: -check all
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ">=3.7"
       - name: Install Python dependencies
         run: python -m pip install --upgrade pip pyyaml
       - name: Install compiler
         run: |
-          wget --no-verbose ${{ matrix.url_dir }}/l_fortran-compiler_p_${{ matrix.version }}_offline.sh
-          /bin/sh l_fortran-compiler_p_${{ matrix.version }}_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
+          wget --no-verbose ${{ matrix.url_dir }}/${{ matrix.version }}_offline.sh
+          /bin/sh ${{ matrix.version }}_offline.sh -a --silent --cli --install-dir ${HOME}/intel --eula accept
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
@@ -185,23 +195,30 @@ jobs:
           #   exe: nvhpc_2022_229_Linux_x86_64_cuda_11.7
           # - version: "23.7" # released 2023-07
           #   exe: nvhpc_2023_237_Linux_x86_64_cuda_12.2
-          - version: "24.5" # released 2024-05
-            exe: nvhpc_2024_245_Linux_x86_64_cuda_12.4
+          #- version: "24.5" # released 2024-05
+          #  exe: nvhpc_2024_245_Linux_x86_64_cuda_12.4
+          # - version: "25.5" # released 2025-05
+          #   exe: nvhpc_2025_255_Linux_x86_64_cuda_12.9
+          - version: "25.9" # released 2025-09
+            exe: nvhpc_2025_259_Linux_x86_64_cuda_13.0
       fail-fast: false
     runs-on: ubuntu-latest
     env:
       FFLAGS: -Mbounds -Mchkptr
     steps:
-      - name: Free up disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ">=3.7"
       - name: Install Python dependencies
         run: python -m pip install --upgrade pip pyyaml
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo docker image prune --all --force
+          sudo docker builder prune -a
       - name: Install compiler
         run: |
           wget --no-verbose https://developer.download.nvidia.com/hpc-sdk/${{ matrix.version }}/${{ matrix.exe }}.tar.gz
@@ -213,13 +230,13 @@ jobs:
           NVHPC_INSTALL_DIR: /home/runner/nvhpc
           NVHPC_INSTALL_TYPE: single
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
-        run: python util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
+        run: python util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/nvfortran
       - name: Run all test cases with pyfabm
-        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/pgfortran
+        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/nvfortran
   aocc:
     # for available versions, see https://github.com/spack/spack-packages/blob/develop/repos/spack_repo/builtin/packages/aocc/package.py
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
@@ -235,13 +252,15 @@ jobs:
           #   url_dir: https://download.amd.com/developer/eula/aocc/aocc-4-1
           - version: "4.2.0" # released 2024-02-27 (LLVM 16.0.3)
             url_dir: https://download.amd.com/developer/eula/aocc/aocc-4-2
-          # - version: "5.0.0" # released 2024-10-10 (LLVM 17.0.6)
+          # - version: "5.0.0" # released 2024-10-10 (LLVM 17.0.6)  # Broken! See email discussion wiht AMD support Feb 2025
           #   url_dir: https://download.amd.com/developer/eula/aocc/aocc-5-0
+          - version: "5.1.0" # released 2026-01-02 (LLVM 17.0.6)
+            url_dir: https://download.amd.com/developer/eula/aocc/aocc-5-1
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ">=3.7"
       - name: Install Python dependencies
@@ -254,7 +273,7 @@ jobs:
           rm aocc-compiler-${{ matrix.version }}.tar
           ./aocc-compiler-${{ matrix.version }}/install.sh
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
@@ -281,14 +300,17 @@ jobs:
         shell: cmd /C call {0}
     env:
       CMAKE_GENERATOR: Ninja
+      FFLAGS: -fno-vectorize -fno-slp-vectorize  # -fno-vectorize requires flang 21 and later
     steps:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
+          channels: conda-forge
+          conda-remove-defaults: "true"
       - name: Install Python dependencies
-        run: conda install -c conda-forge pyyaml flang>=19.0 ninja c-compiler
+        run: conda install pyyaml flang>=21.0 ninja c-compiler flang-rt_win-64
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Run all test cases with host emulators
@@ -306,14 +328,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
       fail-fast: false
     defaults:
       run:
         shell: bash -el {0}
     steps:
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Set up Python ${{ matrix.python-version }} with conda
@@ -322,6 +344,7 @@ jobs:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
+          conda-remove-defaults: "true"
       - name: Install dependencies
         run: conda install pip python-build
       - name: Build distribution
@@ -336,9 +359,9 @@ jobs:
       - name: Run notebooks
         if: matrix.python-version != '3.7'  # due to https://github.com/conda-forge/webcolors-feedstock/issues/26
         run: |
-          conda install ipython jupyterlab ipympl matplotlib scipy
+          conda install ipython jupyterlab ipympl matplotlib-base scipy
           cd testcases/python
-          for f in *.ipynb; do ipython --gui qt -c "%run $f"; done
+          for f in *.ipynb; do ipython --gui tk -c "%run $f"; done
       - name: Type checking with mypy
         if: matrix.python-version != '3.7' && matrix.python-version != '3.8'
         run: |
@@ -364,11 +387,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install libnetcdff-dev
       - name: Clone FABM
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Clone GOTM
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: gotm-model/code
           ref: v6.0
@@ -387,7 +410,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Clone FABM
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Download and extract cmake
@@ -403,7 +426,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Clone FABM
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Install Ninja
@@ -422,7 +445,7 @@ jobs:
         shell: bash -el {0}
     steps:
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Set up Python with conda
@@ -431,7 +454,18 @@ jobs:
           auto-update-conda: true
           environment-file: .binder/environment.yml
           activate-environment: fabm
+          conda-remove-defaults: "true"
       - name: Install
         run: .binder/postBuild
         env:
           REPO_DIR: .
+  single_prec:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone FABM
+        uses: actions/checkout@v6
+      - name: Build
+        run: |
+          cmake -S . -B build -DFABM_REAL_KIND='SELECTED_REAL_KIND(6)'
+          cmake --build build --target install

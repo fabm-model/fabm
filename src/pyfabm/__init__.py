@@ -165,20 +165,8 @@ def get_lib(name: str) -> FABMDLL:
 
     # Access to model objects (variables, parameters, dependencies, couplings,
     # model instances)
-    lib.get_counts.argtypes = [
-        ctypes.c_void_p,
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_int),
-    ]
+    ncat = 12 if hasattr(lib, "get_variable_part_of_state") else 11
+    lib.get_counts.argtypes = [ctypes.c_void_p] + [ctypes.POINTER(ctypes.c_int)] * ncat
     lib.get_counts.restype = None
     lib.get_variable_metadata.argtypes = [
         ctypes.c_void_p,
@@ -198,6 +186,15 @@ def get_lib(name: str) -> FABMDLL:
         ctypes.c_int,
     ]
     lib.set_variable_save.restype = None
+    try:
+        lib.get_variable_part_of_state.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_int,
+            ctypes.c_int,
+        ]
+        lib.get_variable_part_of_state.restype = ctypes.c_int
+    except AttributeError:
+        setattr(lib, "get_variable_part_of_state", lambda p, t, i: 0)
     lib.get_variable.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
     lib.get_variable.restype = ctypes.c_void_p
     lib.get_parameter_metadata.argtypes = [
@@ -391,6 +388,11 @@ def get_lib(name: str) -> FABMDLL:
     lib.get_interior_diagnostic_data.restype = ctypes.POINTER(lib.dtype)
     lib.get_horizontal_diagnostic_data.argtypes = [ctypes.c_void_p, ctypes.c_int]
     lib.get_horizontal_diagnostic_data.restype = ctypes.POINTER(lib.dtype)
+    try:
+        lib.get_scalar_diagnostic_data.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        lib.get_scalar_diagnostic_data.restype = ctypes.POINTER(lib.dtype)
+    except AttributeError:
+        pass
     lib.require_data.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     lib.require_data.restype = None
     lib.get_standard_variable_data.argtypes = [
@@ -427,7 +429,7 @@ def get_lib(name: str) -> FABMDLL:
     lib.check_state.restype = ctypes.c_int
 
     # Routine for getting git repository version information.
-    lib.get_version.argtypes = (ctypes.c_int, ctypes.c_char_p)
+    lib.get_version.argtypes = [ctypes.c_int, ctypes.c_char_p]
     lib.get_version.restype = None
 
     lib.save_settings.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
@@ -478,6 +480,7 @@ CONSERVED_QUANTITY = 6
 INTERIOR_DEPENDENCY = 7
 HORIZONTAL_DEPENDENCY = 8
 SCALAR_DEPENDENCY = 9
+SCALAR_DIAGNOSTIC_VARIABLE = 10
 
 
 class DataType(enum.IntEnum):
@@ -627,9 +630,16 @@ class Variable:
         path: Optional[str] = None,
     ):
         self.model = model
+
+        #: Short variable name (alphanumeric characters and underscores only)
         self.name = name
+
+        #: Units
         self.units = units
+
         self.units_unicode = None if units is None else createPrettyUnit(units)
+
+        #: Long name
         self.long_name = long_name or name
         self.path = path or name
 
@@ -645,7 +655,7 @@ class Variable:
     @property
     def options(self) -> Optional[Sequence]:
         """Collection of values that this variable can take.
-        `None` if the variable is not limited to any particular value."""
+        ``None`` if the variable is not limited to any particular value."""
         return None
 
     def __repr__(self) -> str:
@@ -779,11 +789,11 @@ class DiagnosticVariable(VariableFromPointer):
         model: "Model",
         variable_pointer: ctypes.c_void_p,
         index: int,
-        horizontal: bool,
+        type: int,
     ):
         super().__init__(model, variable_pointer)
         self._data: Optional[np.ndarray] = None
-        self._horizontal = horizontal
+        self._type = type
         self._index = index + 1
 
     @property
@@ -804,14 +814,19 @@ class DiagnosticVariable(VariableFromPointer):
 
     @save.setter
     def save(self, value: bool):
-        vartype = (
-            HORIZONTAL_DIAGNOSTIC_VARIABLE
-            if self._horizontal
-            else INTERIOR_DIAGNOSTIC_VARIABLE
-        )
         self.model.fabm.set_variable_save(
-            self.model.pmodel, vartype, self._index, 1 if value else 0
+            self.model.pmodel, self._type, self._index, 1 if value else 0
         )
+
+    @property
+    def part_of_state(self) -> bool:
+        """Whether the this diagnostic is part of the model state,
+        (that is, its current value impacts future source terms)
+        and therefore needs to be included in restarts"""
+        value: int = self.model.fabm.get_variable_part_of_state(
+            self.model.pmodel, self._type, self._index
+        )
+        return value != 0
 
 
 class Parameter(Variable):
@@ -1117,6 +1132,7 @@ class Model(object):
         self.bottom_state_variables: NamedObjectList[StateVariable] = NamedObjectList()
         self.interior_diagnostic_variables: NamedObjectList[DiagnosticVariable] = NamedObjectList()
         self.horizontal_diagnostic_variables: NamedObjectList[DiagnosticVariable] = NamedObjectList()
+        self.scalar_diagnostic_variables: NamedObjectList[DiagnosticVariable] = NamedObjectList()
         self.conserved_quantities: NamedObjectList[ConservedQuantity] = NamedObjectList()
         self.parameters: NamedObjectList[Parameter] = NamedObjectList()
         self.interior_dependencies: NamedObjectList[Dependency] = NamedObjectList()
@@ -1304,26 +1320,33 @@ class Model(object):
         nstate_bottom = ctypes.c_int()
         ndiag_interior = ctypes.c_int()
         ndiag_horizontal = ctypes.c_int()
+        ndiag_scalar = ctypes.c_int(0)
         ndependencies_interior = ctypes.c_int()
         ndependencies_horizontal = ctypes.c_int()
         ndependencies_scalar = ctypes.c_int()
         nconserved = ctypes.c_int()
         nparameters = ctypes.c_int()
         ncouplings = ctypes.c_int()
-        self.fabm.get_counts(
-            self.pmodel,
+        args = []
+        args += [
             ctypes.byref(nstate_interior),
             ctypes.byref(nstate_surface),
             ctypes.byref(nstate_bottom),
-            ctypes.byref(ndiag_interior),
-            ctypes.byref(ndiag_horizontal),
+        ]
+        args += [ctypes.byref(ndiag_interior), ctypes.byref(ndiag_horizontal)]
+        if len(self.fabm.get_counts.argtypes) == 13:
+            args += [ctypes.byref(ndiag_scalar)]
+        args += [
             ctypes.byref(ndependencies_interior),
             ctypes.byref(ndependencies_horizontal),
             ctypes.byref(ndependencies_scalar),
+        ]
+        args += [
             ctypes.byref(nconserved),
             ctypes.byref(nparameters),
             ctypes.byref(ncouplings),
-        )
+        ]
+        self.fabm.get_counts(self.pmodel, *args)
 
         # Allocate memory for state variable values, and send ctypes.pointer to
         # this memory to FABM.
@@ -1373,6 +1396,7 @@ class Model(object):
         self.bottom_state_variables.clear()
         self.interior_diagnostic_variables.clear()
         self.horizontal_diagnostic_variables.clear()
+        self.scalar_diagnostic_variables.clear()
         self.conserved_quantities.clear()
         self.parameters.clear()
         self.interior_dependencies.clear()
@@ -1398,14 +1422,19 @@ class Model(object):
                 self.pmodel, INTERIOR_DIAGNOSTIC_VARIABLE, i + 1
             )
             self.interior_diagnostic_variables._data.append(
-                DiagnosticVariable(self, ptr, i, False)
+                DiagnosticVariable(self, ptr, i, INTERIOR_DIAGNOSTIC_VARIABLE)
             )
         for i in range(ndiag_horizontal.value):
             ptr = self.fabm.get_variable(
                 self.pmodel, HORIZONTAL_DIAGNOSTIC_VARIABLE, i + 1
             )
             self.horizontal_diagnostic_variables._data.append(
-                DiagnosticVariable(self, ptr, i, True)
+                DiagnosticVariable(self, ptr, i, HORIZONTAL_DIAGNOSTIC_VARIABLE)
+            )
+        for i in range(ndiag_scalar.value):
+            ptr = self.fabm.get_variable(self.pmodel, SCALAR_DIAGNOSTIC_VARIABLE, i + 1)
+            self.scalar_diagnostic_variables._data.append(
+                DiagnosticVariable(self, ptr, i, SCALAR_DIAGNOSTIC_VARIABLE)
             )
         for i in range(ndependencies_interior.value):
             ptr = self.fabm.get_variable(self.pmodel, INTERIOR_DEPENDENCY, i + 1)
@@ -1483,7 +1512,9 @@ class Model(object):
             + self.bottom_state_variables
         )
         self.diagnostic_variables = (
-            self.interior_diagnostic_variables + self.horizontal_diagnostic_variables
+            self.interior_diagnostic_variables
+            + self.horizontal_diagnostic_variables
+            + self.scalar_diagnostic_variables
         )
         self.dependencies = (
             self.interior_dependencies
@@ -1702,6 +1733,13 @@ class Model(object):
             pdata = self.fabm.get_horizontal_diagnostic_data(self.pmodel, i + 1)
             if pdata:
                 arr = np.ctypeslib.as_array(pdata, self.horizontal_domain_shape)
+                variable._data = arr.view(dtype=self.fabm.numpy_dtype)
+            else:
+                variable._data = None
+        for i, variable in enumerate(self.scalar_diagnostic_variables):
+            pdata = self.fabm.get_scalar_diagnostic_data(self.pmodel, i + 1)
+            if pdata:
+                arr = np.ctypeslib.as_array(pdata, ())
                 variable._data = arr.view(dtype=self.fabm.numpy_dtype)
             else:
                 variable._data = None

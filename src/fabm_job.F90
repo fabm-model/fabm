@@ -188,17 +188,6 @@ contains
 
       ! Initialize individual call objects, then collect all input variables in a task-encompassing set.
       do icall = 1, size(self%calls)
-         input_variable_node => self%calls(icall)%graph_node%inputs%first
-         do while (associated(input_variable_node))
-            _ASSERT_(.not. input_variable_node%p%target%read_indices%is_empty(), 'task_initialize', 'variable without read indices among inputs')
-            _ASSERT_(.not. associated(input_variable_node%p%target%write_owner), 'task_initialize', 'write contribution among inputs')
-
-            ! Make sure the variable has an entry in the read register.
-            call variable_register%add_to_read_cache(input_variable_node%p%target)
-
-            input_variable_node => input_variable_node%next
-         end do
-
          ! Make sure the pointer to the model has the highest class (and not a base class)
          ! This is needed because model classes that use inheritance and call base class methods
          ! may end up with model pointers that are base class specific (and do not reference
@@ -218,16 +207,29 @@ contains
             end do
          end if
 
-         ! For all output variables that other models are interested in, decide whether to copy their value
-         ! from the write to read cache [if the other model will be called as part of the same task],
-         ! of to save it to the persistent data store.
-         variable_node => self%calls(icall)%graph_node%outputs%first
-         do while (associated(variable_node))
-            call variable_register%add_to_write_cache(variable_node%p%target)
-            if (variable_node%p%copy_to_cache) call variable_register%add_to_read_cache(variable_node%p%target)
-            if (variable_node%p%copy_to_store) call variable_register%add_to_store(variable_node%p%target)
-            variable_node => variable_node%next
-         end do
+         if (self%calls(icall)%source /= source_global) then
+            input_variable_node => self%calls(icall)%graph_node%inputs%first
+            do while (associated(input_variable_node))
+               _ASSERT_(.not. input_variable_node%p%target%read_indices%is_empty(), 'task_initialize', 'variable without read indices among inputs')
+               _ASSERT_(.not. associated(input_variable_node%p%target%write_owner), 'task_initialize', 'write contribution among inputs')
+
+               ! Make sure the variable has an entry in the read register.
+               call variable_register%add_to_read_cache(input_variable_node%p%target)
+
+               input_variable_node => input_variable_node%next
+            end do
+
+            ! For all output variables that other models are interested in, decide whether to copy their value
+            ! from the write to read cache [if the other model will be called as part of the same task],
+            ! of to save it to the persistent data store.
+            variable_node => self%calls(icall)%graph_node%outputs%first
+            do while (associated(variable_node))
+               call variable_register%add_to_write_cache(variable_node%p%target)
+               if (variable_node%p%copy_to_cache) call variable_register%add_to_read_cache(variable_node%p%target)
+               if (variable_node%p%copy_to_store) call variable_register%add_to_store(variable_node%p%target)
+               variable_node => variable_node%next
+            end do
+         end if
 
          call schedules%attach(self%calls(icall)%model, self%calls(icall)%source, self%calls(icall)%active)
       end do
@@ -412,7 +414,7 @@ contains
          do icall = 1, size(self%calls)
             variable_node => self%calls(icall)%graph_node%outputs%first
             do while (associated(variable_node))
-               if (variable_node%p%copy_to_store .and. iand(variable_node%p%target%domain, domain) /= 0 .and. self%calls(icall)%graph_node%source /= source_constant) then
+               if (variable_node%p%copy_to_store .and. iand(variable_node%p%target%domain, domain) /= 0 .and. self%calls(icall)%graph_node%source /= source_constant .and. self%calls(icall)%graph_node%source /= source_global) then
                   _ASSERT_(variable_node%p%target%write_indices%value > 0, 'create_prefill_commands', 'Variable ' // trim(variable_node%p%target%name) // ' has copy_to_store set, but it does not have a write cache index.')
                   _ASSERT_(variable_node%p%target%store_index /= store_index_none, 'create_persistent_store_commands', 'Variable ' // trim(variable_node%p%target%name) // ' has copy_to_store set, but it does not have a persistent storage index.')
                   ilast = max(ilast,variable_node%p%target%store_index)
@@ -429,7 +431,7 @@ contains
          do icall = 1, size(self%calls)
             variable_node => self%calls(icall)%graph_node%outputs%first
             do while (associated(variable_node))
-               if (variable_node%p%copy_to_store .and. iand(variable_node%p%target%domain,domain) /= 0 .and. self%calls(icall)%graph_node%source /= source_constant) &
+               if (variable_node%p%copy_to_store .and. iand(variable_node%p%target%domain,domain) /= 0 .and. self%calls(icall)%graph_node%source /= source_constant .and. self%calls(icall)%graph_node%source /= source_global) &
                   commands(variable_node%p%target%store_index) = variable_node%p%target%write_indices%value
                variable_node => variable_node%next
             end do
@@ -1138,12 +1140,12 @@ contains
             do while (associated(input_variable))
                final_output = link_cowritten_outputs(input_variable%p%sources)
                if (associated(final_output%task, task) .and. final_output%icall < icall) then
-                  ! The call that is responsible for computing this input is part of the same task.
+                  ! The call that is responsible for computing this input happens earlier as part of the same task.
                   ! Therefore the output needs to be copied to the read cache.
-                  final_output%variable%copy_to_cache = .true.
+                  if (task%operation /= source_global) final_output%variable%copy_to_cache = .true.
                else
                   if (associated(final_output%variable)) final_output%variable%copy_to_store = .true.
-                  if (input_variable%p%target%source /= source_constant .and. input_variable%p%target%source /= source_unknown) &
+                  if (input_variable%p%target%source /= source_constant .and. input_variable%p%target%source /= source_unknown .and. task%operation /= source_global) &
                      call task%read_cache_preload%add(input_variable%p%target)
                end if
 
@@ -1445,7 +1447,11 @@ contains
             input_variable => graph_node%p%inputs%first
             do while (associated(input_variable))
                if (.not. input_variable%p%update) then
+                  ! Force calculation of this variable (if already calculated here, or earlier, this does nothing)
                   call finalize_job%graph%add_variable(input_variable%p%target, input_variable%p%sources)
+
+                  ! Ensure the variable is added to restarts
+                  input_variable%p%target%part_of_state = .true.
                end if
                input_variable => input_variable%next
             end do

@@ -160,6 +160,7 @@
    call self%get_parameter( self%BioC(2) , 'muPs',        '1/day',      'max growth rate for Ps',          default=1.10_rk,  scale_factor=1.0_rk/sedy0)
    call self%get_parameter( self%BioC(3) , 'aa',          'm**2/W',     'photosynthesis ef-cy',            default=0.04_rk)
    call self%get_parameter( self%BioC(4) , 'EXw',         '1/m',        'light extinction',                default=0.041_rk)
+   call self%get_parameter( self%use_chl,     'use_chl', '', 'switch chlorophyll/c dynamics', default=.true.)
    if (self%use_chl) then
       call self%get_parameter( self%BioC(5) , 'Exphy',       'm**2/mgCHL', 'phyto self-shading',              default=0.04_rk )
    else
@@ -230,7 +231,6 @@
    ! add switches
    call self%get_parameter( self%use_cyanos,     'use_cyanos', '', 'switch cyanobacteria', default=.true.)
    call self%get_parameter( self%couple_co2,     'couple_co2', '', 'switch coupling to carbonate module', default=.false.)
-   call self%get_parameter( self%use_chl,     'use_chl', '', 'switch chlorophyll/c dynamics', default=.true.)
    call self%get_parameter( self%not_0d,     'not_0d', '', 'do not run the model in a 0D box', default=.true.)
    call self%get_parameter( self%use_chl_in_PI_curve, 'use_chl_in_PI_curve','','activated chl dependent light limitation',default=.false.)
    call self%get_parameter( self%turn_on_additional_diagnostics, 'turn_on_additional_diagnostics','','activates additional diagnostics for model debugging',default=.false.)

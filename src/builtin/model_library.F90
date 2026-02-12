@@ -86,9 +86,9 @@ contains
          case ('vertical_integral');        allocate(type_depth_integral::model)
          case ('bounded_vertical_integral');allocate(type_bounded_depth_integral::model)
          case ('interior_temporal_mean');   allocate(type_interior_temporal_mean::model)
-         case ('surface_temporal_mean');    allocate(type_surface_temporal_mean::model)
-         case ('bottom_temporal_mean');     allocate(type_bottom_temporal_mean::model)
-         case ('surface_temporal_maximum'); allocate(type_surface_temporal_maximum::model)
+         case ('surface_temporal_mean');    allocate(type_horizontal_temporal_mean::model)
+         case ('bottom_temporal_mean');     allocate(type_horizontal_temporal_mean::model)
+         case ('surface_temporal_maximum'); allocate(type_horizontal_temporal_maximum::model)
          case ('depth_integrated_particle_override'); allocate(type_depth_integrated_particle_override::model)
          case ('vertical_depth_range');     allocate(type_vertical_depth_range::model)
          ! Add new examples models here
@@ -106,7 +106,6 @@ contains
       class (type_bottom_field), intent(inout), target :: self
       integer,                   intent(in)            :: configunit
 
-      call self%register_implemented_routines((/source_do_bottom/))
       call self%register_diagnostic_variable(self%id_result, 'result', '', 'bottom values', source=source_do_bottom)
       call self%register_dependency(self%id_source, 'source', '', 'interior values')
    end subroutine bottom_field_initialize
@@ -127,7 +126,6 @@ contains
       class (type_surface_field), intent(inout), target :: self
       integer,                    intent(in)            :: configunit
 
-      call self%register_implemented_routines((/source_do_surface/))
       call self%register_diagnostic_variable(self%id_result, 'result', '', 'surface values', source=source_do_surface)
       call self%register_dependency(self%id_source, 'source', '', 'interior values')
    end subroutine surface_field_initialize
@@ -148,7 +146,6 @@ contains
       class (type_column_projection),intent(inout),target :: self
       integer,                       intent(in)           :: configunit
 
-      call self%register_implemented_routines((/source_do/))
       call self%register_dependency(self%id_source,'source', '', 'horizontal source')
       call self%register_diagnostic_variable(self%id_result,'result', '', 'interior result')
    end subroutine column_projection_initialize

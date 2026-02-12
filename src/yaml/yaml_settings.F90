@@ -1178,6 +1178,7 @@ contains
       value%parent => self%value%parent
       value%node => self%value%node
       value%backing_store_node => self%value%backing_store_node
+      call self%value%finalize()
       if (self%own_value) then
          deallocate(self%value)
       else

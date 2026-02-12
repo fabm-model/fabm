@@ -2,7 +2,9 @@ module fabm_coupling
    use fabm_types
    use fabm_builtin_sum
    use fabm_driver
-   use yaml_settings, only: default_minimum_real, default_maximum_real
+
+   use yaml_settings, only: yaml_default_minimum_real=>default_minimum_real, yaml_default_maximum_real=>default_maximum_real
+   use yaml_types, only: yaml_rk => real_kind
 
    implicit none
 
@@ -111,24 +113,24 @@ contains
       logical,                 intent(in)    :: require_initialization
 
       type (type_link),            pointer :: link
-      real(rk)                             :: minimum
-      real(rk)                             :: maximum
+      real(yaml_rk)                        :: minimum
+      real(yaml_rk)                        :: maximum
       type (type_model_list_node), pointer :: node
 
       ! Transfer user-specified initial state to the model.
       link => self%links%first
       do while (associated(link))
-         minimum = default_minimum_real
-         maximum = default_maximum_real
+         minimum = yaml_default_minimum_real
+         maximum = yaml_default_maximum_real
          if (link%target%minimum /= -1.e20_rk) minimum = link%target%minimum
          if (link%target%maximum /=  1.e20_rk) maximum = link%target%maximum
          if (index(link%name, '/') == 0 .and. link%target%source == source_state .and. link%target%presence == presence_internal) then
             if (require_initialization) then
-               call self%initialization%get(link%target%initial_value, trim(link%name), trim(link%target%long_name), &
+               link%target%initial_value = self%initialization%get_real(trim(link%name), trim(link%target%long_name), &
                   trim(link%target%units), minimum=minimum, maximum=maximum)
             else
-               call self%initialization%get(link%target%initial_value, trim(link%name), trim(link%target%long_name), &
-                  trim(link%target%units), minimum=minimum, maximum=maximum, default=link%target%initial_value)
+               link%target%initial_value = self%initialization%get_real(trim(link%name), trim(link%target%long_name), &
+                  trim(link%target%units), minimum=minimum, maximum=maximum, default=real(link%target%initial_value, yaml_rk))
             end if
          end if
          link => link%next
@@ -159,7 +161,7 @@ contains
 
       type (type_model_list_node), pointer :: node
 
-      self%frozen = .true.
+      call self%freeze()
       node => self%children%first
       do while (associated(node))
          call freeze(node%model)
@@ -246,7 +248,7 @@ contains
             target_name = self%couplings%get_string(trim(link%name), trim(link%original%long_name), units=trim(link%original%units), default='', display=display)
             if (len(target_name) >= 4) then
                if (target_name(len(target_name) - 3:len(target_name)) == '@old') then
-                  call set_dependency_flag(link%original, source=-1, flag=dependency_flag_stale)
+                  call set_dependency_flag(link%original, flag=dependency_flag_stale)
                   target_name = target_name(:len(target_name) - 4)
                end if
             end if
@@ -386,6 +388,7 @@ contains
          type (type_bottom_standard_variable)     :: bottom_standard_variable
          type (type_surface_standard_variable)    :: surface_standard_variable
          type (type_horizontal_standard_variable) :: horizontal_standard_variable
+         type (type_global_standard_variable)     :: global_standard_variable
 
          select case (name)
          case ('standard_variable')
@@ -402,6 +405,9 @@ contains
             case (domain_horizontal)
                horizontal_standard_variable%name = args
                task%target_standard_variable => horizontal_standard_variable%typed_resolve()
+            case (domain_scalar)
+               global_standard_variable%name = args
+               task%target_standard_variable => global_standard_variable%typed_resolve()
             case default
                call self%fatal_error('process_coupling_tasks', 'Unknown domain for ' // task%link%name // '.')
             end select
@@ -655,7 +661,7 @@ contains
             sum => horizontal_sum
          end select
          sum%units = aggregate_variable_access%link%target%units
-         sum%act_as_state_variable = aggregate_variable_access%link%target%fake_state_variable
+         sum%act_as_state_variable = associated(aggregate_variable_access%link%target%sms_list%first)
          sum%result_output = output_none
 
          contributing_variable => aggregate_variable%first_contributing_variable
