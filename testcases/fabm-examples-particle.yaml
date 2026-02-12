@@ -1,0 +1,17 @@
+instances:
+   plankton:
+      model: examples/particle/particle_cs
+      initialization:
+         c: 1.0                                             # concentration [mmol C m-3; default=0.0]
+   detritus:
+      model: examples/particle/particle_vs
+   predator:
+      model: examples/particle/depth_integrated_predator
+      parameters:
+         clearance_rate: 0.1                                # clearance rate [m3 d-1 mmol-1]
+         mortality: 0.02                                    # mortality [d-1]
+      initialization:
+         c: 0.001                                           # density [mmol C m-2; default=0.0]
+      coupling:
+         prey: plankton
+         waste: detritus
