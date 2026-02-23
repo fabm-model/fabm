@@ -77,7 +77,7 @@ contains
       integer,          intent(in) :: required_size1
       character(len=*), intent(in) :: routine, array_name, shape_description
 
-      character(len=8) :: actual, required
+      character(len=12) :: actual, required
 
       if (size(array,1) /= required_size1) then
          write (actual,  '(i0)') size(array, 1)
@@ -91,7 +91,7 @@ contains
       integer,          intent(in) :: required_size1, required_size2
       character(len=*), intent(in) :: routine, array_name, shape_description
 
-      character(len=17) :: actual, required
+      character(len=25) :: actual, required
 
       if (size(array,1) /= required_size1 .or. size(array,2) /= required_size2) then
          write (actual,  '(i0,a,i0)') size(array,1), ',', size(array,2)
@@ -105,7 +105,7 @@ contains
       integer,         intent(in) :: required_size1, required_size2, required_size3
       character(len=*),intent(in) :: routine, array_name, shape_description
 
-      character(len=26) :: actual, required
+      character(len=38) :: actual, required
 
       if (size(array,1) /= required_size1 .or. size(array,2) /= required_size2 .or. size(array,3) /= required_size3) then
          write (actual,  '(i0,a,i0,a,i0)') size(array,1), ',', size(array,2), ',', size(array,3)
@@ -118,7 +118,7 @@ contains
       integer,          intent(in) :: istart, istop, imin, imax
       character(len=*), intent(in) :: routine
 
-      character(len=8) :: str1, str2
+      character(len=12) :: str1, str2
 
       if (istart < imin) then
          write (str1,'(i0)') istart
@@ -141,7 +141,7 @@ contains
       integer,          intent(in) :: i, imin, imax
       character(len=*), intent(in) :: routine, name
 
-      character(len=8) :: str1, str2
+      character(len=12) :: str1, str2
 
       if (i < imin) then
          write (str1,'(i0)') i
