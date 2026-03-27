@@ -1343,23 +1343,25 @@ contains
    ! ------------------------------------------------------------------------------------------------------------------------------
    !> Provide data for this interior variable
    ! ------------------------------------------------------------------------------------------------------------------------------
-   subroutine link_interior_data_by_sn(self, standard_variable, dat)
+   subroutine link_interior_data_by_sn(self, standard_variable, dat, source)
       class (type_fabm_model),                intent(inout) :: self
       type (type_interior_standard_variable), intent(in)    :: standard_variable   !< standard variable
       real(rke) _ATTRIBUTES_GLOBAL_, target,  intent(in)    :: dat                 !< variable data
+      integer, optional,                      intent(in)    :: source
 
-      call link_interior_data_by_id(self, get_interior_variable_id_sn(self, standard_variable), dat)
+      call link_interior_data_by_id(self, get_interior_variable_id_sn(self, standard_variable), dat, source)
    end subroutine link_interior_data_by_sn
 
    ! ------------------------------------------------------------------------------------------------------------------------------
    !> Provide data for this interior variable
    ! ------------------------------------------------------------------------------------------------------------------------------
-   subroutine link_interior_data_by_name(self, name, dat)
+   subroutine link_interior_data_by_name(self, name, dat, source)
       class (type_fabm_model),       target, intent(inout) :: self
       character(len=*),                      intent(in)    :: name   !< variable name
       real(rke) _ATTRIBUTES_GLOBAL_, target, intent(in)    :: dat    !< variable data
+      integer, optional,                     intent(in)    :: source
 
-      call link_interior_data_by_id(self, get_interior_variable_id_by_name(self, name), dat)
+      call link_interior_data_by_id(self, get_interior_variable_id_by_name(self, name), dat, source)
    end subroutine link_interior_data_by_name
 
    ! ------------------------------------------------------------------------------------------------------------------------------
@@ -1410,23 +1412,25 @@ contains
    ! ------------------------------------------------------------------------------------------------------------------------------
    !> Provide data for this horizontal variable
    ! ------------------------------------------------------------------------------------------------------------------------------
-   subroutine link_horizontal_data_by_sn(self, standard_variable, dat)
+   subroutine link_horizontal_data_by_sn(self, standard_variable, dat, source)
       class (type_fabm_model),                          intent(inout) :: self
       class (type_horizontal_standard_variable),        intent(in)    :: standard_variable   !< standard variable
       real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat                 !< variable data
+      integer, optional,                                intent(in)    :: source
 
-      call link_horizontal_data_by_id(self, get_horizontal_variable_id_sn(self, standard_variable), dat)
+      call link_horizontal_data_by_id(self, get_horizontal_variable_id_sn(self, standard_variable), dat, source)
    end subroutine link_horizontal_data_by_sn
 
    ! ------------------------------------------------------------------------------------------------------------------------------
    !> Provide data for this horizontal variable
    ! ------------------------------------------------------------------------------------------------------------------------------
-   subroutine link_horizontal_data_by_name(self, name, dat)
+   subroutine link_horizontal_data_by_name(self, name, dat, source)
       class (type_fabm_model),                          intent(inout) :: self
       character(len=*),                                 intent(in)    :: name    !< variable name
       real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat     !< variable data
+      integer, optional,                                intent(in)    :: source
 
-      call link_horizontal_data_by_id(self, get_horizontal_variable_id_by_name(self, name), dat)
+      call link_horizontal_data_by_id(self, get_horizontal_variable_id_by_name(self, name), dat, source)
    end subroutine link_horizontal_data_by_name
 
    ! ------------------------------------------------------------------------------------------------------------------------------
@@ -1468,23 +1472,25 @@ contains
    ! ------------------------------------------------------------------------------------------------------------------------------
    !> Provide data for this scalar variable
    ! ------------------------------------------------------------------------------------------------------------------------------
-   subroutine link_scalar_by_sn(self, standard_variable, dat)
+   subroutine link_scalar_by_sn(self, standard_variable, dat, source)
       class (type_fabm_model),             intent(inout) :: self
       type(type_global_standard_variable), intent(in)    :: standard_variable   !< standard variable
       real(rke), target,                   intent(in)    :: dat                 !< variable data
+      integer, optional,                   intent(in)    :: source
 
-      call link_scalar_by_id(self, get_scalar_variable_id_sn(self, standard_variable), dat)
+      call link_scalar_by_id(self, get_scalar_variable_id_sn(self, standard_variable), dat, source)
    end subroutine link_scalar_by_sn
 
    ! ------------------------------------------------------------------------------------------------------------------------------
    !> Provide data for this scalar variable
    ! ------------------------------------------------------------------------------------------------------------------------------
-   subroutine link_scalar_by_name(self, name, dat)
+   subroutine link_scalar_by_name(self, name, dat, source)
       class (type_fabm_model), intent(inout) :: self
       character(len=*),        intent(in)    :: name   !< variable name
       real(rke), target,       intent(in)    :: dat    !< variable data
+      integer, optional,       intent(in)    :: source
 
-      call link_scalar_by_id(self, get_scalar_variable_id_by_name(self, name), dat)
+      call link_scalar_by_id(self, get_scalar_variable_id_by_name(self, name), dat, source)
    end subroutine link_scalar_by_name
 
    ! ------------------------------------------------------------------------------------------------------------------------------
