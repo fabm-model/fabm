@@ -511,7 +511,8 @@ module fabm_types
       procedure :: request_coupling_ll
       procedure :: request_coupling_il
       procedure :: request_coupling_lt
-      generic   :: request_coupling => request_coupling_ln, request_coupling_in, request_coupling_nn, &
+      procedure :: request_coupling_nn_   ! Workaround aocc/nvfortran bug that breaks generic when procedure is overridden
+      generic   :: request_coupling => request_coupling_ln, request_coupling_in, request_coupling_nn_, &
                                        request_coupling_ls, request_coupling_is, &
                                        request_coupling_ll, request_coupling_il, &
                                        request_coupling_lt
@@ -1512,6 +1513,12 @@ contains
       if (.not. associated(task)) return
       task%target_name = target_name
    end subroutine request_coupling_ln
+
+   subroutine request_coupling_nn_(self, name, target_name)
+      class (type_base_model), intent(inout), target :: self
+      character(len=*),        intent(in)            :: name, target_name
+      call self%request_coupling_nn(name, target_name)
+   end subroutine
 
    recursive subroutine request_coupling_nn(self, name, target_name)
       class (type_base_model), intent(inout), target :: self
