@@ -568,7 +568,7 @@ contains
       if (self%log) then
          log_unit = get_free_unit()
          open(unit=log_unit, file=log_prefix // 'coupling.log', action='write', status='replace', iostat=ios)
-         if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'coupling.log')
+         if (ios /= 0) call fatal_error('initialize', 'Unable to open ' // log_prefix // 'coupling.log')
       end if
 
       ! This will resolve all FABM dependencies and generate final authoritative lists of variables of different types.
