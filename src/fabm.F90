@@ -568,7 +568,7 @@ contains
       if (self%log) then
          log_unit = get_free_unit()
          open(unit=log_unit, file=log_prefix // 'coupling.log', action='write', status='replace', iostat=ios)
-         if (ios /= 0) call fatal_error('start', 'Unable to open ' // log_prefix // 'coupling.log')
+         if (ios /= 0) call fatal_error('initialize', 'Unable to open ' // log_prefix // 'coupling.log')
       end if
 
       ! This will resolve all FABM dependencies and generate final authoritative lists of variables of different types.
@@ -1343,23 +1343,25 @@ contains
    ! ------------------------------------------------------------------------------------------------------------------------------
    !> Provide data for this interior variable
    ! ------------------------------------------------------------------------------------------------------------------------------
-   subroutine link_interior_data_by_sn(self, standard_variable, dat)
+   subroutine link_interior_data_by_sn(self, standard_variable, dat, source)
       class (type_fabm_model),                intent(inout) :: self
       type (type_interior_standard_variable), intent(in)    :: standard_variable   !< standard variable
       real(rke) _ATTRIBUTES_GLOBAL_, target,  intent(in)    :: dat                 !< variable data
+      integer, optional,                      intent(in)    :: source
 
-      call link_interior_data_by_id(self, get_interior_variable_id_sn(self, standard_variable), dat)
+      call link_interior_data_by_id(self, get_interior_variable_id_sn(self, standard_variable), dat, source)
    end subroutine link_interior_data_by_sn
 
    ! ------------------------------------------------------------------------------------------------------------------------------
    !> Provide data for this interior variable
    ! ------------------------------------------------------------------------------------------------------------------------------
-   subroutine link_interior_data_by_name(self, name, dat)
+   subroutine link_interior_data_by_name(self, name, dat, source)
       class (type_fabm_model),       target, intent(inout) :: self
       character(len=*),                      intent(in)    :: name   !< variable name
       real(rke) _ATTRIBUTES_GLOBAL_, target, intent(in)    :: dat    !< variable data
+      integer, optional,                     intent(in)    :: source
 
-      call link_interior_data_by_id(self, get_interior_variable_id_by_name(self, name), dat)
+      call link_interior_data_by_id(self, get_interior_variable_id_by_name(self, name), dat, source)
    end subroutine link_interior_data_by_name
 
    ! ------------------------------------------------------------------------------------------------------------------------------
@@ -1410,23 +1412,25 @@ contains
    ! ------------------------------------------------------------------------------------------------------------------------------
    !> Provide data for this horizontal variable
    ! ------------------------------------------------------------------------------------------------------------------------------
-   subroutine link_horizontal_data_by_sn(self, standard_variable, dat)
+   subroutine link_horizontal_data_by_sn(self, standard_variable, dat, source)
       class (type_fabm_model),                          intent(inout) :: self
       class (type_horizontal_standard_variable),        intent(in)    :: standard_variable   !< standard variable
       real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat                 !< variable data
+      integer, optional,                                intent(in)    :: source
 
-      call link_horizontal_data_by_id(self, get_horizontal_variable_id_sn(self, standard_variable), dat)
+      call link_horizontal_data_by_id(self, get_horizontal_variable_id_sn(self, standard_variable), dat, source)
    end subroutine link_horizontal_data_by_sn
 
    ! ------------------------------------------------------------------------------------------------------------------------------
    !> Provide data for this horizontal variable
    ! ------------------------------------------------------------------------------------------------------------------------------
-   subroutine link_horizontal_data_by_name(self, name, dat)
+   subroutine link_horizontal_data_by_name(self, name, dat, source)
       class (type_fabm_model),                          intent(inout) :: self
       character(len=*),                                 intent(in)    :: name    !< variable name
       real(rke) _ATTRIBUTES_GLOBAL_HORIZONTAL_, target, intent(in)    :: dat     !< variable data
+      integer, optional,                                intent(in)    :: source
 
-      call link_horizontal_data_by_id(self, get_horizontal_variable_id_by_name(self, name), dat)
+      call link_horizontal_data_by_id(self, get_horizontal_variable_id_by_name(self, name), dat, source)
    end subroutine link_horizontal_data_by_name
 
    ! ------------------------------------------------------------------------------------------------------------------------------
@@ -1468,23 +1472,25 @@ contains
    ! ------------------------------------------------------------------------------------------------------------------------------
    !> Provide data for this scalar variable
    ! ------------------------------------------------------------------------------------------------------------------------------
-   subroutine link_scalar_by_sn(self, standard_variable, dat)
+   subroutine link_scalar_by_sn(self, standard_variable, dat, source)
       class (type_fabm_model),             intent(inout) :: self
       type(type_global_standard_variable), intent(in)    :: standard_variable   !< standard variable
       real(rke), target,                   intent(in)    :: dat                 !< variable data
+      integer, optional,                   intent(in)    :: source
 
-      call link_scalar_by_id(self, get_scalar_variable_id_sn(self, standard_variable), dat)
+      call link_scalar_by_id(self, get_scalar_variable_id_sn(self, standard_variable), dat, source)
    end subroutine link_scalar_by_sn
 
    ! ------------------------------------------------------------------------------------------------------------------------------
    !> Provide data for this scalar variable
    ! ------------------------------------------------------------------------------------------------------------------------------
-   subroutine link_scalar_by_name(self, name, dat)
+   subroutine link_scalar_by_name(self, name, dat, source)
       class (type_fabm_model), intent(inout) :: self
       character(len=*),        intent(in)    :: name   !< variable name
       real(rke), target,       intent(in)    :: dat    !< variable data
+      integer, optional,       intent(in)    :: source
 
-      call link_scalar_by_id(self, get_scalar_variable_id_by_name(self, name), dat)
+      call link_scalar_by_id(self, get_scalar_variable_id_by_name(self, name), dat, source)
    end subroutine link_scalar_by_name
 
    ! ------------------------------------------------------------------------------------------------------------------------------
@@ -2416,19 +2422,17 @@ contains
          select case (task%operation)
          case (source_do)
             _BEGIN_OUTER_INTERIOR_LOOP_
-#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-               ! We are looping over depth, but as we have a non-constant bottom index (yet no mask), we need to skip everything below bottom
-#  if _FABM_BOTTOM_INDEX_==-1
-#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+#if _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_) && _FABM_BOTTOM_INDEX_==-1
+               ! Inner loop over depth with a horizontally varying bottom index. Skip everything below bottom.
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
                _START_ = self%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
-#    else
+#  else
                _STOP_ = self%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
-#    endif
 #  endif
 #endif
                call process_interior_slice(task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
             _END_OUTER_INTERIOR_LOOP_
-#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
+#if _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_) && _FABM_BOTTOM_INDEX_==-1
             _START_ = self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
             _STOP_ = self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
 #endif
@@ -2438,19 +2442,17 @@ contains
             _END_OUTER_HORIZONTAL_LOOP_
          case (source_do_column)
             _BEGIN_OUTER_VERTICAL_LOOP_
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-#  if _FABM_BOTTOM_INDEX_==-1
-#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_) && _FABM_BOTTOM_INDEX_==-1
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
                _VERTICAL_START_ = self%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
-#    else
+#  else
                _VERTICAL_STOP_ = self%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
-#    endif
 #  endif
 #endif
                if (_IS_UNMASKED_(self%domain%mask_hz _INDEX_HORIZONTAL_LOCATION_)) call process_vertical_slice(task, self%domain, &
                   self%catalog, self%cache_fill_values, self%store, self%cache_vert _POSTARG_VERTICAL_IN_)
             _END_OUTER_VERTICAL_LOOP_
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_) && _FABM_BOTTOM_INDEX_==-1
             _VERTICAL_START_ = self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
             _VERTICAL_STOP_ = self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
 #endif
@@ -2942,33 +2944,13 @@ contains
       type (type_global_variable_register), intent(in) :: variable_register
       type (type_cache_fill_values)                    :: cache_fill_values
 
-      call collect(variable_register%read_cache%interior,    cache_fill_values%read,             use_missing=.false.)
-      call collect(variable_register%read_cache%horizontal,  cache_fill_values%read_hz,          use_missing=.false.)
-      call collect(variable_register%read_cache%scalar,      cache_fill_values%read_scalar,      use_missing=.false.)
-      call collect(variable_register%write_cache%interior,   cache_fill_values%write,            use_missing=.false.)
-      call collect(variable_register%write_cache%horizontal, cache_fill_values%write_hz,         use_missing=.false.)
-      call collect(variable_register%write_cache%interior,   cache_fill_values%write_missing,    use_missing=.true.)
-      call collect(variable_register%write_cache%horizontal, cache_fill_values%write_hz_missing, use_missing=.true.)
-   contains
-      subroutine collect(variable_list, values, use_missing)
-         type (type_variable_list), intent(in)  :: variable_list
-         real(rki), allocatable,    intent(out) :: values(:)
-         logical,                   intent(in)  :: use_missing
-
-         integer                            :: i
-         type (type_variable_node), pointer :: variable_node
-
-         allocate(values(variable_list%count))
-         variable_node => variable_list%first
-         do i = 1, size(values)
-            if (use_missing) then
-               values(i) = variable_node%target%missing_value
-            else
-               values(i) = variable_node%target%prefill_value
-            end if
-            variable_node => variable_node%next
-         end do
-      end subroutine
+      call collect_fill_values(variable_register%read_cache%interior,    cache_fill_values%read,             use_missing=.false.)
+      call collect_fill_values(variable_register%read_cache%horizontal,  cache_fill_values%read_hz,          use_missing=.false.)
+      call collect_fill_values(variable_register%read_cache%scalar,      cache_fill_values%read_scalar,      use_missing=.false.)
+      call collect_fill_values(variable_register%write_cache%interior,   cache_fill_values%write,            use_missing=.false.)
+      call collect_fill_values(variable_register%write_cache%horizontal, cache_fill_values%write_hz,         use_missing=.false.)
+      call collect_fill_values(variable_register%write_cache%interior,   cache_fill_values%write_missing,    use_missing=.true.)
+      call collect_fill_values(variable_register%write_cache%horizontal, cache_fill_values%write_hz_missing, use_missing=.true.)
    end function
 
    subroutine create_store(self)
@@ -3034,28 +3016,28 @@ contains
          allocate(self%store%scalar(0:self%variable_register%store%scalar%count))
       end subroutine
 
-      subroutine collect_fill_values(variable_list, values, use_missing)
-         type (type_variable_list), intent(in)  :: variable_list
-         real(rke), allocatable,    intent(out) :: values(:)
-         logical,                   intent(in)  :: use_missing
-
-         integer                            :: i
-         type (type_variable_node), pointer :: variable_node
-
-         allocate(values(variable_list%count))
-         variable_node => variable_list%first
-         do i = 1, size(values)
-            if (use_missing) then
-               values(i) = variable_node%target%missing_value
-            else
-               values(i) = variable_node%target%prefill_value
-            end if
-            variable_node => variable_node%next
-         end do
-      end subroutine
-
    end subroutine create_store
 
+   subroutine collect_fill_values(variable_list, values, use_missing)
+      type (type_variable_list), intent(in)  :: variable_list
+      real(rke), allocatable,    intent(out) :: values(:)
+      logical,                   intent(in)  :: use_missing
+
+      integer                            :: i
+      type (type_variable_node), pointer :: variable_node
+
+      allocate(values(variable_list%count))
+      variable_node => variable_list%first
+      do i = 1, size(values)
+         if (use_missing) then
+            values(i) = variable_node%target%missing_value
+         else
+            values(i) = variable_node%target%prefill_value
+         end if
+         variable_node => variable_node%next
+      end do
+   end subroutine
+   
    subroutine reset_store(self)
       class (type_fabm_model), intent(inout) :: self
 

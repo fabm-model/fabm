@@ -61,7 +61,7 @@ module fabm_work
    end interface
 
    ! --------------------------------------------------------------------------
-   ! Interfaces and parameters for inernal use
+   ! Interfaces and parameters for internal use
    ! --------------------------------------------------------------------------
 
    interface allocate_and_fill
@@ -108,7 +108,7 @@ contains
       type (type_cache_fill_values), intent(in)  :: fill_values
       type (type_interior_cache),    intent(out) :: cache
 
-      integer :: nvalid, n, n_mod, i
+      integer :: nvalid, n, n_mod
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
       nvalid = domain%shape(_FABM_VECTORIZED_DIMENSION_INDEX_)
@@ -136,7 +136,7 @@ contains
       type (type_cache_fill_values), intent(in)  :: fill_values
       type (type_horizontal_cache),  intent(out) :: cache
 
-      integer :: nvalid, n, n_mod, i
+      integer :: nvalid, n, n_mod
 
 #ifdef _HORIZONTAL_IS_VECTORIZED_
       nvalid = domain%shape(_FABM_VECTORIZED_DIMENSION_INDEX_)
@@ -164,7 +164,7 @@ contains
       type (type_cache_fill_values), intent(in)  :: fill_values
       type (type_vertical_cache),    intent(out) :: cache
 
-      integer :: nvalid, n, n_mod, i
+      integer :: nvalid, n, n_mod
 
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
       nvalid = domain%shape(_FABM_DEPTH_DIMENSION_INDEX_)
@@ -188,412 +188,412 @@ contains
       call allocate_and_fill(cache%write_hz, fill_values%write_hz, 0, 1, 1, fill_values%write_hz_missing)
    end subroutine
 
-subroutine begin_interior_task(domain, catalog, fill_values, task, cache _POSTARG_INTERIOR_IN_)
-   type (type_domain),            intent(in)    :: domain
-   type (type_catalog),           intent(in)    :: catalog
-   type (type_cache_fill_values), intent(in)    :: fill_values
-   type (type_task),              intent(in)    :: task
-   type (type_interior_cache),    intent(inout) :: cache
-   _DECLARE_ARGUMENTS_INTERIOR_IN_
-   _DECLARE_INTERIOR_INDICES_
+   subroutine begin_interior_task(domain, catalog, fill_values, task, cache _POSTARG_INTERIOR_IN_)
+      type (type_domain),            intent(in)    :: domain
+      type (type_catalog),           intent(in)    :: catalog
+      type (type_cache_fill_values), intent(in)    :: fill_values
+      type (type_task),              intent(in)    :: task
+      type (type_interior_cache),    intent(inout) :: cache
+      _DECLARE_ARGUMENTS_INTERIOR_IN_
+      _DECLARE_INTERIOR_INDICES_
 
-   integer :: i, j
+      integer :: i, j
 
 #ifdef _FABM_VECTORIZED_DIMENSION_INDEX_
 #  ifdef _HAS_MASK_
-   i = 0
-   do _I_ = _START_, _STOP_
+      i = 0
+      do _I_ = _START_, _STOP_
 #    ifdef _FABM_HORIZONTAL_MASK_
-      if (_IS_UNMASKED_(domain%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_I_))) then
+         if (_IS_UNMASKED_(domain%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_I_))) then
 #    else
-      if (_IS_UNMASKED_(domain%mask _INDEX_GLOBAL_INTERIOR_(_I_))) then
+         if (_IS_UNMASKED_(domain%mask _INDEX_GLOBAL_INTERIOR_(_I_))) then
 #    endif
-          i = i + 1
-          cache%ipack(i) = _I_
-          cache%iunpack(_I_) = i
-      else
-          cache%iunpack(_I_) = domain%shape(_FABM_VECTORIZED_DIMENSION_INDEX_) + 1
-      end if
-   end do
-   _N_ = i
+             i = i + 1
+             cache%ipack(i) = _I_
+             cache%iunpack(_I_) = i
+         else
+             cache%iunpack(_I_) = domain%shape(_FABM_VECTORIZED_DIMENSION_INDEX_) + 1
+         end if
+      end do
+      _N_ = i
 #  else
-   _N_ = _STOP_ - _START_ + 1
+      _N_ = _STOP_ - _START_ + 1
 #  endif
 #else
-   _N_ = 1
-#endif
-
-   if (_N_ == 0) return
-
-   _DO_CONCURRENT_(i, 1, size(task%load))
-      j = task%load(i)
-      if (j /= 0) then
-         _PACK_GLOBAL_(catalog%interior(j)%p, cache%read, i, cache)
-      end if
-   end do
-   _DO_CONCURRENT_(i, 1, size(task%load_hz))
-      j = task%load_hz(i)
-      if (j /= 0) then
-         _HORIZONTAL_PACK_GLOBAL_(catalog%horizontal(j)%p, cache%read_hz, i, cache)
-      end if
-   end do
-   _DO_CONCURRENT_(i, 1, size(task%load_scalar))
-      j = task%load_scalar(i)
-      if (j /= 0) then
-         cache%read_scalar(i) = catalog%scalar(j)%p
-      end if
-   end do
-
-   _DO_CONCURRENT_(i, 1, size(task%prefill))
-      j = task%prefill(i)
-      if (j == prefill_constant) then
-         _CONCURRENT_LOOP_BEGIN_
-            cache%write _INDEX_SLICE_PLUS_1_(i) = fill_values%write(i)
-         _LOOP_END_
-      elseif (j /= prefill_none) then
-         _PACK_GLOBAL_(catalog%interior(j)%p, cache%write, i, cache)
-      end if
-   end do
-end subroutine begin_interior_task
-
-subroutine begin_horizontal_task(domain, catalog, fill_values, task, cache _POSTARG_HORIZONTAL_IN_)
-   type (type_domain),            intent(in)    :: domain
-   type (type_catalog),           intent(in)    :: catalog
-   type (type_cache_fill_values), intent(in)    :: fill_values
-   type (type_task),              intent(in)    :: task
-   type (type_horizontal_cache),  intent(inout) :: cache
-   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-   _DECLARE_HORIZONTAL_INDICES_
-
-   integer :: i, j
-
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-#  ifdef _HAS_MASK_
-   i = 0
-   do _J_ = _START_, _STOP_
-      if (_IS_UNMASKED_(domain%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_J_))) then
-          i = i + 1
-          cache%ipack(i) = _J_
-          cache%iunpack(_J_) = i
-      else
-          cache%iunpack(_J_) = domain%shape(_FABM_VECTORIZED_DIMENSION_INDEX_) + 1
-      end if
-   end do
-   _N_ = i
-#  else
-   _N_ = _STOP_ - _START_ + 1
-#  endif
-#else
-   if (_IS_UNMASKED_(domain%mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
       _N_ = 1
-   else
-      _N_ = 0
-   end if
 #endif
 
-   if (_N_ == 0) return
+      if (_N_ == 0) return
 
-   _DO_CONCURRENT_(i, 1, size(task%load_hz))
-      j = task%load_hz(i)
-      if (j /= 0) then
-         _HORIZONTAL_PACK_GLOBAL_(catalog%horizontal(j)%p, cache%read_hz, i, cache)
-      end if
-   end do
-   _DO_CONCURRENT_(i, 1, size(task%load_scalar))
-      j = task%load_scalar(i)
-      if (j /= 0) cache%read_scalar(i) = catalog%scalar(j)%p
-   end do
+      _DO_CONCURRENT_(i, 1, size(task%load))
+         j = task%load(i)
+         if (j /= 0) then
+            _PACK_GLOBAL_(catalog%interior(j)%p, cache%read, i, cache)
+         end if
+      end do
+      _DO_CONCURRENT_(i, 1, size(task%load_hz))
+         j = task%load_hz(i)
+         if (j /= 0) then
+            _HORIZONTAL_PACK_GLOBAL_(catalog%horizontal(j)%p, cache%read_hz, i, cache)
+         end if
+      end do
+      _DO_CONCURRENT_(i, 1, size(task%load_scalar))
+         j = task%load_scalar(i)
+         if (j /= 0) then
+            cache%read_scalar(i) = catalog%scalar(j)%p
+         end if
+      end do
 
-   _DO_CONCURRENT_(i, 1, size(task%prefill_hz))
-      if (task%prefill_hz(i) == prefill_constant) then
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
-            cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = fill_values%write_hz(i)
-         _HORIZONTAL_LOOP_END_
-      elseif (task%prefill_hz(i) /= prefill_none) then
-         _HORIZONTAL_PACK_GLOBAL_(catalog%horizontal(task%prefill_hz(i))%p, cache%write_hz, i, cache)
-      end if
-   end do
+      _DO_CONCURRENT_(i, 1, size(task%prefill))
+         j = task%prefill(i)
+         if (j == prefill_constant) then
+            _CONCURRENT_LOOP_BEGIN_
+               cache%write _INDEX_SLICE_PLUS_1_(i) = fill_values%write(i)
+            _LOOP_END_
+         elseif (j /= prefill_none) then
+            _PACK_GLOBAL_(catalog%interior(j)%p, cache%write, i, cache)
+         end if
+      end do
+   end subroutine begin_interior_task
 
-   ! Also load boundary values for interior fields if performing surface or bottom-specific operations.
-   if (task%operation == source_do_surface) then
-      call load_surface_data(domain, catalog, task, cache _POSTARG_HORIZONTAL_IN_)
-   elseif (task%operation == source_do_bottom) then
-      call load_bottom_data (domain, catalog, task, cache _POSTARG_HORIZONTAL_IN_)
-   end if
-end subroutine begin_horizontal_task
+   subroutine begin_horizontal_task(domain, catalog, fill_values, task, cache _POSTARG_HORIZONTAL_IN_)
+      type (type_domain),            intent(in)    :: domain
+      type (type_catalog),           intent(in)    :: catalog
+      type (type_cache_fill_values), intent(in)    :: fill_values
+      type (type_task),              intent(in)    :: task
+      type (type_horizontal_cache),  intent(inout) :: cache
+      _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+      _DECLARE_HORIZONTAL_INDICES_
 
-subroutine load_surface_data(domain, catalog, task, cache _POSTARG_HORIZONTAL_IN_)
-   type (type_domain),           intent(in)    :: domain
-   type (type_catalog),          intent(in)    :: catalog
-   type (type_task),             intent(in)    :: task
-   type (type_horizontal_cache), intent(inout) :: cache
-   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-   _DECLARE_HORIZONTAL_INDICES_
+      integer :: i, j
 
-   integer :: i, j
-
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-   integer :: _VERTICAL_ITERATOR_
-#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-   _VERTICAL_ITERATOR_ = domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
-#  else
-   _VERTICAL_ITERATOR_ = domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
-#  endif
-#endif
-
-   _DO_CONCURRENT_(i, 1, size(task%load))
-      j = task%load(i)
-      if (j /= 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
 #  ifdef _HAS_MASK_
-            cache%read _INDEX_SLICE_PLUS_1_(i) = catalog%interior(j)%p _INDEX_GLOBAL_INTERIOR_(cache%ipack(_J_))
+      i = 0
+      do _J_ = _START_, _STOP_
+         if (_IS_UNMASKED_(domain%mask_hz _INDEX_GLOBAL_HORIZONTAL_(_J_))) then
+             i = i + 1
+             cache%ipack(i) = _J_
+             cache%iunpack(_J_) = i
+         else
+             cache%iunpack(_J_) = domain%shape(_FABM_VECTORIZED_DIMENSION_INDEX_) + 1
+         end if
+      end do
+      _N_ = i
 #  else
-            cache%read _INDEX_SLICE_PLUS_1_(i) = catalog%interior(j)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1)
+      _N_ = _STOP_ - _START_ + 1
 #  endif
-         _HORIZONTAL_LOOP_END_
-#elif defined(_INTERIOR_IS_VECTORIZED_)
-         cache%read(1, i) = catalog%interior(j)%p _INDEX_LOCATION_
 #else
-         cache%read(i) = catalog%interior(j)%p _INDEX_LOCATION_
-#endif
+      if (_IS_UNMASKED_(domain%mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
+         _N_ = 1
+      else
+         _N_ = 0
       end if
-   end do
-end subroutine load_surface_data
+#endif
 
-subroutine load_bottom_data(domain, catalog, task, cache _POSTARG_HORIZONTAL_IN_)
-   type (type_domain),           intent(in)    :: domain
-   type (type_catalog),          intent(in)    :: catalog
-   type (type_task),             intent(in)    :: task
-   type (type_horizontal_cache), intent(inout) :: cache
-   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-   _DECLARE_HORIZONTAL_INDICES_
+      if (_N_ == 0) return
 
-   integer :: i, k
+      _DO_CONCURRENT_(i, 1, size(task%load_hz))
+         j = task%load_hz(i)
+         if (j /= 0) then
+            _HORIZONTAL_PACK_GLOBAL_(catalog%horizontal(j)%p, cache%read_hz, i, cache)
+         end if
+      end do
+      _DO_CONCURRENT_(i, 1, size(task%load_scalar))
+         j = task%load_scalar(i)
+         if (j /= 0) cache%read_scalar(i) = catalog%scalar(j)%p
+      end do
+
+      _DO_CONCURRENT_(i, 1, size(task%prefill_hz))
+         if (task%prefill_hz(i) == prefill_constant) then
+            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+               cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(i) = fill_values%write_hz(i)
+            _HORIZONTAL_LOOP_END_
+         elseif (task%prefill_hz(i) /= prefill_none) then
+            _HORIZONTAL_PACK_GLOBAL_(catalog%horizontal(task%prefill_hz(i))%p, cache%write_hz, i, cache)
+         end if
+      end do
+
+      ! Also load boundary values for interior fields if performing surface or bottom-specific operations.
+      if (task%operation == source_do_surface) then
+         call load_surface_data(domain, catalog, task, cache _POSTARG_HORIZONTAL_IN_)
+      elseif (task%operation == source_do_bottom) then
+         call load_bottom_data (domain, catalog, task, cache _POSTARG_HORIZONTAL_IN_)
+      end if
+   end subroutine begin_horizontal_task
+
+   subroutine load_surface_data(domain, catalog, task, cache _POSTARG_HORIZONTAL_IN_)
+      type (type_domain),           intent(in)    :: domain
+      type (type_catalog),          intent(in)    :: catalog
+      type (type_task),             intent(in)    :: task
+      type (type_horizontal_cache), intent(inout) :: cache
+      _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+      _DECLARE_HORIZONTAL_INDICES_
+
+      integer :: i, j
+
 #ifdef _FABM_DEPTH_DIMENSION_INDEX_
-   integer :: _VERTICAL_ITERATOR_
+      integer :: _VERTICAL_ITERATOR_
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+      _VERTICAL_ITERATOR_ = domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
+#  else
+      _VERTICAL_ITERATOR_ = domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
+#  endif
+#endif
+
+      _DO_CONCURRENT_(i, 1, size(task%load))
+         j = task%load(i)
+         if (j /= 0) then
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+#  ifdef _HAS_MASK_
+               cache%read _INDEX_SLICE_PLUS_1_(i) = catalog%interior(j)%p _INDEX_GLOBAL_INTERIOR_(cache%ipack(_J_))
+#  else
+               cache%read _INDEX_SLICE_PLUS_1_(i) = catalog%interior(j)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1)
+#  endif
+            _HORIZONTAL_LOOP_END_
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+            cache%read(1, i) = catalog%interior(j)%p _INDEX_LOCATION_
+#else
+            cache%read(i) = catalog%interior(j)%p _INDEX_LOCATION_
+#endif
+         end if
+      end do
+   end subroutine load_surface_data
+
+   subroutine load_bottom_data(domain, catalog, task, cache _POSTARG_HORIZONTAL_IN_)
+      type (type_domain),           intent(in)    :: domain
+      type (type_catalog),          intent(in)    :: catalog
+      type (type_task),             intent(in)    :: task
+      type (type_horizontal_cache), intent(inout) :: cache
+      _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+      _DECLARE_HORIZONTAL_INDICES_
+
+      integer :: i, k
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+      integer :: _VERTICAL_ITERATOR_
 #  if _FABM_BOTTOM_INDEX_==0
 #    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-   _VERTICAL_ITERATOR_ = domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
+      _VERTICAL_ITERATOR_ = domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
 #    else
-   _VERTICAL_ITERATOR_ = domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
+      _VERTICAL_ITERATOR_ = domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
 #    endif
 #  endif
 #endif
 
-   _DO_CONCURRENT_(i, 1, size(task%load))
-      k = task%load(i)
-      if (k /= 0) then
+      _DO_CONCURRENT_(i, 1, size(task%load))
+         k = task%load(i)
+         if (k /= 0) then
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-         _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
+            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_
 #  if _FABM_BOTTOM_INDEX_==-1
 #    ifdef _HAS_MASK_
-            _VERTICAL_ITERATOR_ = domain%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(cache%ipack(_J_))
+               _VERTICAL_ITERATOR_ = domain%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(cache%ipack(_J_))
 #    else
-            _VERTICAL_ITERATOR_ = domain%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
+               _VERTICAL_ITERATOR_ = domain%bottom_indices _INDEX_GLOBAL_HORIZONTAL_(_START_+_J_-1)
 #    endif
 #  endif
 #  ifdef _HAS_MASK_
-            cache%read _INDEX_SLICE_PLUS_1_(i) = catalog%interior(k)%p _INDEX_GLOBAL_INTERIOR_(cache%ipack(_J_))
+               cache%read _INDEX_SLICE_PLUS_1_(i) = catalog%interior(k)%p _INDEX_GLOBAL_INTERIOR_(cache%ipack(_J_))
 #  else
-            cache%read _INDEX_SLICE_PLUS_1_(i) = catalog%interior(k)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1)
+               cache%read _INDEX_SLICE_PLUS_1_(i) = catalog%interior(k)%p _INDEX_GLOBAL_INTERIOR_(_START_+_I_-1)
 #  endif
-         _HORIZONTAL_LOOP_END_
+            _HORIZONTAL_LOOP_END_
 #elif defined(_INTERIOR_IS_VECTORIZED_)
 #  if _FABM_BOTTOM_INDEX_==-1
-         _VERTICAL_ITERATOR_ = domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+            _VERTICAL_ITERATOR_ = domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #  endif
-         cache%read(1, i) = catalog%interior(k)%p _INDEX_LOCATION_
+            cache%read(1, i) = catalog%interior(k)%p _INDEX_LOCATION_
 #else
 #  if _FABM_BOTTOM_INDEX_==-1
-         _VERTICAL_ITERATOR_ = domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
+            _VERTICAL_ITERATOR_ = domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
 #  endif
-         cache%read(i) = catalog%interior(k)%p _INDEX_LOCATION_
+            cache%read(i) = catalog%interior(k)%p _INDEX_LOCATION_
 #endif
-      end if
-   end do
-end subroutine load_bottom_data
-
-subroutine begin_vertical_task(domain, catalog, fill_values, task, cache _POSTARG_VERTICAL_IN_)
-   type (type_domain),            intent(in)    :: domain
-   type (type_catalog),           intent(in)    :: catalog
-   type (type_cache_fill_values), intent(in)    :: fill_values
-   type (type_task),              intent(in)    :: task
-   type (type_vertical_cache),    intent(inout) :: cache
-   _DECLARE_ARGUMENTS_VERTICAL_IN_
-   _DECLARE_VERTICAL_INDICES_
-
-   integer :: i, j
-
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-#  ifdef _HAS_MASK_
-   i = 0
-   do _I_ = _VERTICAL_START_, _VERTICAL_STOP_
-#    ifdef _FABM_HORIZONTAL_MASK_
-      if (_IS_UNMASKED_(domain%mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
-#    else
-      if ( _IS_UNMASKED_(domain%mask _INDEX_GLOBAL_VERTICAL_(_I_))) then
-#    endif
-          i = i + 1
-          cache%ipack(i) = _I_
-          cache%iunpack(_I_) = i
-      else
-          cache%iunpack(_I_) = domain%shape(_FABM_DEPTH_DIMENSION_INDEX_) + 1
-      end if
-    end do
-    _N_ = i
-#  else
-   _N_ = _VERTICAL_STOP_ - _VERTICAL_START_ + 1
-#  endif
-#else
-   if (_IS_UNMASKED_(domain%mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
-      _N_ = 1
-   else
-      _N_ = 0
-   end if
-#endif
-
-   if (_N_ == 0) return
-
-   _DO_CONCURRENT_(i, 1, size(task%load))
-      j = task%load(i)
-      if (j /= 0) then
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-         _CONCURRENT_VERTICAL_LOOP_BEGIN_
-#  ifdef _HAS_MASK_
-            cache%read _INDEX_SLICE_PLUS_1_(i) = catalog%interior(j)%p _INDEX_GLOBAL_VERTICAL_(cache%ipack(_I_))
-#  else
-            cache%read _INDEX_SLICE_PLUS_1_(i) = catalog%interior(j)%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1)
-#  endif
-         _VERTICAL_LOOP_END_
-#elif defined(_INTERIOR_IS_VECTORIZED_)
-         cache%read(1,i) = catalog%interior(j)%p _INDEX_LOCATION_
-#else
-         cache%read(i) = catalog%interior(j)%p _INDEX_LOCATION_
-#endif
-      end if
-   end do
-
-   _DO_CONCURRENT_(i, 1, size(task%load_hz))
-      j = task%load_hz(i)
-      if (j /= 0) then
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-         cache%read_hz(1, i) = catalog%horizontal(j)%p _INDEX_HORIZONTAL_LOCATION_
-#else
-         cache%read_hz(i) = catalog%horizontal(j)%p _INDEX_HORIZONTAL_LOCATION_
-#endif
-      end if
-   end do
-
-   _DO_CONCURRENT_(i, 1, size(task%load_scalar))
-      j = task%load_scalar(i)
-      if (j /= 0) cache%read_scalar(i) = catalog%scalar(j)%p
-   end do
-
-   _DO_CONCURRENT_(i, 1, size(task%prefill))
-      if (task%prefill(i) == prefill_constant) then
-#if defined(_INTERIOR_IS_VECTORIZED_)
-         cache%write(:, i) = fill_values%write(i)
-#else
-         cache%write(i) = fill_values%write(i)
-#endif
-      elseif (task%prefill(i) /= prefill_none) then
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-         _CONCURRENT_VERTICAL_LOOP_BEGIN_
-#  ifdef _HAS_MASK_
-            cache%write _INDEX_SLICE_PLUS_1_(i) = catalog%interior(task%prefill(i))%p _INDEX_GLOBAL_VERTICAL_(cache%ipack(_I_))
-#  else
-            cache%write _INDEX_SLICE_PLUS_1_(i) = catalog%interior(task%prefill(i))%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1)
-#  endif
-         _VERTICAL_LOOP_END_
-#elif defined(_INTERIOR_IS_VECTORIZED_)
-         cache%write(1, i) = catalog%interior(task%prefill(i))%p _INDEX_LOCATION_
-#else
-         cache%write(i) = catalog%interior(task%prefill(i))%p _INDEX_LOCATION_
-#endif
-      end if
-   end do
-
-   _DO_CONCURRENT_(i, 1, size(task%prefill_hz))
-      if (task%prefill_hz(i) == prefill_constant) then
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-         cache%write_hz(1, i) = fill_values%write_hz(i)
-#else
-         cache%write_hz(i) = fill_values%write_hz(i)
-#endif
-      elseif (task%prefill_hz(i) /= prefill_none) then
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-         cache%write_hz(1, i) = catalog%horizontal(task%prefill_hz(i))%p _INDEX_HORIZONTAL_LOCATION_
-#else
-         cache%write_hz(i) = catalog%horizontal(task%prefill_hz(i))%p _INDEX_HORIZONTAL_LOCATION_
-#endif
-      end if
-   end do
-end subroutine begin_vertical_task
-
-subroutine end_interior_task(task, cache, store _POSTARG_INTERIOR_IN_)
-   type (type_task),           intent(in)    :: task
-   type (type_interior_cache), intent(in)    :: cache
-   type (type_store),          intent(inout) :: store
-   _DECLARE_ARGUMENTS_INTERIOR_IN_
-   _DECLARE_INTERIOR_INDICES_
-
-   integer :: i
-
-   ! Copy newly written diagnostics that need to be saved to global store.
-   _DO_CONCURRENT_(i, 1, size(task%save_sources))
-      if (task%save_sources(i) /= 0) then
-         _UNPACK_TO_GLOBAL_PLUS_1_(cache%write, task%save_sources(i), store%interior, i, cache, store%interior_missing_value(i))
-      end if
-   end do
-end subroutine end_interior_task
-
-subroutine end_horizontal_task(task, cache, store _POSTARG_HORIZONTAL_IN_)
-   type (type_task),             intent(in)    :: task
-   type (type_horizontal_cache), intent(in)    :: cache
-   type (type_store),            intent(inout) :: store
-   _DECLARE_ARGUMENTS_HORIZONTAL_IN_
-   _DECLARE_HORIZONTAL_INDICES_
-
-   integer :: i
-
-   ! Copy newly written horizontal diagnostics that need to be saved to global store.
-   _DO_CONCURRENT_(i, 1, size(task%save_sources_hz))
-      if (task%save_sources_hz(i) /= 0) then
-         _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write_hz, task%save_sources_hz(i), store%horizontal, i, cache, store%horizontal_missing_value(i))
-      end if
-   end do
-end subroutine end_horizontal_task
-
-subroutine end_vertical_task(task, cache, store _POSTARG_VERTICAL_IN_)
-   type (type_task),           intent(in)    :: task
-   type (type_vertical_cache), intent(in)    :: cache
-   type (type_store),          intent(inout) :: store
-   _DECLARE_ARGUMENTS_VERTICAL_IN_
-   _DECLARE_VERTICAL_INDICES_
-
-   integer :: i
-
-   ! Copy diagnostics that need to be saved to global store.
-   _DO_CONCURRENT_(i, 1, size(task%save_sources))
-      if (task%save_sources(i) /= 0) then
-         _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write, task%save_sources(i), store%interior, i, cache, store%interior_missing_value(i))
-      end if
-   end do
-   _DO_CONCURRENT_(i, 1, size(task%save_sources_hz))
-      if (task%save_sources_hz(i) /= 0) then
-         if (_N_ > 0) then
-#ifdef _HORIZONTAL_IS_VECTORIZED_
-            store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(1, task%save_sources_hz(i))
-#else
-            store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(task%save_sources_hz(i))
-#endif
-         else
-            store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = store%horizontal_missing_value(i)
          end if
+      end do
+   end subroutine load_bottom_data
+
+   subroutine begin_vertical_task(domain, catalog, fill_values, task, cache _POSTARG_VERTICAL_IN_)
+      type (type_domain),            intent(in)    :: domain
+      type (type_catalog),           intent(in)    :: catalog
+      type (type_cache_fill_values), intent(in)    :: fill_values
+      type (type_task),              intent(in)    :: task
+      type (type_vertical_cache),    intent(inout) :: cache
+      _DECLARE_ARGUMENTS_VERTICAL_IN_
+      _DECLARE_VERTICAL_INDICES_
+
+      integer :: i, j
+
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#  ifdef _HAS_MASK_
+      i = 0
+      do _I_ = _VERTICAL_START_, _VERTICAL_STOP_
+#    ifdef _FABM_HORIZONTAL_MASK_
+         if (_IS_UNMASKED_(domain%mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
+#    else
+         if ( _IS_UNMASKED_(domain%mask _INDEX_GLOBAL_VERTICAL_(_I_))) then
+#    endif
+             i = i + 1
+             cache%ipack(i) = _I_
+             cache%iunpack(_I_) = i
+         else
+             cache%iunpack(_I_) = domain%shape(_FABM_DEPTH_DIMENSION_INDEX_) + 1
+         end if
+      end do
+      _N_ = i
+#  else
+      _N_ = _VERTICAL_STOP_ - _VERTICAL_START_ + 1
+#  endif
+#else
+      if (_IS_UNMASKED_(domain%mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
+         _N_ = 1
+      else
+         _N_ = 0
       end if
-   end do
-end subroutine end_vertical_task
+#endif
+
+      if (_N_ == 0) return
+
+      _DO_CONCURRENT_(i, 1, size(task%load))
+         j = task%load(i)
+         if (j /= 0) then
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+            _CONCURRENT_VERTICAL_LOOP_BEGIN_
+#  ifdef _HAS_MASK_
+               cache%read _INDEX_SLICE_PLUS_1_(i) = catalog%interior(j)%p _INDEX_GLOBAL_VERTICAL_(cache%ipack(_I_))
+#  else
+               cache%read _INDEX_SLICE_PLUS_1_(i) = catalog%interior(j)%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1)
+#  endif
+            _VERTICAL_LOOP_END_
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+            cache%read(1,i) = catalog%interior(j)%p _INDEX_LOCATION_
+#else
+            cache%read(i) = catalog%interior(j)%p _INDEX_LOCATION_
+#endif
+         end if
+      end do
+
+      _DO_CONCURRENT_(i, 1, size(task%load_hz))
+         j = task%load_hz(i)
+         if (j /= 0) then
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+            cache%read_hz(1, i) = catalog%horizontal(j)%p _INDEX_HORIZONTAL_LOCATION_
+#else
+            cache%read_hz(i) = catalog%horizontal(j)%p _INDEX_HORIZONTAL_LOCATION_
+#endif
+         end if
+      end do
+
+      _DO_CONCURRENT_(i, 1, size(task%load_scalar))
+         j = task%load_scalar(i)
+         if (j /= 0) cache%read_scalar(i) = catalog%scalar(j)%p
+      end do
+
+      _DO_CONCURRENT_(i, 1, size(task%prefill))
+         if (task%prefill(i) == prefill_constant) then
+#if defined(_INTERIOR_IS_VECTORIZED_)
+            cache%write(:, i) = fill_values%write(i)
+#else
+            cache%write(i) = fill_values%write(i)
+#endif
+         elseif (task%prefill(i) /= prefill_none) then
+#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+            _CONCURRENT_VERTICAL_LOOP_BEGIN_
+#  ifdef _HAS_MASK_
+               cache%write _INDEX_SLICE_PLUS_1_(i) = catalog%interior(task%prefill(i))%p _INDEX_GLOBAL_VERTICAL_(cache%ipack(_I_))
+#  else
+               cache%write _INDEX_SLICE_PLUS_1_(i) = catalog%interior(task%prefill(i))%p _INDEX_GLOBAL_VERTICAL_(_VERTICAL_START_+_I_-1)
+#  endif
+            _VERTICAL_LOOP_END_
+#elif defined(_INTERIOR_IS_VECTORIZED_)
+            cache%write(1, i) = catalog%interior(task%prefill(i))%p _INDEX_LOCATION_
+#else
+            cache%write(i) = catalog%interior(task%prefill(i))%p _INDEX_LOCATION_
+#endif
+         end if
+      end do
+
+      _DO_CONCURRENT_(i, 1, size(task%prefill_hz))
+         if (task%prefill_hz(i) == prefill_constant) then
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+            cache%write_hz(1, i) = fill_values%write_hz(i)
+#else
+            cache%write_hz(i) = fill_values%write_hz(i)
+#endif
+         elseif (task%prefill_hz(i) /= prefill_none) then
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+            cache%write_hz(1, i) = catalog%horizontal(task%prefill_hz(i))%p _INDEX_HORIZONTAL_LOCATION_
+#else
+            cache%write_hz(i) = catalog%horizontal(task%prefill_hz(i))%p _INDEX_HORIZONTAL_LOCATION_
+#endif
+         end if
+      end do
+   end subroutine begin_vertical_task
+
+   subroutine end_interior_task(task, cache, store _POSTARG_INTERIOR_IN_)
+      type (type_task),           intent(in)    :: task
+      type (type_interior_cache), intent(in)    :: cache
+      type (type_store),          intent(inout) :: store
+      _DECLARE_ARGUMENTS_INTERIOR_IN_
+      _DECLARE_INTERIOR_INDICES_
+
+      integer :: i
+
+      ! Copy newly written diagnostics that need to be saved to global store.
+      _DO_CONCURRENT_(i, 1, size(task%save_sources))
+         if (task%save_sources(i) /= 0) then
+            _UNPACK_TO_GLOBAL_PLUS_1_(cache%write, task%save_sources(i), store%interior, i, cache, store%interior_missing_value(i))
+         end if
+      end do
+   end subroutine end_interior_task
+
+   subroutine end_horizontal_task(task, cache, store _POSTARG_HORIZONTAL_IN_)
+      type (type_task),             intent(in)    :: task
+      type (type_horizontal_cache), intent(in)    :: cache
+      type (type_store),            intent(inout) :: store
+      _DECLARE_ARGUMENTS_HORIZONTAL_IN_
+      _DECLARE_HORIZONTAL_INDICES_
+
+      integer :: i
+
+      ! Copy newly written horizontal diagnostics that need to be saved to global store.
+      _DO_CONCURRENT_(i, 1, size(task%save_sources_hz))
+         if (task%save_sources_hz(i) /= 0) then
+            _HORIZONTAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write_hz, task%save_sources_hz(i), store%horizontal, i, cache, store%horizontal_missing_value(i))
+         end if
+      end do
+   end subroutine end_horizontal_task
+
+   subroutine end_vertical_task(task, cache, store _POSTARG_VERTICAL_IN_)
+      type (type_task),           intent(in)    :: task
+      type (type_vertical_cache), intent(in)    :: cache
+      type (type_store),          intent(inout) :: store
+      _DECLARE_ARGUMENTS_VERTICAL_IN_
+      _DECLARE_VERTICAL_INDICES_
+
+      integer :: i
+
+      ! Copy diagnostics that need to be saved to global store.
+      _DO_CONCURRENT_(i, 1, size(task%save_sources))
+         if (task%save_sources(i) /= 0) then
+            _VERTICAL_UNPACK_TO_GLOBAL_PLUS_1_(cache%write, task%save_sources(i), store%interior, i, cache, store%interior_missing_value(i))
+         end if
+      end do
+      _DO_CONCURRENT_(i, 1, size(task%save_sources_hz))
+         if (task%save_sources_hz(i) /= 0) then
+            if (_N_ > 0) then
+#ifdef _HORIZONTAL_IS_VECTORIZED_
+               store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(1, task%save_sources_hz(i))
+#else
+               store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = cache%write_hz(task%save_sources_hz(i))
+#endif
+            else
+               store%horizontal(_PREARG_HORIZONTAL_LOCATION_ i) = store%horizontal_missing_value(i)
+            end if
+         end if
+      end do
+   end subroutine end_vertical_task
 
    subroutine process_interior_slice(task, domain, catalog, cache_fill_values, store, cache _POSTARG_INTERIOR_IN_)
       type (type_task),              intent(in)    :: task
@@ -611,35 +611,35 @@ end subroutine end_vertical_task
 
       if (_N_ /= 0) then
 
-      ncopy = 0
-      do icall = 1, size(task%calls)
-         if (task%calls(icall)%active) then
+         ncopy = 0
+         do icall = 1, size(task%calls)
+            if (task%calls(icall)%active) then
 #ifndef NDEBUG
-            call invalidate_interior_call_output(task%calls(icall), cache)
+               call invalidate_interior_call_output(task%calls(icall), cache)
 #endif
 
-            select case (task%calls(icall)%source)
-            case (source_do);                    call task%calls(icall)%model%do(cache)
-            case (source_get_vertical_movement); call task%calls(icall)%model%get_vertical_movement(cache)
-            case (source_check_state);           call task%calls(icall)%model%check_state(cache)
-            case (source_get_light_extinction);  call task%calls(icall)%model%get_light_extinction(cache)
-            end select
+               select case (task%calls(icall)%source)
+               case (source_do);                    call task%calls(icall)%model%do(cache)
+               case (source_get_vertical_movement); call task%calls(icall)%model%get_vertical_movement(cache)
+               case (source_check_state);           call task%calls(icall)%model%check_state(cache)
+               case (source_get_light_extinction);  call task%calls(icall)%model%get_light_extinction(cache)
+               end select
 
 #ifndef NDEBUG
-            call check_interior_call_output(task%calls(icall), cache)
+               call check_interior_call_output(task%calls(icall), cache)
 #endif
-         end if
+            end if
 
-         ! Copy outputs of interest to read cache so consecutive models can use it.
-         _DO_CONCURRENT_(i,1 + ncopy,task%calls(icall)%ncopy_int + ncopy)
-            j = task%copy_commands_int(i)%read_index
-            k = task%copy_commands_int(i)%write_index
-            _CONCURRENT_LOOP_BEGIN_EX_(cache)
-               cache%read _INDEX_SLICE_PLUS_1_(j) = cache%write _INDEX_SLICE_PLUS_1_(k)
-            _LOOP_END_
+            ! Copy outputs of interest to read cache so consecutive models can use it.
+            _DO_CONCURRENT_(i,1 + ncopy,task%calls(icall)%ncopy_int + ncopy)
+               j = task%copy_commands_int(i)%read_index
+               k = task%copy_commands_int(i)%write_index
+               _CONCURRENT_LOOP_BEGIN_EX_(cache)
+                  cache%read _INDEX_SLICE_PLUS_1_(j) = cache%write _INDEX_SLICE_PLUS_1_(k)
+               _LOOP_END_
+            end do
+            ncopy = ncopy + task%calls(icall)%ncopy_int
          end do
-         ncopy = ncopy + task%calls(icall)%ncopy_int
-      end do
 
       end if
 
@@ -663,38 +663,38 @@ end subroutine end_vertical_task
 
       if (_N_ /= 0) then
 
-      ncopy = 0
-      do icall = 1, size(task%calls)
-         if (task%calls(icall)%active) then
+         ncopy = 0
+         do icall = 1, size(task%calls)
+            if (task%calls(icall)%active) then
 #ifndef NDEBUG
-            call invalidate_horizontal_call_output(task%calls(icall), cache)
+               call invalidate_horizontal_call_output(task%calls(icall), cache)
 #endif
 
-            select case (task%calls(icall)%source)
-            case (source_do_surface);          call task%calls(icall)%model%do_surface   (cache)
-            case (source_do_bottom);           call task%calls(icall)%model%do_bottom    (cache)
-            case (source_do_horizontal);       call task%calls(icall)%model%do_horizontal(cache)
-            case (source_check_bottom_state);  call task%calls(icall)%model%check_bottom_state(cache)
-            case (source_check_surface_state); call task%calls(icall)%model%check_surface_state(cache)
-            case (source_get_albedo);          call task%calls(icall)%model%get_albedo(cache)
-            case (source_get_drag);            call task%calls(icall)%model%get_drag(cache)
-            end select
+               select case (task%calls(icall)%source)
+               case (source_do_surface);          call task%calls(icall)%model%do_surface   (cache)
+               case (source_do_bottom);           call task%calls(icall)%model%do_bottom    (cache)
+               case (source_do_horizontal);       call task%calls(icall)%model%do_horizontal(cache)
+               case (source_check_bottom_state);  call task%calls(icall)%model%check_bottom_state(cache)
+               case (source_check_surface_state); call task%calls(icall)%model%check_surface_state(cache)
+               case (source_get_albedo);          call task%calls(icall)%model%get_albedo(cache)
+               case (source_get_drag);            call task%calls(icall)%model%get_drag(cache)
+               end select
 
 #ifndef NDEBUG
-            call check_horizontal_call_output(task%calls(icall), cache)
+               call check_horizontal_call_output(task%calls(icall), cache)
 #endif
-         end if
+            end if
 
-         ! Copy outputs of interest to read cache so consecutive models can use it.
-         _DO_CONCURRENT_(i,1 + ncopy,task%calls(icall)%ncopy_hz + ncopy)
-            j = task%copy_commands_hz(i)%read_index
-            k = task%copy_commands_hz(i)%write_index
-            _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(cache)
-               cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
-            _HORIZONTAL_LOOP_END_
+            ! Copy outputs of interest to read cache so consecutive models can use it.
+            _DO_CONCURRENT_(i,1 + ncopy,task%calls(icall)%ncopy_hz + ncopy)
+               j = task%copy_commands_hz(i)%read_index
+               k = task%copy_commands_hz(i)%write_index
+               _CONCURRENT_HORIZONTAL_LOOP_BEGIN_EX_(cache)
+                  cache%read_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(j) = cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(k)
+               _HORIZONTAL_LOOP_END_
+            end do
+            ncopy = ncopy + task%calls(icall)%ncopy_hz
          end do
-         ncopy = ncopy + task%calls(icall)%ncopy_hz
-      end do
 
       end if
 
@@ -718,42 +718,42 @@ end subroutine end_vertical_task
 
       if (_N_ /= 0) then
 
-      ncopy_int = 0
-      ncopy_hz = 0
-      do icall = 1, size(task%calls)
+         ncopy_int = 0
+         ncopy_hz = 0
+         do icall = 1, size(task%calls)
 
-         if (task%calls(icall)%active) then
+            if (task%calls(icall)%active) then
 #ifndef NDEBUG
-            call invalidate_vertical_call_output(task%calls(icall), cache)
+               call invalidate_vertical_call_output(task%calls(icall), cache)
 #endif
 
-            call task%calls(icall)%model%do_column(cache)
+               call task%calls(icall)%model%do_column(cache)
 
 #ifndef NDEBUG
-            call check_vertical_call_output(task%calls(icall), cache)
+               call check_vertical_call_output(task%calls(icall), cache)
 #endif
-         end if
+            end if
 
-         ! Copy outputs of interest to read cache so consecutive models can use it.
-         _DO_CONCURRENT_(i,1 + ncopy_int,task%calls(icall)%ncopy_int + ncopy_int)
-            j = task%copy_commands_int(i)%read_index
-            k = task%copy_commands_int(i)%write_index
-            _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(cache)
-               cache%read _INDEX_SLICE_PLUS_1_(j) = cache%write _INDEX_SLICE_PLUS_1_(k)
-            _VERTICAL_LOOP_END_
-         end do
-         ncopy_int = ncopy_int + task%calls(icall)%ncopy_int
-         _DO_CONCURRENT_(i,1 + ncopy_hz,task%calls(icall)%ncopy_hz + ncopy_hz)
-            j = task%copy_commands_hz(i)%read_index
-            k = task%copy_commands_hz(i)%write_index
+            ! Copy outputs of interest to read cache so consecutive models can use it.
+            _DO_CONCURRENT_(i,1 + ncopy_int,task%calls(icall)%ncopy_int + ncopy_int)
+               j = task%copy_commands_int(i)%read_index
+               k = task%copy_commands_int(i)%write_index
+               _CONCURRENT_VERTICAL_LOOP_BEGIN_EX_(cache)
+                  cache%read _INDEX_SLICE_PLUS_1_(j) = cache%write _INDEX_SLICE_PLUS_1_(k)
+               _VERTICAL_LOOP_END_
+            end do
+            ncopy_int = ncopy_int + task%calls(icall)%ncopy_int
+            _DO_CONCURRENT_(i,1 + ncopy_hz,task%calls(icall)%ncopy_hz + ncopy_hz)
+               j = task%copy_commands_hz(i)%read_index
+               k = task%copy_commands_hz(i)%write_index
 #ifdef _HORIZONTAL_IS_VECTORIZED_
-            cache%read_hz(1, j) = cache%write_hz(1, k)
+               cache%read_hz(1, j) = cache%write_hz(1, k)
 #else
-            cache%read_hz(j) = cache%write_hz(k)
+               cache%read_hz(j) = cache%write_hz(k)
 #endif
+            end do
+            ncopy_hz = ncopy_hz + task%calls(icall)%ncopy_hz
          end do
-         ncopy_hz = ncopy_hz + task%calls(icall)%ncopy_hz
-      end do
 
       end if
 
@@ -784,7 +784,6 @@ end subroutine end_vertical_task
 
       type (type_call),           intent(in)    :: call_node
       type (type_interior_cache), intent(inout) :: cache
-      _DECLARE_INTERIOR_INDICES_
 
       type (type_output_variable_set_node), pointer :: output_variable
       integer                                       :: i
@@ -808,7 +807,6 @@ end subroutine end_vertical_task
 
       type (type_call),             intent(in)    :: call_node
       type (type_horizontal_cache), intent(inout) :: cache
-      _DECLARE_INTERIOR_INDICES_
 
       type (type_output_variable_set_node), pointer :: output_variable
       integer                                       :: i
@@ -832,7 +830,6 @@ end subroutine end_vertical_task
 
       type (type_call),           intent(in)    :: call_node
       type (type_vertical_cache), intent(inout) :: cache
-      _DECLARE_INTERIOR_INDICES_
 
       type (type_output_variable_set_node), pointer :: output_variable
       integer                                       :: i
