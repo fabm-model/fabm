@@ -2422,19 +2422,17 @@ contains
          select case (task%operation)
          case (source_do)
             _BEGIN_OUTER_INTERIOR_LOOP_
-#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-               ! We are looping over depth, but as we have a non-constant bottom index (yet no mask), we need to skip everything below bottom
-#  if _FABM_BOTTOM_INDEX_==-1
-#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+#if _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_) && _FABM_BOTTOM_INDEX_==-1
+               ! Inner loop over depth with a horizontally varying bottom index. Skip everything below bottom.
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
                _START_ = self%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
-#    else
+#  else
                _STOP_ = self%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
-#    endif
 #  endif
 #endif
                call process_interior_slice(task, self%domain, self%catalog, self%cache_fill_values, self%store, self%cache_int _POSTARG_INTERIOR_IN_)
             _END_OUTER_INTERIOR_LOOP_
-#if _FABM_BOTTOM_INDEX_==-1 && !defined(_HAS_MASK_) && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
+#if _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_) && _FABM_BOTTOM_INDEX_==-1
             _START_ = self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
             _STOP_ = self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
 #endif
@@ -2444,19 +2442,17 @@ contains
             _END_OUTER_HORIZONTAL_LOOP_
          case (source_do_column)
             _BEGIN_OUTER_VERTICAL_LOOP_
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
-#  if _FABM_BOTTOM_INDEX_==-1
-#    ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_) && _FABM_BOTTOM_INDEX_==-1
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
                _VERTICAL_START_ = self%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
-#    else
+#  else
                _VERTICAL_STOP_ = self%domain%bottom_indices _INDEX_HORIZONTAL_LOCATION_
-#    endif
 #  endif
 #endif
                if (_IS_UNMASKED_(self%domain%mask_hz _INDEX_HORIZONTAL_LOCATION_)) call process_vertical_slice(task, self%domain, &
                   self%catalog, self%cache_fill_values, self%store, self%cache_vert _POSTARG_VERTICAL_IN_)
             _END_OUTER_VERTICAL_LOOP_
-#ifdef _FABM_DEPTH_DIMENSION_INDEX_
+#if defined(_FABM_DEPTH_DIMENSION_INDEX_) && _FABM_BOTTOM_INDEX_==-1
             _VERTICAL_START_ = self%domain%start(_FABM_DEPTH_DIMENSION_INDEX_)
             _VERTICAL_STOP_ = self%domain%stop(_FABM_DEPTH_DIMENSION_INDEX_)
 #endif
