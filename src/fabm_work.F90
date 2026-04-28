@@ -626,7 +626,7 @@ contains
                end select
 
 #ifndef NDEBUG
-               call check_interior_call_output(task%calls(icall), cache)
+               if (.not. check_interior_call_output(task%calls(icall), cache)) return
 #endif
             end if
 
@@ -681,7 +681,7 @@ contains
                end select
 
 #ifndef NDEBUG
-               call check_horizontal_call_output(task%calls(icall), cache)
+               if (.not. check_horizontal_call_output(task%calls(icall), cache)) return
 #endif
             end if
 
@@ -730,7 +730,7 @@ contains
                call task%calls(icall)%model%do_column(cache)
 
 #ifndef NDEBUG
-               call check_vertical_call_output(task%calls(icall), cache)
+               if (.not. check_vertical_call_output(task%calls(icall), cache)) return
 #endif
             end if
 
@@ -857,99 +857,136 @@ contains
       end do
    end subroutine
 
-   subroutine check_interior_call_output(call_node, cache)
+   function check_interior_call_output(call_node, cache) result(all_valid)
       use fabm_graph, only: type_output_variable_set_node
 
       type (type_call),           intent(in) :: call_node
       type (type_interior_cache), intent(in) :: cache
       _DECLARE_INTERIOR_INDICES_
 
+      logical                                       :: all_valid, valid
       type (type_output_variable_set_node), pointer :: output_variable
 
+      all_valid = .true.
       output_variable => call_node%graph_node%outputs%first
       do while (associated(output_variable))
          _ASSERT_(output_variable%p%target%domain == domain_interior, 'check_interior_call_output', 'output not for interior domain')
 #ifndef _FABM_NO_IEEE_ARITHMETIC_
+         valid = .true.
          _LOOP_BEGIN_
-            if (.not. ieee_is_finite(cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
-               call driver%fatal_error('check_interior_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' wrote non-finite data for ' // trim(output_variable%p%target%name))
+            if (.not. ieee_is_finite(cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) valid = .false.
          _LOOP_END_
+         if (.not. valid) then
+            call driver%log_message('ERROR: non-finite data written for ' // trim(output_variable%p%target%name))
+            all_valid = .false.
+         end if
 #endif
          if (output_variable%p%target%prefill == prefill_none) then
+            valid = .true.
             _LOOP_BEGIN_
-               if (cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
-                  call driver%fatal_error('check_interior_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' failed to write data for ' // trim(output_variable%p%target%name))
+               if (cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) valid = .false.
             _LOOP_END_
+            if (.not. valid) then
+               call driver%log_message('ERROR: no data written for ' // trim(output_variable%p%target%name))
+               all_valid = .false.
+            end if
          end if
          output_variable => output_variable%next
       end do
-   end subroutine check_interior_call_output
+      if (.not. all_valid) call driver%fatal_error('check_interior_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' produced invalid output')
+   end function check_interior_call_output
 
-   subroutine check_horizontal_call_output(call_node, cache)
+   function check_horizontal_call_output(call_node, cache) result(all_valid)
       use fabm_graph, only: type_output_variable_set_node
 
       type (type_call),             intent(in) :: call_node
       type (type_horizontal_cache), intent(in) :: cache
       _DECLARE_HORIZONTAL_INDICES_
 
+      logical                                       :: all_valid, valid
       type (type_output_variable_set_node), pointer :: output_variable
 
+      all_valid = .true.
       output_variable => call_node%graph_node%outputs%first
       do while (associated(output_variable))
          _ASSERT_(iand(output_variable%p%target%domain, domain_horizontal) /= 0, 'check_horizontal_call_output', 'output not for horizontal domain')
 #ifndef _FABM_NO_IEEE_ARITHMETIC_
+         valid = .true.
          _HORIZONTAL_LOOP_BEGIN_
-            if (.not. ieee_is_finite(cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
-               call driver%fatal_error('check_horizontal_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' wrote non-finite data for ' // trim(output_variable%p%target%name))
+            if (.not. ieee_is_finite(cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) valid = .false.
          _HORIZONTAL_LOOP_END_
+         if (.not. valid) then
+            call driver%log_message('ERROR: non-finite data written for ' // trim(output_variable%p%target%name))
+            all_valid = .false.
+         end if
 #endif
          if (output_variable%p%target%prefill == prefill_none) then
+            valid = .true.
             _HORIZONTAL_LOOP_BEGIN_
-               if (cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
-                  call driver%fatal_error('check_horizontal_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' failed to write data for ' // trim(output_variable%p%target%name))
+               if (cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) valid = .false.
             _HORIZONTAL_LOOP_END_
+            if (.not. valid) then
+               call driver%log_message('ERROR: no data written for ' // trim(output_variable%p%target%name))
+               all_valid = .false.
+            end if
          end if
          output_variable => output_variable%next
       end do
-   end subroutine check_horizontal_call_output
+      if (.not. all_valid) call driver%fatal_error('check_horizontal_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' produced invalid output')
+   end function check_horizontal_call_output
 
-   subroutine check_vertical_call_output(call_node, cache)
+   function check_vertical_call_output(call_node, cache) result(all_valid)
       use fabm_graph, only: type_output_variable_set_node
 
       type (type_call),           intent(in) :: call_node
       type (type_vertical_cache), intent(in) :: cache
       _DECLARE_VERTICAL_INDICES_
 
+      logical                                       :: all_valid, valid
       type (type_output_variable_set_node), pointer :: output_variable
 
+      all_valid = .true.
       output_variable => call_node%graph_node%outputs%first
       do while (associated(output_variable))
          select case (output_variable%p%target%domain)
          case (domain_interior)
 #ifndef _FABM_NO_IEEE_ARITHMETIC_
+            valid = .true.
             _VERTICAL_LOOP_BEGIN_
-               if (.not. ieee_is_finite(cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
-                  call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' wrote non-finite data for ' // trim(output_variable%p%target%name))
+               if (.not. ieee_is_finite(cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) valid = .false.
             _VERTICAL_LOOP_END_
+            if (.not. valid) then
+               call driver%log_message('ERROR: non-finite data written for ' // trim(output_variable%p%target%name))
+               all_valid = .false.
+            end if
 #endif
             if (output_variable%p%target%prefill == prefill_none) then
+               valid = .true.
                _VERTICAL_LOOP_BEGIN_
-                  if (cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
-                     call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' failed to write data for ' // trim(output_variable%p%target%name))
+                  if (cache%write _INDEX_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) valid = .false.
                _VERTICAL_LOOP_END_
+               if (.not. valid) then
+                  call driver%log_message('ERROR: no data written for ' // trim(output_variable%p%target%name))
+                  all_valid = .false.
+               end if
             end if
          case (domain_surface, domain_bottom, domain_horizontal)
 #ifndef _FABM_NO_IEEE_ARITHMETIC_
-            if (.not. ieee_is_finite(cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) &
-               call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' wrote non-finite data for ' // trim(output_variable%p%target%name))
+            if (.not. ieee_is_finite(cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value))) then
+               call driver%log_message('ERROR: non-finite data written for ' // trim(output_variable%p%target%name))
+               all_valid = .false.
+            end if
 #endif
             if (output_variable%p%target%prefill == prefill_none) then
-               if (cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) &
-                  call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' failed to write data for ' // trim(output_variable%p%target%name))
+               if (cache%write_hz _INDEX_HORIZONTAL_SLICE_PLUS_1_(output_variable%p%target%write_indices%value) == not_written) then
+                  call driver%log_message('ERROR: no data written for ' // trim(output_variable%p%target%name))
+                  all_valid = .false.
+               end if
             end if
          end select
          output_variable => output_variable%next
       end do
-   end subroutine check_vertical_call_output
+      if (.not. all_valid) call driver%fatal_error('check_vertical_call_output', trim(call_node%model%get_path()) // ':' // trim(source2string(call_node%source)) // ' produced invalid output')
+   end function check_vertical_call_output
 
 end module

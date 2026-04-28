@@ -240,10 +240,16 @@ contains
       integer :: icurrent, icurrentbin, ioldest
       _DECLARE_LOCATION_
 
-      if (.not. present(time)) call self%fatal_error('interior_temporal_mean_update', 'host did not provide time information.')
+      if (.not. present(time)) then
+         call self%fatal_error('interior_temporal_mean_update', 'host did not provide time information.')
+         return
+      end if
 
       value => catalog%interior(self%source%icatalog)%p
-      if (.not. associated(value)) call self%fatal_error('interior_temporal_mean_update', 'source pointer not associated.')
+      if (.not. associated(value)) then
+         call self%fatal_error('interior_temporal_mean_update', 'source pointer not associated.')
+         return
+      end if
 
       ! Note that all array processing below uses explicit loops in order to respect
       ! any limits on the active domain given by the _LOCATION_RANGE_ argument.
@@ -374,10 +380,16 @@ contains
       integer :: icurrent, icurrentbin, ioldest
       _DECLARE_HORIZONTAL_LOCATION_
 
-      if (.not. present(time)) call self%fatal_error('horizontal_temporal_mean_update', 'host did not provide time information.')
+      if (.not. present(time)) then
+         call self%fatal_error('horizontal_temporal_mean_update', 'host did not provide time information.')
+         return
+      end if
 
       value => catalog%horizontal(self%source%icatalog)%p
-      if (.not. associated(value)) call self%fatal_error('horizontal_temporal_mean_update', 'source pointer not associated.')
+      if (.not. associated(value)) then
+         call self%fatal_error('horizontal_temporal_mean_update', 'source pointer not associated.')
+         return
+      end if
 
       ! Note that all array processing below uses explicit loops in order to respect
       ! any limits on the active domain given by the _LOCATION_RANGE_ argument.
@@ -507,10 +519,16 @@ contains
       real(rke) :: w, bin_end_time
       _DECLARE_HORIZONTAL_LOCATION_
 
-      if (.not. present(time)) call self%fatal_error('horizontal_temporal_maximum_update', 'host did not provide time information.')
+      if (.not. present(time)) then
+         call self%fatal_error('horizontal_temporal_maximum_update', 'host did not provide time information.')
+         return
+      end if
 
       value => catalog%horizontal(self%source%icatalog)%p
-      if (.not. associated(value)) call self%fatal_error('horizontal_temporal_maximum_update', 'source pointer not associated.')
+      if (.not. associated(value)) then
+         call self%fatal_error('horizontal_temporal_maximum_update', 'source pointer not associated.')
+         return
+      end if
 
       ! Note that all array processing below uses explicit loops in order to respect
       ! any limits on the active domain given by the _LOCATION_RANGE_ argument.
