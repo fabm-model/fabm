@@ -1,135 +1,227 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
 import sys
-import os.path
 import tempfile
 import subprocess
 import shutil
 import argparse
 import timeit
 import errno
+from pathlib import Path
+from typing import Dict, List
 
-script_root = os.path.abspath(os.path.dirname(__file__))
-root = os.path.join(script_root, '../..')
-allowed_hosts = sorted(os.listdir(os.path.join(root, 'src/drivers')))
+script_root = Path(__file__).parent
+root = script_root.parent.parent
+allowed_hosts = sorted(p.name for p in (root / "src/drivers").iterdir())
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--host', action='append', dest='hosts', choices=allowed_hosts, help='host to test (may appear multiple times)')
-parser.add_argument('--cmake', default='cmake', help='path to cmake executable')
-parser.add_argument('--compiler', help='Fortran compiler executable')
-parser.add_argument('--performance', action='store_true', help='test performance with a specific model and environment (see --config and --env)')
-parser.add_argument('--config', default='fabm.yaml', help='model configuration for performance testing, default: fabm.yaml')
-parser.add_argument('--env', default='environment.yaml', help='model environment for performance testing (YAML file containing a dictionary with variable: value combinations), default: environment.yaml')
-parser.add_argument('--report', default=None, help='file to write performance report to (only used with --performance), default: performance_<BRANCH>_<COMMIT>.log')
-parser.add_argument('--repeat', type=int, default=5, help='number of times to run each performance test. Increase this to reduce the noise in timings')
-parser.add_argument('-v', '--verbose', action='store_true', help='show test results even if completed successfully')
+parser.add_argument(
+    "--host",
+    action="append",
+    dest="hosts",
+    choices=allowed_hosts,
+    help="host to test (may appear multiple times)",
+)
+parser.add_argument("--cmake", default="cmake", help="path to cmake executable")
+parser.add_argument("--compiler", help="Fortran compiler executable")
+parser.add_argument(
+    "--performance",
+    action="store_true",
+    help="test performance with a specific model and environment (see --config and --env)",
+)
+parser.add_argument(
+    "--config",
+    default="fabm.yaml",
+    help="model configuration for performance testing, default: fabm.yaml",
+    type=Path,
+)
+parser.add_argument(
+    "--env",
+    default="environment.yaml",
+    help="model environment for performance testing (YAML file containing a dictionary with variable: value combinations), default: environment.yaml",
+    type=Path,
+)
+parser.add_argument(
+    "--report",
+    default=None,
+    help="file to write performance report to (only used with --performance), default: performance_<BRANCH>_<COMMIT>.log",
+    type=Path,
+)
+parser.add_argument(
+    "--repeat",
+    type=int,
+    default=5,
+    help="number of times to run each performance test. Increase this to reduce the noise in timings",
+)
+parser.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="show test results even if completed successfully",
+)
 args, cmake_arguments = parser.parse_known_args()
 if args.performance:
-    if not os.path.isfile(args.config):
-        print('Model configuration %s does not exist. Specify (or change) --config.' % args.config)
+    if not args.config.is_file():
+        print(
+            f"Model configuration {args.config} does not exist. Specify (or change) --config."
+        )
         sys.exit(2)
-    if not os.path.isfile(args.env):
-        print('Model environment %s does not exist. Specify (or change) --env.' % args.env)
+    if not args.env.is_file():
+        print(
+            f"Model environment {args.env} does not exist. Specify (or change) --env."
+        )
         sys.exit(2)
     if args.report is None:
-        git_branch = subprocess.check_output(['git', 'name-rev', '--name-only', 'HEAD']).decode('ascii').strip()
-        git_commit = subprocess.check_output(['git', 'describe', '--always', '--dirty']).decode('ascii').strip()
-        args.report = 'performance_%s_%s.log' % (git_branch, git_commit)
-    print('Performance report will be written to %s' % args.report)
+        git_branch = (
+            subprocess.check_output(["git", "name-rev", "--name-only", "HEAD"])
+            .decode("ascii")
+            .strip()
+        )
+        git_commit = (
+            subprocess.check_output(["git", "describe", "--always", "--dirty"])
+            .decode("ascii")
+            .strip()
+        )
+        args.report = Path(f"performance_{git_branch}_{git_commit}.log")
+    print(f"Performance report will be written to {args.report}")
 
 if args.compiler is not None:
-    cmake_arguments.append('-DCMAKE_Fortran_COMPILER=%s' % args.compiler)
+    cmake_arguments.append(f"-DCMAKE_Fortran_COMPILER={args.compiler}")
 
-generates = {}
-builds = {}
-tests = {}
+generates: Dict[str, int] = {}
+builds: Dict[str, int] = {}
+tests: Dict[str, int] = {}
 
 if not args.hosts:
     args.hosts = allowed_hosts
-print('Selected hosts: %s' % ', '.join(args.hosts))
+print(f"Selected hosts: {', '.join(args.hosts)}")
 
-logs = []
-def run(phase, args, verbose=False, **kwargs):
-    proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, **kwargs)
+logs: List[Path] = []
+
+
+def run(phase: str, args: List[str], verbose: bool = False, **kwargs) -> int:
+    proc = subprocess.Popen(
+        args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True,
+        **kwargs,
+    )
     stdoutdata, _ = proc.communicate()
     if proc.returncode != 0:
-        log_path = '%s.log' % phase
-        with open(log_path, 'w') as f:
+        log_path = Path(f"{phase}.log")
+        with log_path.open("w") as f:
             f.write(stdoutdata)
         logs.append(log_path)
-        print('FAILED (return code %i, log written to %s)' % (proc.returncode, log_path))
+        print(f"FAILED (return code {proc.returncode}, log written to {log_path})")
     else:
-        print('SUCCESS')
+        print("SUCCESS")
     if verbose:
-        print('Output:\n%s\n%s\n%s' % (80 * '-', stdoutdata, 80 * '-'))
+        print(f"Output:\n{80 * '-'}\n{stdoutdata}\n{80 * '-'}")
     return proc.returncode
 
-build_root = tempfile.mkdtemp()
+
+build_root = Path(tempfile.mkdtemp())
 try:
-    vsconfig = 'Release' if args.performance else 'Debug'
-    host2exe = {}
+    vsconfig = "Release" if args.performance else "Debug"
+    host2exe: Dict[str, Path] = {}
     for host in args.hosts:
         print(host)
-        build_dir = os.path.join(build_root, host)
-        os.mkdir(build_dir)
-        print('  generating...', end='')
+        build_dir = build_root / host
+        build_dir.mkdir()
+        print("  generating...", end="")
         sys.stdout.flush()
         try:
-            generates[host] = run('%s_generate' % host, [args.cmake, os.path.join(root, 'src'), '-DFABM_HOST=%s' % host] + cmake_arguments, cwd=build_dir)
+            generates[host] = run(
+                f"{host}_generate",
+                [args.cmake, str(root), f"-DFABM_HOST={host}"] + cmake_arguments,
+                cwd=build_dir,
+            )
         except EnvironmentError as e:
             if e.errno != errno.ENOENT:
                 raise
-            print('\n\ncmake executable not found. Specify its location on the command line with --cmake.')
+            print(
+                "\n\ncmake executable not found. Specify its location on the command line with --cmake."
+            )
             sys.exit(2)
         if generates[host] != 0:
             continue
-        print('  building...', end='')
+        print("  building...", end="")
         sys.stdout.flush()
-        builds[host] = run('%s_build' % host, [args.cmake, '--build', build_dir, '--target', 'test_host', '--config', vsconfig])
+        builds[host] = run(
+            f"{host}_build",
+            [
+                args.cmake,
+                "--build",
+                str(build_dir),
+                "--target",
+                "test_host",
+                "--config",
+                vsconfig,
+            ],
+        )
         if builds[host] != 0:
             continue
-        print('  testing...', end='')
+        print("  testing...", end="")
         sys.stdout.flush()
-        for exename in ('%s/test_host.exe' % vsconfig, 'test_host'):
-            exepath = os.path.join(build_dir, exename)
-            if os.path.isfile(exepath):
-                host2exe[host] = exepath
-        tests[host] = run('%s_test' % host, [host2exe[host], '-n', '%i' % (1 if args.performance else args.repeat)], verbose=args.verbose)
+        for exepath in (
+            build_dir / vsconfig / "test_host.exe",
+            build_dir / "test_host",
+        ):
+            if exepath.is_file():
+                break
+        else:
+            raise Exception(
+                f"Could not find test executable for host {host} in expected locations"
+            )
+        host2exe[host] = exepath
+        tests[host] = run(
+            f"{host}_test",
+            [str(host2exe[host]), "-n", f"{1 if args.performance else args.repeat}"],
+            verbose=args.verbose,
+        )
 
     if args.performance:
-        print('Measuring runtime')
-        timings = {}
-        shutil.copy(args.config, os.path.join(build_root, 'fabm.yaml'))
-        shutil.copy(args.env, os.path.join(build_root, 'environment.yaml'))
+        print("Measuring runtime")
+        timings: Dict[str, List[float]] = {}
+        shutil.copy(args.config, build_root / "fabm.yaml")
+        shutil.copy(args.env, build_root / "environment.yaml")
         for i in range(args.repeat):
-            print('  replicate %i' % i)
+            print(f"  replicate {i}")
             for host in args.hosts:
                 if tests.get(host, 1) != 0:
                     continue
                 start = timeit.default_timer()
-                print('    %s...' % (host,), end='')
-                run('%s_perfrun_%i' % (host, i), [host2exe[host], '--simulate'], cwd=build_root)
+                print(f"    {host}...", end="")
+                run(
+                    f"{host}_perfrun_{i}",
+                    [str(host2exe[host]), "--simulate"],
+                    cwd=build_root,
+                )
                 timings.setdefault(host, []).append(timeit.default_timer() - start)
 
 finally:
     shutil.rmtree(build_root)
 
 if logs:
-    print('All tests complete - %i FAILED' % len(logs))
-    print('See the following log files:\n%s' % '\n'.join(logs))
+    print(f"All tests complete - {len(logs)} FAILED")
+    print(f"See the following log files:\n{'\n'.join(map(str, logs))}")
 else:
-    print('All tests complete - no failures')
+    print("All tests complete - no failures")
 
 if args.performance:
-    print('Timings:')
+    print("Timings:")
     for host in args.hosts:
         ts = timings.get(host, ())
-        timing = 'NA' if not ts else '%.3f s' % (sum(ts) / len(ts))
-        print('  %s: %s' % (host, timing))
-    with open(args.report, 'w') as f:
-        f.write('host\t%s\taverage (s)\n' % '\t'.join(['run %i (s)' % i for i in range(args.repeat)]))
+        timing = "NA" if not ts else f"{sum(ts) / len(ts):.3f} s"
+        print(f"  {host}: {timing}")
+    with args.report.open("w") as f:
+        header = (
+            ["host"] + [f"run {i} (s)" for i in range(args.repeat)] + ["average (s)"]
+        )
+        f.write("\t".join(header) + "\n")
         for host in args.hosts:
             if host in timings:
                 ts = timings[host]
-                f.write('%s\t%s\t%.3f\n' % (host, '\t'.join(['%.3f' % t for t in ts]), sum(ts) / len(ts)))
+                items = [host] + [f"{t:.3f}" for t in ts] + [f"{sum(ts) / len(ts):.3f}"]
+                f.write("\t".join(items) + "\n")
