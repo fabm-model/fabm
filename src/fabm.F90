@@ -471,7 +471,7 @@ contains
       if (associated(driver) .and. default_driver) deallocate(driver)
       if (associated(factory)) call factory%finalize()
       factory => null()
-      
+
       do while (associated(first_module_version))
          next_version => first_module_version%next
          deallocate(first_module_version)
