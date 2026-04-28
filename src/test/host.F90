@@ -147,6 +147,20 @@ program test_host
 #  endif
 #endif
 
+#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
+! Inner loop over depth with a non-constant bottom index. Skip everything below bottom
+#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
+#    define _BEGIN_OUTER_INTERIOR_LOOP_PLUS_ _BEGIN_OUTER_INTERIOR_LOOP_;_START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_;if (_START_ <= _STOP_) then
+#    define _END_OUTER_INTERIOR_LOOP_PLUS_ end if;_START_ = domain_start(_FABM_VECTORIZED_DIMENSION_INDEX_);_END_OUTER_INTERIOR_LOOP_
+#  else
+#    define _BEGIN_OUTER_INTERIOR_LOOP_PLUS_ _BEGIN_OUTER_INTERIOR_LOOP_;_STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_;if (_START_ <= _STOP_) then
+#    define _END_OUTER_INTERIOR_LOOP_PLUS_ end if;_STOP_ = domain_stop(_FABM_VECTORIZED_DIMENSION_INDEX_);_END_OUTER_INTERIOR_LOOP_
+#  endif
+#else
+#  define _BEGIN_OUTER_INTERIOR_LOOP_PLUS_ _BEGIN_OUTER_INTERIOR_LOOP_
+#  define _END_OUTER_INTERIOR_LOOP_PLUS_ _END_OUTER_INTERIOR_LOOP_
+#endif
+
 #ifdef _INTERIOR_IS_VECTORIZED_
    integer :: _START_, _STOP_
 #endif
@@ -900,23 +914,9 @@ contains
       call configure_mask(.not. no_mask)
 
       call start_test('initialize_interior_state')
-      _BEGIN_OUTER_INTERIOR_LOOP_
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         ! Inner loop over depth with a non-constant bottom index. Skip everything below bottom
-#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-         _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  else
-         _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  endif
-         if (_START_ <= _STOP_) then
-#endif
+      _BEGIN_OUTER_INTERIOR_LOOP_PLUS_
          call model%initialize_interior_state(_ARG_INTERIOR_IN_)
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         end if
-         _START_ = domain_start(_FABM_VECTORIZED_DIMENSION_INDEX_)
-         _STOP_ = domain_stop(_FABM_VECTORIZED_DIMENSION_INDEX_)
-#endif
-      _END_OUTER_INTERIOR_LOOP_
+      _END_OUTER_INTERIOR_LOOP_PLUS_
       call report_test_result()
 
       call start_test('initialize_bottom_state')
@@ -950,44 +950,16 @@ contains
             call model%get_surface_sources(_PREARG_HORIZONTAL_IN_ flux, sms_sf)
          _END_OUTER_HORIZONTAL_LOOP_
 
-         _BEGIN_OUTER_INTERIOR_LOOP_
+         _BEGIN_OUTER_INTERIOR_LOOP_PLUS_
             dy = 0
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-            ! Inner loop over depth with a non-constant bottom index. Skip everything below bottom
-#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-            _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  else
-            _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  endif
-            if (_START_ <= _STOP_) then
-#endif
             call model%get_interior_sources(_PREARG_INTERIOR_IN_ dy _INTERIOR_SLICE_RANGE_PLUS_1_)
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-            end if
-            _START_ = domain_start(_FABM_VECTORIZED_DIMENSION_INDEX_)
-            _STOP_ = domain_stop(_FABM_VECTORIZED_DIMENSION_INDEX_)
-#endif
-         _END_OUTER_INTERIOR_LOOP_
+         _END_OUTER_INTERIOR_LOOP_PLUS_
 
          call model%finalize_outputs()
 
-         _BEGIN_OUTER_INTERIOR_LOOP_
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-            ! Inner loop over depth with a non-constant bottom index. Skip everything below bottom
-#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-            _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  else
-            _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  endif
-            if (_START_ <= _STOP_) then
-#endif
+         _BEGIN_OUTER_INTERIOR_LOOP_PLUS_
             call model%get_vertical_movement(_PREARG_INTERIOR_IN_ w _INTERIOR_SLICE_RANGE_PLUS_1_)
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-            end if
-            _START_ = domain_start(_FABM_VECTORIZED_DIMENSION_INDEX_)
-            _STOP_ = domain_stop(_FABM_VECTORIZED_DIMENSION_INDEX_)
-#endif
-         _END_OUTER_INTERIOR_LOOP_
+         _END_OUTER_INTERIOR_LOOP_PLUS_
 
          _BEGIN_OUTER_HORIZONTAL_LOOP_
             call model%check_bottom_state(_PREARG_HORIZONTAL_IN_ repair, valid)
@@ -997,23 +969,9 @@ contains
             call model%check_surface_state(_PREARG_HORIZONTAL_IN_ repair, valid)
          _END_OUTER_HORIZONTAL_LOOP_
 
-         _BEGIN_OUTER_INTERIOR_LOOP_
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-            ! Inner loop over depth with a non-constant bottom index. Skip everything below bottom
-#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-            _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  else
-            _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  endif
-            if (_START_ <= _STOP_) then
-#endif
+         _BEGIN_OUTER_INTERIOR_LOOP_PLUS_
             call model%check_interior_state(_PREARG_INTERIOR_IN_ repair, valid)
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-            end if
-            _START_ = domain_start(_FABM_VECTORIZED_DIMENSION_INDEX_)
-            _STOP_ = domain_stop(_FABM_VECTORIZED_DIMENSION_INDEX_)
-#endif
-         _END_OUTER_INTERIOR_LOOP_
+         _END_OUTER_INTERIOR_LOOP_PLUS_
 
          if (mod(i, ireport) == 0) write (*,'(i0,a)') int(100*i/real(n, rke)), ' % complete'
       end do
@@ -1049,23 +1007,9 @@ contains
 #endif
 
       call start_test('initialize_interior_state')
-      _BEGIN_OUTER_INTERIOR_LOOP_
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         ! Inner loop over depth with a non-constant bottom index. Skip everything below bottom
-#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-         _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  else
-         _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  endif
-         if (_START_ <= _STOP_) then
-#endif
+      _BEGIN_OUTER_INTERIOR_LOOP_PLUS_
          call model%initialize_interior_state(_ARG_INTERIOR_IN_)
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         end if
-         _START_ = domain_start(_FABM_DEPTH_DIMENSION_INDEX_)
-         _STOP_ = domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)
-#endif         
-      _END_OUTER_INTERIOR_LOOP_
+      _END_OUTER_INTERIOR_LOOP_PLUS_
 
       do ivar = 1, size(model%interior_state_variables)
          call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), &
@@ -1155,29 +1099,13 @@ contains
 
       call start_test('get_interior_sources')
       interior_loop_count = 0
-      _BEGIN_OUTER_INTERIOR_LOOP_
+      _BEGIN_OUTER_INTERIOR_LOOP_PLUS_
          dy = 0
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         ! Inner loop over depth with a non-constant bottom index. Skip everything below bottom
-#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-         _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  else
-         _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  endif
-         if (_START_ <= _STOP_) then
-#endif
-
          call model%get_interior_sources(_PREARG_INTERIOR_IN_ dy _INTERIOR_SLICE_RANGE_PLUS_1_)
          do ivar = 1, size(model%interior_state_variables)
             call check_interior_slice_plus_1(dy _INTERIOR_SLICE_RANGE_PLUS_1_, ivar, 0.0_rke, -real(ivar + interior_state_offset, rke) _POSTARG_INTERIOR_IN_)
          end do
-
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         end if
-         _START_ = domain_start(_FABM_DEPTH_DIMENSION_INDEX_)
-         _STOP_ = domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)
-#endif
-      _END_OUTER_INTERIOR_LOOP_
+      _END_OUTER_INTERIOR_LOOP_PLUS_
 
       call assert(interior_loop_count == interior_count, 'get_interior_sources', &
          'call count does not match number of (unmasked) interior points')
@@ -1316,17 +1244,7 @@ contains
 
       call start_test('get_vertical_movement')
       vertical_movement_loop_count = 0
-      _BEGIN_OUTER_INTERIOR_LOOP_
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         ! Inner loop over depth with a non-constant bottom index. Skip everything below bottom
-#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-         _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  else
-         _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  endif
-         if (_START_ <= _STOP_) then
-#endif
-
+      _BEGIN_OUTER_INTERIOR_LOOP_PLUS_
          call model%get_vertical_movement(_PREARG_INTERIOR_IN_ w _INTERIOR_SLICE_RANGE_PLUS_1_)
          do ivar = 1, size(model%interior_state_variables)
             if (mod(ivar, 2) == 0) then
@@ -1337,14 +1255,7 @@ contains
                   _POSTARG_INTERIOR_IN_)
             end if
          end do
-
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         end if
-         _START_ = domain_start(_FABM_DEPTH_DIMENSION_INDEX_)
-         _STOP_ = domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)
-#endif
-
-      _END_OUTER_INTERIOR_LOOP_
+      _END_OUTER_INTERIOR_LOOP_PLUS_
 
       call assert(vertical_movement_loop_count == interior_count, 'get_vertical_movement', &
          'call count does not match number of (unmasked) interior points')
@@ -1355,30 +1266,13 @@ contains
       ! ======================================================================
 
       call start_test('get_interior_conserved_quantities')
-      _BEGIN_OUTER_INTERIOR_LOOP_
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         ! Inner loop over depth with a non-constant bottom index. Skip everything below bottom
-#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-         _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  else
-         _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  endif
-         if (_START_ <= _STOP_) then
-#endif
-
+      _BEGIN_OUTER_INTERIOR_LOOP_PLUS_
          call model%get_interior_conserved_quantities(_PREARG_INTERIOR_IN_ total_int _INTERIOR_SLICE_RANGE_PLUS_1_)
-
          do ivar = 1, size(model%conserved_quantities)
             call check_interior_slice_plus_1(total_int _INTERIOR_SLICE_RANGE_PLUS_1_, ivar, model%conserved_quantities(ivar)%missing_value, &
                (interior_state_offset + 0.5_rke * (test_model%nstate + 1)) * test_model%nstate _POSTARG_INTERIOR_IN_)
          end do
-
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         end if
-         _START_ = domain_start(_FABM_DEPTH_DIMENSION_INDEX_)
-         _STOP_ = domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)
-#endif
-      _END_OUTER_INTERIOR_LOOP_
+      _END_OUTER_INTERIOR_LOOP_PLUS_
 
       call report_test_result()
 
@@ -1398,24 +1292,10 @@ contains
       ! ======================================================================
 
       call start_test('check_interior_state')
-      _BEGIN_OUTER_INTERIOR_LOOP_
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         ! Inner loop over depth with a non-constant bottom index. Skip everything below bottom
-#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-         _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  else
-         _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  endif
-         if (_START_ <= _STOP_) then
-#endif
+      _BEGIN_OUTER_INTERIOR_LOOP_PLUS_
          call model%check_interior_state(_PREARG_INTERIOR_IN_  .true., valid)
          if (.not. valid) call driver%fatal_error('check_interior_state', 'state is reported as invalid')
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         end if
-         _START_ = domain_start(_FABM_DEPTH_DIMENSION_INDEX_)
-         _STOP_ = domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)
-#endif
-      _END_OUTER_INTERIOR_LOOP_
+      _END_OUTER_INTERIOR_LOOP_PLUS_
       call report_test_result()
 
       call start_test('check_surface_state')
@@ -1452,16 +1332,7 @@ contains
 
       any_unmasked = .true.
       call start_test('check_interior_state < min')
-      _BEGIN_OUTER_INTERIOR_LOOP_
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         ! Inner loop over depth with a non-constant bottom index. Skip everything below bottom
-#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-         _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  else
-         _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  endif
-         if (_START_ <= _STOP_) then
-#endif      
+      _BEGIN_OUTER_INTERIOR_LOOP_PLUS_
          call model%check_interior_state(_PREARG_INTERIOR_IN_ .true., valid)
 #ifdef _HAS_MASK_
 #  ifdef _FABM_HORIZONTAL_MASK_
@@ -1475,12 +1346,7 @@ contains
 #  endif
 #endif
          call assert(valid .neqv. any_unmasked, 'check_interior_state', 'invalid result')
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         end if
-         _START_ = domain_start(_FABM_DEPTH_DIMENSION_INDEX_)
-         _STOP_ = domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)
-#endif         
-      _END_OUTER_INTERIOR_LOOP_
+      _END_OUTER_INTERIOR_LOOP_PLUS_
       do ivar = 1, size(model%interior_state_variables)
          call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), &
             model%interior_state_variables(ivar)%missing_value, model%interior_state_variables(ivar)%minimum)
@@ -1542,16 +1408,7 @@ contains
       end do
 
       call start_test('check_interior_state > max')
-      _BEGIN_OUTER_INTERIOR_LOOP_
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         ! Inner loop over depth with a non-constant bottom index. Skip everything below bottom
-#  ifdef _FABM_VERTICAL_BOTTOM_TO_SURFACE_
-         _START_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  else
-         _STOP_ = bottom_index _INDEX_HORIZONTAL_LOCATION_
-#  endif
-         if (_START_ <= _STOP_) then
-#endif  
+      _BEGIN_OUTER_INTERIOR_LOOP_PLUS_
          call model%check_interior_state(_PREARG_INTERIOR_IN_ .true., valid)
 #ifdef _HAS_MASK_
 #  ifdef _FABM_HORIZONTAL_MASK_
@@ -1565,12 +1422,7 @@ contains
 #  endif
 #endif
          call assert(valid .neqv. any_unmasked, 'check_interior_state', 'invalid result')
-#if _FABM_BOTTOM_INDEX_==-1 && _FABM_VECTORIZED_DIMENSION_INDEX_==_FABM_DEPTH_DIMENSION_INDEX_ && defined(_FABM_DEPTH_DIMENSION_INDEX_)
-         end if
-         _START_ = domain_start(_FABM_DEPTH_DIMENSION_INDEX_)
-         _STOP_ = domain_stop(_FABM_DEPTH_DIMENSION_INDEX_)
-#endif  
-      _END_OUTER_INTERIOR_LOOP_
+      _END_OUTER_INTERIOR_LOOP_PLUS_
       do ivar = 1, size(model%interior_state_variables)
          call check_interior(interior_state(_PREARG_LOCATION_DIMENSIONS_ ivar), &
             model%interior_state_variables(ivar)%missing_value, model%interior_state_variables(ivar)%maximum)
