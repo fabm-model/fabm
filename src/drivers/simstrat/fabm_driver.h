@@ -10,6 +10,6 @@
 #define _FABM_BOTTOM_INDEX_ -1
 
 ! pass if all arrays passed to FABM are contiguous in memory
-! #define _FABM_CONTIGUOUS_
+#define _FABM_CONTIGUOUS_
 
 #include "fabm.h"
