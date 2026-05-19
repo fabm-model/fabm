@@ -10,6 +10,9 @@
 #define _FABM_BOTTOM_INDEX_ -1
 
 ! pass if all arrays passed to FABM are contiguous in memory
-#define _FABM_CONTIGUOUS_
+! careful! this can work with Simstrat but
+! minor changes in the code can heavily corrupt the repository
+! possibly use for a final version
+! #define _FABM_CONTIGUOUS_
 
 #include "fabm.h"
