@@ -6,13 +6,8 @@
 ! vertical index is ordered from bottom to surface
 #define _FABM_VERTICAL_BOTTOM_TO_SURFACE_
 
-! vertical index can vary (required for bottom_everywhere)
+! vertical index can vary (required for BottomEverywhere)
 #define _FABM_BOTTOM_INDEX_ -1
 
-! pass if all arrays passed to FABM are contiguous in memory
-! careful! this can work with Simstrat but
-! minor changes in the code can heavily corrupt the repository
-! possibly use for a final version
-! #define _FABM_CONTIGUOUS_
-
+! include FABM preprocessor definitions
 #include "fabm.h"
