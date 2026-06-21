@@ -139,8 +139,8 @@ jobs:
             fflags: -check all,nouninit,nocontiguous
               # nouninit because https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-missing-clang-rt-msan-to-link-Fortran-program-in-debug-build/m-p/1536555
               # nocontiguous because spurious errors occur when assigning null() to contiguous pointers, see https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-2024-0-2-runtime-error-about-non-contiguous-target/m-p/1583909
-          #- version: "l_fortran-compiler_p_2024.0.2.28"
-          #  url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/41df6814-ec4b-4698-a14d-421ee2b02aa7"
+          # - version: "l_fortran-compiler_p_2024.0.2.28"
+          #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/41df6814-ec4b-4698-a14d-421ee2b02aa7"
           # - version: "l_fortran-compiler_p_2024.2.0.426"
           #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/801143de-6c01-4181-9911-57e00fe40181"
           #   fflags: -check all,nouninit,nocontiguous
@@ -149,8 +149,11 @@ jobs:
           # - version: "intel-fortran-compiler-2025.2.0.534"
           #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/2c69ab6a-dfff-4d8f-ae1c-8368c79a1709"
           #   fflags: -check all
-          - version: "intel-fortran-compiler-2025.3.2.25"
-            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/3e53d136-2870-4836-adb1-892b558fa34a"
+          # - version: "intel-fortran-compiler-2025.3.2.25"
+          #   url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/3e53d136-2870-4836-adb1-892b558fa34a"
+          #   fflags: -check all
+          - version: "intel-fortran-compiler-2026.0.0.573"
+            url_dir: "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/176ca159-bee8-44f2-9164-db26f95de382"
             fflags: -check all
       fail-fast: false
     runs-on: ubuntu-latest
@@ -199,12 +202,15 @@ jobs:
           #  exe: nvhpc_2024_245_Linux_x86_64_cuda_12.4
           # - version: "25.5" # released 2025-05
           #   exe: nvhpc_2025_255_Linux_x86_64_cuda_12.9
-          - version: "25.9" # released 2025-09
-            exe: nvhpc_2025_259_Linux_x86_64_cuda_13.0
+          # - version: "25.9" # released 2025-09
+          #   exe: nvhpc_2025_259_Linux_x86_64_cuda_13.0
+          - version: "26.3" # released 2026-03
+            exe: nvhpc_2026_263_Linux_x86_64_cuda_13.1
+            fflags: -tp=px  # to try and avoid illegal instruction errors, see https://forums.developer.nvidia.com/t/nvfortran-ignores-options-to-compile-without-avx2-instructions-sandybridge-processor/366224
       fail-fast: false
     runs-on: ubuntu-latest
     env:
-      FFLAGS: -Mbounds -Mchkptr
+      FFLAGS: ${{ matrix.fflags }} -Mbounds -Mchkptr
     steps:
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -252,10 +258,12 @@ jobs:
           #   url_dir: https://download.amd.com/developer/eula/aocc/aocc-4-1
           - version: "4.2.0" # released 2024-02-27 (LLVM 16.0.3)
             url_dir: https://download.amd.com/developer/eula/aocc/aocc-4-2
-          # - version: "5.0.0" # released 2024-10-10 (LLVM 17.0.6)  # Broken! See email discussion wiht AMD support Feb 2025
+          # - version: "5.0.0" # released 2024-10-10 (LLVM 17.0.6)  # Broken! See email discussion with AMD support Feb 2025
           #   url_dir: https://download.amd.com/developer/eula/aocc/aocc-5-0
-          - version: "5.1.0" # released 2026-01-02 (LLVM 17.0.6)
-            url_dir: https://download.amd.com/developer/eula/aocc/aocc-5-1
+          # - version: "5.1.0" # released 2026-01-02 (LLVM 17.0.6)    # Fixed 5.0.0 issue
+          #   url_dir: https://download.amd.com/developer/eula/aocc/aocc-5-1
+          - version: "5.2.0" # released 2026-05-12 (LLVM 17.0.6)
+            url_dir: https://download.amd.com/developer/eula/aocc/aocc-5-2
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
