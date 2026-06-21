@@ -206,10 +206,11 @@ jobs:
           #   exe: nvhpc_2025_259_Linux_x86_64_cuda_13.0
           - version: "26.3" # released 2026-03
             exe: nvhpc_2026_263_Linux_x86_64_cuda_13.1
+            fflags: -tp=px  # to try and avoid illegal instruction errors
       fail-fast: false
     runs-on: ubuntu-latest
     env:
-      FFLAGS: -Mbounds -Mchkptr
+      FFLAGS: ${{ matrix.fflags }} -Mbounds -Mchkptr
     steps:
       - name: Set up Python
         uses: actions/setup-python@v6
