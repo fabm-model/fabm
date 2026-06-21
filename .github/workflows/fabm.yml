@@ -259,8 +259,8 @@ jobs:
             url_dir: https://download.amd.com/developer/eula/aocc/aocc-4-2
           # - version: "5.0.0" # released 2024-10-10 (LLVM 17.0.6)  # Broken! See email discussion with AMD support Feb 2025
           #   url_dir: https://download.amd.com/developer/eula/aocc/aocc-5-0
-          - version: "5.1.0" # released 2026-01-02 (LLVM 17.0.6)    # Fixed 5.0.0 issue
-            url_dir: https://download.amd.com/developer/eula/aocc/aocc-5-1
+          # - version: "5.1.0" # released 2026-01-02 (LLVM 17.0.6)    # Fixed 5.0.0 issue
+          #   url_dir: https://download.amd.com/developer/eula/aocc/aocc-5-1
           - version: "5.2.0" # released 2026-05-12 (LLVM 17.0.6)
             url_dir: https://download.amd.com/developer/eula/aocc/aocc-5-2
       fail-fast: false
