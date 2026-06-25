@@ -367,7 +367,7 @@ jobs:
       - name: Run notebooks
         if: matrix.python-version != '3.7'  # due to https://github.com/conda-forge/webcolors-feedstock/issues/26
         run: |
-          conda install ipython jupyterlab ipympl matplotlib-base scipy
+          conda install ipython jupyterlab ipympl matplotlib-base scipy pandas
           cd testcases/python
           for f in *.ipynb; do ipython --gui tk -c "%run $f"; done
       - name: Type checking with mypy
