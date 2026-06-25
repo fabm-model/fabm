@@ -123,8 +123,8 @@ contains
       call self%root%add_child(model, pair%name, long_name)
       call log_message('   initialization succeeded.')
 
-      subsettings => instance_settings%get_child('schedule/interior', display=display_advanced)
-      schedule_pattern = subsettings%get_integer('pattern', 'pattern', options=(/option(0, 'always', 'always'), &
+      subsettings => instance_settings%get_child('schedule', display=display_advanced)
+      schedule_pattern = subsettings%get_integer('interior/pattern', 'pattern', options=(/option(0, 'always', 'always'), &
          option(schedule_pattern_monthly, 'monthly', 'monthly')/), default=0)
       if (schedule_pattern /= 0) call self%schedules%add(model, source_do, schedule_pattern)
 
