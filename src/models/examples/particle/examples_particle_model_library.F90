@@ -25,7 +25,9 @@ contains
       class (type_base_model), pointer :: model
 
       select case (name)
-      case ('particle'); allocate(type_passive_particle::model)
+      case ('particle');    allocate(type_passive_particle_cs::model)
+      case ('particle_cs'); allocate(type_passive_particle_cs::model)
+      case ('particle_vs'); allocate(type_passive_particle_vs::model)
       !case ('migration'); allocate(type_templates_migration::model)
       case ('depth_integrated_predator'); allocate(type_depth_integrated_predator::model)
       case default
