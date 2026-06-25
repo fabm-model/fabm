@@ -365,7 +365,7 @@ jobs:
           for f in testcases/*.yaml; do fabm_describe_model $f; done
           for f in testcases/*.yaml; do fabm_complete_yaml --add_missing $f; done
       - name: Run notebooks
-        if: matrix.python-version != '3.7'  # due to https://github.com/conda-forge/webcolors-feedstock/issues/26
+        if: matrix.python-version != '3.7' && matrix.python-version != '3.8'  # no <=3.8 because we need pandas>2.1 for https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.io.formats.style.Styler.map.html, plus no 3.7 due to https://github.com/conda-forge/webcolors-feedstock/issues/26
         run: |
           conda install ipython jupyterlab ipympl matplotlib-base scipy pandas
           cd testcases/python
