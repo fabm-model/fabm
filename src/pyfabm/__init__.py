@@ -22,11 +22,10 @@ from typing import (
 )
 
 # typing.Final not available in Python 3.7
+from typing import Any
 try:
     from typing import Final, SupportsIndex
 except ImportError:
-    from typing import Any
-
     Final = SupportsIndex = Any  # type: ignore
 
 try:
