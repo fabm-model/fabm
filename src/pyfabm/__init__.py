@@ -22,11 +22,10 @@ from typing import (
 )
 
 # typing.Final not available in Python 3.7
+from typing import Any
 try:
     from typing import Final, SupportsIndex
 except ImportError:
-    from typing import Any
-
     Final = SupportsIndex = Any  # type: ignore
 
 try:
@@ -1081,11 +1080,19 @@ class Model(object):
             import yaml
             import io
 
+            class Dumper(yaml.SafeDumper):
+                pass
+
+            def _none_representer(self: Dumper, _: None) -> Any:
+                return self.represent_scalar("tag:yaml.org,2002:null", "")
+
+            Dumper.add_representer(type(None), _none_representer)
+
             with tempfile.NamedTemporaryFile(
                 suffix=".yaml", prefix="fabm", delete=False
             ) as f:
                 with io.TextIOWrapper(f, encoding="ascii") as wrapper:
-                    yaml.safe_dump(path, wrapper)
+                    yaml.dump(path, wrapper, Dumper=Dumper)
                 path = f.name
             delete = True
 
