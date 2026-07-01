@@ -1956,11 +1956,15 @@ contains
       if (present(minimum))       variable%minimum       = minimum
       if (present(maximum))       variable%maximum       = maximum
       if (present(missing_value)) variable%missing_value = missing_value
-      if (present(initial_value)) variable%initial_value = initial_value
       if (present(presence))      variable%presence      = presence
       if (present(act_as_state_variable)) variable%fake_state_variable = act_as_state_variable
       if (present(output))        variable%output        = output
       if (present(source))        variable%source        = source
+      if (present(initial_value)) then
+         variable%initial_value = initial_value
+      elseif (variable%source == source_state .and. variable%presence == presence_internal) then
+         variable%initial_value = 0.0_rk
+      end if
       variable%prefill_value = variable%missing_value
       if (present(fill_value)) then
          variable%prefill = prefill_constant
