@@ -136,6 +136,8 @@ module fabm_types
    integer, parameter, public :: dependency_flag_none  = 0, &
                                  dependency_flag_stale = 1
 
+   real(rk), parameter, public :: default_missing_value = -2.e20_rk
+
    ! --------------------------------------------------------------------------
    ! Data types for pointers to variable values
    ! --------------------------------------------------------------------------
@@ -362,9 +364,9 @@ module fabm_types
       character(len=attribute_length) :: units          = ''
       real(rk)                        :: minimum        = -1.e20_rk
       real(rk)                        :: maximum        =  1.e20_rk
-      real(rk)                        :: missing_value  = -2.e20_rk
-      real(rk)                        :: prefill_value  = -2.e20_rk
-      real(rk)                        :: initial_value  = 0.0_rk
+      real(rk)                        :: missing_value  = default_missing_value
+      real(rk)                        :: prefill_value  = default_missing_value
+      real(rk)                        :: initial_value  = default_missing_value
       integer                         :: output         = output_instantaneous
       integer                         :: presence       = presence_internal
       integer                         :: domain         = domain_interior
@@ -1954,11 +1956,15 @@ contains
       if (present(minimum))       variable%minimum       = minimum
       if (present(maximum))       variable%maximum       = maximum
       if (present(missing_value)) variable%missing_value = missing_value
-      if (present(initial_value)) variable%initial_value = initial_value
       if (present(presence))      variable%presence      = presence
       if (present(act_as_state_variable)) variable%fake_state_variable = act_as_state_variable
       if (present(output))        variable%output        = output
       if (present(source))        variable%source        = source
+      if (present(initial_value)) then
+         variable%initial_value = initial_value
+      elseif (variable%source == source_state .and. variable%presence == presence_internal) then
+         variable%initial_value = 0.0_rk
+      end if
       variable%prefill_value = variable%missing_value
       if (present(fill_value)) then
          variable%prefill = prefill_constant
@@ -1979,7 +1985,8 @@ contains
          end select
       end if
 
-      if (present(state_index)) then
+      if (present(state_index)) call variable%state_indices%append(state_index)
+      if (variable%initial_value /= default_missing_value) then
          ! Ensure that initial value falls within prescribed valid range.
          if (variable%initial_value < variable%minimum .or. variable%initial_value > variable%maximum) then
             write (text,*) 'Initial value', variable%initial_value, 'for variable "' // trim(name) // '" lies&

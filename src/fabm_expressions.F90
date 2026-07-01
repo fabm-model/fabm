@@ -18,7 +18,7 @@ module fabm_expressions
    type, extends(type_interior_expression) :: type_interior_temporal_mean_expression
       real(rk) :: period   ! Time period to average over (s)
       integer  :: n
-      real(rk) :: missing_value = -2.e20_rk
+      real(rk) :: missing_value = default_missing_value
       logical  :: use_incomplete_result = .false.
 
       type (type_link), pointer :: source => null()
@@ -38,9 +38,9 @@ module fabm_expressions
    end type
 
    type, extends(type_horizontal_expression) :: type_horizontal_temporal_maximum_expression
-      real(rk) :: period                     ! Time window to compute running maximum over (s)
-      integer  :: n                          ! Number of bins to use to cover the period
-      real(rk) :: missing_value = -2.e20_rk  ! Missing value to use until the simulation has covered the window size [period]
+      real(rk) :: period                                 ! Time window to compute running maximum over (s)
+      integer  :: n                                      ! Number of bins to use to cover the period
+      real(rk) :: missing_value = default_missing_value  ! Missing value to use until the simulation has covered the window size [period]
 
       type (type_link), pointer :: source => null()
    contains

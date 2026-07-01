@@ -33,7 +33,7 @@ module fabm_builtin_sum
       character(len=attribute_length) :: units         = ''
       integer                         :: result_output = output_instantaneous
       real(rk)                        :: offset        = 0.0_rk
-      real(rk)                        :: missing_value = -2.e20_rk
+      real(rk)                        :: missing_value = default_missing_value
       logical                         :: act_as_state_variable = .false.
       type (type_link), pointer       :: result_link => null()
 

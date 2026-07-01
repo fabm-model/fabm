@@ -125,7 +125,7 @@ contains
          if (link%target%minimum /= -1.e20_rk) minimum = link%target%minimum
          if (link%target%maximum /=  1.e20_rk) maximum = link%target%maximum
          if (index(link%name, '/') == 0 .and. link%target%source == source_state .and. link%target%presence == presence_internal) then
-            if (require_initialization) then
+            if (require_initialization .or. link%target%initial_value == default_missing_value) then
                link%target%initial_value = self%initialization%get_real(trim(link%name), trim(link%target%long_name), &
                   trim(link%target%units), minimum=minimum, maximum=maximum)
             else

@@ -15,7 +15,7 @@ module fabm_builtin_time_filter
    type, extends(type_global_model) :: type_interior_temporal_mean
       real(rk) :: window   ! Time period to average over (s)
       integer  :: n
-      real(rk) :: missing_value = -2.e20_rk
+      real(rk) :: missing_value = default_missing_value
       logical  :: use_incomplete_result = .false.
 
       type (type_global_interior_dependency_id) :: source
@@ -32,7 +32,7 @@ module fabm_builtin_time_filter
    type, extends(type_global_model) :: type_horizontal_temporal_mean
       real(rk) :: window   ! Time period to average over (s)
       integer  :: n
-      real(rk) :: missing_value = -2.e20_rk
+      real(rk) :: missing_value = default_missing_value
       logical  :: use_incomplete_result = .false.
 
       type (type_global_horizontal_dependency_id) :: source
@@ -56,9 +56,9 @@ module fabm_builtin_time_filter
    !end type
 
    type, extends(type_global_model) :: type_horizontal_temporal_maximum
-      real(rk) :: window                     ! Time window to compute running maximum over (s)
-      integer  :: n                          ! Number of bins to use to cover the period
-      real(rk) :: missing_value = -2.e20_rk  ! Missing value to use until the simulation has covered the window size [period]
+      real(rk) :: window                                 ! Time window to compute running maximum over (s)
+      integer  :: n                                      ! Number of bins to use to cover the period
+      real(rk) :: missing_value = default_missing_value  ! Missing value to use until the simulation has covered the window size [period]
 
       type (type_global_horizontal_dependency_id) :: source
       type (type_global_horizontal_variable_id) :: maximum
@@ -83,7 +83,7 @@ contains
       if (self%user_created) then
          call self%get_parameter(self%window, 'window', 's', 'window size')
          call self%get_parameter(self%n, 'n', '', 'number of bins')
-         call self%get_parameter(self%missing_value, 'missing_value', '', 'missing value to until the full window size has been covered', default=-2e20_rk)
+         call self%get_parameter(self%missing_value, 'missing_value', '', 'missing value to use until the full window size has been covered', default=default_missing_value)
       end if
 
       !call self%register_dependency(self%id_input, 'source', '', 'variable for which to compute running mean')
@@ -124,7 +124,7 @@ contains
       if (self%user_created) then
          call self%get_parameter(self%window, 'window', 's', 'window size')
          call self%get_parameter(self%n, 'n', '', 'number of bins')
-         call self%get_parameter(self%missing_value, 'missing_value', '', 'missing value to use until the full window size has been covered', default=-2e20_rk)
+         call self%get_parameter(self%missing_value, 'missing_value', '', 'missing value to use until the full window size has been covered', default=default_missing_value)
       end if
 
       !call self%register_dependency(self%id_input, 'source', '', 'variable for which to compute running mean')
@@ -164,7 +164,7 @@ contains
    !
    !   call self%get_parameter(self%window, 'window', 's', 'window size')
    !   call self%get_parameter(self%n, 'n', '', 'number of bins')
-   !   call self%get_parameter(self%missing_value, 'missing_value', '', 'missing value to use until the full window size has been covered', default=-2e20_rk)
+   !   call self%get_parameter(self%missing_value, 'missing_value', '', 'missing value to use until the full window size has been covered', default=default_missing_value)
    !
    !   call self%register_dependency(self%id_input, 'source', '', 'variable for which to compute running mean')
    !   call self%register_diagnostic_variable(self%id_output, 'mean',  '', 'running mean')
@@ -180,7 +180,7 @@ contains
       if (self%user_created) then
          call self%get_parameter(self%window, 'window', 's', 'window size')
          call self%get_parameter(self%n, 'n', '', 'number of bins')
-         call self%get_parameter(self%missing_value, 'missing_value', '', 'missing value to use until the full window size has been covered', default=-2e20_rk)
+         call self%get_parameter(self%missing_value, 'missing_value', '', 'missing value to use until the full window size has been covered', default=default_missing_value)
       end if
 
       !call self%register_dependency(self%id_input, 'source', '', 'variable for which to compute running maximum')
