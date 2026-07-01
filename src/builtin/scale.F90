@@ -14,7 +14,7 @@ module fabm_builtin_scale
       real(rk)                        :: weight = 1.0_rk
       real(rk)                        :: offset = 0.0_rk
       character(len=attribute_length) :: units         = ''
-      real(rk)                        :: missing_value = -2.e20_rk
+      real(rk)                        :: missing_value = default_missing_value
       logical                         :: act_as_state_variable = .false.
       logical                         :: include_background = .false.
       integer                         :: result_output = output_instantaneous
