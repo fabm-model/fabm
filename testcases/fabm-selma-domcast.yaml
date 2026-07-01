@@ -157,6 +157,9 @@ instances:
       dd: 0.0                      # detritus (mmol N/m3)
       o2: 180.0                    # oxygen (mmol O2/m3)
       po: 3.0                      # phosphate (mmol P/m3)
+      fl: 0.0                      # fluff (mmol N/m2)
+      pb: 0.0                      # PFe_s (mmol P/m2)
+      pw: 0.0                      # PFe_w (mmol P/m3)
   ammonium_input:
     model: constant_surface_flux
     parameters:
