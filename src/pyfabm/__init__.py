@@ -1068,7 +1068,7 @@ class SubModel(object):
 class Model(object):
     def __init__(
         self,
-        path: Union[str, dict, os.PathLike[str]] = "fabm.yaml",
+        path: Union[str, dict, os.PathLike] = "fabm.yaml",
         shape: Tuple[int, ...] = (),
         libname: Optional[str] = None,
         start: Optional[Tuple[int, ...]] = None,
