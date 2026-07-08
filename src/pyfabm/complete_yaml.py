@@ -1,9 +1,12 @@
+from typing import Union
+import os
+
 import pyfabm
 
 
 def processFile(
-    infile: str,
-    outfile: str,
+    infile: Union[str, os.PathLike],
+    outfile: Union[str, os.PathLike],
     subtract_background: bool = False,
     add_missing: bool = False,
 ):

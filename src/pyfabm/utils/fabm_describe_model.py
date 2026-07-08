@@ -6,6 +6,7 @@ quantities and environmental dependencies of a biogeochemical model.
 """
 
 import sys
+from pathlib import Path
 
 try:
     import pyfabm
@@ -22,7 +23,8 @@ def main() -> None:
         "path",
         help="Path to a YAML file with the model configuration",
         nargs="?",
-        default="fabm.yaml",
+        type=Path,
+        default=Path("fabm.yaml"),
     )
     parser.add_argument(
         "--all",

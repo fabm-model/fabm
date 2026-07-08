@@ -5,6 +5,7 @@ This script open an interactive tree view with all settings of a biogeochemical 
 """
 
 import sys
+from pathlib import Path
 
 try:
     import pyfabm
@@ -26,7 +27,8 @@ def main() -> None:
         "path",
         help="Path to a YAML file with the model configuration",
         nargs="?",
-        default="fabm.yaml",
+        type=Path,
+        default=Path("fabm.yaml"),
     )
     args = parser.parse_args()
 

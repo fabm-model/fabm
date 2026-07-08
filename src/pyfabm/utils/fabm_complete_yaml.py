@@ -7,6 +7,7 @@ parameters.
 """
 
 import sys
+from pathlib import Path
 
 try:
     import pyfabm.complete_yaml
@@ -21,6 +22,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "path",
+        type=Path,
         help=(
             "Path to a YAML file with the model configuration that needs to"
             " be completed."
@@ -28,6 +30,7 @@ def main() -> None:
     )
     parser.add_argument(
         "output_path",
+        type=Path,
         help=(
             "Path to save the completed YAML file to. If not provided,"
             " this defaults to the file from which the model configuration is read."
