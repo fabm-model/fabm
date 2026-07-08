@@ -1068,7 +1068,7 @@ class SubModel(object):
 class Model(object):
     def __init__(
         self,
-        path: Union[str, dict] = "fabm.yaml",
+        path: Union[str, dict, os.PathLike[str]] = "fabm.yaml",
         shape: Tuple[int, ...] = (),
         libname: Optional[str] = None,
         start: Optional[Tuple[int, ...]] = None,
@@ -1095,6 +1095,8 @@ class Model(object):
                     yaml.dump(path, wrapper, Dumper=Dumper)
                 path = f.name
             delete = True
+        else:
+            path = os.fspath(path)
 
         if libname is None:
             # Pick one of the built-in FABM libraries (0D or 1D)
