@@ -23,6 +23,7 @@ from typing import (
 
 # typing.Final not available in Python 3.7
 from typing import Any
+
 try:
     from typing import Final, SupportsIndex
 except ImportError:
@@ -41,7 +42,6 @@ except ImportError:
     print("Unable to import NumPy. Please ensure it is installed.")
     sys.exit(1)
 import numpy.typing as npt
-
 
 LOG_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_char_p)
 
@@ -1294,9 +1294,11 @@ class Model(object):
     def getSubModel(self, name: str) -> SubModel:
         return SubModel(self, name)
 
-    def save_settings(self, path: str, display: int = DISPLAY_NORMAL):
+    def save_settings(
+        self, path: Union[str, os.PathLike], display: int = DISPLAY_NORMAL
+    ):
         """Write model configuration to yaml file"""
-        self.fabm.save_settings(self.pmodel, path.encode("ascii"), display)
+        self.fabm.save_settings(self.pmodel, os.fspath(path).encode("ascii"), display)
 
     def _save_state(self) -> Tuple[Mapping[str, np.ndarray], Mapping[str, np.ndarray]]:
         environment = {}
