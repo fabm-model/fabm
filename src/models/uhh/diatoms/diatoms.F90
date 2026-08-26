@@ -25,7 +25,7 @@
    type,extends(type_base_model),public :: type_uhh_diatoms
 !     Variable identifiers
       type (type_state_variable_id)         :: id_veg,id_res
-      type (type_state_variable_id)         :: id_nitrate,id_ammonium
+      type (type_state_variable_id)         :: id_nitrate,id_ammonium, id_dic
       type (type_state_variable_id)         :: id_phosphate,id_detritus,id_oxygen
       type (type_dependency_id)             :: id_par,id_temp
       type (type_global_dependency_id)      :: id_doy
@@ -34,6 +34,8 @@
 
 !     Model parameters
       real(rk) :: mumax
+      real(rk) :: u_gr
+      real(rk) :: c5
       real(rk) :: vmort
       real(rk) :: rmort
       real(rk) :: rkn
@@ -65,7 +67,7 @@
    real(rk), parameter :: secs_pr_day = 86400.0_rk
    real(rk), parameter :: one_pr_day = 1.0_rk/86400.0_rk
 !EOP
-!-----------------------------------------------------------------------
+!--!---------------------------------------------------------------------
 
    contains
 
@@ -79,6 +81,8 @@
    integer,                        intent(in)          :: configunit
 
    real(rk)     :: mumax= 0.4
+   real(rk)     :: u_gr= 0.6
+   real(rk)     :: c5=200.0 
    real(rk)     :: vmort=0.03
    real(rk)     :: rmort=0.03
    real(rk)     :: rkn=0.5
@@ -93,25 +97,27 @@
    real(rk)     :: minimum_nitrate=0.0_rk
    real(rk)     :: trate_veg_res     = 0.02
    real(rk)     :: trate_res_veg     = 0.02
-   logical      :: use_mean_growth=.false.
+   logical      :: use_mean_growth=.true. ! false by default
 
    character(len=64)         :: phosphate_variable
    character(len=64)         :: ammonium_variable
    character(len=64)         :: nitrate_variable
    character(len=64)         :: detritus_variable
    character(len=64)         :: oxygen_variable
-  namelist /uhh_diatoms/ mumax,vmort,rmort,rkn,rdepo,sr,         &
+   character(len=64)         :: dic_variable
+  namelist /uhh_diatoms/ mumax,u_gr, vmort,rmort,rkn,rdepo,sr,c5, &
                       trate_veg_res,trate_res_veg,            &
                       w_dia,rkc,alpha,mdt,use_mean_growth,    &
                       ammonium_variable,nitrate_variable,     &
                       phosphate_variable, detritus_variable,  &
-                      oxygen_variable, minimum_nitrate
+                      oxygen_variable, minimum_nitrate, dic_variable
 
    nitrate_variable = 'uhh_ergom_split_base_nit'
    ammonium_variable = 'uhh_ergom_split_base_amm'
    phosphate_variable = 'uhh_ergom_split_base_pho'
    detritus_variable = 'uhh_ergom_split_base_det'
    oxygen_variable = 'uhh_ergom_split_base_oxy'
+   dic_variable = ''
    ! Read the namelist
    if (configunit>=0) read(configunit,nml=uhh_diatoms,err=99)
 
@@ -124,6 +130,8 @@
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
    call self%get_parameter(self%mumax, 'mumax', default=mumax,scale_factor=one_pr_day)
+   call self%get_parameter(self%u_gr, 'u_gr', default=u_gr,scale_factor=one_pr_day)
+   call self%get_parameter(self%c5, 'c5', default=c5,scale_factor=one_pr_day)
    call self%get_parameter(self%vmort, 'vmort', default=vmort,scale_factor=one_pr_day)
    call self%get_parameter(self%rmort, 'rmort', default=rmort,scale_factor=one_pr_day)
    call self%get_parameter(self%rkn,   'rkn',   default=rkn)
@@ -165,6 +173,10 @@
    call self%register_state_dependency(self%id_detritus, 'mortality_target','mmol/m**3','sink for dead matter')
    if (self%use_oxygen) &
      call self%register_state_dependency(self%id_oxygen,   'oxygen_target'   ,'mmol-O2/m**3','dissolved oxygen pool')
+   
+   ! Register optional link to external DIC pool
+   call self%register_state_dependency(self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon',required=.false.)
+   if (dic_variable/='') call self%request_coupling(self%id_dic,dic_variable)
 
    if (self%use_ammonium) &
      call self%request_coupling(self%id_ammonium, ammonium_variable)
@@ -241,9 +253,9 @@
    _GET_GLOBAL_(self%id_doy,doy)       ! day of year
 
    ! vegetatives growth
-   llim=1.0_rk - exp( -(self%alpha * par) / self%mumax)
-   nlim=nut/(nut+self%rkn)
-   tlim=0.5_rk *(tanh(0.5_rk * (temp - 2.5_rk)) - (tanh(0.65_rk *(temp - 15.0_rk)) ))
+   llim= 1.0_rk - exp( -(self%alpha * par) / self%mumax)
+   nlim= nut/(nut+ self%rkn)
+   tlim=0.5_rk *(tanh(0.5_rk * (temp - 8.5_rk)) - (tanh(0.65_rk *(temp - 15.0_rk)) ))
    gr_veg= self%mumax*llim*nlim*tlim
 
    ! either use instantaneous values or averaged growth rate
@@ -256,30 +268,35 @@
    ! lifestage fluxes
    tau_res_veg=0.0_rk
    tau_veg_res=0.0_rk
-   trans_ctrl = 0.5_rk * (1.0_rk - tanh(200.0_rk * secs_pr_day * &
-                (mean_growth - (0.15_rk * one_pr_day))))
+   trans_ctrl = 0.0_rk !added new
+   trans_ctrl = 0.5_rk * (1.0_rk - tanh( 200.0_rk*secs_pr_day * & !* secs_pr_day * & !secs    200.0
+                (mean_growth - (self%u_gr ))))  !one_pr_day 0.15 use of gr_veg instead of meangrowth
    ! veg -> res
    tau_veg_res=self%trate_veg_res * trans_ctrl
    ! res -> veg
    tau_res_veg=self%trate_res_veg * (1.0_rk - trans_ctrl)
-
-   ! Set temporal derivatives
-   _ADD_SOURCE_(self%id_veg,veg*(gr_veg - self%vmort) - veg*tau_veg_res + res*tau_res_veg)
-   _ADD_SOURCE_(self%id_res,veg*tau_veg_res - res*(self%rmort + tau_res_veg))
+ 
+ !  ! Set temporal derivatives
+   _SET_ODE_(self%id_veg,veg*(gr_veg - self%vmort) - veg*tau_veg_res + res*tau_res_veg)
+   _SET_ODE_(self%id_res,veg*tau_veg_res - res*(self%rmort + tau_res_veg))
 
    ni = max(ni, self%minimum_nitrate)
    
    ! external nutrients
-   _ADD_SOURCE_(self%id_nitrate,-veg*gr_veg * ni/(ni+am))
+   _SET_ODE_(self%id_nitrate,-veg*gr_veg * ni/(ni+am))
    if (self%use_ammonium) then
-     _ADD_SOURCE_(self%id_ammonium,-veg*gr_veg * am/(ni+am))
+     _SET_ODE_(self%id_ammonium,-veg*gr_veg * am/(ni+am))
    end if
-   _ADD_SOURCE_(self%id_detritus,veg*self%vmort + res*self%rmort)
+   _SET_ODE_(self%id_detritus,veg*self%vmort + res*self%rmort)
    if (self%use_phosphate) then
-     _ADD_SOURCE_(self%id_phosphate, -self%sr *veg*gr_veg)
+     _SET_ODE_(self%id_phosphate, -self%sr *veg*gr_veg)
    end if
    ! add oxygen dynamics
-   _ADD_SOURCE_(self%id_oxygen, (self%s2 *am/(am+ni) + self%s3* ni/(am+ni))*veg*gr_veg)
+   _SET_ODE_(self%id_oxygen, (self%s2 *am/(am+ni) + self%s3* ni/(am+ni))*veg*gr_veg)
+
+   ! set DIC sink, if available
+   if (_AVAILABLE_(self%id_dic)) &
+     _SET_ODE_(self%id_dic,-106.0_rk/16.0_rk*veg*gr_veg)
    
    ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_gr,gr_veg*secs_pr_day)   
@@ -305,7 +322,7 @@
    ! Retrieve current (local) state variable values.
    _GET_(self%id_res,res)       ! resting cells biomass
    
-   _ADD_BOTTOM_FLUX_(self%id_res,-self%rdepo*res*res)
+   _SET_BOTTOM_EXCHANGE_(self%id_res,-self%rdepo*res*res)
    
 
    _HORIZONTAL_LOOP_END_
@@ -340,7 +357,7 @@
    real(rk)            :: llim,nlim,tlim
    ! set averaging window (0.5 * original averaging window, because
    ! of dampening, recursive filter)
-   real(rk), parameter :: window = 2.5_rk*86400.0_rk
+   real(rk), parameter :: window = 2.5_rk*86400.0_rk !2.5
    real(rk), parameter :: one_pr_window = 1.0_rk/window
 
    if (.not.self%use_mean_growth) return
@@ -362,7 +379,7 @@
    ! vegetatives growth
    llim=1.0_rk - exp( -(self%alpha * par) / self%mumax)
    nlim=nut/(nut+self%rkn)
-   tlim=0.5_rk *(tanh(0.5_rk * (temp - 2.5_rk)) - (tanh(0.65_rk *(temp - 15.0_rk)) ))
+   tlim=0.5_rk *(tanh(0.4_rk * (temp - 8.5_rk)) - (tanh(0.5_rk *(temp - 15.0_rk)) ))
    gr_veg= self%mumax*llim*nlim*tlim
  
    mean_growth = one_pr_window*((window - self%mdt)*mean_growth + self%mdt*gr_veg)
@@ -371,6 +388,4 @@
 
    end subroutine check_surface_state
 
-
    end module fabm_uhh_diatoms
-
