@@ -122,19 +122,16 @@ contains
       class (type_bounded_depth_integral), pointer :: bounded_integral
 
       if (self%minimum_depth <= 0._rk .and. self%maximum_depth == huge(self%maximum_depth)) then
-         bounded_integral => null() 
          allocate(integral)
       else
          allocate(bounded_integral)
+         bounded_integral%minimum_depth = self%minimum_depth
+         bounded_integral%maximum_depth = self%maximum_depth
          integral => bounded_integral
       end if
       integral%average = self%average
       call link%target%owner%add_child(integral, trim(self%output_name) // '_calculator')
       call integral%request_coupling(integral%id_input, self%source)
-      if (associated(bounded_integral)) then
-         call bounded_integral%request_coupling(bounded_integral%id_minimum_depth%link, type_constant_coupling_target(self%minimum_depth))
-         call bounded_integral%request_coupling(bounded_integral%id_maximum_depth%link, type_constant_coupling_target(self%maximum_depth))
-      end if
       integral%id_output%link%target%output = output_none
       tgt => integral%id_output%link
    end function
