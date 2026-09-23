@@ -64,7 +64,7 @@ module fabm_types
    public get_aggregate_variable_access, type_aggregate_variable_access, type_contribution
    public set_dependency_flag
 
-   public type_coupling_task
+   public type_coupling_task, type_coupling_target, type_named_coupling_target, type_constant_coupling_target
 
    public type_fabm_settings
 
@@ -176,19 +176,39 @@ module fabm_types
 
    type type_coupling_task
       type (type_link), pointer                    :: link       => null()
-      character(len=attribute_length)              :: target_name = ''
-      class (type_domain_specific_standard_variable), pointer :: target_standard_variable => null()
+      class (type_coupling_target), pointer        :: target     => null()
       integer                                      :: priority = 0
       class (type_coupling_task), pointer          :: previous    => null()
       class (type_coupling_task), pointer          :: next        => null()
-   contains
-      procedure :: resolve => coupling_task_resolve
    end type
 
-   type, extends(type_coupling_task) :: type_link_coupling_task
-      type (type_link), pointer :: target_link => null()
+   type, abstract :: type_coupling_target
    contains
-      procedure :: resolve => link_coupling_task_resolve
+      procedure (coupling_target_resolve), deferred :: resolve
+   end type
+
+   type, extends(type_coupling_target) :: type_named_coupling_target
+      character(len=attribute_length) :: name = ''
+   contains
+      procedure :: resolve => named_coupling_target_resolve
+   end type
+
+   type, extends(type_coupling_target) :: type_standard_variable_coupling_target
+      class (type_domain_specific_standard_variable), pointer :: standard_variable => null()
+   contains
+      procedure :: resolve => standard_variable_coupling_target_resolve
+   end type
+
+   type, extends(type_coupling_target) :: type_link_coupling_target
+      type (type_link), pointer :: link => null()
+   contains
+      procedure :: resolve => link_coupling_target_resolve
+   end type
+
+   type, extends(type_coupling_target) :: type_constant_coupling_target
+      real(rk) :: value
+   contains
+      procedure :: resolve => constant_coupling_target_resolve
    end type
 
    type type_coupling_task_list
@@ -420,7 +440,7 @@ module fabm_types
    ! variables).
    ! --------------------------------------------------------------------------
 
-   type, extends(type_coupling_task) :: type_expression
+   type, abstract, extends(type_coupling_target) :: type_expression
       character(len=attribute_length) :: output_name = ''
    end type
 
@@ -750,6 +770,15 @@ module fabm_types
    class (type_base_model_factory), pointer, save, public :: factory => null()
 
    logical, save, public :: fabm_parameter_pointers = .false.
+
+   interface
+      function coupling_target_resolve(self, link) result(tgt)
+         import type_coupling_target, type_link
+         class (type_coupling_target), intent(inout) :: self
+         type (type_link),             intent(in)    :: link
+         type (type_link), pointer :: tgt
+      end function
+   end interface
 
 contains
 
@@ -1481,12 +1510,14 @@ contains
       self%first => null()
    end subroutine link_list_finalize
 
-   subroutine request_coupling_lt(self, link, task)
-      class (type_base_model),             intent(inout) :: self
-      type (type_link), target,            intent(in)    :: link
-      class (type_coupling_task), pointer, intent(inout) :: task
+   subroutine request_coupling_lt(self, link, target, priority)
+      class (type_base_model),      intent(inout) :: self
+      type (type_link), target,     intent(in)    :: link
+      class (type_coupling_target), intent(in)    :: target
+      integer, optional,            intent(in)    :: priority
 
       type (type_link), pointer :: current_link
+      integer                   :: priority_
 
       ! First make sure that we are called for a link that we own ourselves.
       current_link => self%links%first
@@ -1504,21 +1535,77 @@ contains
          &not inherited ones such as the current ' // trim(link%name) // '.')
 
       ! Create a coupling task (reuse existing one if available, and not user-specified)
-      task%link => link
-      call self%coupling_task_list%add(task, priority=0)
+      priority_ = 0
+      if (present(priority)) priority_ = priority
+      call self%coupling_task_list%add(link, target, priority=priority_)
    end subroutine request_coupling_lt
 
-   subroutine request_coupling_ln(self, link, target_name)
+   subroutine request_coupling_ln(self, link, target_name, priority)
       class (type_base_model),  intent(inout) :: self
       type (type_link), target, intent(in)    :: link
       character(len=*),         intent(in)    :: target_name
+      integer, optional,        intent(in)    :: priority
 
-      class (type_coupling_task), pointer :: task
+      integer :: istart, istop
 
-      allocate(task)
-      call request_coupling_lt(self, link, task)
-      if (.not. associated(task)) return
-      task%target_name = target_name
+      istart = index(target_name, '(')
+      if (istart /= 0) then
+         ! The coupling name includes an opening parenthesis. Interpret it as a parametrized coupling (one with arguments)
+         istop = len_trim(target_name)
+         if (target_name(istop:istop) /= ')') call link%target%owner%fatal_error('process_coupling_tasks', &
+            'Parameterized coupling ' // trim(target_name) // ' should end with closing parenthesis.')
+         call request_parameterized_coupling(target_name(1:istart-1), target_name(istart+1:istop-1))
+      else
+         call request_coupling_lt(self, link, type_named_coupling_target(target_name), priority)
+      end if
+
+   contains
+
+      subroutine request_parameterized_coupling(name, args)
+         character(len=*), intent(in)    :: name, args
+
+         type (type_interior_standard_variable)   :: interior_standard_variable
+         type (type_bottom_standard_variable)     :: bottom_standard_variable
+         type (type_surface_standard_variable)    :: surface_standard_variable
+         type (type_horizontal_standard_variable) :: horizontal_standard_variable
+         type (type_global_standard_variable)     :: global_standard_variable
+         real(rk) :: value
+         integer :: ios
+
+         type (type_standard_variable_coupling_target) :: task
+         type (type_constant_coupling_target) :: constant_task
+
+         select case (name)
+         case ('standard_variable')
+            select case (link%target%domain)
+            case (domain_interior)
+               interior_standard_variable%name = args
+               task%standard_variable => interior_standard_variable%typed_resolve()
+            case (domain_bottom)
+               bottom_standard_variable%name = args
+               task%standard_variable => bottom_standard_variable%typed_resolve()
+            case (domain_surface)
+               surface_standard_variable%name = args
+               task%standard_variable => surface_standard_variable%typed_resolve()
+            case (domain_horizontal)
+               horizontal_standard_variable%name = args
+               task%standard_variable => horizontal_standard_variable%typed_resolve()
+            case (domain_scalar)
+               global_standard_variable%name = args
+               task%standard_variable => global_standard_variable%typed_resolve()
+            case default
+               call link%target%owner%fatal_error('request_coupling', 'Unknown domain for ' // trim(link%name) // '.')
+            end select
+            call self%request_coupling(link, task, priority)
+         case ('constant')
+            read(args,*,iostat=ios) constant_task%value
+            if (ios /= 0) call link%target%owner%fatal_error('request_coupling', 'Cannot parse constant "' // trim(args) // '".')
+            call self%request_coupling(link, constant_task, priority)
+         case default
+            call link%target%owner%fatal_error('request_coupling', 'Unknown parameterized coupling type "' // name // '".')
+         end select
+      end subroutine
+
    end subroutine request_coupling_ln
 
    recursive subroutine request_coupling_nn(self, name, target_name)
@@ -1559,12 +1646,10 @@ contains
       type (type_link), target,                       intent(in)         :: link
       class (type_domain_specific_standard_variable), intent(in), target :: target_standard_variable
 
-      class (type_coupling_task), pointer :: task
+      type (type_standard_variable_coupling_target) :: tgt
 
-      allocate(task)
-      call request_coupling_lt(self, link, task)
-      if (.not. associated(task)) return
-      task%target_standard_variable => target_standard_variable%typed_resolve()
+      tgt%standard_variable => target_standard_variable%typed_resolve()
+      call request_coupling_lt(self, link, tgt)
    end subroutine request_coupling_ls
 
    subroutine request_coupling_is(self, id, target_standard_variable)
@@ -1582,14 +1667,7 @@ contains
       type (type_link), target, intent(in)    :: link
       type (type_link), target, intent(in)    :: target_link
 
-      class (type_link_coupling_task), pointer :: task
-      class (type_coupling_task),      pointer :: base_class_pointer
-
-      allocate(task)
-      base_class_pointer => task
-      call request_coupling_lt(self, link, base_class_pointer)
-      if (.not. associated(base_class_pointer)) return
-      task%target_link => target_link
+      call request_coupling_lt(self, link, type_link_coupling_target(target_link))
    end subroutine request_coupling_ll
 
    subroutine request_coupling_il(self, id, target_link)
@@ -2579,25 +2657,19 @@ contains
    subroutine register_interior_expression_dependency(self, id, expression)
       class (type_base_model),           intent(inout) :: self
       type (type_dependency_id), target, intent(inout) :: id
-      class (type_interior_expression), pointer        :: expression
-
-      class (type_coupling_task), pointer :: base_coupling
+      class (type_interior_expression),  intent(in)    :: expression
 
       call self%register_dependency(id, expression%output_name, '', expression%output_name)
-      base_coupling => expression
-      call self%request_coupling(id%link, base_coupling)
+      call self%request_coupling(id%link, expression)
    end subroutine
 
    subroutine register_horizontal_expression_dependency(self, id, expression)
       class (type_base_model),              intent(inout)         :: self
       type (type_horizontal_dependency_id), intent(inout), target :: id
-      class (type_horizontal_expression), pointer                 :: expression
-
-      class (type_coupling_task), pointer :: base_coupling
+      class (type_horizontal_expression),   intent(in)            :: expression
 
       call self%register_dependency(id, expression%output_name, '', expression%output_name)
-      base_coupling => expression
-      call self%request_coupling(id%link, base_coupling)
+      call self%request_coupling(id%link, expression)
    end subroutine
 
    function get_effective_string(value, default) result(value_)
@@ -3023,18 +3095,97 @@ contains
       self%first_child => null()
    end subroutine abstract_model_factory_finalize
 
-   function coupling_task_resolve(self) result(link)
-      class (type_coupling_task), intent(inout) :: self
-      type (type_link), pointer :: link
+   function named_coupling_target_resolve(self, link) result(tgt)
+      class (type_named_coupling_target), intent(inout) :: self
+      type (type_link),                   intent(in)    :: link
+      type (type_link), pointer :: tgt
 
-      link => null()
+      ! This is a coupling by variable name.
+      ! Try to find the target variable among the variables of the requesting model or its parents.
+      if (link%name /= self%name) then
+         ! Names of variable and its target differ: start target search in current model, then move up tree.
+         tgt => link%target%owner%find_link(self%name, recursive=.true., exact=.false.)
+      elseif (associated(link%target%owner%parent)) then
+         ! Names of variable and its target are identical: start target search in parent model, then move up tree.
+         tgt => link%target%owner%parent%find_link(self%name, recursive=.true., exact=.false.)
+      else
+         call link%target%owner%fatal_error('process_coupling_tasks', &
+            'Names of variable and its target are identical: "' // trim(self%name) // '". This is not valid at the root of the model tree.')
+      end if
+
    end function
 
-   function link_coupling_task_resolve(self) result(link)
-      class (type_link_coupling_task), intent(inout) :: self
-      type (type_link), pointer :: link
+   function standard_variable_coupling_target_resolve(self, link) result(tgt)
+      class (type_standard_variable_coupling_target), intent(inout) :: self
+      type (type_link),                               intent(in)    :: link
+      type (type_link), pointer :: tgt
 
-      link => self%target_link
+      class (type_base_model), pointer :: root
+      logical, parameter :: final = .true.
+
+      root => link%target%owner
+      do while (associated(root%parent))
+         root => root%parent
+      end do
+
+      ! This is a coupling to a standard variable. First try to find the corresponding standard variable.
+      ! We search within the root model, because there all variables are found together.
+      tgt => root%links%first
+      do while (associated(tgt))
+         if (tgt%target%standard_variables%contains(self%standard_variable)) return
+         tgt => tgt%next
+      end do
+
+      if (self%standard_variable%aggregate_variable) then
+         ! Create an aggregate variable at the level of the root model
+         tgt => get_aggregate_variable_access(root, self%standard_variable)
+         return
+      end if
+
+      if (final .and. (link%target%source /= source_state .or. link%target%presence == presence_external_optional)) then
+         ! Target variable was not found, but this is our last chance.
+         ! Therefore, create a placeholder variable at the root level.
+         ! This variable will still need to be provided by the host.
+         select type (standard_variable => self%standard_variable)
+         class is (type_interior_standard_variable)
+            call root%add_interior_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
+               standard_variable=standard_variable, presence=presence_external_optional, link=tgt)
+         class is (type_horizontal_standard_variable)
+            call root%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
+               standard_variable=standard_variable, presence=presence_external_optional, link=tgt, &
+               domain=standard_variable2domain(standard_variable))
+         class is (type_global_standard_variable)
+            call root%add_scalar_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
+               standard_variable=standard_variable, presence=presence_external_optional, link=tgt)
+         end select
+      end if
+   end function
+
+   function link_coupling_target_resolve(self, link) result(tgt)
+      class (type_link_coupling_target), intent(inout) :: self
+      type (type_link),                  intent(in)    :: link
+      type (type_link), pointer :: tgt
+
+      tgt => self%link
+   end function
+
+   function constant_coupling_target_resolve(self, link) result(tgt)
+      class (type_constant_coupling_target), intent(inout) :: self
+      type (type_link),                      intent(in)    :: link
+      type (type_link), pointer :: tgt
+
+      tgt => null()
+      select case (link%target%domain)
+      case (domain_interior)
+         call link%target%owner%add_interior_variable('_constant_*', trim(link%target%units), 'constant '//trim(link%target%long_name), &
+            fill_value=self%value, output=output_none, source=source_constant, link=tgt)
+      case (domain_horizontal, domain_bottom, domain_surface)
+         call link%target%owner%add_horizontal_variable('_constant_*', trim(link%target%units), 'constant '//trim(link%target%long_name), &
+            fill_value=self%value, domain=link%target%domain, output=output_none, source=source_constant, link=tgt)
+      case (domain_scalar)
+         call link%target%owner%add_scalar_variable('_constant_*', trim(link%target%units), 'constant '//trim(link%target%long_name), &
+            fill_value=self%value, output=output_none, source=source_constant, link=tgt)
+      end select
    end function
 
    subroutine coupling_task_list_remove(self, task)
@@ -3047,6 +3198,7 @@ contains
          self%first => task%next
       end if
       if (associated(task%next)) task%next%previous => task%previous
+      deallocate(task%target)
       deallocate(task)
    end subroutine
 
@@ -3062,43 +3214,32 @@ contains
       end do
    end function coupling_task_list_find
 
-   subroutine coupling_task_list_add(self, task, priority)
+   subroutine coupling_task_list_add(self, link, target, priority)
       class (type_coupling_task_list), intent(inout) :: self
-      class (type_coupling_task), pointer            :: task  ! must be pointer to preserve deallocate functionality
+      type (type_link), target                       :: link
+      class (type_coupling_target),    intent(in)    :: target
       integer,                         intent(in)    :: priority
 
-      class (type_coupling_task), pointer :: existing_task
+      class (type_coupling_task), pointer :: task
 
       ! Check if we have found an existing task for the same link.
-      existing_task => self%find(task%link)
-      if (associated(existing_task)) then
-         ! If existing one has higher priority, do not add the new task and return (used=.false.)
-         if (existing_task%priority > priority) then
-            deallocate(task)
-            return
-         end if
-
-         ! We will overwrite the existing task - remove existing task and exit loop
-         call self%remove(existing_task)
+      task => self%find(link)
+      if (associated(task)) then
+         ! If existing one has higher priority, do not add the new task
+         if (task%priority > priority) return
       end if
 
-      if (.not. associated(self%first)) then
-         ! Task list is empty - add first.
+      if (.not. associated(task)) then
+         allocate(task)
+         task%next => self%first
+         if (associated(self%first)) self%first%previous => task
          self%first => task
-         task%previous => null()
+         task%link => link
       else
-         ! Task list contains items - append to tail.
-
-         ! Find tail of the list
-         existing_task => self%first
-         do while (associated(existing_task%next))
-            existing_task => existing_task%next
-         end do
-
-         existing_task%next => task
-         task%previous => existing_task
+         deallocate(task%target)
       end if
       task%priority = priority
+      allocate(task%target, source=target)
    end subroutine coupling_task_list_add
 
    character(len=32) function source2string(source)

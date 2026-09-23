@@ -53,9 +53,11 @@ module fabm_particle
       type (type_surface_state_variable_id),allocatable :: surface_state(:)
    end type
 
-   type, extends(type_coupling_task) :: type_coupling_from_model
-      type (type_model_reference), pointer :: model_reference => null()
-      class (type_particle_model), pointer :: owner           => null()
+   type, extends(type_coupling_target) :: type_coupling_from_model
+      character(len=attribute_length)                         :: target_name = ''
+      class (type_domain_specific_standard_variable), pointer :: target_standard_variable => null()
+      type (type_model_reference),                    pointer :: model_reference => null()
+      class (type_particle_model),                    pointer :: owner           => null()
    contains
       procedure :: resolve => coupling_from_model_resolve
    end type
@@ -211,8 +213,7 @@ contains
       character(len=*),                    intent(in),    optional :: target_name, target_model_name
       class (type_base_standard_variable), intent(in),    optional :: target_standard_variable
 
-      type (type_coupling_from_model),     pointer :: coupling
-      class (type_coupling_task),          pointer :: base_coupling
+      type (type_coupling_from_model)              :: coupling
       class (type_base_standard_variable), pointer :: standard_variable
 
       if (self%coupling_task_list%includes_custom) call self%fatal_error('request_coupling_to_model_generic', &
@@ -220,17 +221,13 @@ contains
 
       ! Create object describing the coupling, and send it to FABM.
       ! This must be a pointer, because FABM will manage its memory and deallocate when appropriate.
-      allocate(coupling)
-      base_coupling => coupling
-      call self%request_coupling(link, base_coupling)
-      if (.not. associated(base_coupling)) return
       coupling%owner => self
       if (present(target_name)) coupling%target_name = target_name
       if (present(target_standard_variable)) then
          standard_variable => target_standard_variable%resolve()
          select type (standard_variable)
          class is (type_universal_standard_variable)
-            select case (coupling%link%target%domain)
+            select case (link%target%domain)
             case (domain_interior);   coupling%target_standard_variable => standard_variable%in_interior()
             case (domain_surface);    coupling%target_standard_variable => standard_variable%at_surface()
             case (domain_bottom);     coupling%target_standard_variable => standard_variable%at_bottom()
@@ -247,6 +244,7 @@ contains
             'BUG: target_model or target_model_name must be provided.')
          coupling%model_reference => add_model_reference(self, target_model_name)
       end if
+      call self%request_coupling(link, coupling)
    end subroutine request_coupling_to_model_generic
 
    subroutine request_named_coupling_to_model(self, id, target_model, target_name)
@@ -418,9 +416,10 @@ contains
       call complete_internal_variables_if_needed(self)
    end subroutine before_coupling
 
-   function coupling_from_model_resolve(self) result(link)
+   function coupling_from_model_resolve(self, link) result(tgt)
       class (type_coupling_from_model), intent(inout) :: self
-      type (type_link), pointer :: link
+      type (type_link),                 intent(in)    :: link
+      type (type_link), pointer :: tgt
 
       class (type_base_model), pointer :: model
 
@@ -428,13 +427,13 @@ contains
       if (.not. associated(model)) then
          ! Model not found. A fatal error will already have been reported.
          ! Just return a harmless result so the host gets the opportunity for error handling
-         link => null()
+         tgt => null()
       elseif (associated(self%target_standard_variable)) then
          ! Coupling to a standard [aggregate] variable
-         link => get_aggregate_variable_access(model, self%target_standard_variable)
+         tgt => get_aggregate_variable_access(model, self%target_standard_variable)
       else
          ! Coupling to a named variable
-         link => model%find_link(trim(self%target_name))
+         tgt => model%find_link(trim(self%target_name))
       end if
    end function
 

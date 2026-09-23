@@ -113,26 +113,30 @@ contains
       base_expression => vertical_integral(input, minimum_depth, maximum_depth, average=.true.)
    end function
 
-   function vertical_integral_resolve(self) result(link)
+   function vertical_integral_resolve(self, link) result(tgt)
       class (type_vertical_integral), intent(inout) :: self
-      type (type_link), pointer                     :: link
+      type (type_link),               intent(in)    :: link
+      type (type_link), pointer                     :: tgt
 
       class (type_depth_integral),         pointer :: integral
       class (type_bounded_depth_integral), pointer :: bounded_integral
 
       if (self%minimum_depth <= 0._rk .and. self%maximum_depth == huge(self%maximum_depth)) then
+         bounded_integral => null() 
          allocate(integral)
       else
          allocate(bounded_integral)
-         bounded_integral%minimum_depth = self%minimum_depth
-         bounded_integral%maximum_depth = self%maximum_depth
          integral => bounded_integral
       end if
       integral%average = self%average
-      call self%link%target%owner%add_child(integral, trim(self%output_name) // '_calculator')
+      call link%target%owner%add_child(integral, trim(self%output_name) // '_calculator')
       call integral%request_coupling(integral%id_input, self%source)
+      if (associated(bounded_integral)) then
+         call bounded_integral%request_coupling(bounded_integral%id_minimum_depth%link, type_constant_coupling_target(self%minimum_depth))
+         call bounded_integral%request_coupling(bounded_integral%id_maximum_depth%link, type_constant_coupling_target(self%maximum_depth))
+      end if
       integral%id_output%link%target%output = output_none
-      link => integral%id_output%link
+      tgt => integral%id_output%link
    end function
 
    function interior_temporal_mean(input, period, resolution, missing_value) result(base_expression)
@@ -156,9 +160,10 @@ contains
       base_expression => expression
    end function
 
-   function interior_temporal_mean_resolve(self) result(link)
+   function interior_temporal_mean_resolve(self, link) result(tgt)
       class (type_interior_temporal_mean_expression), intent(inout) :: self
-      type (type_link), pointer                                     :: link
+      type (type_link),                               intent(in)    :: link
+      type (type_link), pointer                                     :: tgt
 
       class (type_interior_temporal_mean), pointer :: calculator
 
@@ -167,10 +172,10 @@ contains
       calculator%n = self%n
       calculator%missing_value = self%missing_value
       calculator%use_incomplete_result = self%use_incomplete_result
-      call self%link%target%owner%add_child(calculator, trim(self%output_name) // '_calculator')
+      call link%target%owner%add_child(calculator, trim(self%output_name) // '_calculator')
       call calculator%request_coupling(calculator%source%link, self%source)
       calculator%mean%link%target%output = output_none
-      link => calculator%mean%link
+      tgt => calculator%mean%link
    end function
 
    function horizontal_temporal_mean(input, period, resolution, missing_value) result(base_expression)
@@ -194,9 +199,10 @@ contains
       base_expression => expression
    end function
 
-   function horizontal_temporal_mean_resolve(self) result(link)
+   function horizontal_temporal_mean_resolve(self, link) result(tgt)
       class (type_horizontal_temporal_mean_expression), intent(inout) :: self
-      type (type_link), pointer                                       :: link
+      type (type_link),                                 intent(in)    :: link
+      type (type_link), pointer                                       :: tgt
 
       class (type_horizontal_temporal_mean), pointer :: calculator
 
@@ -205,10 +211,10 @@ contains
       calculator%n = self%n
       calculator%missing_value = self%missing_value
       calculator%use_incomplete_result = self%use_incomplete_result
-      call self%link%target%owner%add_child(calculator, trim(self%output_name) // '_calculator')
+      call link%target%owner%add_child(calculator, trim(self%output_name) // '_calculator')
       call calculator%request_coupling(calculator%source%link, self%source)
       calculator%mean%link%target%output = output_none
-      link => calculator%mean%link
+      tgt => calculator%mean%link
    end function
 
    function horizontal_temporal_maximum(input, period, resolution, missing_value) result(base_expression)
@@ -231,9 +237,10 @@ contains
       base_expression => expression
    end function
 
-   function horizontal_temporal_maximum_resolve(self) result(link)
+   function horizontal_temporal_maximum_resolve(self, link) result(tgt)
       class (type_horizontal_temporal_maximum_expression), intent(inout) :: self
-      type (type_link), pointer                                          :: link
+      type (type_link),                                    intent(in)    :: link
+      type (type_link), pointer                                          :: tgt
 
       class (type_horizontal_temporal_maximum), pointer :: calculator
 
@@ -241,10 +248,10 @@ contains
       calculator%window = self%period
       calculator%n = self%n
       calculator%missing_value = self%missing_value
-      call self%link%target%owner%add_child(calculator, trim(self%output_name) // '_calculator')
+      call link%target%owner%add_child(calculator, trim(self%output_name) // '_calculator')
       call calculator%request_coupling(calculator%source%link, self%source)
       calculator%maximum%link%target%output = output_none
-      link => calculator%maximum%link
+      tgt => calculator%maximum%link
    end function
 
 end module fabm_expressions

@@ -232,7 +232,6 @@ contains
 
       type (type_link),           pointer :: link
       character(len=:), allocatable       :: target_name
-      class (type_coupling_task), pointer :: task 
       integer                             :: source
       logical                             :: couplable
       integer                             :: display
@@ -252,12 +251,7 @@ contains
                   target_name = target_name(:len(target_name) - 4)
                end if
             end if
-            if (target_name /= '') then
-               allocate(task)
-               task%link => link
-               task%target_name = target_name
-               call self%coupling_task_list%add(task, priority=1)
-            end if    ! Coupling provided
+            if (target_name /= '') call self%request_coupling(link, target_name, priority=1)
          end if   ! Our own link, which may be coupled
          link => link%next
       end do
@@ -290,65 +284,7 @@ contains
       ! For each variable, determine if a coupling command is provided.
       coupling => self%coupling_task_list%first
       do while (associated(coupling))
-
-         ! First try if the coupling object can resolve the variable reference itself
-         ! (e.g., type_coupling_from_model in fabm_particle)
-         link => coupling%resolve()
-
-         if (.not. associated(link) .and. .not. associated(coupling%target_standard_variable)) then
-            ! This is a coupling by variable name.
-            ! Try to find the target variable among the variables of the requesting model or its parents.
-            istart = index(coupling%target_name, '(')
-            if (istart /= 0) then
-               ! The coupling name includes an opening parenthesis. Interpret it as a parametrized coupling (one with arguments)
-               istop = len_trim(coupling%target_name)
-               if (coupling%target_name(istop:istop) /= ')') call self%fatal_error('process_coupling_tasks', &
-                  'Parameterized coupling ' // trim(coupling%target_name) // ' should end with closing parenthesis.')
-               call resolve_parameterized_coupling(coupling%target_name(1:istart-1), coupling%target_name(istart+1:istop-1), coupling)
-            elseif (coupling%link%name /= coupling%target_name) then
-               ! Names of variable and its target differ: start target search in current model, then move up tree.
-               link => self%find_link(coupling%target_name, recursive=.true., exact=.false.)
-            elseif (associated(self%parent)) then
-               ! Names of variable and its target are identical: start target search in parent model, then move up tree.
-               link => self%parent%find_link(coupling%target_name, recursive=.true., exact=.false.)
-            else
-               call self%fatal_error('process_coupling_tasks', &
-                  'Names of variable and its target are identical: "' // trim(coupling%target_name) // '". This is not valid at the root of the model tree.')
-            end if
-         end if
-
-         if (.not. associated(link) .and. associated(coupling%target_standard_variable)) then
-            ! This is a coupling to a standard variable. First try to find the corresponding standard variable.
-            ! We search within the root model, because there all variables are found together.
-            link => root%links%first
-            do while (associated(link))
-               if (link%target%standard_variables%contains(coupling%target_standard_variable)) exit
-               link => link%next
-            end do
-
-            if (.not. associated(link) .and. coupling%target_standard_variable%aggregate_variable) &
-               ! Create an aggregate variable at the level of the root model
-               link => get_aggregate_variable_access(root, coupling%target_standard_variable)
-
-            if (final .and. .not. associated(link) .and. (coupling%link%target%source /= source_state &
-               .or. coupling%link%target%presence == presence_external_optional)) then
-               ! Target variable was not found, but this is our last chance.
-               ! Therefore, create a placeholder variable at the root level.
-               ! This variable will still need to be provided by the host.
-               select type (standard_variable => coupling%target_standard_variable)
-               class is (type_interior_standard_variable)
-                  call root%add_interior_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
-                     standard_variable=standard_variable, presence=presence_external_optional, link=link)
-               class is (type_horizontal_standard_variable)
-                  call root%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
-                     standard_variable=standard_variable, presence=presence_external_optional, link=link, &
-                     domain=standard_variable2domain(standard_variable))
-               class is (type_global_standard_variable)
-                  call root%add_scalar_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
-                     standard_variable=standard_variable, presence=presence_external_optional, link=link)
-               end select
-            end if
-         end if
+         link => coupling%target%resolve(coupling%link)
 
          ! Save pointer to the next coupling task in advance, because current task may
          ! be deallocated from self%coupling_task_list%remove.
@@ -364,7 +300,7 @@ contains
             call self%coupling_task_list%remove(coupling)
          elseif (final) then
             call self%fatal_error('process_coupling_tasks', &
-               'Coupling target "' // trim(coupling%target_name) // '" for "' // trim(coupling%link%name) // '" was not found.')
+               'Coupling target for "' // trim(coupling%link%name) // '" was not found.')
          end if
 
          ! Move to next coupling task.
@@ -377,44 +313,6 @@ contains
          call process_coupling_tasks(child%model, final, log_unit)
          child => child%next
       end do
-
-   contains
-
-      subroutine resolve_parameterized_coupling(name, args, task)
-         character(len=*),           intent(in)    :: name, args
-         class (type_coupling_task), intent(inout) :: task
-
-         type (type_interior_standard_variable)   :: interior_standard_variable
-         type (type_bottom_standard_variable)     :: bottom_standard_variable
-         type (type_surface_standard_variable)    :: surface_standard_variable
-         type (type_horizontal_standard_variable) :: horizontal_standard_variable
-         type (type_global_standard_variable)     :: global_standard_variable
-
-         select case (name)
-         case ('standard_variable')
-            select case (task%link%target%domain)
-            case (domain_interior)
-               interior_standard_variable%name = args
-               task%target_standard_variable => interior_standard_variable%typed_resolve()
-            case (domain_bottom)
-               bottom_standard_variable%name = args
-               task%target_standard_variable => bottom_standard_variable%typed_resolve()
-            case (domain_surface)
-               surface_standard_variable%name = args
-               task%target_standard_variable => surface_standard_variable%typed_resolve()
-            case (domain_horizontal)
-               horizontal_standard_variable%name = args
-               task%target_standard_variable => horizontal_standard_variable%typed_resolve()
-            case (domain_scalar)
-               global_standard_variable%name = args
-               task%target_standard_variable => global_standard_variable%typed_resolve()
-            case default
-               call self%fatal_error('process_coupling_tasks', 'Unknown domain for ' // task%link%name // '.')
-            end select
-         case default
-            call self%fatal_error('process_coupling_tasks', 'Unknown parameterized coupling type "' // name // '".')
-         end select
-      end subroutine
 
    end subroutine process_coupling_tasks
 
