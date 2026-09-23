@@ -1556,7 +1556,7 @@ contains
             'Parameterized coupling ' // trim(target_name) // ' should end with closing parenthesis.')
          call request_parameterized_coupling(target_name(1:istart-1), target_name(istart+1:istop-1))
       else
-         call request_coupling_lt(self, link, type_named_coupling_target(target_name), priority)
+         call request_coupling_lt(self, link, type_named_coupling_target(name=target_name), priority)
       end if
 
    contains
