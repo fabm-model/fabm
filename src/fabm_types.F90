@@ -1547,7 +1547,7 @@ contains
       integer, optional,        intent(in)    :: priority
 
       integer :: istart, istop
-      type (type_named_coupling_target) :: task
+      type (type_named_coupling_target) :: tgt
 
       istart = index(target_name, '(')
       if (istart /= 0) then
@@ -1557,8 +1557,8 @@ contains
             'Parameterized coupling ' // trim(target_name) // ' should end with closing parenthesis.')
          call request_parameterized_coupling(target_name(1:istart-1), target_name(istart+1:istop-1))
       else
-         task%name = target_name
-         call request_coupling_lt(self, link, task, priority)
+         tgt%name = target_name
+         call request_coupling_lt(self, link, tgt, priority)
       end if
 
    contains
@@ -1669,7 +1669,10 @@ contains
       type (type_link), target, intent(in)    :: link
       type (type_link), target, intent(in)    :: target_link
 
-      call request_coupling_lt(self, link, type_link_coupling_target(target_link))
+      type (type_link_coupling_target) :: tgt
+
+      tgt%link => target_link
+      call request_coupling_lt(self, link, tgt)
    end subroutine request_coupling_ll
 
    subroutine request_coupling_il(self, id, target_link)
