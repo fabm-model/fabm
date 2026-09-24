@@ -35,8 +35,8 @@ module fabm_types
    ! Expose symbols defined in fabm_standard_variables module
    public standard_variables
    public type_interior_standard_variable, type_horizontal_standard_variable, type_global_standard_variable, &
-      type_universal_standard_variable, type_bottom_standard_variable, type_surface_standard_variable, type_domain_specific_standard_variable, &
-      type_standard_variable_node, type_base_standard_variable, type_standard_variable_set
+      type_universal_standard_variable, type_bottom_standard_variable, type_surface_standard_variable, &
+      type_domain_specific_standard_variable, type_standard_variable_node, type_base_standard_variable, type_standard_variable_set
 
    ! Variable identifier types used by biogeochemical models
    public type_variable_id
@@ -551,7 +551,8 @@ module fabm_types
       procedure :: get_integer_parameter
       procedure :: get_logical_parameter
       procedure :: get_string_parameter
-      generic :: get_parameter => get_real_parameter,get_double_parameter,get_integer_parameter,get_logical_parameter,get_string_parameter
+      generic :: get_parameter => get_real_parameter, get_double_parameter, get_integer_parameter, &
+                                  get_logical_parameter, get_string_parameter
 
       procedure :: set_variable_property_real
       procedure :: set_variable_property_integer
@@ -602,7 +603,8 @@ module fabm_types
       generic :: register_interior_dependency   => register_named_interior_dependency, register_standard_interior_dependency, &
                                                    register_universal_interior_dependency
       generic :: register_horizontal_dependency => register_named_horizontal_dependency, register_standard_horizontal_dependency, &
-                                                   register_standard_horizontal_dependency2, register_standard_horizontal_dependency3, &
+                                                   register_standard_horizontal_dependency2, &
+                                                   register_standard_horizontal_dependency3, &
                                                    register_universal_horizontal_dependency
       generic :: register_surface_dependency    => register_named_surface_dependency, register_standard_surface_dependency, &
                                                    register_standard_surface_dependency2, register_universal_surface_dependency
@@ -621,7 +623,8 @@ module fabm_types
 
       procedure :: register_interior_expression_dependency
       procedure :: register_horizontal_expression_dependency
-      generic :: register_expression_dependency => register_interior_expression_dependency, register_horizontal_expression_dependency
+      generic :: register_expression_dependency => register_interior_expression_dependency, &
+                                                   register_horizontal_expression_dependency
 
       generic :: register_state_variable      => register_interior_state_variable, register_bottom_state_variable, &
                                                  register_surface_state_variable
@@ -630,7 +633,8 @@ module fabm_types
       generic :: register_dependency          => register_named_interior_dependency, register_standard_interior_dependency, &
                                                  register_universal_interior_dependency, &
                                                  register_named_horizontal_dependency, register_standard_horizontal_dependency, &
-                                                 register_standard_horizontal_dependency2, register_standard_horizontal_dependency3, &
+                                                 register_standard_horizontal_dependency2, &
+                                                 register_standard_horizontal_dependency3, &
                                                  register_universal_horizontal_dependency, &
                                                  register_named_surface_dependency, register_standard_surface_dependency, &
                                                  register_standard_surface_dependency2, register_universal_surface_dependency, &
@@ -1128,9 +1132,12 @@ contains
          model%long_name = trim(model%name)
       end if
       model%parent => self
-      if (.not. associated(model%parameters%parent)) call self%parameters%attach_child(model%parameters, trim(model%name), display=display_hidden)
-      if (.not. associated(model%couplings%parent)) call self%couplings%attach_child(model%couplings, trim(model%name), display=display_hidden)
-      if (.not. associated(model%initialization%parent)) call self%initialization%attach_child(model%initialization, trim(model%name), display=display_hidden)
+      if (.not. associated(model%parameters%parent)) &
+         call self%parameters%attach_child(model%parameters, trim(model%name), display=display_hidden)
+      if (.not. associated(model%couplings%parent)) &
+         call self%couplings%attach_child(model%couplings, trim(model%name), display=display_hidden)
+      if (.not. associated(model%initialization%parent)) &
+         call self%initialization%attach_child(model%initialization, trim(model%name), display=display_hidden)
       call self%children%append(model)
       call model%initialize(-1)
       model%rdt__ = 1._rk / model%dt
@@ -1172,7 +1179,8 @@ contains
       link => self%links%first
       do while (associated(link))
          if (index(link%name, '/') == 0) then
-            if (link%original%source /= source_unknown .and. link%original%source /= source_state .and. link%original%source /= source_constant .and. link%original%source /= source_do_column) then
+            if (link%original%source /= source_unknown  .and. link%original%source /= source_state .and. &
+                link%original%source /= source_constant .and. link%original%source /= source_do_column) then
                if (.not. self%implements(link%original%source)) then
                   if (link%original%write_operator == operator_add) then
                      ! Quietly change to no-op - the base class would just not have any effect
@@ -1196,7 +1204,8 @@ contains
       class (type_variable_id), intent(inout) :: variable
       character(len=*),         intent(in)    :: name
       real(rk),                 intent(in)    :: value
-      if (.not. associated(variable%link)) call self%fatal_error('set_variable_property_real', 'variable has not been registered')
+      if (.not. associated(variable%link)) &
+         call self%fatal_error('set_variable_property_real', 'variable has not been registered')
       call variable%link%target%properties%set_real(name, value)
    end subroutine
 
@@ -1205,7 +1214,8 @@ contains
       class (type_variable_id), intent(inout) :: variable
       character(len=*),         intent(in)    :: name
       integer,                  intent(in)    :: value
-      if (.not. associated(variable%link)) call self%fatal_error('set_variable_property_integer', 'variable has not been registered')
+      if (.not. associated(variable%link)) &
+         call self%fatal_error('set_variable_property_integer', 'variable has not been registered')
       call variable%link%target%properties%set_integer(name, value)
    end subroutine
 
@@ -1214,7 +1224,8 @@ contains
       class (type_variable_id),intent(inout) :: variable
       character(len=*),        intent(in)    :: name
       logical,                 intent(in)    :: value
-      if (.not.associated(variable%link)) call self%fatal_error('set_variable_property_logical', 'variable has not been registered')
+      if (.not. associated(variable%link)) &
+         call self%fatal_error('set_variable_property_logical', 'variable has not been registered')
       call variable%link%target%properties%set_logical(name, value)
    end subroutine
 
@@ -1553,7 +1564,7 @@ contains
       if (istart /= 0) then
          ! The coupling name includes an opening parenthesis. Interpret it as a parametrized coupling (one with arguments)
          istop = len_trim(target_name)
-         if (target_name(istop:istop) /= ')') call link%target%owner%fatal_error('process_coupling_tasks', &
+         if (target_name(istop:istop) /= ')') call link%target%owner%fatal_error('request_coupling_ln', &
             'Parameterized coupling ' // trim(target_name) // ' should end with closing parenthesis.')
          call request_parameterized_coupling(target_name(1:istart-1), target_name(istart+1:istop-1))
       else
@@ -1596,15 +1607,16 @@ contains
                global_standard_variable%name = args
                task%standard_variable => global_standard_variable%typed_resolve()
             case default
-               call link%target%owner%fatal_error('request_coupling', 'Unknown domain for ' // trim(link%name) // '.')
+               call link%target%owner%fatal_error('request_coupling_ln', 'Unknown domain for ' // trim(link%name) // '.')
             end select
             call self%request_coupling(link, task, priority)
          case ('constant')
             read(args,*,iostat=ios) constant_task%value
-            if (ios /= 0) call link%target%owner%fatal_error('request_coupling', 'Cannot parse constant "' // trim(args) // '".')
+            if (ios /= 0) &
+               call link%target%owner%fatal_error('request_coupling_ln', 'Cannot parse constant "' // trim(args) // '".')
             call self%request_coupling(link, constant_task, priority)
          case default
-            call link%target%owner%fatal_error('request_coupling', 'Unknown parameterized coupling type "' // name // '".')
+            call link%target%owner%fatal_error('request_coupling_ln', 'Unknown parameterized coupling type "' // name // '".')
          end select
       end subroutine
 
@@ -1627,8 +1639,8 @@ contains
       end if
 
       link => self%links%find(name)
-      if (.not. associated(link)) call self%fatal_error('request_coupling_nn', &
-         'Specified variable (' // trim(name) // ') not found. Make sure the variable is registered before calling request_coupling.')
+      if (.not. associated(link)) call self%fatal_error('request_coupling_nn', 'Specified variable (' &
+         // trim(name) // ') not found. Make sure the variable is registered before calling request_coupling.')
       call request_coupling_ln(self, link, target_name)
    end subroutine request_coupling_nn
 
@@ -2131,7 +2143,8 @@ contains
       ! Create a class pointer and use that to create a link.
       link_ => add_object(self, variable)
       if (present(link)) then
-         if (associated(link)) call self%fatal_error('add_variable', 'Identifier supplied for ' // trim(name) // ' is already associated with ' // trim(link%name) // '.')
+         if (associated(link)) call self%fatal_error('add_variable', 'Identifier supplied for ' // trim(name) // &
+            ' is already associated with ' // trim(link%name) // '.')
          link => link_
       end if
 
@@ -2505,7 +2518,8 @@ contains
       case (domain_bottom);     call register_standard_horizontal_dependency3(self, id, standard_variable%at_bottom(), required)
       case (domain_horizontal); call register_standard_horizontal_dependency(self, id, standard_variable%at_interfaces(), required)
       case default
-         call self%fatal_error('register_universal_horizontal_dependency', 'Specified domain must be domain_surface, domain_bottom, or domain_horizontal.')
+         call self%fatal_error('register_universal_horizontal_dependency', &
+            'Specified domain must be domain_surface, domain_bottom, or domain_horizontal.')
       end select
    end subroutine register_universal_horizontal_dependency
 
@@ -2735,10 +2749,12 @@ contains
 
       if (present(default)) then
          value = self%parameters%get_real(name, get_effective_string(long_name, name), get_effective_string(units, ''), &
-            default=real(default, yaml_rk), minimum=minimum_, maximum=maximum_, scale_factor=scale_factor_, display=get_effective_display(display, self%user_created))
+            default=real(default, yaml_rk), minimum=minimum_, maximum=maximum_, scale_factor=scale_factor_, &
+            display=get_effective_display(display, self%user_created))
       else
          value = self%parameters%get_real(name, get_effective_string(long_name, name), get_effective_string(units, ''), &
-            minimum=minimum_, maximum=maximum_, scale_factor=scale_factor_, display=get_effective_display(display, self%user_created))
+            minimum=minimum_, maximum=maximum_, scale_factor=scale_factor_, &
+            display=get_effective_display(display, self%user_created))
       end if
    end subroutine get_real_parameter
 
@@ -2936,9 +2952,12 @@ contains
          aggregate_variable_access%standard_variable => standard_variable
          select type (standard_variable => aggregate_variable_access%standard_variable)
          class is (type_interior_standard_variable)
-            call self%add_interior_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, link=aggregate_variable_access%link, presence=presence_external_required)
+            call self%add_interior_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
+               output=output_none, link=aggregate_variable_access%link, presence=presence_external_required)
          class is (type_horizontal_standard_variable)
-            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, output=output_none, link=aggregate_variable_access%link, domain=standard_variable2domain(standard_variable), presence=presence_external_required)
+            call self%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
+               output=output_none, link=aggregate_variable_access%link, domain=standard_variable2domain(standard_variable), &
+               presence=presence_external_required)
          end select
 
          ! If we are the root model, then claim the standard variable identity associated with this aggregate variable.
@@ -3128,7 +3147,8 @@ contains
          tgt => link%target%owner%parent%find_link(self%name, recursive=.true., exact=.false.)
       else
          call link%target%owner%fatal_error('process_coupling_tasks', &
-            'Names of variable and its target are identical: "' // trim(self%name) // '". This is not valid at the root of the model tree.')
+            'Names of variable and its target are identical: "' // trim(self%name) // '". &
+            &This is not valid at the root of the model tree.')
       end if
 
    end function
@@ -3193,13 +3213,16 @@ contains
       tgt => null()
       select case (link%target%domain)
       case (domain_interior)
-         call link%target%owner%add_interior_variable('_constant_*', trim(link%target%units), 'constant '//trim(link%target%long_name), &
+         call link%target%owner%add_interior_variable('_constant_*', trim(link%target%units), &
+            'constant '//trim(link%target%long_name), &
             fill_value=self%value, output=output_none, source=source_constant, link=tgt)
       case (domain_horizontal, domain_bottom, domain_surface)
-         call link%target%owner%add_horizontal_variable('_constant_*', trim(link%target%units), 'constant '//trim(link%target%long_name), &
+         call link%target%owner%add_horizontal_variable('_constant_*', trim(link%target%units), &
+            'constant '//trim(link%target%long_name), &
             fill_value=self%value, domain=link%target%domain, output=output_none, source=source_constant, link=tgt)
       case (domain_scalar)
-         call link%target%owner%add_scalar_variable('_constant_*', trim(link%target%units), 'constant '//trim(link%target%long_name), &
+         call link%target%owner%add_scalar_variable('_constant_*', trim(link%target%units), &
+            'constant '//trim(link%target%long_name), &
             fill_value=self%value, output=output_none, source=source_constant, link=tgt)
       end select
    end function
