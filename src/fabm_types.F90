@@ -772,7 +772,7 @@ module fabm_types
 
    logical, save, public :: fabm_parameter_pointers = .false.
 
-   interface
+   abstract interface
       function coupling_target_resolve(self, link) result(tgt)
          import type_coupling_target, type_link
          class (type_coupling_target), intent(inout) :: self
@@ -3139,7 +3139,6 @@ contains
       type (type_link), pointer :: tgt
 
       class (type_base_model), pointer :: root
-      logical, parameter :: final = .true.
 
       root => link%target%owner
       do while (associated(root%parent))
@@ -3160,9 +3159,8 @@ contains
          return
       end if
 
-      if (final .and. (link%target%source /= source_state .or. link%target%presence == presence_external_optional)) then
-         ! Target variable was not found, but this is our last chance.
-         ! Therefore, create a placeholder variable at the root level.
+      if (link%target%source /= source_state .or. link%target%presence == presence_external_optional) then
+         ! Create a placeholder variable at the root level.
          ! This variable will still need to be provided by the host.
          select type (standard_variable => self%standard_variable)
          class is (type_interior_standard_variable)

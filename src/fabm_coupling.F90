@@ -197,7 +197,7 @@ contains
          link => link%next
       end do
 
-      ! Loop over all unique standard variable and collect and couple associated model variables.
+      ! Loop over all unique standard variables and collect and couple associated model variables.
       node => all_standard_variables%first
       do while (associated(node))
 #ifndef NDEBUG
@@ -401,9 +401,10 @@ contains
       link => self%links%first
       do while (associated(link))
          if (index(link%name, '/') == 0 .and. .not. associated(link%target, link%original) .and. (link%original%source == source_state .or. link%original%fake_state_variable) .and. (link%target%source == source_state .or. link%target%fake_state_variable)) then
-            ! This is a state variable, or a diagnostic pretending to be one, that we have registered (it is owned by "self")
-            ! We do not own this variable.
-            ! Couple to summations for sources-sinks and surface/bottom fluxes created by the target.
+            ! This is a state variable, or a diagnostic pretending to be one, that we originally registered.
+            ! We do not own it now (it has been coupled), so the summations of sources-sinks and surface/bottom fluxes
+            ! have been created alongside the target variable that we couple to (i.e., under another module)
+            ! Couple our placeholder for summations to those created for the target.
             select case (link%target%domain)
             case (domain_interior)
                call self%request_coupling(link%original%sms_sum, link%target%sms_sum)
