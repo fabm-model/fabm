@@ -539,10 +539,11 @@ module fabm_types
       procedure :: request_coupling_ll
       procedure :: request_coupling_il
       procedure :: request_coupling_lt
+      procedure :: request_coupling_ic
       generic   :: request_coupling => request_coupling_ln, request_coupling_in, request_coupling_nn, &
                                        request_coupling_ls, request_coupling_is, &
                                        request_coupling_ll, request_coupling_il, &
-                                       request_coupling_lt
+                                       request_coupling_lt, request_coupling_ic
 
       ! Procedures that may be used to query parameter values during initialization.
       procedure :: get_real_parameter
@@ -1684,6 +1685,19 @@ contains
          'The provided variable identifier has not been registered yet.')
       call request_coupling_ll(self, id%link, target_link)
    end subroutine request_coupling_il
+
+   subroutine request_coupling_ic(self, id, value)
+      class (type_base_model),  intent(inout) :: self
+      class (type_variable_id), intent(in)    :: id
+      real(rk),                 intent(in)    :: value
+
+      type (type_constant_coupling_target) :: tgt
+
+      if (.not. associated(id%link)) call self%fatal_error('request_coupling_il', &
+         'The provided variable identifier has not been registered yet.')
+      tgt%value = value
+      call request_coupling_lt(self, id%link, tgt)
+   end subroutine request_coupling_ic
 
    subroutine integer_pointer_set_append(self, value)
       class (type_integer_pointer_set), intent(inout) :: self
