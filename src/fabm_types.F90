@@ -538,12 +538,14 @@ module fabm_types
       procedure :: request_coupling_is
       procedure :: request_coupling_ll
       procedure :: request_coupling_il
-      procedure :: request_coupling_lt
+      procedure :: request_coupling_lc
       procedure :: request_coupling_ic
+      procedure :: request_coupling_lt
       generic   :: request_coupling => request_coupling_ln, request_coupling_in, request_coupling_nn, &
                                        request_coupling_ls, request_coupling_is, &
                                        request_coupling_ll, request_coupling_il, &
-                                       request_coupling_lt, request_coupling_ic
+                                       request_coupling_lc, request_coupling_ic, &
+                                       request_coupling_lt
 
       ! Procedures that may be used to query parameter values during initialization.
       procedure :: get_real_parameter
@@ -1585,36 +1587,32 @@ contains
          real(rk) :: value
          integer :: ios
 
-         type (type_standard_variable_coupling_target) :: task
-         type (type_constant_coupling_target) :: constant_task
-
          select case (name)
          case ('standard_variable')
             select case (link%target%domain)
             case (domain_interior)
                interior_standard_variable%name = args
-               task%standard_variable => interior_standard_variable%typed_resolve()
+               call request_coupling_ls(self, link, interior_standard_variable, priority)
             case (domain_bottom)
                bottom_standard_variable%name = args
-               task%standard_variable => bottom_standard_variable%typed_resolve()
+               call request_coupling_ls(self, link, bottom_standard_variable, priority)
             case (domain_surface)
                surface_standard_variable%name = args
-               task%standard_variable => surface_standard_variable%typed_resolve()
+               call request_coupling_ls(self, link, surface_standard_variable, priority)
             case (domain_horizontal)
                horizontal_standard_variable%name = args
-               task%standard_variable => horizontal_standard_variable%typed_resolve()
+               call request_coupling_ls(self, link, horizontal_standard_variable, priority)
             case (domain_scalar)
                global_standard_variable%name = args
-               task%standard_variable => global_standard_variable%typed_resolve()
+               call request_coupling_ls(self, link, global_standard_variable, priority)
             case default
                call link%target%owner%fatal_error('request_coupling_ln', 'Unknown domain for ' // trim(link%name) // '.')
             end select
-            call self%request_coupling(link, task, priority)
          case ('constant')
-            read(args,*,iostat=ios) constant_task%value
+            read(args,*,iostat=ios) value
             if (ios /= 0) &
                call link%target%owner%fatal_error('request_coupling_ln', 'Cannot parse constant "' // trim(args) // '".')
-            call self%request_coupling(link, constant_task, priority)
+            call request_coupling_lc(self, link, value, priority)
          case default
             call link%target%owner%fatal_error('request_coupling_ln', 'Unknown parameterized coupling type "' // name // '".')
          end select
@@ -1654,16 +1652,17 @@ contains
       call request_coupling_ln(self, id%link, target_name)
    end subroutine request_coupling_in
 
-   subroutine request_coupling_ls(self, link, target_standard_variable)
+   subroutine request_coupling_ls(self, link, target_standard_variable, priority)
       use fabm_standard_variables   ! workaround for bug in Cray compiler 8.3.4
       class (type_base_model),                        intent(inout)      :: self
       type (type_link), target,                       intent(in)         :: link
       class (type_domain_specific_standard_variable), intent(in), target :: target_standard_variable
+      integer, optional,                              intent(in)         :: priority
 
       type (type_standard_variable_coupling_target) :: tgt
 
       tgt%standard_variable => target_standard_variable%typed_resolve()
-      call request_coupling_lt(self, link, tgt)
+      call request_coupling_lt(self, link, tgt, priority)
    end subroutine request_coupling_ls
 
    subroutine request_coupling_is(self, id, target_standard_variable)
@@ -1697,17 +1696,26 @@ contains
       call request_coupling_ll(self, id%link, target_link)
    end subroutine request_coupling_il
 
+   subroutine request_coupling_lc(self, link, value, priority)
+      class (type_base_model),  intent(inout) :: self
+      type (type_link), target, intent(in)    :: link
+      real(rk),                 intent(in)    :: value
+      integer, optional,        intent(in)    :: priority
+
+      type (type_constant_coupling_target) :: tgt
+
+      tgt%value = value
+      call request_coupling_lt(self, link, tgt, priority)
+   end subroutine request_coupling_lc
+
    subroutine request_coupling_ic(self, id, value)
       class (type_base_model),  intent(inout) :: self
       class (type_variable_id), intent(in)    :: id
       real(rk),                 intent(in)    :: value
 
-      type (type_constant_coupling_target) :: tgt
-
-      if (.not. associated(id%link)) call self%fatal_error('request_coupling_il', &
+      if (.not. associated(id%link)) call self%fatal_error('request_coupling_ic', &
          'The provided variable identifier has not been registered yet.')
-      tgt%value = value
-      call request_coupling_lt(self, id%link, tgt)
+      call request_coupling_lc(self, id%link, value)
    end subroutine request_coupling_ic
 
    subroutine integer_pointer_set_append(self, value)
