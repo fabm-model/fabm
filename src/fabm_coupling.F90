@@ -44,8 +44,14 @@ contains
       if (associated(self%parent)) call self%fatal_error('freeze_model_info', &
          'BUG: freeze_model_info can only operate on the root model.')
 
+      ! At this point all model instances have initialized.
+      ! Allow all instances to perform tasks that depend on any other instance.
+      ! For instance, they can search for other loaded instances, enumerate their variables, etc.
       call before_coupling(self)
 
+      ! Read initial values for all state variables from fabm.yaml
+      ! This is done pre-coupling, so any variable that was originally registered as state variable
+      ! (but not a state dependency) can be given an initial value.
       call get_initial_state(self, require_initialization)
 
       ! Coupling stage 1: implicit - couple variables based on overlapping standard identities.
@@ -85,6 +91,8 @@ contains
       call process_coupling_tasks(self, final=.true., log_unit=coupling_log_unit)
 
       ! Allow inheriting models to perform additional tasks after coupling.
+      ! At this point, they can see for each of their variables what target variable it is coupled to (if any).
+      ! They can use this information to reuse metadata from the target in ther own variables, for example.
       call after_coupling(self)
 
       ! Check whether units of coupled variables match
