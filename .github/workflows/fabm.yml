@@ -316,7 +316,7 @@ jobs:
           channels: conda-forge
           conda-remove-defaults: "true"
       - name: Install Python dependencies
-        run: conda install pyyaml flang>=21.0 ninja c-compiler flang-rt_win-64
+        run: conda install pyyaml flang=22 ninja c-compiler flang-rt_win-64=22  # <21 does not work, 23 seems currently broken (cannot find iso_c_binding)
       - name: Clone repository
         uses: actions/checkout@v7
         with:

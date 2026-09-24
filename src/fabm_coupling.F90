@@ -44,8 +44,14 @@ contains
       if (associated(self%parent)) call self%fatal_error('freeze_model_info', &
          'BUG: freeze_model_info can only operate on the root model.')
 
+      ! At this point all model instances have initialized.
+      ! Allow all instances to perform tasks that depend on any other instance.
+      ! For instance, they can search for other loaded instances, enumerate their variables, etc.
       call before_coupling(self)
 
+      ! Read initial values for all state variables from fabm.yaml
+      ! This is done pre-coupling, so any variable that was originally registered as state variable
+      ! (but not a state dependency) can be given an initial value.
       call get_initial_state(self, require_initialization)
 
       ! Coupling stage 1: implicit - couple variables based on overlapping standard identities.
@@ -85,6 +91,8 @@ contains
       call process_coupling_tasks(self, final=.true., log_unit=coupling_log_unit)
 
       ! Allow inheriting models to perform additional tasks after coupling.
+      ! At this point, they can see for each of their variables what target variable it is coupled to (if any).
+      ! They can use this information to reuse metadata from the target in ther own variables, for example.
       call after_coupling(self)
 
       ! Check whether units of coupled variables match
@@ -120,11 +128,11 @@ contains
       ! Transfer user-specified initial state to the model.
       link => self%links%first
       do while (associated(link))
-         minimum = yaml_default_minimum_real
-         maximum = yaml_default_maximum_real
-         if (link%target%minimum /= -1.e20_rk) minimum = link%target%minimum
-         if (link%target%maximum /=  1.e20_rk) maximum = link%target%maximum
          if (index(link%name, '/') == 0 .and. link%target%source == source_state .and. link%target%presence == presence_internal) then
+            minimum = yaml_default_minimum_real
+            maximum = yaml_default_maximum_real
+            if (link%target%minimum /= -1.e20_rk) minimum = link%target%minimum
+            if (link%target%maximum /=  1.e20_rk) maximum = link%target%maximum
             if (require_initialization .or. link%target%initial_value == default_missing_value) then
                link%target%initial_value = self%initialization%get_real(trim(link%name), trim(link%target%long_name), &
                   trim(link%target%units), minimum=minimum, maximum=maximum)
@@ -197,7 +205,7 @@ contains
          link => link%next
       end do
 
-      ! Loop over all unique standard variable and collect and couple associated model variables.
+      ! Loop over all unique standard variables and collect and couple associated model variables.
       node => all_standard_variables%first
       do while (associated(node))
 #ifndef NDEBUG
@@ -232,7 +240,6 @@ contains
 
       type (type_link),           pointer :: link
       character(len=:), allocatable       :: target_name
-      class (type_coupling_task), pointer :: task 
       integer                             :: source
       logical                             :: couplable
       integer                             :: display
@@ -252,12 +259,7 @@ contains
                   target_name = target_name(:len(target_name) - 4)
                end if
             end if
-            if (target_name /= '') then
-               allocate(task)
-               task%link => link
-               task%target_name = target_name
-               call self%coupling_task_list%add(task, priority=1)
-            end if    ! Coupling provided
+            if (target_name /= '') call self%request_coupling(link, target_name, priority=1)
          end if   ! Our own link, which may be coupled
          link => link%next
       end do
@@ -275,7 +277,6 @@ contains
       class (type_coupling_task),    pointer :: coupling, next_coupling
       type (type_internal_variable), pointer :: target_variable
       type (type_link),              pointer :: link
-      integer                                :: istart, istop
 
       ! Find root model, which will handle the individual coupling tasks.
       root => self
@@ -290,65 +291,7 @@ contains
       ! For each variable, determine if a coupling command is provided.
       coupling => self%coupling_task_list%first
       do while (associated(coupling))
-
-         ! First try if the coupling object can resolve the variable reference itself
-         ! (e.g., type_coupling_from_model in fabm_particle)
-         link => coupling%resolve()
-
-         if (.not. associated(link) .and. .not. associated(coupling%target_standard_variable)) then
-            ! This is a coupling by variable name.
-            ! Try to find the target variable among the variables of the requesting model or its parents.
-            istart = index(coupling%target_name, '(')
-            if (istart /= 0) then
-               ! The coupling name includes an opening parenthesis. Interpret it as a parametrized coupling (one with arguments)
-               istop = len_trim(coupling%target_name)
-               if (coupling%target_name(istop:istop) /= ')') call self%fatal_error('process_coupling_tasks', &
-                  'Parameterized coupling ' // trim(coupling%target_name) // ' should end with closing parenthesis.')
-               call resolve_parameterized_coupling(coupling%target_name(1:istart-1), coupling%target_name(istart+1:istop-1), coupling)
-            elseif (coupling%link%name /= coupling%target_name) then
-               ! Names of variable and its target differ: start target search in current model, then move up tree.
-               link => self%find_link(coupling%target_name, recursive=.true., exact=.false.)
-            elseif (associated(self%parent)) then
-               ! Names of variable and its target are identical: start target search in parent model, then move up tree.
-               link => self%parent%find_link(coupling%target_name, recursive=.true., exact=.false.)
-            else
-               call self%fatal_error('process_coupling_tasks', &
-                  'Names of variable and its target are identical: "' // trim(coupling%target_name) // '". This is not valid at the root of the model tree.')
-            end if
-         end if
-
-         if (.not. associated(link) .and. associated(coupling%target_standard_variable)) then
-            ! This is a coupling to a standard variable. First try to find the corresponding standard variable.
-            ! We search within the root model, because there all variables are found together.
-            link => root%links%first
-            do while (associated(link))
-               if (link%target%standard_variables%contains(coupling%target_standard_variable)) exit
-               link => link%next
-            end do
-
-            if (.not. associated(link) .and. coupling%target_standard_variable%aggregate_variable) &
-               ! Create an aggregate variable at the level of the root model
-               link => get_aggregate_variable_access(root, coupling%target_standard_variable)
-
-            if (final .and. .not. associated(link) .and. (coupling%link%target%source /= source_state &
-               .or. coupling%link%target%presence == presence_external_optional)) then
-               ! Target variable was not found, but this is our last chance.
-               ! Therefore, create a placeholder variable at the root level.
-               ! This variable will still need to be provided by the host.
-               select type (standard_variable => coupling%target_standard_variable)
-               class is (type_interior_standard_variable)
-                  call root%add_interior_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
-                     standard_variable=standard_variable, presence=presence_external_optional, link=link)
-               class is (type_horizontal_standard_variable)
-                  call root%add_horizontal_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
-                     standard_variable=standard_variable, presence=presence_external_optional, link=link, &
-                     domain=standard_variable2domain(standard_variable))
-               class is (type_global_standard_variable)
-                  call root%add_scalar_variable(standard_variable%name, standard_variable%units, standard_variable%name, &
-                     standard_variable=standard_variable, presence=presence_external_optional, link=link)
-               end select
-            end if
-         end if
+         link => coupling%target%resolve(coupling%link)
 
          ! Save pointer to the next coupling task in advance, because current task may
          ! be deallocated from self%coupling_task_list%remove.
@@ -364,7 +307,7 @@ contains
             call self%coupling_task_list%remove(coupling)
          elseif (final) then
             call self%fatal_error('process_coupling_tasks', &
-               'Coupling target "' // trim(coupling%target_name) // '" for "' // trim(coupling%link%name) // '" was not found.')
+               'Coupling target for "' // trim(coupling%link%name) // '" was not found.')
          end if
 
          ! Move to next coupling task.
@@ -377,44 +320,6 @@ contains
          call process_coupling_tasks(child%model, final, log_unit)
          child => child%next
       end do
-
-   contains
-
-      subroutine resolve_parameterized_coupling(name, args, task)
-         character(len=*),           intent(in)    :: name, args
-         class (type_coupling_task), intent(inout) :: task
-
-         type (type_interior_standard_variable)   :: interior_standard_variable
-         type (type_bottom_standard_variable)     :: bottom_standard_variable
-         type (type_surface_standard_variable)    :: surface_standard_variable
-         type (type_horizontal_standard_variable) :: horizontal_standard_variable
-         type (type_global_standard_variable)     :: global_standard_variable
-
-         select case (name)
-         case ('standard_variable')
-            select case (task%link%target%domain)
-            case (domain_interior)
-               interior_standard_variable%name = args
-               task%target_standard_variable => interior_standard_variable%typed_resolve()
-            case (domain_bottom)
-               bottom_standard_variable%name = args
-               task%target_standard_variable => bottom_standard_variable%typed_resolve()
-            case (domain_surface)
-               surface_standard_variable%name = args
-               task%target_standard_variable => surface_standard_variable%typed_resolve()
-            case (domain_horizontal)
-               horizontal_standard_variable%name = args
-               task%target_standard_variable => horizontal_standard_variable%typed_resolve()
-            case (domain_scalar)
-               global_standard_variable%name = args
-               task%target_standard_variable => global_standard_variable%typed_resolve()
-            case default
-               call self%fatal_error('process_coupling_tasks', 'Unknown domain for ' // task%link%name // '.')
-            end select
-         case default
-            call self%fatal_error('process_coupling_tasks', 'Unknown parameterized coupling type "' // name // '".')
-         end select
-      end subroutine
 
    end subroutine process_coupling_tasks
 
@@ -504,9 +409,10 @@ contains
       link => self%links%first
       do while (associated(link))
          if (index(link%name, '/') == 0 .and. .not. associated(link%target, link%original) .and. (link%original%source == source_state .or. link%original%fake_state_variable) .and. (link%target%source == source_state .or. link%target%fake_state_variable)) then
-            ! This is a state variable, or a diagnostic pretending to be one, that we have registered (it is owned by "self")
-            ! We do not own this variable.
-            ! Couple to summations for sources-sinks and surface/bottom fluxes created by the target.
+            ! This is a state variable, or a diagnostic pretending to be one, that we originally registered.
+            ! We do not own it now (it has been coupled), so the summations of sources-sinks and surface/bottom fluxes
+            ! have been created alongside the target variable that we couple to (i.e., under another module)
+            ! Couple our placeholder for summations to those created for the target.
             select case (link%target%domain)
             case (domain_interior)
                call self%request_coupling(link%original%sms_sum, link%target%sms_sum)
