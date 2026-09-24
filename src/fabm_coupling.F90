@@ -120,11 +120,11 @@ contains
       ! Transfer user-specified initial state to the model.
       link => self%links%first
       do while (associated(link))
-         minimum = yaml_default_minimum_real
-         maximum = yaml_default_maximum_real
-         if (link%target%minimum /= -1.e20_rk) minimum = link%target%minimum
-         if (link%target%maximum /=  1.e20_rk) maximum = link%target%maximum
          if (index(link%name, '/') == 0 .and. link%target%source == source_state .and. link%target%presence == presence_internal) then
+            minimum = yaml_default_minimum_real
+            maximum = yaml_default_maximum_real
+            if (link%target%minimum /= -1.e20_rk) minimum = link%target%minimum
+            if (link%target%maximum /=  1.e20_rk) maximum = link%target%maximum
             if (require_initialization .or. link%target%initial_value == default_missing_value) then
                link%target%initial_value = self%initialization%get_real(trim(link%name), trim(link%target%long_name), &
                   trim(link%target%units), minimum=minimum, maximum=maximum)
@@ -269,7 +269,6 @@ contains
       class (type_coupling_task),    pointer :: coupling, next_coupling
       type (type_internal_variable), pointer :: target_variable
       type (type_link),              pointer :: link
-      integer                                :: istart, istop
 
       ! Find root model, which will handle the individual coupling tasks.
       root => self

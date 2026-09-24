@@ -1007,7 +1007,6 @@ contains
       integer,                 intent(in) :: source
       logical                             :: is_implemented
 
-      integer                      :: i
       type (type_interior_cache)   :: interior_cache
       type (type_horizontal_cache) :: horizontal_cache
 
