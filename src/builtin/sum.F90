@@ -92,7 +92,7 @@ contains
 
       call self%get_parameter(n, 'n', '', 'number of terms in summation', default=0, minimum=0)
       do i = 1, n
-         call self%add_component('')
+         call self%add_component()
       end do
       call self%get_parameter(self%units, 'units', '', 'units', default=trim(self%units))
 
@@ -109,10 +109,10 @@ contains
    end function base_initialize
 
    subroutine add_component_by_target(self, tgt, weight, include_background)
-      class (type_base_sum),        intent(inout) :: self
-      class (type_coupling_target), intent(in)    :: tgt
-      real(rk), optional,           intent(in)    :: weight
-      logical,  optional,           intent(in)    :: include_background
+      class (type_base_sum),                  intent(inout) :: self
+      class (type_coupling_target), optional, intent(in)    :: tgt
+      real(rk),                     optional, intent(in)    :: weight
+      logical,                      optional, intent(in)    :: include_background
 
       type (type_component), pointer :: component
 
@@ -132,7 +132,7 @@ contains
          allocate(component%next)
          component => component%next
       end if
-      allocate(component%target, source=tgt)
+      if (present(tgt)) allocate(component%target, source=tgt)
       if (present(weight)) component%weight = weight
       if (present(include_background)) component%include_background = include_background
    end subroutine add_component_by_target
@@ -278,7 +278,7 @@ contains
       component => self%first
       do while (associated(component))
          component_next => component%next
-         deallocate(component%target)
+         if (associated(component%target)) deallocate(component%target)
          deallocate(component)
          component => component_next
       end do
@@ -304,7 +304,7 @@ contains
       do i = 1, n
          write (temp,'(i0)') i
          call self%register_dependency(self%id_terms(i), 'term' // trim(temp), self%units, 'term ' // trim(temp))
-         call self%request_coupling(self%id_terms(i), component%target)
+         if (associated(component%target)) call self%request_coupling(self%id_terms(i), component%target)
          component%link => self%id_terms(i)%link
          component => component%next
       end do
@@ -325,7 +325,7 @@ contains
             output=output, presence=presence_external_required)
          if (self%first%weight == 1.0_rk) then
             ! One component with scale factor 1 - directly link to the component's source variable.
-            call self%request_coupling(self%result_link, self%first%target)
+            call self%request_coupling(self%result_link, self%first%link)
          else
             ! One component with scale factor other than 1 - add a child model to perform the scaling
             allocate(scaled_variable)
@@ -337,7 +337,7 @@ contains
             scaled_variable%missing_value = self%missing_value
             scaled_variable%result_output = output_none
             call self%add_child(scaled_variable, '*')
-            call scaled_variable%request_coupling(scaled_variable%id_source, self%first%target)
+            call scaled_variable%request_coupling(scaled_variable%id_source, self%first%link)
             call self%request_coupling(self%result_link, scaled_variable%id_result%link)
             if (self%act_as_state_variable .and. associated(self%aggregate_variable)) call scaled_variable%add_to_aggregate_variable(self%aggregate_variable, scaled_variable%id_result)
          end if
@@ -366,7 +366,7 @@ contains
          do i = 1, n
             write (temp,'(i0)') i
             call sms_distributor%register_state_dependency(sms_distributor%id_targets(i), 'target' // trim(temp), self%units, 'target ' // trim(temp))
-            call sms_distributor%request_coupling(sms_distributor%id_targets(i), component%target)
+            call sms_distributor%request_coupling(sms_distributor%id_targets(i), component%link)
             sms_distributor%weights(i) = component%weight
             component => component%next
          end do
@@ -427,7 +427,7 @@ contains
       do i = 1, n
          write (temp,'(i0)') i
          call self%register_dependency(self%id_terms(i), 'term' // trim(temp), self%units, 'term ' // trim(temp))
-         call self%request_coupling(self%id_terms(i), component%target)
+         if (associated(component%target)) call self%request_coupling(self%id_terms(i), component%target)
          component%link => self%id_terms(i)%link
          component => component%next
       end do
@@ -448,7 +448,7 @@ contains
             output=output, presence=presence_external_required)
          if (self%first%weight == 1.0_rk) then
             ! One component with scale factor 1 - directly link to the component's source variable.
-            call self%request_coupling(self%result_link, self%first%target)
+            call self%request_coupling(self%result_link, self%first%link)
          else
             ! One component with scale factor other than 1 - add a child model to perform the scaling
             allocate(scaled_variable)
@@ -461,7 +461,7 @@ contains
             scaled_variable%missing_value = self%missing_value
             scaled_variable%result_output = output_none
             call self%add_child(scaled_variable, '*')
-            call scaled_variable%request_coupling(scaled_variable%id_source, self%first%target)
+            call scaled_variable%request_coupling(scaled_variable%id_source, self%first%link)
             call self%request_coupling(self%result_link, scaled_variable%id_result%link)
             if (self%act_as_state_variable .and. associated(self%aggregate_variable)) call scaled_variable%add_to_aggregate_variable(self%aggregate_variable, scaled_variable%id_result)
          end if
