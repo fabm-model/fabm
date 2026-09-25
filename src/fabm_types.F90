@@ -541,11 +541,12 @@ module fabm_types
       procedure :: request_coupling_lc
       procedure :: request_coupling_ic
       procedure :: request_coupling_lt
+      procedure :: request_coupling_it
       generic   :: request_coupling => request_coupling_ln, request_coupling_in, request_coupling_nn, &
                                        request_coupling_ls, request_coupling_is, &
                                        request_coupling_ll, request_coupling_il, &
                                        request_coupling_lc, request_coupling_ic, &
-                                       request_coupling_lt
+                                       request_coupling_lt, request_coupling_it
 
       ! Procedures that may be used to query parameter values during initialization.
       procedure :: get_real_parameter
@@ -1560,10 +1561,20 @@ contains
       call self%coupling_task_list%add(link, target, priority=priority_)
    end subroutine request_coupling_lt
 
+   subroutine request_coupling_it(self, id, target)
+      class (type_base_model),      intent(inout) :: self
+      class (type_variable_id),     intent(in)    :: id
+      class (type_coupling_target), intent(in)    :: target
+
+      if (.not. associated(id%link)) call self%fatal_error('request_coupling', &
+         'The provided variable identifier has not been registered yet.')
+      call request_coupling_lt(self, id%link, target)
+   end subroutine request_coupling_it
+
    type (type_named_coupling_target) function named_coupling_target(name)
       character(len=*), intent(in) :: name
       named_coupling_target%name = name
-   end function named_coupling_target
+   end function
 
    subroutine request_coupling_ln(self, link, target_name)
       class (type_base_model),  intent(inout) :: self
@@ -1590,9 +1601,9 @@ contains
       end if
 
       link => self%links%find(name)
-      if (.not. associated(link)) call self%fatal_error('request_coupling_nn', 'Specified variable (' &
+      if (.not. associated(link)) call self%fatal_error('request_coupling', 'Specified variable (' &
          // trim(name) // ') not found. Make sure the variable is registered before calling request_coupling.')
-      call request_coupling_ln(self, link, target_name)
+      call request_coupling_lt(self, link, coupling_target(target_name))
    end subroutine request_coupling_nn
 
    subroutine request_coupling_in(self, id, target_name)
@@ -1600,15 +1611,13 @@ contains
       class (type_variable_id), intent(in)    :: id
       character(len=*),         intent(in)    :: target_name
 
-      if (.not. associated(id%link)) call self%fatal_error('request_coupling_in', &
-         'The provided variable identifier has not been registered yet.')
-      call request_coupling_ln(self, id%link, target_name)
+      call request_coupling_it(self, id, coupling_target(target_name))
    end subroutine request_coupling_in
 
    type (type_standard_variable_coupling_target) function standard_variable_coupling_target(target_standard_variable)
       class (type_domain_specific_standard_variable), target, intent(in) :: target_standard_variable
       standard_variable_coupling_target%standard_variable => target_standard_variable%typed_resolve()
-   end function standard_variable_coupling_target
+   end function
 
    subroutine request_coupling_ls(self, link, target_standard_variable)
       use fabm_standard_variables   ! workaround for bug in Cray compiler 8.3.4
@@ -1624,9 +1633,7 @@ contains
       class (type_variable_id),                       intent(in)         :: id
       class (type_domain_specific_standard_variable), intent(in), target :: target_standard_variable
 
-      if (.not. associated(id%link)) call self%fatal_error('request_coupling_is', &
-         'The provided variable identifier has not been registered yet.')
-      call request_coupling_ls(self, id%link, target_standard_variable)
+      call request_coupling_it(self, id, coupling_target(target_standard_variable))
    end subroutine request_coupling_is
 
    type (type_link_coupling_target) function link_coupling_target(target_link)
@@ -1647,9 +1654,7 @@ contains
       class (type_variable_id), intent(in)    :: id
       type (type_link), target, intent(in)    :: target_link
 
-      if (.not. associated(id%link)) call self%fatal_error('request_coupling_il', &
-         'The provided variable identifier has not been registered yet.')
-      call request_coupling_ll(self, id%link, target_link)
+      call request_coupling_it(self, id, coupling_target(target_link))
    end subroutine request_coupling_il
 
    type (type_constant_coupling_target) function constant_coupling_target(value)
@@ -1670,9 +1675,7 @@ contains
       class (type_variable_id), intent(in)    :: id
       real(rk),                 intent(in)    :: value
 
-      if (.not. associated(id%link)) call self%fatal_error('request_coupling_ic', &
-         'The provided variable identifier has not been registered yet.')
-      call request_coupling_lc(self, id%link, value)
+      call request_coupling_it(self, id, coupling_target(value))
    end subroutine request_coupling_ic
 
    subroutine integer_pointer_set_append(self, value)
