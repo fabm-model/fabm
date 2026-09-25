@@ -1,6 +1,11 @@
 #include "fabm_driver.h"
 
-! This module define standard expressions that can be used by biogeochemical models.
+! This module defines standard expressions that can be used by biogeochemical models.
+! An expression is effectively a parametrized coupling.
+! It can be used as the target in a type_base_model%request_coupling call.
+! At the time the coupling is made, the expression typically creates a child model
+! that will calculate the value of the expression at runtime.
+! It then returns a pointer to the newly created target variable.
 
 module fabm_expressions
 
@@ -68,14 +73,13 @@ module fabm_expressions
 
 contains
 
-   function vertical_integral(input, minimum_depth, maximum_depth, average) result(base_expression)
+   function vertical_integral(input, minimum_depth, maximum_depth, average) result(expression)
       class (type_dependency_id), intent(inout), target :: input
       real(rk), optional,         intent(in)            :: minimum_depth, maximum_depth
       logical,  optional,         intent(in)            :: average
-      class (type_horizontal_expression), pointer       :: base_expression
+      type (type_vertical_integral)                     :: expression
 
-      character(len=attribute_length)        :: postfix
-      type (type_vertical_integral), pointer :: expression
+      character(len=attribute_length) :: postfix
 
       if (.not. associated(input%link)) call fatal_error('fabm_expressions::vertical_integral', &
          'Input variable has not been registered yet.')
@@ -93,7 +97,6 @@ contains
          postfix = ''
       end if
 
-      allocate(expression)
       if (present(average)) expression%average = average
       if (expression%average) then
          expression%output_name = 'vertical_mean_' // trim(input%link%name) // trim(postfix)
@@ -103,14 +106,13 @@ contains
       expression%source => input%link
       if (present(minimum_depth)) expression%minimum_depth = minimum_depth
       if (present(maximum_depth)) expression%maximum_depth = maximum_depth
-      base_expression => expression
    end function
 
-   function vertical_mean(input, minimum_depth, maximum_depth) result(base_expression)
+   function vertical_mean(input, minimum_depth, maximum_depth) result(expression)
       class (type_dependency_id), intent(inout), target :: input
       real(rk), optional,        intent(in)             :: minimum_depth,maximum_depth
-      class (type_horizontal_expression), pointer       :: base_expression
-      base_expression => vertical_integral(input, minimum_depth, maximum_depth, average=.true.)
+      type (type_vertical_integral) :: expression
+      expression = vertical_integral(input, minimum_depth, maximum_depth, average=.true.)
    end function
 
    function vertical_integral_resolve(self, link) result(tgt)
@@ -136,25 +138,21 @@ contains
       tgt => integral%id_output%link
    end function
 
-   function interior_temporal_mean(input, period, resolution, missing_value) result(base_expression)
+   function interior_temporal_mean(input, period, resolution, missing_value) result(expression)
       class (type_dependency_id), intent(inout), target :: input
       real(rk),                   intent(in)            :: period, resolution
       real(rk), optional,         intent(in)            :: missing_value
-      class (type_interior_expression), pointer         :: base_expression
-
-      type (type_interior_temporal_mean_expression), pointer :: expression
+      type (type_interior_temporal_mean_expression)     :: expression
 
       if (.not. associated(input%link)) call fatal_error('fabm_expressions::interior_temporal_mean', &
          'Input variable has not been registered yet.')
 
-      allocate(expression)
       write (expression%output_name,'(i0,a,a,a,i0,a)') int(period), '_s_mean_', trim(input%link%name), '_at_', int(resolution), '_s_resolution'
       expression%source => input%link
       expression%n = nint(period / resolution)
       expression%period = period
       expression%use_incomplete_result = .not. present(missing_value)
       if (present(missing_value)) expression%missing_value = missing_value
-      base_expression => expression
    end function
 
    function interior_temporal_mean_resolve(self, link) result(tgt)
@@ -175,25 +173,21 @@ contains
       tgt => calculator%mean%link
    end function
 
-   function horizontal_temporal_mean(input, period, resolution, missing_value) result(base_expression)
+   function horizontal_temporal_mean(input, period, resolution, missing_value) result(expression)
       class (type_horizontal_dependency_id), intent(inout), target :: input
       real(rk),                              intent(in)            :: period, resolution
       real(rk), optional,                    intent(in)            :: missing_value
-      class (type_horizontal_expression), pointer                  :: base_expression
-
-      type (type_horizontal_temporal_mean_expression), pointer :: expression
+      type (type_horizontal_temporal_mean_expression)              :: expression
 
       if (.not. associated(input%link)) call fatal_error('fabm_expressions::horizontal_temporal_mean', &
          'Input variable has not been registered yet.')
 
-      allocate(expression)
       write (expression%output_name,'(i0,a,a,a,i0,a)') int(period), '_s_mean_', trim(input%link%name), '_at_', int(resolution), '_s_resolution'
       expression%source => input%link
       expression%n = nint(period / resolution)
       expression%period = period
       expression%use_incomplete_result = .not. present(missing_value)
       if (present(missing_value)) expression%missing_value = missing_value
-      base_expression => expression
    end function
 
    function horizontal_temporal_mean_resolve(self, link) result(tgt)
@@ -214,24 +208,20 @@ contains
       tgt => calculator%mean%link
    end function
 
-   function horizontal_temporal_maximum(input, period, resolution, missing_value) result(base_expression)
+   function horizontal_temporal_maximum(input, period, resolution, missing_value) result(expression)
       class (type_horizontal_dependency_id), intent(inout), target :: input
       real(rk),                              intent(in)            :: period, resolution
       real(rk), optional,                    intent(in)            :: missing_value
-      class (type_horizontal_expression), pointer                  :: base_expression
-
-      type (type_horizontal_temporal_maximum_expression), pointer :: expression
+      type (type_horizontal_temporal_maximum_expression)           :: expression
 
       if (.not. associated(input%link)) call fatal_error('fabm_expressions::horizontal_temporal_max', &
          'Input variable has not been registered yet.')
 
-      allocate(expression)
       write (expression%output_name,'(i0,a,a,a,i0,a)') int(period), '_s_max_', trim(input%link%name), '_at_', int(resolution), '_s_resolution'
       expression%source => input%link
       expression%n = nint(period / resolution)
       expression%period = period
       if (present(missing_value)) expression%missing_value = missing_value
-      base_expression => expression
    end function
 
    function horizontal_temporal_maximum_resolve(self, link) result(tgt)

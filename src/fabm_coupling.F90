@@ -243,6 +243,7 @@ contains
       integer                             :: source
       logical                             :: couplable
       integer                             :: display
+      integer                             :: istart, istop
 
       link => self%links%first
       do while (associated(link))
@@ -259,12 +260,65 @@ contains
                   target_name = target_name(:len(target_name) - 4)
                end if
             end if
-            if (target_name /= '') call self%request_coupling(link, target_name, priority=1)
+
+            istart = index(target_name, '(')
+            if (istart /= 0) then
+               ! The coupling name includes an opening parenthesis. Interpret it as a parametrized coupling (one with arguments)
+               istop = len_trim(target_name)
+               if (target_name(istop:istop) /= ')') call link%target%owner%fatal_error('request_coupling_ln', &
+                  'Parameterized coupling ' // trim(target_name) // ' should end with closing parenthesis.')
+               call request_parameterized_coupling(target_name(1:istart-1), target_name(istart+1:istop-1))
+            elseif (target_name /= '') then
+               call self%request_coupling(link, coupling_target(target_name), priority=1)
+            end if
          end if   ! Our own link, which may be coupled
          link => link%next
       end do
 
       self%coupling_task_list%includes_custom = .true.
+
+   contains
+
+      subroutine request_parameterized_coupling(name, args)
+         character(len=*), intent(in) :: name, args
+
+         type (type_interior_standard_variable),   target :: interior_standard_variable
+         type (type_bottom_standard_variable),     target :: bottom_standard_variable
+         type (type_surface_standard_variable),    target :: surface_standard_variable
+         type (type_horizontal_standard_variable), target :: horizontal_standard_variable
+         type (type_global_standard_variable),     target :: global_standard_variable
+         class (type_domain_specific_standard_variable), pointer :: standard_variable
+         real(rk) :: value
+         integer :: ios
+
+         select case (name)
+         case ('standard_variable')
+            select case (link%target%domain)
+            case (domain_interior)
+               standard_variable => interior_standard_variable
+            case (domain_bottom)
+               standard_variable => bottom_standard_variable
+            case (domain_surface)
+               standard_variable => surface_standard_variable
+            case (domain_horizontal)
+               standard_variable => horizontal_standard_variable
+            case (domain_scalar)
+               standard_variable => global_standard_variable
+            case default
+               call self%fatal_error('collect_user_specified_couplings', 'Unknown domain for ' // trim(link%name) // '.')
+            end select
+            standard_variable%name = args
+            call self%request_coupling(link, coupling_target(standard_variable), priority=1)
+         case ('constant')
+            read(args,*,iostat=ios) value
+            if (ios /= 0) &
+               call self%fatal_error('collect_user_specified_couplings', 'Cannot parse constant "' // trim(args) // '".')
+            call self%request_coupling(link, coupling_target(value), priority=1)
+         case default
+            call self%fatal_error('collect_user_specified_couplings', 'Unknown parameterized coupling type "' // name // '".')
+         end select
+      end subroutine
+
    end subroutine collect_user_specified_couplings
 
    recursive subroutine process_coupling_tasks(self, final, log_unit)
