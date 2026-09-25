@@ -64,7 +64,7 @@ module fabm_types
    public get_aggregate_variable_access, type_aggregate_variable_access, type_contribution
    public set_dependency_flag
 
-   public type_coupling_task, type_coupling_target, type_named_coupling_target, type_constant_coupling_target
+   public type_coupling_task, type_coupling_target, coupling_target
 
    public type_fabm_settings
 
@@ -175,11 +175,11 @@ module fabm_types
    ! --------------------------------------------------------------------------
 
    type type_coupling_task
-      type (type_link), pointer                    :: link       => null()
-      class (type_coupling_target), pointer        :: target     => null()
-      integer                                      :: priority = 0
-      class (type_coupling_task), pointer          :: previous    => null()
-      class (type_coupling_task), pointer          :: next        => null()
+      type (type_link),             pointer :: link       => null()
+      class (type_coupling_target), pointer :: target     => null()
+      integer                               :: priority = 0
+      class (type_coupling_task),   pointer :: previous    => null()
+      class (type_coupling_task),   pointer :: next        => null()
    end type
 
    type, abstract :: type_coupling_target
@@ -785,6 +785,13 @@ module fabm_types
          type (type_link),             intent(in)    :: link
          type (type_link), pointer :: tgt
       end function
+   end interface
+
+   interface coupling_target
+      module procedure named_coupling_target
+      module procedure standard_variable_coupling_target
+      module procedure link_coupling_target
+      module procedure constant_coupling_target
    end interface
 
 contains
@@ -1553,71 +1560,17 @@ contains
       call self%coupling_task_list%add(link, target, priority=priority_)
    end subroutine request_coupling_lt
 
-   subroutine request_coupling_ln(self, link, target_name, priority)
+   type (type_named_coupling_target) function named_coupling_target(name)
+      character(len=*), intent(in) :: name
+      named_coupling_target%name = name
+   end function named_coupling_target
+
+   subroutine request_coupling_ln(self, link, target_name)
       class (type_base_model),  intent(inout) :: self
       type (type_link), target, intent(in)    :: link
       character(len=*),         intent(in)    :: target_name
-      integer, optional,        intent(in)    :: priority
 
-      integer :: istart, istop
-      type (type_named_coupling_target) :: tgt
-
-      istart = index(target_name, '(')
-      if (istart /= 0) then
-         ! The coupling name includes an opening parenthesis. Interpret it as a parametrized coupling (one with arguments)
-         istop = len_trim(target_name)
-         if (target_name(istop:istop) /= ')') call link%target%owner%fatal_error('request_coupling_ln', &
-            'Parameterized coupling ' // trim(target_name) // ' should end with closing parenthesis.')
-         call request_parameterized_coupling(target_name(1:istart-1), target_name(istart+1:istop-1))
-      else
-         tgt%name = target_name
-         call request_coupling_lt(self, link, tgt, priority)
-      end if
-
-   contains
-
-      subroutine request_parameterized_coupling(name, args)
-         character(len=*), intent(in)    :: name, args
-
-         type (type_interior_standard_variable)   :: interior_standard_variable
-         type (type_bottom_standard_variable)     :: bottom_standard_variable
-         type (type_surface_standard_variable)    :: surface_standard_variable
-         type (type_horizontal_standard_variable) :: horizontal_standard_variable
-         type (type_global_standard_variable)     :: global_standard_variable
-         real(rk) :: value
-         integer :: ios
-
-         select case (name)
-         case ('standard_variable')
-            select case (link%target%domain)
-            case (domain_interior)
-               interior_standard_variable%name = args
-               call request_coupling_ls(self, link, interior_standard_variable, priority)
-            case (domain_bottom)
-               bottom_standard_variable%name = args
-               call request_coupling_ls(self, link, bottom_standard_variable, priority)
-            case (domain_surface)
-               surface_standard_variable%name = args
-               call request_coupling_ls(self, link, surface_standard_variable, priority)
-            case (domain_horizontal)
-               horizontal_standard_variable%name = args
-               call request_coupling_ls(self, link, horizontal_standard_variable, priority)
-            case (domain_scalar)
-               global_standard_variable%name = args
-               call request_coupling_ls(self, link, global_standard_variable, priority)
-            case default
-               call link%target%owner%fatal_error('request_coupling_ln', 'Unknown domain for ' // trim(link%name) // '.')
-            end select
-         case ('constant')
-            read(args,*,iostat=ios) value
-            if (ios /= 0) &
-               call link%target%owner%fatal_error('request_coupling_ln', 'Cannot parse constant "' // trim(args) // '".')
-            call request_coupling_lc(self, link, value, priority)
-         case default
-            call link%target%owner%fatal_error('request_coupling_ln', 'Unknown parameterized coupling type "' // name // '".')
-         end select
-      end subroutine
-
+      call request_coupling_lt(self, link, coupling_target(target_name))
    end subroutine request_coupling_ln
 
    recursive subroutine request_coupling_nn(self, name, target_name)
@@ -1652,17 +1605,18 @@ contains
       call request_coupling_ln(self, id%link, target_name)
    end subroutine request_coupling_in
 
-   subroutine request_coupling_ls(self, link, target_standard_variable, priority)
+   type (type_standard_variable_coupling_target) function standard_variable_coupling_target(target_standard_variable)
+      class (type_domain_specific_standard_variable), target, intent(in) :: target_standard_variable
+      standard_variable_coupling_target%standard_variable => target_standard_variable%typed_resolve()
+   end function standard_variable_coupling_target
+
+   subroutine request_coupling_ls(self, link, target_standard_variable)
       use fabm_standard_variables   ! workaround for bug in Cray compiler 8.3.4
       class (type_base_model),                        intent(inout)      :: self
       type (type_link), target,                       intent(in)         :: link
       class (type_domain_specific_standard_variable), intent(in), target :: target_standard_variable
-      integer, optional,                              intent(in)         :: priority
 
-      type (type_standard_variable_coupling_target) :: tgt
-
-      tgt%standard_variable => target_standard_variable%typed_resolve()
-      call request_coupling_lt(self, link, tgt, priority)
+      call request_coupling_lt(self, link, coupling_target(target_standard_variable))
    end subroutine request_coupling_ls
 
    subroutine request_coupling_is(self, id, target_standard_variable)
@@ -1675,15 +1629,17 @@ contains
       call request_coupling_ls(self, id%link, target_standard_variable)
    end subroutine request_coupling_is
 
+   type (type_link_coupling_target) function link_coupling_target(target_link)
+      type (type_link), target, intent(in) :: target_link
+      link_coupling_target%link => target_link
+   end function
+
    subroutine request_coupling_ll(self, link, target_link)
       class (type_base_model),  intent(inout) :: self
       type (type_link), target, intent(in)    :: link
       type (type_link), target, intent(in)    :: target_link
 
-      type (type_link_coupling_target) :: tgt
-
-      tgt%link => target_link
-      call request_coupling_lt(self, link, tgt)
+      call request_coupling_lt(self, link, coupling_target(target_link))
    end subroutine request_coupling_ll
 
    subroutine request_coupling_il(self, id, target_link)
@@ -1696,16 +1652,17 @@ contains
       call request_coupling_ll(self, id%link, target_link)
    end subroutine request_coupling_il
 
-   subroutine request_coupling_lc(self, link, value, priority)
+   type (type_constant_coupling_target) function constant_coupling_target(value)
+      real(rk), intent(in) :: value
+      constant_coupling_target%value = value
+   end function
+
+   subroutine request_coupling_lc(self, link, value)
       class (type_base_model),  intent(inout) :: self
       type (type_link), target, intent(in)    :: link
       real(rk),                 intent(in)    :: value
-      integer, optional,        intent(in)    :: priority
 
-      type (type_constant_coupling_target) :: tgt
-
-      tgt%value = value
-      call request_coupling_lt(self, link, tgt, priority)
+      call request_coupling_lt(self, link, coupling_target(value))
    end subroutine request_coupling_lc
 
    subroutine request_coupling_ic(self, id, value)
