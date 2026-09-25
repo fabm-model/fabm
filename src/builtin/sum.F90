@@ -22,11 +22,11 @@ module fabm_builtin_sum
    end type
 
    type type_component
-      character(len=attribute_length) :: name   = ''
-      type (type_link), pointer       :: link => null()
-      real(rk)                        :: weight = 1._rk
-      logical                         :: include_background = .false.
-      type (type_component), pointer  :: next   => null()
+      class (type_coupling_target), pointer :: target => null()
+      type (type_link),             pointer :: link => null()
+      real(rk)                              :: weight = 1._rk
+      logical                               :: include_background = .false.
+      type (type_component),        pointer :: next   => null()
    end type
 
    type, extends(type_reduction_operator) :: type_base_sum
@@ -43,7 +43,8 @@ module fabm_builtin_sum
    contains
       procedure :: add_component_by_name
       procedure :: add_component_by_link
-      generic :: add_component => add_component_by_name, add_component_by_link
+      procedure :: add_component_by_target
+      generic :: add_component => add_component_by_name, add_component_by_link, add_component_by_target
       procedure :: after_coupling
       procedure :: finalize
    end type
@@ -81,18 +82,6 @@ module fabm_builtin_sum
 
 contains
 
-   subroutine request_coupling_to_component(parent, target_link, component)
-      class (type_base_model), intent(inout), target :: parent
-      type (type_link), target :: target_link
-      class (type_component), intent(in) :: component
-
-      if (associated(component%link)) then
-         call parent%request_coupling(target_link, component%link)
-      elseif (component%name /= '') then
-         call parent%request_coupling(target_link, component%name)
-      end if
-   end subroutine request_coupling_to_component
-
    function base_initialize(self) result(n)
       class (type_base_sum), intent(inout) :: self
       integer                              :: n
@@ -119,10 +108,11 @@ contains
       self%components_frozen = .true.
    end function base_initialize
 
-   function append_component(self, weight, include_background) result(component)
-      class (type_base_sum), intent(inout) :: self
-      real(rk), optional,    intent(in)    :: weight
-      logical,  optional,    intent(in)    :: include_background
+   subroutine add_component_by_target(self, tgt, weight, include_background)
+      class (type_base_sum),        intent(inout) :: self
+      class (type_coupling_target), intent(in)    :: tgt
+      real(rk), optional,           intent(in)    :: weight
+      logical,  optional,           intent(in)    :: include_background
 
       type (type_component), pointer :: component
 
@@ -142,9 +132,10 @@ contains
          allocate(component%next)
          component => component%next
       end if
+      allocate(component%target, source=tgt)
       if (present(weight)) component%weight = weight
       if (present(include_background)) component%include_background = include_background
-   end function append_component
+   end subroutine add_component_by_target
 
    subroutine add_component_by_name(self, name, weight, include_background)
       class (type_base_sum),    intent(inout) :: self
@@ -152,10 +143,7 @@ contains
       real(rk), optional,       intent(in)    :: weight
       logical,  optional,       intent(in)    :: include_background
 
-      type (type_component), pointer :: component
-
-      component => append_component(self, weight, include_background)
-      component%name = name
+      call add_component_by_target(self, coupling_target(name), weight, include_background)
    end subroutine add_component_by_name
 
    subroutine add_component_by_link(self, link, weight, include_background)
@@ -164,10 +152,7 @@ contains
       real(rk), optional,       intent(in)    :: weight
       logical,  optional,       intent(in)    :: include_background
 
-      type (type_component), pointer :: component
-
-      component => append_component(self, weight, include_background)
-      component%link => link
+      call add_component_by_target(self, coupling_target(link), weight, include_background)
    end subroutine add_component_by_link
 
    subroutine after_coupling(self)
@@ -293,6 +278,7 @@ contains
       component => self%first
       do while (associated(component))
          component_next => component%next
+         deallocate(component%target)
          deallocate(component)
          component => component_next
       end do
@@ -318,7 +304,7 @@ contains
       do i = 1, n
          write (temp,'(i0)') i
          call self%register_dependency(self%id_terms(i), 'term' // trim(temp), self%units, 'term ' // trim(temp))
-         call request_coupling_to_component(self, self%id_terms(i)%link, component)
+         call self%request_coupling(self%id_terms(i), component%target)
          component%link => self%id_terms(i)%link
          component => component%next
       end do
@@ -339,7 +325,7 @@ contains
             output=output, presence=presence_external_required)
          if (self%first%weight == 1.0_rk) then
             ! One component with scale factor 1 - directly link to the component's source variable.
-            call request_coupling_to_component(self, self%result_link, self%first)
+            call self%request_coupling(self%result_link, self%first%target)
          else
             ! One component with scale factor other than 1 - add a child model to perform the scaling
             allocate(scaled_variable)
@@ -351,7 +337,7 @@ contains
             scaled_variable%missing_value = self%missing_value
             scaled_variable%result_output = output_none
             call self%add_child(scaled_variable, '*')
-            call request_coupling_to_component(scaled_variable, scaled_variable%id_source%link, self%first)
+            call scaled_variable%request_coupling(scaled_variable%id_source, self%first%target)
             call self%request_coupling(self%result_link, scaled_variable%id_result%link)
             if (self%act_as_state_variable .and. associated(self%aggregate_variable)) call scaled_variable%add_to_aggregate_variable(self%aggregate_variable, scaled_variable%id_result)
          end if
@@ -380,7 +366,7 @@ contains
          do i = 1, n
             write (temp,'(i0)') i
             call sms_distributor%register_state_dependency(sms_distributor%id_targets(i), 'target' // trim(temp), self%units, 'target ' // trim(temp))
-            call request_coupling_to_component(sms_distributor, sms_distributor%id_targets(i)%link, component)
+            call sms_distributor%request_coupling(sms_distributor%id_targets(i), component%target)
             sms_distributor%weights(i) = component%weight
             component => component%next
          end do
@@ -441,7 +427,7 @@ contains
       do i = 1, n
          write (temp,'(i0)') i
          call self%register_dependency(self%id_terms(i), 'term' // trim(temp), self%units, 'term ' // trim(temp))
-         call request_coupling_to_component(self, self%id_terms(i)%link, component)
+         call self%request_coupling(self%id_terms(i), component%target)
          component%link => self%id_terms(i)%link
          component => component%next
       end do
@@ -462,7 +448,7 @@ contains
             output=output, presence=presence_external_required)
          if (self%first%weight == 1.0_rk) then
             ! One component with scale factor 1 - directly link to the component's source variable.
-            call request_coupling_to_component(self, self%result_link, self%first)
+            call self%request_coupling(self%result_link, self%first%target)
          else
             ! One component with scale factor other than 1 - add a child model to perform the scaling
             allocate(scaled_variable)
@@ -475,7 +461,7 @@ contains
             scaled_variable%missing_value = self%missing_value
             scaled_variable%result_output = output_none
             call self%add_child(scaled_variable, '*')
-            call request_coupling_to_component(scaled_variable, scaled_variable%id_source%link, self%first)
+            call scaled_variable%request_coupling(scaled_variable%id_source, self%first%target)
             call self%request_coupling(self%result_link, scaled_variable%id_result%link)
             if (self%act_as_state_variable .and. associated(self%aggregate_variable)) call scaled_variable%add_to_aggregate_variable(self%aggregate_variable, scaled_variable%id_result)
          end if
