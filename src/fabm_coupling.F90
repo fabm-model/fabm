@@ -41,6 +41,8 @@ contains
       logical,                 intent(in)            :: require_initialization
       integer,                 intent(in)            :: coupling_log_unit
 
+      type (type_standard_variable_set) :: all_standard_variables
+
       if (associated(self%parent)) call self%fatal_error('freeze_model_info', &
          'BUG: freeze_model_info can only operate on the root model.')
 
@@ -55,7 +57,7 @@ contains
       call get_initial_state(self, require_initialization)
 
       ! Coupling stage 1: implicit - couple variables based on overlapping standard identities.
-      call couple_standard_variables(self)
+      all_standard_variables = couple_standard_variables(self)
 
       ! Coupling stage 2: explicit - resolve user- or model-specified links between variables.
       if (coupling_log_unit > 0) write (coupling_log_unit, '(a)') 'process_coupling_tasks_1:'
@@ -69,7 +71,8 @@ contains
       ! This step will typically create new child models to handle the necessary summations.
       ! These child models may also add source terms (if the sum is treated as state variable),
       ! so any source term treatment (create_conservation_checks, create_flux_sums) should happen after this is complete!
-      call create_aggregate_models(self)
+      call create_aggregate_models(self, all_standard_variables)
+      call all_standard_variables%finalize()
 
       ! Perform coupling for any new aggregate models.
       ! This may append items to existing lists of source terms and bottom/surface fluxes,
@@ -191,11 +194,11 @@ contains
       end do
    end subroutine
 
-   subroutine couple_standard_variables(model)
+   function couple_standard_variables(model) result(all_standard_variables)
       class (type_base_model), intent(inout), target :: model
+      type (type_standard_variable_set)              :: all_standard_variables
 
       type (type_link),                   pointer :: link, first_link
-      type (type_standard_variable_set)           :: all_standard_variables
       type (type_standard_variable_node), pointer :: node
 
       ! Build a list of all unique standard variables.
@@ -232,8 +235,7 @@ contains
          end do
          node => node%next
       end do
-      call all_standard_variables%finalize()
-   end subroutine couple_standard_variables
+   end function couple_standard_variables
 
    subroutine collect_user_specified_couplings(self)
       class (type_base_model), intent(inout) :: self
@@ -578,8 +580,9 @@ contains
       end do
    end function collect_aggregate_variables
 
-   recursive subroutine create_aggregate_models(self)
-      class (type_base_model), intent(inout), target :: self
+   recursive subroutine create_aggregate_models(self, all_standard_variables)
+      class (type_base_model), target,   intent(inout) :: self
+      type (type_standard_variable_set), intent(in)    :: all_standard_variables
 
       type (type_aggregate_variable_access), pointer :: aggregate_variable_access
       type (type_aggregate_variable),        pointer :: aggregate_variable
@@ -598,8 +601,10 @@ contains
       if (.not. associated(self%parent)) then
          aggregate_variable => list%first
          do while (associated(aggregate_variable))
-            link => get_aggregate_variable_access(self, aggregate_variable%standard_variable)
-            link%target%output = ior(output_instantaneous, output_always_available)
+            if (.not. all_standard_variables%contains(aggregate_variable%standard_variable)) then
+               link => get_aggregate_variable_access(self, aggregate_variable%standard_variable)
+               link%target%output = ior(output_instantaneous, output_always_available)
+            end if
             aggregate_variable => aggregate_variable%next
          end do
       end if
@@ -645,7 +650,7 @@ contains
       ! Process child models
       child => self%children%first
       do while (associated(child))
-         call create_aggregate_models(child%model)
+         call create_aggregate_models(child%model, all_standard_variables)
          child => child%next
       end do
    end subroutine create_aggregate_models
