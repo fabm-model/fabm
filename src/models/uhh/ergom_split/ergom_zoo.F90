@@ -25,6 +25,7 @@
       type (type_state_variable_id)        :: id_zoo
       type (type_state_variable_id)        :: id_dia,id_din
       type (type_state_variable_id)        :: id_detritus
+      type (type_state_variable_id)        :: id_dic
       type (type_state_variable_id)        :: id_ammonium, id_phosphate
       type (type_state_variable_id)        :: id_oxygen
       type (type_dependency_id)            :: id_temp
@@ -74,9 +75,9 @@
 ! !INPUT PARAMETERS:
    class (type_uhh_ergom_split_zoo), intent(inout), target :: self
    integer,                        intent(in)            :: configunit
-
-!  LOCAL VARIABLES:
-   real(rk)                  :: zoo0 !background_concentration
+!
+! !LOCAL VARIABLES:
+   real(rk)                  ::  zoo0 !background_concentration
    real(rk)                  :: topt
    real(rk)                  :: gmax_dia  ! maximum grazing rate diatoms
    real(rk)                  :: gmax_din  ! maximum grazing rate dinoflagellates
@@ -91,11 +92,12 @@
    character(len=64)         :: ammonium_variable
    character(len=64)         :: phosphate_variable
    character(len=64)         :: detritus_variable
+   character(len=64)         :: dic_variable
 
    real(rk), parameter :: secs_pr_day = 86400.0_rk
    namelist /uhh_ergom_split_zoo/ zoo0, iv, &
              gmax_dia, gmax_din, p_to_n, s2, &
-             s3, topt,  &
+             s3, topt, dic_variable, &
              mortality_rate, excretion_rate, slopf, &
              ammonium_variable,& 
              phosphate_variable, detritus_variable, &
@@ -122,6 +124,7 @@
    oxygen_variable = 'uhh_ergom_split_base_oxy'
    dinoflagellates_variable= 'uhh_dinoflag_veg'
    diatoms_variable= 'uhh_diatoms_veg'
+   dic_variable=''
    
    ! Read the namelist
    if (configunit>=0) read(configunit,nml=uhh_ergom_split_zoo,err=99)
@@ -151,7 +154,7 @@
      call self%register_state_dependency(self%id_phosphate, 'phosphate_target',  'mmol/m**3','phosphate source')
 
    
-   ! Register external state dependencies
+   !! Register external state dependencies
    call self%register_state_dependency(self%id_detritus, 'mortality_target','mmol/m**3','sink for dead matter')
    self%use_oxy = (oxygen_variable /= '')
    if (self%use_oxy) &
@@ -175,7 +178,12 @@
       call self%request_coupling(self%id_dia,diatoms_variable)
    if (self%graz_din) &
       call self%request_coupling(self%id_din,dinoflagellates_variable)
+   
+   ! Register optional link to external DIC pool
+   call self%register_state_dependency(self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon',required=.false.)
+   if (dic_variable/='') call self%request_coupling(self%id_dic,dic_variable)   
 
+   ! Register environmental dependencies
    ! Register environmental dependencies
    call self%register_dependency(self%id_temp,standard_variables%temperature)
 
@@ -232,27 +240,31 @@
    if (self%graz_dia) then
       graz_dia = fpz(self,self%gmax_dia,temp,self%topt,psum) * &
                  dia/psum * gross_zoo
-      _ADD_SOURCE_(self%id_dia,-graz_dia)
+      _SET_ODE_(self%id_dia,-graz_dia)
    end if
    
    if (self%graz_din) then
       graz_din = fpz(self,self%gmax_din,temp,self%topt,psum) * &
                  din/psum * gross_zoo
-      _ADD_SOURCE_(self%id_din,-graz_din)   
+      _SET_ODE_(self%id_din,-graz_din)   
    end if
    excretion = self%lza * zoo * gross_zoo
    mortality = self%lzd * zoo * gross_zoo
 
    ! Set temporal derivatives
-   _ADD_SOURCE_(self%id_zoo,self%slopf*(graz_dia + graz_din ) - mortality - excretion)
-   _ADD_SOURCE_(self%id_ammonium,excretion)
-   _ADD_SOURCE_(self%id_detritus,mortality + (1.0_rk-self%slopf)*(graz_dia  + graz_din ))
+   _SET_ODE_(self%id_zoo,self%slopf*(graz_dia + graz_din ) - mortality - excretion)
+   _SET_ODE_(self%id_ammonium,excretion)
+   _SET_ODE_(self%id_detritus,mortality + (1.0_rk-self%slopf)*(graz_dia  + graz_din ))
    if (self%use_pho) then
-   _ADD_SOURCE_(self%id_phosphate, self%p_to_n * excretion)
+   _SET_ODE_(self%id_phosphate, self%p_to_n * excretion)
    end if
    if (self%use_oxy) then
-     _ADD_SOURCE_(self%id_oxygen, -self%s2 * excretion)
+     _SET_ODE_(self%id_oxygen, -self%s2 * excretion)
    end if
+
+   ! set DIC source, if available
+   if (_AVAILABLE_(self%id_dic)) &
+     _SET_ODE_(self%id_dic, self%s2 * excretion)
 
    ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_secprod_total,(self%slopf*(graz_dia  + graz_din ))*secs_pr_day)
@@ -323,6 +335,10 @@
    _SET_DD_SYM_(self%id_zoo,self%id_detritus,mortality + (1.0_rk-self%slopf)*( graz_din  + graz_dia))
    _SET_DD_SYM_(self%id_zoo,self%id_ammonium,excretion)
 
+   ! set DIC source, if available
+   if (_AVAILABLE_(self%id_dic)) &
+     _SET_PP_(self%id_dic,self%id_dic,106.0d0/16.0d0*excretion)
+
    ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_secprod_total,(self%slopf*(graz_dia  + graz_din ))*secs_pr_day)
    _SET_DIAGNOSTIC_(self%id_secprod_dia,self%slopf*graz_dia*secs_pr_day)
@@ -367,7 +383,7 @@
 !-----------------------------------------------------------------------
 !BOC
    fpz=g*(1.0_rk+t**2/topt**2*exp(1.0_rk-2.0_rk*t/topt))*               &
-        (1.0_rk-exp(-self%iv**2*psum**2))
+      (1.0_rk-exp(-self%iv**2*psum**2))
    return
    end function fpz
 !EOC
