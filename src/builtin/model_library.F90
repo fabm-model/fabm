@@ -4,6 +4,7 @@ module fabm_builtin_models
    use fabm_types
    use fabm_builtin_scale
    use fabm_builtin_sum
+   use fabm_builtin_product
    use fabm_builtin_constant
    use fabm_builtin_time_filter
    use fabm_builtin_depth_integral
@@ -81,6 +82,7 @@ contains
          case ('column_projection');        allocate(type_column_projection::model)
          case ('weighted_sum');             allocate(type_weighted_sum::model)
          case ('horizontal_weighted_sum');  allocate(type_horizontal_weighted_sum::model)
+         case ('product');                  allocate(type_product::model)
          case ('bottom_layer');             allocate(type_bottom_field::model)
          case ('surface_layer');            allocate(type_surface_field::model)
          case ('vertical_integral');        allocate(type_depth_integral::model)
