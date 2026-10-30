@@ -21,6 +21,8 @@ contains
       use bb_lorenz63
       use bb_passive
       use bb_gas
+      use bb_euphotic_depth
+      use bb_mixed_layer_depth
       ! Add new BB models here
 
       class (type_factory), intent(in) :: self
@@ -28,10 +30,12 @@ contains
       class (type_base_model), pointer :: model
 
       select case (name)
-         case ('passive');       allocate(type_bb_passive::model)
-         case ('lorenz63');      allocate(type_bb_lorenz63::model)
-         case ('filter_feeder'); allocate(type_bb_filter_feeder::model)
-         case ('gas');           allocate(type_bb_gas::model)
+         case ('passive');           allocate(type_bb_passive::model)
+         case ('lorenz63');          allocate(type_bb_lorenz63::model)
+         case ('filter_feeder');     allocate(type_bb_filter_feeder::model)
+         case ('gas');               allocate(type_bb_gas::model)
+         case ('euphotic_depth');    allocate(type_bb_euphotic_depth::model)
+         case ('mixed_layer_depth'); allocate(type_bb_mixed_layer_depth::model)
             ! Add new BB models here
       end select
 

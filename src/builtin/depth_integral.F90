@@ -23,6 +23,8 @@ module fabm_builtin_depth_integral
    type, extends(type_depth_integral) :: type_bounded_depth_integral
       real(rk) :: minimum_depth = 0.0_rk
       real(rk) :: maximum_depth = huge(1.0_rk)
+      type (type_horizontal_dependency_id) :: id_minimum_depth
+      type (type_horizontal_dependency_id) :: id_maximum_depth
    contains
       procedure :: initialize => bounded_depth_integral_initialize
       procedure :: do_column  => bounded_depth_integral_do_column
@@ -75,26 +77,33 @@ contains
       call depth_integral_initialize(self, configunit)
       call self%get_parameter(self%minimum_depth, 'minimum_depth', 'm', 'minimum depth (distance from surface)', default=self%minimum_depth)
       call self%get_parameter(self%maximum_depth, 'maximum_depth', 'm', 'maximum depth (distance from surface)', default=self%maximum_depth)
+      call self%register_dependency(self%id_minimum_depth, "minimum_depth", "m", "minimum_depth")
+      call self%register_dependency(self%id_maximum_depth, "maximum_depth", "m", "maximum_depth")
+      call self%request_coupling(self%id_minimum_depth, self%minimum_depth)
+      call self%request_coupling(self%id_maximum_depth, self%maximum_depth)
    end subroutine bounded_depth_integral_initialize
 
    subroutine bounded_depth_integral_do_column(self, _ARGUMENTS_DO_COLUMN_)
       class (type_bounded_depth_integral), intent(in) :: self
       _DECLARE_ARGUMENTS_DO_COLUMN_
 
+      real(rk) :: minimum_depth, maximum_depth
       real(rk) :: h, value, result, depth, layer_top, layer_bottom
 
       result = 0._rk
       depth = 0._rk
+      _GET_HORIZONTAL_(self%id_minimum_depth, minimum_depth)
+      _GET_HORIZONTAL_(self%id_maximum_depth, maximum_depth)
       _DOWNWARD_LOOP_BEGIN_
          _GET_(self%id_thickness, h)
          _GET_(self%id_input, value)
-         layer_top = max(depth, self%minimum_depth)
+         layer_top = max(depth, minimum_depth)
          depth = depth + h
-         layer_bottom = min(depth, self%maximum_depth)
+         layer_bottom = min(depth, maximum_depth)
          result = result + max(layer_bottom - layer_top, 0._rk) * value
       _DOWNWARD_LOOP_END_
 
-      if (self%average .and. depth > self%minimum_depth) result = result / (min(self%maximum_depth, depth) - self%minimum_depth)
+      if (self%average .and. depth > minimum_depth) result = result / (min(maximum_depth, depth) - minimum_depth)
       _SET_HORIZONTAL_DIAGNOSTIC_(self%id_output, result)
    end subroutine bounded_depth_integral_do_column
 
