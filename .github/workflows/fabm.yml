@@ -67,7 +67,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v4
         with:
           auto-update-conda: true
-          channels: defaults
+          channels: conda-forge
           conda-remove-defaults: "true"
       - name: Install compiler and Python dependencies
         run: conda install gfortran_linux-64=${{ matrix.version }} pip pyyaml
