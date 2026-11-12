@@ -802,12 +802,13 @@ contains
    subroutine start(self)
       class (type_fabm_model), intent(inout), target :: self
 
-      integer                             :: ivar
-      logical                             :: ready
-      type (type_variable_node),pointer   :: variable_node
-      type (type_link), pointer           :: link
-      integer                             :: log_unit, ios
-      class (type_fabm_variable), pointer :: pvariables(:)
+      integer                                :: ivar
+      logical                                :: ready
+      type (type_variable_node),     pointer :: variable_node
+      type (type_link), pointer              :: link
+      integer                                :: log_unit, ios
+      class (type_fabm_variable),    pointer :: pvariables(:)
+      type (type_internal_variable), pointer :: pvariable
 
       if (self%status < status_set_domain_done) then
          call fatal_error('start', 'set_domain has not yet been called on this model object.')
@@ -841,6 +842,28 @@ contains
          ready = .false.
       end if
 #endif
+
+      do ivar = 1, size(self%interior_state_variables)
+         pvariable => self%interior_state_variables(ivar)%target
+         if (pvariable%source == source_state .and. .not. associated(self%catalog%interior(pvariable%catalog_index)%p)) then
+            call log_message('no data linked for interior state variable ' // trim(pvariable%name))
+            ready = .false.
+         end if
+      end do
+      do ivar = 1, size(self%surface_state_variables)
+         pvariable => self%surface_state_variables(ivar)%target
+         if (pvariable%source == source_state .and. .not. associated(self%catalog%horizontal(pvariable%catalog_index)%p)) then
+            call log_message('no data linked for surface state variable ' // trim(pvariable%name))
+            ready = .false.
+         end if
+      end do
+      do ivar = 1, size(self%bottom_state_variables)
+         pvariable => self%bottom_state_variables(ivar)%target
+         if (pvariable%source == source_state .and. .not. associated(self%catalog%horizontal(pvariable%catalog_index)%p)) then
+            call log_message('no data linked for bottom state variable ' // trim(pvariable%name))
+            ready = .false.
+         end if
+      end do
 
       ! Flag variables that have had data asssigned (by user, host or FABM).
       ! This is done only now because the user/host had till this moment to provide (or override) model fields.
