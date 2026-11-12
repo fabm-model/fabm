@@ -805,7 +805,7 @@ contains
       integer                                :: ivar
       logical                                :: ready
       type (type_variable_node),     pointer :: variable_node
-      type (type_link), pointer              :: link
+      type (type_link),              pointer :: link
       integer                                :: log_unit, ios
       class (type_fabm_variable),    pointer :: pvariables(:)
       type (type_internal_variable), pointer :: pvariable
