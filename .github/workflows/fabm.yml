@@ -56,7 +56,7 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       matrix:
-        gfortran: ["defaults::gfortran_linux-64=7", "defaults::gfortran_linux-64=8", "conda-forge::gfortran=9", "conda-forge::gfortran=10"]
+        gfortran: ["gfortran_linux-64=7", "gfortran_linux-64=8", "-c conda-forge gfortran=9", "-c conda-forge gfortran=10"]
       fail-fast: false
     runs-on: ubuntu-latest
     defaults:
@@ -67,7 +67,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v4
         with:
           auto-update-conda: true
-          channels: conda-forge, defaults
+          channels: defaults
           conda-remove-defaults: "true"
       - name: Install compiler and Python dependencies
         run: conda install ${{ matrix.gfortran }} pip pyyaml
@@ -75,6 +75,8 @@ jobs:
         uses: actions/checkout@v7
         with:
           submodules: recursive
+      - name: Show gfortran version
+        run: gfortran --version
       - name: Run all test cases with host emulators
         run: python util/developers/run_all_testcases.py harness --show_logs --compiler $GFORTRAN ${{ matrix.cmake_args }}
         env:
