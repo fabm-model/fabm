@@ -76,13 +76,13 @@ jobs:
         with:
           submodules: recursive
       - name: Show gfortran version
-        run: gfortran --version
+        run: ${GFORTRAN:-gfortran} --version
       - name: Run all test cases with host emulators
-        run: python util/developers/run_all_testcases.py harness --show_logs --compiler $GFORTRAN ${{ matrix.cmake_args }}
+        run: python util/developers/run_all_testcases.py harness --show_logs --compiler ${GFORTRAN:-gfortran} ${{ matrix.cmake_args }}
         env:
           FFLAGS: -fcheck=all
       - name: Run all test cases with pyfabm
-        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler $GFORTRAN ${{ matrix.cmake_args }}
+        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler ${GFORTRAN:-gfortran} ${{ matrix.cmake_args }}
         env:
           FFLAGS: -fcheck=all
   ifort:
