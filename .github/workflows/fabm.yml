@@ -9,7 +9,7 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       matrix:
-        version: [9, 10, 11, 12, 13, 14]
+        version: [11, 12, 13, 14]
         os: [ubuntu-latest]
         cmake_args: ["-DFABM_EXTRA_INSTITUTES=template"]
         # include:
@@ -56,7 +56,7 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       matrix:
-        version: [7, 8]
+        gfortran: ["gfortran_linux-64=7", "gfortran_linux-64=8", "-c conda-forge gfortran=9", "-c conda-forge gfortran=10"]
       fail-fast: false
     runs-on: ubuntu-latest
     defaults:
@@ -70,17 +70,19 @@ jobs:
           channels: defaults
           conda-remove-defaults: "true"
       - name: Install compiler and Python dependencies
-        run: conda install gfortran_linux-64=${{ matrix.version }} pip pyyaml
+        run: conda install ${{ matrix.gfortran }} pip pyyaml
       - name: Clone repository
         uses: actions/checkout@v7
         with:
           submodules: recursive
+      - name: Show gfortran version
+        run: ${GFORTRAN:-gfortran} --version
       - name: Run all test cases with host emulators
-        run: python util/developers/run_all_testcases.py harness --show_logs --compiler $GFORTRAN ${{ matrix.cmake_args }}
+        run: python util/developers/run_all_testcases.py harness --show_logs --compiler ${GFORTRAN:-gfortran} ${{ matrix.cmake_args }}
         env:
           FFLAGS: -fcheck=all
       - name: Run all test cases with pyfabm
-        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler $GFORTRAN ${{ matrix.cmake_args }}
+        run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler ${GFORTRAN:-gfortran} ${{ matrix.cmake_args }}
         env:
           FFLAGS: -fcheck=all
   ifort:
@@ -235,6 +237,14 @@ jobs:
           NVHPC_SILENT: true
           NVHPC_INSTALL_DIR: /home/runner/nvhpc
           NVHPC_INSTALL_TYPE: single
+      - name: Install patchelf and use it to patch NVIDIA libs
+        run: |
+          sudo apt-get update
+          sudo apt-get install patchelf
+          for file in $(find /home/runner/nvhpc -name libnvomp.so); do
+            echo "Patching $file"
+            sudo patchelf --clear-execstack $file
+          done
       - name: Clone repository
         uses: actions/checkout@v7
         with:
