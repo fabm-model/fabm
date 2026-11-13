@@ -237,6 +237,14 @@ jobs:
           NVHPC_SILENT: true
           NVHPC_INSTALL_DIR: /home/runner/nvhpc
           NVHPC_INSTALL_TYPE: single
+      - name: Install patchelf and use it to patch NVIDIA libs
+        run: |
+          sudo apt-get update
+          sudo apt-get install patchelf
+          for file in $(find /home/runner/nvhpc -name libnvomp.so); do
+            echo "Patching $file"
+            sudo patchelf --clear-execstack $file
+          done
       - name: Clone repository
         uses: actions/checkout@v7
         with:
@@ -245,8 +253,6 @@ jobs:
         run: python util/developers/run_all_testcases.py harness --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/nvfortran
       - name: Run all test cases with pyfabm
         run: python util/developers/run_all_testcases.py pyfabm --show_logs --compiler /home/runner/nvhpc/Linux_x86_64/${{ matrix.version }}/compilers/bin/nvfortran
-        env:
-          GLIBC_TUNABLES: "glibc.rtld.execstack=2"  # to prevent "cannot enable executable stack as shared object requires" on Ubuntu 26.04
   aocc:
     # for available versions, see https://github.com/spack/spack-packages/blob/develop/repos/spack_repo/builtin/packages/aocc/package.py
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
