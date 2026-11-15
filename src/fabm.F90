@@ -2995,11 +2995,11 @@ contains
 #endif
 
       ! Collect missing values in array for faster access. These will be used to fill masked parts of outputs.
-      call collect_fill_values(self%variable_register%store%interior,   self%store%interior_fill_value,      use_missing=.false.)
-      call collect_fill_values(self%variable_register%store%horizontal, self%store%horizontal_fill_value,    use_missing=.false.)
-      call collect_fill_values(self%variable_register%store%scalar,     self%store%scalar_fill_value,        use_missing=.false.)
-      call collect_fill_values(self%variable_register%store%interior,   self%store%interior_missing_value,   use_missing=.true.)
-      call collect_fill_values(self%variable_register%store%horizontal, self%store%horizontal_missing_value, use_missing=.true.)
+      call collect_fill_values_ext(self%variable_register%store%interior,   self%store%interior_fill_value,      use_missing=.false.)
+      call collect_fill_values_ext(self%variable_register%store%horizontal, self%store%horizontal_fill_value,    use_missing=.false.)
+      call collect_fill_values_ext(self%variable_register%store%scalar,     self%store%scalar_fill_value,        use_missing=.false.)
+      call collect_fill_values_ext(self%variable_register%store%interior,   self%store%interior_missing_value,   use_missing=.true.)
+      call collect_fill_values_ext(self%variable_register%store%horizontal, self%store%horizontal_missing_value, use_missing=.true.)
 
       call reset_store(self)
 
@@ -3043,7 +3043,7 @@ contains
 
    subroutine collect_fill_values(variable_list, values, use_missing)
       type (type_variable_list), intent(in)  :: variable_list
-      real(rke), allocatable,    intent(out) :: values(:)
+      real(rki), allocatable,    intent(out) :: values(:)
       logical,                   intent(in)  :: use_missing
 
       integer                            :: i
@@ -3060,7 +3060,19 @@ contains
          variable_node => variable_node%next
       end do
    end subroutine
-   
+
+   subroutine collect_fill_values_ext(variable_list, values, use_missing)
+      type (type_variable_list), intent(in)  :: variable_list
+      real(rke), allocatable,    intent(out) :: values(:)
+      logical,                   intent(in)  :: use_missing
+
+      real(rki), allocatable :: values_int(:)
+
+      call collect_fill_values(variable_list, values_int, use_missing)
+      allocate(values(size(values_int)))
+      values(:) = real(values_int, rke)
+   end subroutine
+
    subroutine reset_store(self)
       class (type_fabm_model), intent(inout) :: self
 

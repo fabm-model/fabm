@@ -105,7 +105,7 @@ contains
       call self%add_scalar_variable("icurrent", link=self%icurrent%link, source=source_global, output=output_none)
       self%last_exact_mean%link%target%prefill_value = 0.0_rk
       self%mean%link%target%prefill_value = self%missing_value
-      self%start_time%link%target%prefill_value = -huge(self%start_time%p)
+      self%start_time%link%target%prefill_value = -huge(0.0_rk)
       self%icurrent%link%target%prefill_value = 1.0_rk
       self%previous_value%link%target%part_of_state = .true.
       self%previous_time%link%target%part_of_state = .true.
@@ -146,7 +146,7 @@ contains
       call self%add_scalar_variable("icurrent", link=self%icurrent%link, source=source_global, output=output_none)
       self%last_exact_mean%link%target%prefill_value = 0.0_rk
       self%mean%link%target%prefill_value = self%missing_value
-      self%start_time%link%target%prefill_value = -huge(self%start_time%p)
+      self%start_time%link%target%prefill_value = -huge(0.0_rk)
       self%icurrent%link%target%prefill_value = 1.0_rk
       self%previous_value%link%target%part_of_state = .true.
       self%previous_time%link%target%part_of_state = .true.
@@ -199,7 +199,7 @@ contains
       call self%add_scalar_variable("start_time", link=self%start_time%link, source=source_global, output=output_none)
       call self%add_scalar_variable("icurrent", link=self%current%link, source=source_global, output=output_none)
       self%maximum%link%target%prefill_value = self%missing_value
-      self%start_time%link%target%prefill_value = -huge(self%start_time%p)
+      self%start_time%link%target%prefill_value = -huge(0.0_rk)
       self%current%link%target%prefill_value = 1.0_rk
       self%maximum%link%target%part_of_state = .true.
       self%previous_value%link%target%part_of_state = .true.
@@ -256,7 +256,7 @@ contains
 
       dt_bin = self%window / self%n
 
-      if (self%start_time%p == -huge(self%start_time%p)) then
+      if (self%start_time%p == -huge(0.0_rk)) then
          self%start_time%p = time
          self%previous_time%p = time
       end if
@@ -396,7 +396,7 @@ contains
 
       dt_bin = self%window / self%n
 
-      if (self%start_time%p == -huge(self%start_time%p)) then
+      if (self%start_time%p == -huge(0.0_rk)) then
          self%start_time%p = time
          self%previous_time%p = time
       end if
@@ -533,7 +533,7 @@ contains
       ! Note that all array processing below uses explicit loops in order to respect
       ! any limits on the active domain given by the _LOCATION_RANGE_ argument.
 
-      if (self%start_time%p == -huge(self%start_time%p)) self%start_time%p = time
+      if (self%start_time%p == -huge(0.0_rk)) self%start_time%p = time
 
       icurrent = self%current%p
       icurrentbin = mod(icurrent - 1, self%n) + 1
