@@ -146,7 +146,7 @@ contains
       call self%add_scalar_variable("icurrent", link=self%icurrent%link, source=source_global, output=output_none)
       self%last_exact_mean%link%target%prefill_value = 0.0_rk
       self%mean%link%target%prefill_value = self%missing_value
-      self%start_time%link%target%prefill_value = -huge(0.0_rk
+      self%start_time%link%target%prefill_value = -huge(0.0_rk)
       self%icurrent%link%target%prefill_value = 1.0_rk
       self%previous_value%link%target%part_of_state = .true.
       self%previous_time%link%target%part_of_state = .true.
