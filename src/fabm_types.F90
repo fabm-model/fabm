@@ -2069,9 +2069,6 @@ contains
                   & outside allowed range', variable%minimum, 'to', variable%maximum
             call self%fatal_error('fill_internal_variable', text)
          end if
-
-         ! Store a pointer to the variable that should hold the state variable index.
-         call variable%state_indices%append(state_index)
       end if
 
       ! Set the background value (0 by default)
