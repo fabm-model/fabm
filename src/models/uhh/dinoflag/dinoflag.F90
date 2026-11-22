@@ -37,6 +37,7 @@
       type (type_surface_state_variable_id):: ssv_meanllim
       type (type_horizontal_dependency_id) :: bsv_meanllim, id_meanres
       type (type_diagnostic_variable_id)   :: id_gr, id_tvg, id_tgr, id_trg, id_tgv, id_llim, id_nlim, id_tlim, id_glim, id_veg_gam_rat 
+      type (type_state_variable_id)        :: id_dic
  
 !     Model parameters
       real(rk) :: mumax
@@ -51,7 +52,8 @@
       real(rk) :: rkc
       real(rk) :: gr_crit
       real(rk) :: l_crit
-      real(rk) :: tmat_crit 
+      real(rk) :: tmat_crit
+      
       real(rk) :: mdt
       real(rk) :: trate_veg_gam
       real(rk) :: trate_gam_res
@@ -127,6 +129,7 @@
    character(len=64)         :: nitrate_variable
    character(len=64)         :: detritus_variable
    character(len=64)         :: oxygen_variable
+   character(len=64)         :: dic_variable
 
   namelist /uhh_dinoflag/ mumax,vmort,     &
                       rkn,rdepo, trate_veg_gam,trate_gam_res,  &
@@ -137,15 +140,16 @@
                       ammonium_variable,nitrate_variable,      &
                       phosphate_variable, detritus_variable,   &
                       oxygen_variable,minimum_nitrate,         &
-                      tmat_initial
+                      dic_variable, tmat_initial
 
    nitrate_variable = 'uhh_ergom_split_base_nit'
    ammonium_variable = 'uhh_ergom_split_base_amm'
    phosphate_variable = 'uhh_ergom_split_base_pho'
    detritus_variable = 'uhh_ergom_split_base_det'
    oxygen_variable = 'uhh_ergom_split_base_oxy'
+   dic_variable = ''
 
-   ! Read the namelist
+   !! Read the namelist
    if (configunit>=0) read(configunit,nml=uhh_dinoflag,err=99)
 
    ! set dependency switches
@@ -156,6 +160,10 @@
    ! Store parameter values in our own derived type
    ! NB: all rates must be provided in values per day,
    ! and are converted here to values per second.
+!   call self%get_parameter(self%veg_initial, 'veg_initial', default=veg_initial)
+!   call self%get_parameter(self%gam_initial, 'gam_initial', default=gam_initial)
+!   call self%get_parameter(self%res_initial, 'res_initial', default=res_initial)
+!   call self%get_parameter(self%ger_initial, 'ger_initial', default=ger_initial)
    call self%get_parameter(self%mumax, 'mumax', default=mumax,scale_factor=one_pr_day)
    call self%get_parameter(self%vmort, 'vmort', default=vmort,scale_factor=one_pr_day)
    call self%get_parameter(self%rkn, 'rkn', default=rkn)
@@ -201,14 +209,14 @@
          minimum=0.0e-7_rk,vertical_movement=self%w_ger)
 
    call self%register_bottom_state_variable(self%bsv_rsum,'rsum', &
-         'mmol n/m**3','time-integrated maximum bottom biomass', &
+         'mmol n/m**3','time-integrated maximum bottom biomass' , &
          initial_value=3.0_rk*tmat_initial)
 
    call self%register_bottom_state_variable(self%bsv_rmax,'rmax', &
          'mmol n/m**3','maximum bottom biomass', initial_value=3.0_rk)
 
    call self%register_surface_state_variable(self%ssv_meanllim,'meanllim', &
-         '1/1','mean light limitation', initial_value=0.5_rk)
+         '1/1','mean light limitation' , initial_value=0.5_rk)
 
    ! Register dependencies on external standard variables
    if (self%use_ammonium) &
@@ -238,6 +246,10 @@
    call self%request_coupling(self%id_detritus,detritus_variable)
    if (self%use_oxygen) &
      call self%request_coupling(self%id_oxygen, oxygen_variable)
+   
+   ! Register optional link to external DIC pool
+   call self%register_state_dependency(self%id_dic,'dic','mmol/m**3','total dissolved inorganic carbon',required=.false.)
+   if (dic_variable/='') call self%request_coupling(self%id_dic,dic_variable)
 
    ! Register environmental dependencies
    call self%register_dependency(self%id_par, standard_variables%downwelling_photosynthetic_radiative_flux)
@@ -248,7 +260,7 @@
 !   call self%register_diagnostic_variable(self%id_sl,'sigma_l','', &
 !      'light limitation factor', output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_tmat,'tmat','d', &
-      'maturation time', output=output_instantaneous, source=source_do_bottom)
+      'maturation time', output=output_instantaneous, source=source_do_bottom )
    call self%register_diagnostic_variable(self%id_gr,'gr_veg','1/d', &
       'relative growth rate', output=output_instantaneous)
    call self%register_diagnostic_variable(self%id_tvg,'tau_veg_gam','1/d', &
@@ -290,7 +302,7 @@
    real(rk) :: tau_res_ger,tau_ger_veg,tau_veg_gam,tau_gam_res
    real(rk) :: doy
    real(rk) :: meanres
-   real(rk) :: tmat,rsum,rmax
+   !real(rk) :: tmat,rsum,rmax
    logical  :: res_ger_maturation
 
    _LOOP_BEGIN_
@@ -319,17 +331,7 @@
    _GET_(self%id_par,par)              ! local photosynthetically active radiation
    _GET_(self%id_temp,temp)            ! local temperature
    _GET_GLOBAL_(self%id_doy,doy)       ! day of year
-
-   ! get and calculate maturation time
-   _GET_HORIZONTAL_(self%bsv_rmax,rmax)  ! maximum bottom biomass
-   _GET_HORIZONTAL_(self%bsv_rsum,rsum)  ! integrated maximum biomass
-
-   if(rmax .eq. 0) then 
-     tmat = 0_rk
-   else
-     tmat = rsum/rmax   
-   end if
-   
+ 
    ! some diagnostics
    
    if(veg .eq. 0) then 
@@ -341,7 +343,7 @@
    ! vegetatives growth
    llim=1.0_rk - exp( -(self%alpha_dfl * par) / self%mumax)
    nlim=nut/(nut+self%rkn)
-   tlim=0.5_rk *(tanh(0.8_rk * (temp - 2.3_rk)) - (tanh(3.0_rk *(temp - 8.5_rk)) ))
+   tlim=0.5_rk *(tanh(3.0_rk * (temp - 1.120_rk)) - (tanh(3.0_rk *(temp - 8.5_rk)) ))
    glim=0.27_rk *  (2.7_rk -tanh(100.0_rk * (veg_gam_rat - self%qg)))
    gr_veg= self%mumax*llim*nlim*tlim*glim
 
@@ -353,7 +355,7 @@
    !  so far, replaced integrated variables by local conditions
    
    ! ger -> veg
-   tau_ger_veg=self%trate_ger_veg * (1.0_rk-exp(-0.5_rk*par))
+   tau_ger_veg=self%trate_ger_veg * (1.0_rk-exp(-0.5_rk*par)) 
    ! veg -> gam
    tau_veg_gam=self%trate_veg_gam*(1.0_rk + 4.5_rk*( 0.5_rk*(1.0_rk+tanh((temp-4.5_rk)/0.5_rk)) ) )
    ! gam -> res
@@ -361,23 +363,27 @@
      tau_gam_res=self%trate_gam_res*0.5_rk*(1.0_rk+tanh((temp-4.5_rk)/0.5_rk))
                 
    ! Set temporal derivatives
-   _ADD_SOURCE_(self%id_veg,veg*(gr_veg - self%vmort) - veg*tau_veg_gam + ger*tau_ger_veg)
-   _ADD_SOURCE_(self%id_gam,-gam*self%vmort - gam*tau_gam_res + veg*tau_veg_gam)
-   _ADD_SOURCE_(self%id_ger,-ger*self%vmort - ger*tau_ger_veg) 
-   _ADD_SOURCE_(self%id_res,gam*tau_gam_res)
+   _SET_ODE_(self%id_veg,veg*(gr_veg - self%vmort) - veg*tau_veg_gam + ger*tau_ger_veg)
+   _SET_ODE_(self%id_gam,-gam*self%vmort - gam*tau_gam_res + veg*tau_veg_gam)
+   _SET_ODE_(self%id_ger,-ger*self%vmort - ger*tau_ger_veg)
+   _SET_ODE_(self%id_res,gam*tau_gam_res)
    ni = max(ni, self%minimum_nitrate)
    
    ! external nutrients
-   _ADD_SOURCE_(self%id_nitrate,-veg*gr_veg * ni/(ni+am))
+   _SET_ODE_(self%id_nitrate,-veg*gr_veg * ni/(ni+am))
    if (self%use_ammonium) then
-     _ADD_SOURCE_(self%id_ammonium,-veg*gr_veg * am/(ni+am))
+     _SET_ODE_(self%id_ammonium,-veg*gr_veg * am/(ni+am))
    end if
-   _ADD_SOURCE_(self%id_detritus,(veg+gam+ger)*self%vmort)
+   _SET_ODE_(self%id_detritus,(veg+gam+ger)*self%vmort)
    if (self%use_phosphate) then
-     _ADD_SOURCE_(self%id_phosphate, -self%sr *veg*gr_veg)
+     _SET_ODE_(self%id_phosphate, -self%sr *veg*gr_veg)
    end if
    ! add oxygen dynamics
-    _ADD_SOURCE_(self%id_oxygen, (self%s2 *am/(am+ni) + self%s3* ni/(am+ni))*veg*gr_veg)
+    _SET_ODE_(self%id_oxygen, (self%s2 *am/(am+ni) + self%s3* ni/(am+ni))*veg*gr_veg)
+
+   ! set DIC sink, if available
+   if (_AVAILABLE_(self%id_dic)) &
+     _SET_ODE_(self%id_dic,-self%s2*veg*gr_veg)
 
    ! Export diagnostic variables
    _SET_DIAGNOSTIC_(self%id_gr,gr_veg*secs_pr_day)   
@@ -435,13 +441,13 @@
 
    ! Retrieve current (local) state variable values.
    _GET_(self%id_res,res)                    ! biomass
+   _GET_(self%id_temp,temp)
    _GET_HORIZONTAL_(self%bsv_rmax,rmax)      ! maximum bottom biomass
    _GET_HORIZONTAL_(self%bsv_rsum,rsum)      ! maximum integrated bottom biomass
-   _GET_(self%id_temp,temp)                  ! local temperature
-!   _ADD_BOTTOM_FLUX_(self%id_res,-self%rdepo*res*res)
+!   _SET_BOTTOM_EXCHANGE_(self%id_res,-self%rdepo*res*res)
 
-   _ADD_BOTTOM_SOURCE_(self%bsv_rsum,rmax*one_pr_day)
-   
+   _SET_BOTTOM_ODE_(self%bsv_rsum,rmax*one_pr_day)
+   ! res > ger
    if(rmax .eq. 0) then
      tmat = 0_rk
    else
@@ -453,8 +459,8 @@
     tau_res_ger=self%trate_res_ger *((0.5_rk *tanh(8._rk  *(temp+0.1_rk)) +0.5_rk) &
                  -(0.5_rk *tanh(0.8_rk *( temp-6.6_rk)) +0.5_rk))
 
-   _ADD_BOTTOM_FLUX_(self%id_ger, res*tau_res_ger)
-   _ADD_BOTTOM_FLUX_(self%id_res,-self%rdepo*res*res - res*tau_res_ger)      
+   _SET_BOTTOM_EXCHANGE_(self%id_ger, res*tau_res_ger)
+   _SET_BOTTOM_EXCHANGE_(self%id_res,-self%rdepo*res*res - res*tau_res_ger)      
    _GET_HORIZONTAL_(self%id_meanres,meanres)
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_meanres_diag,meanres) 
    _SET_HORIZONTAL_DIAGNOSTIC_(self%id_tmat,tmat)
@@ -522,4 +528,3 @@
 
 
    end module fabm_uhh_dinoflag
-
