@@ -513,3 +513,9 @@ contains
    end subroutine horizontal_weighted_sum_do_horizontal
 
 end module
+
+!------------------------------------------------------------------------------
+! SPDX-FileCopyrightText: 2009-2026 Bolding & Bruggeman ApS
+! SPDX-FileCopyrightText: 2027 Bruggeman Marine Models Ltd
+! SPDX-License-Identifier: GPL-2.0-only
+!------------------------------------------------------------------------------

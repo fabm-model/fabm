@@ -322,3 +322,9 @@ subroutine get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
 end subroutine get_vertical_movement
 
 end module
+
+!------------------------------------------------------------------------------
+! SPDX-FileCopyrightText: 2009-2026 Bolding & Bruggeman ApS
+! SPDX-FileCopyrightText: 2027 Bruggeman Marine Models Ltd
+! SPDX-License-Identifier: GPL-2.0-only
+!------------------------------------------------------------------------------

@@ -1227,6 +1227,8 @@ contains
 
 end module fabm_c
 
-!-----------------------------------------------------------------------
-! Copyright Bolding & Bruggeman ApS - Public License - www.gnu.org
-!-----------------------------------------------------------------------
+!------------------------------------------------------------------------------
+! SPDX-FileCopyrightText: 2009-2026 Bolding & Bruggeman ApS
+! SPDX-FileCopyrightText: 2027 Bruggeman Marine Models Ltd
+! SPDX-License-Identifier: GPL-2.0-only
+!------------------------------------------------------------------------------
