@@ -152,7 +152,7 @@
       print '(a)', 'fabm0d options:'
       print '(a)', ''
       print '(a)', '  -h, --help        print usage information and exit'
-      print '(a)', '  -r, --run_nml     namelist file with simualtion settings - default run.nml' 
+      print '(a)', '  -r, --run_nml     namelist file with simualtion settings - default run.nml'
       print '(a)', '  -y, --yaml file   yaml-formatted file FABM configuration - default fabm.yaml'
       print '(a)', ''
    end subroutine print_help

@@ -2678,7 +2678,7 @@ contains
          value_ = value
       else
          value_ = default
-      end if      
+      end if
    end function
 
    function get_effective_display(display, user_created) result(display_)
@@ -2692,7 +2692,7 @@ contains
          display_ = display_normal
       else
          display_ = display_inherit
-      end if    
+      end if
    end function
 
    subroutine get_real_parameter(self, value, name, units, long_name, default, scale_factor, minimum, maximum, display)
@@ -2748,7 +2748,7 @@ contains
       integer,                 intent(in), optional  :: default, minimum, maximum
       type (type_option),      intent(in), optional  :: options(:)
       integer,                 intent(in), optional  :: display
-   
+
       value = self%parameters%get_integer(name, get_effective_string(long_name, name), units, &
          default, minimum, maximum, options, display=get_effective_display(display, self%user_created))
    end subroutine get_integer_parameter

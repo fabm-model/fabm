@@ -838,7 +838,7 @@ contains
 
 #ifdef _HAS_MASK_
                if (_IS_UNMASKED_(model%p%domain%mask_hz _INDEX_HORIZONTAL_LOCATION_)) then
-#endif   
+#endif
 
                   sources_interior_(_PREARG_LOCATION_ :) = sources_interior_(_PREARG_LOCATION_ :) &
 #ifdef _HORIZONTAL_IS_VECTORIZED_

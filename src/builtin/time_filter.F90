@@ -283,13 +283,13 @@ contains
             ! We already had a complete history (bins covering the full window size). Add the newly full bin, subtract the oldest bin
             _BEGIN_GLOBAL_LOOP_
                self%last_exact_mean%p _INDEX_LOCATION_ = self%last_exact_mean%p _INDEX_LOCATION_ &
-                  - self%history(ioldest)%p _INDEX_LOCATION_  + self%history(icurrentbin)%p _INDEX_LOCATION_ 
+                  - self%history(ioldest)%p _INDEX_LOCATION_  + self%history(icurrentbin)%p _INDEX_LOCATION_
             _END_GLOBAL_LOOP_
          else
             ! History is incomplete - just add newly filled bin
             _BEGIN_GLOBAL_LOOP_
                self%last_exact_mean%p _INDEX_LOCATION_ = self%last_exact_mean%p _INDEX_LOCATION_  &
-                  + self%history(icurrentbin)%p _INDEX_LOCATION_ 
+                  + self%history(icurrentbin)%p _INDEX_LOCATION_
             _END_GLOBAL_LOOP_
          end if
 
@@ -322,7 +322,7 @@ contains
          _BEGIN_GLOBAL_LOOP_
             self%mean%p _INDEX_LOCATION_ = self%last_exact_mean%p _INDEX_LOCATION_ &
                + self%history(icurrentbin)%p _INDEX_LOCATION_  &
-               - scale * self%history(ioldest)%p _INDEX_LOCATION_ 
+               - scale * self%history(ioldest)%p _INDEX_LOCATION_
          _END_GLOBAL_LOOP_
       elseif (self%use_incomplete_result) then
          if (self%start_time%p == time) then
@@ -423,13 +423,13 @@ contains
             ! We already had a complete history (bins covering the full window size). Add the newly full bin, subtract the oldest bin
             _BEGIN_OUTER_VERTICAL_LOOP_
                self%last_exact_mean%p _INDEX_HORIZONTAL_LOCATION_ = self%last_exact_mean%p _INDEX_HORIZONTAL_LOCATION_ &
-                  - self%history(ioldest)%p _INDEX_HORIZONTAL_LOCATION_  + self%history(icurrentbin)%p _INDEX_HORIZONTAL_LOCATION_ 
+                  - self%history(ioldest)%p _INDEX_HORIZONTAL_LOCATION_  + self%history(icurrentbin)%p _INDEX_HORIZONTAL_LOCATION_
             _END_OUTER_VERTICAL_LOOP_
          else
             ! History is incomplete - just add newly filled bin
             _BEGIN_OUTER_VERTICAL_LOOP_
                self%last_exact_mean%p _INDEX_HORIZONTAL_LOCATION_ = self%last_exact_mean%p _INDEX_HORIZONTAL_LOCATION_  &
-                  + self%history(icurrentbin)%p _INDEX_HORIZONTAL_LOCATION_ 
+                  + self%history(icurrentbin)%p _INDEX_HORIZONTAL_LOCATION_
             _END_OUTER_VERTICAL_LOOP_
          end if
 
