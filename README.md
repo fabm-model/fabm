@@ -16,3 +16,10 @@ FABM is further described in:
 Bruggeman, J., Bolding, K., 2014. A general framework for aquatic biogeochemical models.
 Environmental Modelling & Software 61: 249–265.
 DOI: [10.1016/j.envsoft.2014.04.002](http://doi.org/10.1016/j.envsoft.2014.04.002)
+
+FABM  is licensed under the GNU General Public License version 2 (GPLv2).
+See [COPYING](COPYING) for the full license text.
+
+For the FABM core (all files except those under src/models) the following applies:  
+Copyright (C) 2009-2026 Bolding & Bruggeman ApS  
+Copyright (C) 2027 Bruggeman Marine Models Ltd
